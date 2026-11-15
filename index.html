@@ -4,143 +4,159 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Storyforge Studio</title>
-<meta name="description" content="Free AI studio that turns a prompt into an animated, narrated, captioned educational video (MP4). Runs in your browser.">
-<meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23D97757'/%3E%3Cpath d='M16 6v20M6 16h20M9 9l14 14M23 9 9 23' stroke='%23FAF9F5' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta name="description" content="Free AI studio that turns a written brief into an animated, narrated, captioned video (MP4). Runs in your browser.">
+<meta name="theme-color" content="#EEEDE0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1A1C13" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23576327'/%3E%3Crect x='8' y='9' width='16' height='14' rx='2' fill='none' stroke='%23F4F3E7' stroke-width='2.4'/%3E%3Cpath d='M8 13h16' stroke='%23F4F3E7' stroke-width='2.4'/%3E%3Cpath d='M11 9l3 4M16 9l3 4' stroke='%23F4F3E7' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <div class="app" id="app">
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">
-      <svg class="spark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17" /></svg>
+  <header class="masthead">
+    <a class="wordmark" href="./" id="btnHome" aria-label="Storyforge home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="21" rx="3"/><path d="M3 12.5h26"/><path d="M8.5 6l4 6.5M15.5 6l4 6.5M22.5 6l4 6.5"/></svg>
       <span>Storyforge</span>
-      <span class="tag">studio</span>
-    </div>
-    <button class="btn-new" id="btnNew"><span class="plus">+</span> New video</button>
-    <div class="side-label">Recent</div>
-    <nav class="history" id="history"></nav>
-    <div class="side-foot">
-      <button class="side-link" id="btnSettings">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-        Settings &amp; free keys
-      </button>
-      <button class="side-link" id="btnTheme">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-        <span id="themeLabel">Theme</span>
-      </button>
-      <p class="side-note mono">free · open · runs in your browser</p>
-    </div>
-  </aside>
-
-  <header class="topbar">
-    <button class="icon-btn" id="btnMenu" aria-label="Open menu"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
-    <div class="brand small"><svg class="spark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17" /></svg><span>Storyforge</span></div>
-    <button class="icon-btn" id="btnNewTop" aria-label="New video"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </a>
+    <nav class="mast-nav">
+      <button class="nav-btn primary" id="btnNew"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New film</span></button>
+      <button class="nav-btn" id="btnLibrary" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 4v16"/></svg><span>Library</span><b class="count" id="libCount"></b></button>
+      <button class="nav-btn" id="btnSettings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></button>
+      <button class="nav-btn icon" id="btnTheme" aria-label="Switch theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" class="fill"/></svg><span class="sr" id="themeLabel">Theme</span></button>
+    </nav>
   </header>
+
+  <aside class="library" id="sidebar" aria-label="Library">
+    <div class="lib-head">
+      <h2>Library</h2>
+      <button class="nav-btn icon" id="btnCloseLib" aria-label="Close library"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="fine">Scripts are kept in this browser only. Opening one rebuilds its visuals and voice.</p>
+    <nav class="history" id="history"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
 
   <main class="main">
     <!-- HOME -->
     <section class="view home" id="viewHome">
-      <div class="home-inner">
-        <h1 class="greeting"><svg class="spark big" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17" /></svg><span id="greetText">What should we explain today?</span></h1>
+      <div class="home-grid">
+        <div class="brief-col">
+          <p class="eyebrow">Production brief</p>
+          <h1 class="headline">Write the brief.<br><em>Get back a finished film.</em></h1>
+          <p class="lede">Describe any video. Storyforge writes the script, checks the facts, paints every shot, moves a 3D camera through them, narrates and scores it, then hands you an MP4.</p>
 
-        <form class="composer" id="composer" autocomplete="off">
-          <div class="seg mode-seg" role="tablist">
-            <button type="button" class="on" data-mode="ai">AI writes the script</button>
-            <button type="button" data-mode="own">I'll paste my script</button>
-          </div>
-          <textarea id="topic" rows="3" placeholder="Describe any video — e.g. How ancient Greeks proved the Earth was round using a lunar eclipse and a stick in Egypt"></textarea>
-          <textarea id="ownScript" rows="6" class="hidden" placeholder="Paste your narration here. Each sentence or two becomes a scene. Put the topic in the box above so the visuals match."></textarea>
-          <div class="composer-row">
-            <div class="chips">
-              <div class="seg" id="formatSeg" role="radiogroup" aria-label="Frame">
-                <button type="button" class="on" data-format="9:16" title="Shorts · TikTok · Reels"><i class="fr fr-916"></i>9:16</button>
-                <button type="button" data-format="16:9" title="Regular YouTube video"><i class="fr fr-169"></i>16:9</button>
-                <button type="button" data-format="1:1" title="Square post"><i class="fr fr-11"></i>1:1</button>
-                <button type="button" data-format="4:5" title="Instagram feed"><i class="fr fr-45"></i>4:5</button>
+          <form class="sheet" id="composer" autocomplete="off">
+            <div class="sheet-tabs mode-seg" role="tablist">
+              <button type="button" class="on" data-mode="ai">Write it for me</button>
+              <button type="button" data-mode="own">Use my script</button>
+            </div>
+            <label class="slot slot-big"><span class="lbl">Logline</span>
+              <textarea id="topic" rows="3" placeholder="How ancient Greeks proved the Earth was round using a lunar eclipse and a stick in Egypt"></textarea>
+            </label>
+            <label class="slot slot-big hidden" id="ownWrap"><span class="lbl">Narration</span>
+              <textarea id="ownScript" rows="6" placeholder="Paste your narration. Every sentence or two becomes one shot."></textarea>
+            </label>
+
+            <div class="slot"><span class="lbl">Frame</span>
+              <div class="frames" id="formatSeg" role="radiogroup" aria-label="Frame">
+                <button type="button" class="on" data-format="9:16" title="Shorts, TikTok, Reels"><i style="width:14px;height:25px"></i><span>9:16</span></button>
+                <button type="button" data-format="16:9" title="YouTube video"><i style="width:30px;height:17px"></i><span>16:9</span></button>
+                <button type="button" data-format="1:1" title="Square post"><i style="width:21px;height:21px"></i><span>1:1</span></button>
+                <button type="button" data-format="4:5" title="Instagram feed"><i style="width:19px;height:24px"></i><span>4:5</span></button>
               </div>
-              <label class="chip"><span>Length</span><select id="duration"></select></label>
-              <label class="chip"><span>Pace</span><select id="pace"></select></label>
-              <label class="chip"><span>Style</span><select id="style"></select></label>
-              <label class="chip"><span>Voice</span><select id="voice"></select></label>
-              <label class="chip"><span>Music</span><select id="mood"></select></label>
-              <button type="button" class="chip ghost" id="btnMore" aria-expanded="false">+ Options</button>
             </div>
-            <button class="send" id="btnGo" type="submit" aria-label="Generate video">
-              <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-            </button>
-          </div>
-          <div class="more hidden" id="morePanel">
-            <input id="extra" type="text" placeholder="Creator notes (optional): tone, audience, facts to include, ending twist…">
-            <div class="opt-row">
-              <label class="chip"><span>Quality</span><select id="quality"><option value="720">720p · fastest</option><option value="1080">1080p · HD</option><option value="1440">1440p · 2K</option></select></label>
-              <label class="chip"><span>FPS</span><select id="fps"><option value="24">24 · film</option><option value="30">30</option><option value="60">60 · smooth</option></select></label>
-            </div>
-            <label class="check"><input type="checkbox" id="reviewFirst"> Let me review the storyboard before rendering</label>
-          </div>
-        </form>
 
-        <div class="examples" id="examples"></div>
-        <p class="fine mono">No sign-up · free AI script, visuals &amp; voice · 3D camera runs on your device · private: nothing is posted, you download the MP4</p>
+            <div class="slot-grid">
+              <label class="slot"><span class="lbl">Runtime</span><select id="duration"></select></label>
+              <label class="slot"><span class="lbl">Pace</span><select id="pace"></select></label>
+              <label class="slot"><span class="lbl">Look</span><select id="style"></select></label>
+              <label class="slot"><span class="lbl">Narrator</span><select id="voice"></select></label>
+              <label class="slot"><span class="lbl">Score</span><select id="mood"></select></label>
+              <button type="button" class="slot slot-btn" id="btnMore" aria-expanded="false"><span class="lbl">More</span><span>Quality, notes…</span></button>
+            </div>
+
+            <div class="more hidden" id="morePanel">
+              <label class="slot"><span class="lbl">Director's notes</span><input id="extra" type="text" placeholder="Tone, audience, facts to include, the ending twist…"></label>
+              <div class="slot-grid two">
+                <label class="slot"><span class="lbl">Quality</span><select id="quality"><option value="720">720p · fastest</option><option value="1080">1080p · HD</option><option value="1440">1440p · 2K</option></select></label>
+                <label class="slot"><span class="lbl">Frame rate</span><select id="fps"><option value="24">24 fps · film</option><option value="30">30 fps</option><option value="60">60 fps · smooth</option></select></label>
+              </div>
+              <label class="check"><input type="checkbox" id="reviewFirst"> Stop at the storyboard so I can edit before rendering</label>
+            </div>
+
+            <div class="sheet-foot">
+              <p class="fine">No sign-up. Free and private: nothing is posted anywhere.</p>
+              <button class="go" id="btnGo" type="submit">Roll camera <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </div>
+          </form>
+        </div>
+
+        <aside class="ideas-col">
+          <p class="eyebrow">Need an idea?</p>
+          <div class="ideas" id="examples"></div>
+          <div class="how">
+            <p class="eyebrow">What happens when you roll</p>
+            <ol class="how-list">
+              <li><b>Script</b> written and fact-checked by free AI</li>
+              <li><b>Shots</b> painted, then turned 3D with a depth map</li>
+              <li><b>Voice</b> recorded on your own device</li>
+              <li><b>Score</b> composed, mixed, rendered to MP4</li>
+            </ol>
+          </div>
+        </aside>
       </div>
     </section>
 
     <!-- PROJECT -->
     <section class="view project hidden" id="viewProject">
       <div class="proj-head">
-        <div>
-          <div class="crumb mono" id="projMeta"></div>
+        <div class="proj-titles">
+          <p class="eyebrow" id="projMeta"></p>
           <h2 class="proj-title" id="projTitle">Untitled</h2>
         </div>
-        <div class="proj-actions">
-          <button class="btn ghost" id="btnCancel">Stop</button>
-        </div>
+        <button class="btn ghost" id="btnCancel">Stop</button>
       </div>
+
+      <ol class="track" id="steps" aria-label="Production progress"></ol>
 
       <div class="proj-grid">
         <div class="col-left">
-          <div class="card steps-card">
-            <ol class="steps mono" id="steps"></ol>
-            <details class="log-wrap">
-              <summary class="mono">activity log</summary>
-              <pre class="log mono" id="log"></pre>
-            </details>
-          </div>
-
           <div class="notes card hidden" id="factNotes">
-            <div class="card-title">Fact-check notes</div>
+            <p class="card-title">Fact-check notes</p>
             <ul id="factList"></ul>
-            <p class="fine">AI can still make mistakes. Read the script below before publishing.</p>
+            <p class="fine">AI can still be wrong. Read the script below before you publish.</p>
           </div>
 
           <div class="board-head">
-            <div class="card-title">Storyboard</div>
+            <p class="card-title">Storyboard</p>
             <div class="board-actions">
-              <button class="btn ghost small" id="btnAddScene">+ Scene</button>
+              <button class="btn ghost small" id="btnAddScene">Add shot</button>
               <button class="btn small" id="btnApply" disabled>Apply edits</button>
             </div>
           </div>
           <div class="board" id="board"></div>
+
+          <details class="log-wrap">
+            <summary>Activity log</summary>
+            <pre class="log" id="log"></pre>
+          </details>
         </div>
 
         <div class="col-right">
-          <div class="card player-card">
+          <div class="monitor card">
             <div class="stage" id="stage">
               <canvas id="preview" width="540" height="960"></canvas>
               <video id="outVideo" class="hidden" controls playsinline></video>
-              <div class="stage-empty mono" id="stageEmpty">preview appears here</div>
+              <div class="stage-empty" id="stageEmpty">The preview appears here</div>
             </div>
             <div class="transport">
               <button class="icon-btn play" id="btnPlay" disabled aria-label="Play preview"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button>
-              <input type="range" id="scrub" min="0" max="1000" value="0" disabled>
-              <span class="mono time" id="time">0:00</span>
+              <input type="range" id="scrub" min="0" max="1000" value="0" disabled aria-label="Scrub preview">
+              <span class="time" id="time">0:00</span>
             </div>
-            <div class="progress hidden" id="renderProg"><div class="bar"><i id="renderBar"></i></div><div class="mono fine" id="renderText"></div></div>
+            <div class="progress hidden" id="renderProg"><div class="bar"><i id="renderBar"></i></div><div class="fine" id="renderText"></div></div>
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Render MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
@@ -148,7 +164,7 @@
           </div>
 
           <div class="card meta-card hidden" id="metaCard">
-            <div class="card-title">Ready to upload</div>
+            <p class="card-title">Upload kit</p>
             <label class="field"><span>Title</span><div class="copyrow"><input id="ytTitle"><button class="btn small ghost" data-copy="ytTitle">Copy</button></div></label>
             <label class="field"><span>Description</span><div class="copyrow"><textarea id="ytDesc" rows="5"></textarea><button class="btn small ghost" data-copy="ytDesc">Copy</button></div></label>
             <label class="field"><span>Hashtags</span><div class="copyrow"><input id="ytTags"><button class="btn small ghost" data-copy="ytTags">Copy</button></div></label>
@@ -241,7 +257,7 @@
   </form>
 </dialog>
 
-<div class="toast hidden" id="toast"></div>
+<div class="toast hidden" id="toast" role="status"></div>
 
 <script type="module" src="js/app.js"></script>
 </body>

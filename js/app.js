@@ -93,11 +93,11 @@ function initComposer() {
   $$('.mode-seg button').forEach(b => b.addEventListener('click', () => {
     ui.mode = b.dataset.mode;
     $$('.mode-seg button').forEach(x => x.classList.toggle('on', x === b));
-    $('#ownScript').classList.toggle('hidden', ui.mode !== 'own');
+    $('#ownWrap').classList.toggle('hidden', ui.mode !== 'own');
     $('#topic').placeholder = ui.mode === 'own'
-      ? 'Topic, so the visuals match (e.g. Ancient Greece, Earth, astronomy)'
-      : 'e.g. How ancient Greeks proved the Earth was round using a lunar eclipse and a stick in Egypt';
-    $('#duration').closest('.chip').classList.toggle('hidden', ui.mode === 'own');
+      ? 'What it is about, so the visuals match (e.g. Ancient Greek astronomy)'
+      : 'How ancient Greeks proved the Earth was round using a lunar eclipse and a stick in Egypt';
+    $('#duration').closest('.slot').classList.toggle('hidden', ui.mode === 'own');
   }));
   $('#btnMore').addEventListener('click', () => {
     const p = $('#morePanel');
@@ -147,10 +147,15 @@ function showProject() {
   window.scrollTo(0, 0);
 }
 $('#btnNew').addEventListener('click', () => { if (confirmLeave()) showHome(); });
-$('#btnNewTop').addEventListener('click', () => { if (confirmLeave()) showHome(); });
-$('#btnMenu').addEventListener('click', () => $('#app').classList.toggle('menu-open'));
-$('.main').addEventListener('click', () => $('#app').classList.remove('menu-open'));
-$('#btnMenu').addEventListener('click', (e) => e.stopPropagation());
+$('#btnHome').addEventListener('click', (e) => { e.preventDefault(); if (confirmLeave()) showHome(); });
+function setLibrary(open) {
+  $('#app').classList.toggle('menu-open', open);
+  $('#btnLibrary').setAttribute('aria-expanded', String(open));
+}
+$('#btnLibrary').addEventListener('click', () => setLibrary(!$('#app').classList.contains('menu-open')));
+$('#btnCloseLib').addEventListener('click', () => setLibrary(false));
+$('#scrim').addEventListener('click', () => setLibrary(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setLibrary(false); });
 
 function confirmLeave() {
   if (!running) return true;
@@ -165,6 +170,7 @@ function renderHistory() {
   const h = $('#history');
   h.innerHTML = '';
   const list = loadHistory();
+  $('#libCount').textContent = list.length ? String(list.length) : '';
   if (!list.length) { h.append(el('div', { class: 'empty' }, 'Your videos show up here.')); return; }
   for (const item of list) {
     h.append(el('div', {
@@ -372,7 +378,7 @@ function renderBoard() {
   project.script.scenes.forEach((scene, i) => {
     const t = tl?.scenes.find(x => x.id === scene.id);
     const card = el('div', { class: `scene${landscape ? ' landscape' : ''}${scene.dirty ? ' dirty' : ''}`, 'data-id': scene.id });
-    const thumb = el('div', { class: 'thumb', style: `aspect-ratio:${ratio}` }, el('div', { class: 'shimmer' }), el('span', { class: 'num' }, String(i + 1)));
+    const thumb = el('div', { class: 'thumb', style: `aspect-ratio:${Math.max(ratio, 0.8)}` }, el('div', { class: 'shimmer' }), el('span', { class: 'num' }, String(i + 1)));
     const fileIn = el('input', { type: 'file', accept: 'image/*', onchange: async (e) => {
       const f = e.target.files[0];
       if (!f) return;
@@ -468,8 +474,8 @@ function updateThumb(i) {
     const w = entry.bitmap.width * s, h = entry.bitmap.height * s;
     x.drawImage(entry.bitmap, (c.width - w) / 2, (c.height - h) / 2, w, h);
   } else {
-    x.fillStyle = '#3b3a37'; x.fillRect(0, 0, c.width, c.height);
-    x.fillStyle = '#A3A097'; x.font = '12px monospace'; x.textAlign = 'center';
+    x.fillStyle = '#2A2D20'; x.fillRect(0, 0, c.width, c.height);
+    x.fillStyle = '#A8AA8D'; x.font = '12px monospace'; x.textAlign = 'center';
     x.fillText('fallback art', c.width / 2, c.height / 2);
     x.fillText('tap ↻ to retry', c.width / 2, c.height / 2 + 16);
   }
