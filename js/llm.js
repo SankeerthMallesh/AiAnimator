@@ -180,7 +180,7 @@ TARGET LENGTH: about ${options.duration} seconds of narration = about ${plan.wor
 SCENES: exactly ${plan.scenes} scenes, about ${plan.wordsPerScene} words of narration each (the hook scene can be shorter).
 PACING: ${pace}.
 VISUAL STYLE (do not repeat in prompts, it is added automatically): ${style.label}.
-${options.extra ? `CREATOR NOTES: ${options.extra}\n` : ''}
+${style.direction ? `DIRECTION: ${style.direction}\n` : ''}${options.extra ? `CREATOR NOTES: ${options.extra}\n` : ''}
 Return JSON with this exact shape:
 {
   "title": "short on-screen title, max 6 words",

@@ -47,11 +47,14 @@ export class Renderer {
       try { this.gl = new DepthStage(Math.round(this.W * k), Math.round(this.H * k)); } catch { this.gl = null; }
     }
     const flatStyle = ['flat', 'comic'].includes(options.style);
+    const cleanCGI = options.style === 'cgi-short';
     this.look = {
-      dof: flatStyle ? 0 : 0.55,
-      haze: flatStyle ? 0 : 0.22,
-      grade: flatStyle ? 0.35 : 1,
-      atmosphere: settings.atmosphere !== false && !flatStyle,
+      dof: flatStyle ? 0 : cleanCGI ? 0.45 : 0.55,
+      haze: flatStyle ? 0 : cleanCGI ? 0.06 : 0.22,
+      grade: flatStyle ? 0.35 : cleanCGI ? 0.45 : 1,
+      grain: cleanCGI ? 0.025 : 0.055,
+      vignette: cleanCGI ? 0.55 : 1,
+      atmosphere: settings.atmosphere !== false && !flatStyle && !cleanCGI,
     };
     this._buildOverlays();
     this.captionGroups = timeline.scenes.map(s => this._groupWords(s));
@@ -194,9 +197,10 @@ export class Renderer {
     // Grade: vignette + grain.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
+    ctx.globalAlpha = this.look.vignette;
     ctx.drawImage(this.vignette, 0, 0);
     const frame = Math.floor(t * 30);
-    ctx.globalAlpha = 0.055;
+    ctx.globalAlpha = this.look.grain;
     ctx.globalCompositeOperation = 'overlay';
     ctx.fillStyle = this.grain[frame % 4];
     const r = rand(frame + 7);
@@ -491,6 +495,7 @@ export class Renderer {
     const g = groups.find(gr => vt >= gr.start - 0.03 && vt < gr.end);
     if (!g) return;
     const style = this.settings.captionStyle;
+    if (style === 'classic') { this._classicCaption(g, vt); return; }
     const { ctx, W, H } = this;
     const minimal = style === 'minimal';
     const size = Math.round(this.vertical ? W * (minimal ? 0.058 : 0.088) : H * (minimal ? 0.06 : 0.085));
@@ -547,6 +552,35 @@ export class Renderer {
         }
         x += w.w + space;
       }
+    });
+    ctx.restore();
+  }
+
+  // Clean white words with a black outline, sentence case, a quick gentle pop: the 3D-explainer-Short look.
+  _classicCaption(g, vt) {
+    const { ctx, W, H } = this;
+    const size = Math.round(this.vertical ? W * 0.074 : H * 0.075);
+    const text = g.words.map(w => w.text).join(' ').replace(/[,;:]+$/, '');
+    ctx.save();
+    ctx.font = `800 ${size}px ${CAPTION_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    const lines = wrap(ctx, text, W * 0.8);
+    const pop = easeOutCubic((vt - g.start + 0.03) / 0.12);
+    const cy = this.tall ? H * 0.64 : this.vertical ? H * 0.76 : H * 0.84;
+    ctx.translate(W / 2, cy);
+    ctx.scale(lerp(0.92, 1, pop), lerp(0.92, 1, pop));
+    ctx.globalAlpha = clamp(pop * 1.4, 0, 1);
+    lines.forEach((ln, k) => {
+      const y = (k - (lines.length - 1) / 2) * size * 1.15;
+      ctx.lineWidth = size * 0.16;
+      ctx.strokeStyle = '#000';
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = size * 0.18; ctx.shadowOffsetY = size * 0.04;
+      ctx.strokeText(ln, 0, y);
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(ln, 0, y);
     });
     ctx.restore();
   }

@@ -28,8 +28,8 @@ export const DEFAULT_SETTINGS = {
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
   fps: 24,
-  captionStyle: 'bold',           // bold | box | minimal | off
-  showTitle: true,
+  captionStyle: 'classic',        // classic | bold | box | minimal | off
+  showTitle: false,
   showProgress: false,
   handle: '',
   factCheck: true,

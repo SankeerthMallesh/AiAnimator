@@ -1,6 +1,12 @@
 // Visual styles, music moods, voices and example prompts shared by the UI and the pipeline.
 
 export const STYLES = {
+  'cgi-short': {
+    label: '3D render short',
+    hint: 'Clean, realistic 3D animation renders, like popular 3D explainer Shorts',
+    prompt: 'realistic 3D CGI animation render, Blender Cycles, smooth matte materials, clean simple set, soft studio lighting with gentle shadows, subtle subsurface scattering on skin, realistic proportions, muted natural colors, crisp detail, shallow depth of field, single frame from a 3D animated short film',
+    direction: 'Direct it like a realistic 3D animated explainer Short: one clear hero subject per shot on a clean, uncluttered set; cutaway and x-ray views to show what happens inside things; side-by-side comparisons; slow-motion impact moments; close-ups of hands, faces and mechanisms; simple neutral backgrounds (studio floor, road, sky, room). Characters are realistic 3D people with plain clothing and calm expressions.',
+  },
   'cinematic-3d': {
     label: 'Cinematic 3D',
     hint: 'Realistic-stylized 3D renders, the classic "explainer short" look',
@@ -80,12 +86,13 @@ export const LENGTHS = [
 ];
 
 export const EXAMPLES = [
+  'What could actually move a Cybertruck?',
   'How ancient Greeks proved the Earth was round 2,000 years before satellites',
+  'What happens to your body if you swallow a magnet',
   'What would happen if you fell into a black hole',
   'How Roman concrete has lasted 2,000 years',
   'Why octopuses are the closest thing to aliens on Earth',
   'What actually happens to your body when you hold your breath',
-  'How a single potato caused the Irish famine',
 ];
 
 export const CAMERAS = ['push-in', 'pull-out', 'pan-left', 'pan-right', 'tilt-up', 'tilt-down', 'orbit', 'vertigo', 'impact'];
