@@ -77,21 +77,22 @@ const PROVIDERS = {
   },
   // Pollinations routes to whichever model it likes (some reject non-default sampling), so it keeps
   // the original temperature instead of the per-task one the other providers receive.
-  async pollinations(messages, s, signal) {
+  async pollinations(messages, s, signal, temperature = 0.8) {
     const model = s.pollinationsTextModel || 'openai';
     if (s.pollinationsKey) {
-      return openAICompat('https://gen.pollinations.ai/v1/chat/completions', s.pollinationsKey, model, messages, signal);
+      return openAICompat('https://gen.pollinations.ai/v1/chat/completions', s.pollinationsKey, model, messages, signal, { reasoning_effort: 'low' }, temperature);
     }
     // Anonymous, free endpoint (rate limited per visitor).
     try {
-      return await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge' });
+      // The free model is a reasoning model: without low effort it spends its whole output budget thinking and returns HTTP 400.
+      return await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge', reasoning_effort: 'low' }, temperature);
     } catch (e) {
       if (signal?.aborted) throw e;
       // Older plain endpoint as a last resort.
       const { res, data: t } = await fetchTimeout('https://text.pollinations.ai/', {
         method: 'POST', signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, model, private: true, referrer: 'storyforge' }),
+        body: JSON.stringify({ messages, model, private: true, referrer: 'storyforge', reasoning_effort: 'low' }),
       }, LLM_TIMEOUT_MS, 'text');
       if (!res.ok) throw new Error(`Pollinations: HTTP ${res.status} (${e.message}). Add a free key in Settings for reliable scripts.`);
       if (!t.trim()) throw new Error('Pollinations returned nothing');

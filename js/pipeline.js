@@ -2,7 +2,7 @@
 // Every step is incremental: editing one scene only regenerates what changed.
 
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
-import { generateImage, imageSize, mapLimit, imageConcurrency } from './images.js';
+import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
@@ -93,8 +93,14 @@ export class Pipeline {
     const p = this.p;
     this.h.step('facts', 'active', 'Checking in the background…');
     this.factJob = (async () => {
+      // The check must never hold the video up: it gets 30 s, then the video goes on without it.
+      const ctrl = new AbortController();
+      const onAbort = () => ctrl.abort();
+      this.signal.addEventListener('abort', onAbort, { once: true });
+      let late = false;
+      const timer = setTimeout(() => { late = true; ctrl.abort(); }, 30000);
       try {
-        const { notes, changed } = await factCheck(p.script, this.s, { signal: this.signal, log: (m) => this.log(m), avoid: this.writerProvider });
+        const { notes, changed } = await factCheck(p.script, this.s, { signal: ctrl.signal, log: (m) => this.log(m), avoid: this.writerProvider });
         p.factCheckNotes = notes;
         p.factChecked = true;
         this.h.step('facts', 'done', changed ? `${changed} fix${changed > 1 ? 'es' : ''} applied` : 'No problems found');
@@ -102,9 +108,12 @@ export class Pipeline {
         return { changed };
       } catch (e) {
         if (this.signal.aborted) return { aborted: true, changed: 0 };
-        this.log(`Fact-check skipped: ${e.message}`);
+        this.log(late ? 'Fact-check skipped: the free checker took over 30 s.' : `Fact-check skipped: ${e.message}`);
         this.h.step('facts', 'warn', 'Skipped — review facts yourself');
         return { changed: 0 };
+      } finally {
+        clearTimeout(timer);
+        this.signal.removeEventListener('abort', onAbort);
       }
     })();
   }
@@ -142,10 +151,18 @@ export class Pipeline {
       if (!todo.length) { this.h.step('visuals', 'done', `${scenes.length} images`); return; }
       this.h.step('visuals', 'active', `0 / ${todo.length}`);
       let done = 0, failed = 0;
-      await mapLimit(todo, imageConcurrency(this.s), async (scene) => {
+      const free = isFreeImageTier(this.s);
+      // Free tier: ask for shots spread across the video first (start, middle, end…), so if the
+      // service's limit cuts us off, the images we did get cover the whole story.
+      const order = free ? spreadOrder(todo) : todo;
+      let limited = false;
+      let waiting = [];
+      const fetchRound = (list) => mapLimit(list, imageConcurrency(this.s), async (scene) => {
         const key = this.imageKey(scene);
+        if (limited) { waiting.push(scene); return; }
         const prompt = imagePromptFor(scene, p.script, p.options.style);
-        const bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
+        const bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, quick: free, log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
+        if (!bitmap && free) { limited = true; waiting.push(scene); return; }
         if (!bitmap) failed++;
         p.images.set(scene.id, { key, bitmap, custom: false, depth: null });
         done++;
@@ -153,6 +170,35 @@ export class Pipeline {
         this.h.scene?.(scenes.indexOf(scene));
         queueDepth(scene);
       });
+      await fetchRound(order);
+      if (free && waiting.length === order.length) {
+        // Not a single image: the allowance is used up right now. One wait for it to reset is worth it.
+        this.h.step('visuals', 'active', 'Free image limit hit — waiting 45 s for it to reset…');
+        await new Promise((resolve, reject) => {
+          const t = setTimeout(resolve, 46000);
+          this.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
+        });
+        const again = waiting; waiting = []; limited = false;
+        await fetchRound(again);
+      }
+      if (waiting.length) {
+        // Rate limited. Rather than wait 45 s per image (or show blank art), the remaining shots
+        // reuse the nearest finished image with their own camera move. ↻ on a shot fetches its own later.
+        const have = scenes.map((s, i) => ({ i, e: p.images.get(s.id) })).filter(x => x.e?.bitmap && x.e.key !== 'borrowed');
+        this.log(`Free image limit reached after ${have.length} image${have.length === 1 ? '' : 's'} (about 1 every 45 s without a key). Reusing them for the other ${waiting.length} shot${waiting.length === 1 ? '' : 's'}.`);
+        for (const scene of waiting) {
+          const i = scenes.indexOf(scene);
+          const near = have.slice().sort((a, b) => Math.abs(a.i - i) - Math.abs(b.i - i))[0];
+          p.images.set(scene.id, { key: 'borrowed', bitmap: near ? near.e.bitmap : null, custom: false, depth: null });
+          if (!near) failed++;
+          this.h.scene?.(i);
+          queueDepth(scene);
+        }
+        this.h.step('visuals', 'warn', have.length
+          ? `${have.length} images shared across ${scenes.length} shots (free limit). A free Pollinations key gives every shot its own.`
+          : 'Image service is rate limited. Wait a minute, then hit ↻, or add a free Pollinations key.');
+        return;
+      }
       this.h.step('visuals', failed ? 'warn' : 'done', failed ? `${failed} used fallback art — hit ↻ to retry` : `${scenes.length} images`);
     };
 
@@ -281,4 +327,19 @@ export class Pipeline {
       renderer.dispose();
     }
   }
+}
+
+// First, middle, last, then the gaps: [0..6] -> 0, 3, 6, 1, 4, 2, 5 (roughly).
+function spreadOrder(items) {
+  const n = items.length;
+  if (n <= 2) return items.slice();
+  const picked = new Set();
+  const out = [];
+  for (let parts = 2; out.length < n; parts *= 2) {
+    for (let k = 0; k <= parts; k++) {
+      const i = Math.round((k / parts) * (n - 1));
+      if (!picked.has(i)) { picked.add(i); out.push(items[i]); }
+    }
+  }
+  return out;
 }

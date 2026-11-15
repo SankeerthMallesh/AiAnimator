@@ -58,21 +58,23 @@ const providers = {
   },
 };
 
-export async function generateImage(prompt, opts, settings, { signal, log } = {}) {
+export async function generateImage(prompt, opts, settings, { signal, log, quick = false } = {}) {
   const order = [];
   if (settings.imageProvider === 'none') return null;
   if (settings.imageProvider === 'huggingface' && settings.hfToken) order.push('huggingface');
   order.push('pollinations');
   if (settings.hfToken && !order.includes('huggingface')) order.push('huggingface');
 
+  const tries = quick ? 1 : 4;
   for (const name of order) {
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < tries; attempt++) {
       try {
         return await providers[name](prompt, opts, settings, signal);
       } catch (e) {
         if (signal?.aborted) throw e;
         log?.(`${name} image attempt ${attempt + 1} failed (${e.message})`);
         if (e.status === 401 || e.status === 403 || /No .* token/.test(e.message)) break;
+        if (attempt === tries - 1) break;
         // Anonymous tiers are rate limited; back off and try again.
         await sleep(e.status === 429 ? 6000 + attempt * 4000 : 2500 + attempt * 2500, signal);
       }
@@ -98,4 +100,9 @@ export async function mapLimit(items, limit, fn) {
 export function imageConcurrency(settings) {
   if (settings.pollinationsKey || (settings.imageProvider === 'huggingface' && settings.hfToken)) return 4;
   return 3;
+}
+
+// With no key the free image service allows a short burst, then about one image every 45 seconds.
+export function isFreeImageTier(settings) {
+  return settings.imageProvider !== 'none' && !settings.pollinationsKey && !settings.hfToken;
 }
