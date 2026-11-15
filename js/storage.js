@@ -7,7 +7,7 @@ const HISTORY_KEY = 'storyforge.history.v1';
 export const DEFAULT_SETTINGS = {
   // Script writer (LLM)
   llmProvider: 'auto',            // auto | pollinations | gemini | groq | openrouter
-  geminiKey: '', geminiModel: 'gemini-flash-latest',
+  geminiKey: '', geminiModel: 'gemini-flash-lite-latest',
   groqKey: '', groqModel: 'llama-3.3-70b-versatile',
   openrouterKey: '', openrouterModel: 'meta-llama/llama-3.3-70b-instruct:free',
   pollinationsKey: '', pollinationsTextModel: 'openai',
@@ -50,6 +50,8 @@ export function loadSettings() {
   const raw = safeGet(SETTINGS_KEY);
   let saved = {};
   try { saved = raw ? JSON.parse(raw) : {}; } catch { saved = {}; }
+  // The old default Gemini model was a slow 'thinking' model; move people who never changed it to the fast one.
+  if (saved.geminiModel === 'gemini-flash-latest') saved.geminiModel = 'gemini-flash-lite-latest';
   const merged = { ...DEFAULT_SETTINGS, ...saved };
   // One-time move to the fast defaults for people who already have saved settings (keys are kept).
   if (saved.settingsVersion !== DEFAULT_SETTINGS.settingsVersion) {

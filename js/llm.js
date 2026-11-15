@@ -7,7 +7,7 @@ import { fetchTimeout } from './net.js';
 const WORDS_PER_SECOND = 2.55;
 
 // A script is ~2k tokens; anything slower than this is a hung request, so fail over to the next provider.
-const LLM_TIMEOUT_MS = 60000;
+const LLM_TIMEOUT_MS = 45000;
 
 async function fetchJSON(url, opts, signal) {
   const { res, data: text } = await fetchTimeout(url, { ...opts, signal }, LLM_TIMEOUT_MS, 'text');
@@ -39,19 +39,31 @@ const PROVIDERS = {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(s.geminiModel || 'gemini-flash-latest')}:generateContent?key=${encodeURIComponent(s.geminiKey)}`;
-    const data = await fetchJSON(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: sys ? { parts: [{ text: sys }] } : undefined,
-        contents,
-        generationConfig: { temperature, responseMimeType: 'application/json' },
-      }),
-    }, signal);
-    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
-    if (!text) throw new Error('Empty response from Gemini');
-    return text;
+    // "Lite" models answer in seconds; bigger "thinking" models can take a minute+ for a script.
+    const models = [...new Set([s.geminiModel || 'gemini-flash-lite-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-flash-latest'])];
+    let lastErr;
+    for (const model of models) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(s.geminiKey)}`;
+      try {
+        const data = await fetchJSON(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: sys ? { parts: [{ text: sys }] } : undefined,
+            contents,
+            generationConfig: { temperature, responseMimeType: 'application/json' },
+          }),
+        }, signal);
+        const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
+        if (!text) throw new Error('Empty response from Gemini');
+        return text;
+      } catch (e) {
+        lastErr = e;
+        // Only move to the next model when this one doesn't exist for this key.
+        if (!(e.status === 404 || (e.status === 400 && /model/i.test(e.message)))) throw e;
+      }
+    }
+    throw lastErr;
   },
   async groq(messages, s, signal, temperature = 0.8) {
     if (!s.groqKey) throw new Error('No Groq key');
@@ -101,24 +113,63 @@ export function providerOrder(s, avoid = null) {
   return order;
 }
 
-export async function chat(messages, settings, { signal, log, temperature, avoid } = {}) {
+// Ask the best provider first; if it hasn't answered within HEDGE_MS, start the next one too.
+// The first valid answer wins and the others are cancelled, so one slow free service never stalls a video.
+const HEDGE_MS = 10000;
+
+export function chat(messages, settings, { signal, log, temperature, avoid, validate } = {}) {
+  const order = providerOrder(settings, avoid);
   const errors = [];
-  for (const name of providerOrder(settings, avoid)) {
+  const ctrl = new AbortController();
+  const stop = () => ctrl.abort();
+  signal?.addEventListener('abort', stop, { once: true });
+
+  const tryProvider = async (name) => {
+    let last;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         log?.(`Asking ${name}${attempt ? ' (retry)' : ''}…`);
-        const out = await PROVIDERS[name](messages, settings, signal, temperature);
-        return { text: out, provider: name };
+        const text = await PROVIDERS[name](messages, settings, ctrl.signal, temperature);
+        const value = validate ? validate(text) : text;
+        return { text, value, provider: name };
       } catch (e) {
-        if (signal?.aborted) throw e;
-        errors.push(`${name}: ${e.message}`);
+        if (ctrl.signal.aborted) throw e;
+        last = e;
         log?.(`${name} failed: ${e.message}`);
         if (e.status === 401 || e.status === 403 || /No .* key/.test(e.message)) break;
-        await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        await new Promise(r => setTimeout(r, 1200));
       }
     }
-  }
-  throw new Error('All script writers failed. ' + errors.slice(-3).join(' | '));
+    throw last;
+  };
+
+  return new Promise((resolve, reject) => {
+    let next = 0, running = 0, settled = false, timer = null;
+    const finish = (fn, v) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(timer);
+      signal?.removeEventListener('abort', stop);
+      ctrl.abort();
+      fn(v);
+    };
+    const launch = () => {
+      if (settled || next >= order.length) return false;
+      const name = order[next++];
+      running++;
+      tryProvider(name).then((r) => finish(resolve, r), (e) => {
+        running--;
+        if (settled) return;
+        if (signal?.aborted) { finish(reject, e); return; }
+        errors.push(`${name}: ${e.message}`);
+        if (!launch() && running === 0) finish(reject, new Error('All script writers failed. ' + errors.slice(-3).join(' | ')));
+      });
+      return true;
+    };
+    launch();
+    timer = setInterval(() => { if (!settled) launch(); }, HEDGE_MS);
+    if (signal?.aborted) finish(reject, new DOMException('Cancelled', 'AbortError'));
+  });
 }
 
 export function parseJSONLoose(text) {
@@ -263,18 +314,12 @@ export async function writeScript(topic, options, settings, { signal, log } = {}
     { role: 'system', content: SYSTEM_WRITER },
     { role: 'user', content: writerPrompt(topic, options) },
   ];
-  let lastErr;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { text, provider } = await chat(messages, settings, { signal, log, temperature: 0.6 });
-    try {
-      const script = normalizeScript(parseJSONLoose(text), { ...options, topic });
-      return { script, provider };
-    } catch (e) {
-      lastErr = e;
-      log?.(`Script was malformed (${e.message}) — asking again.`);
-    }
-  }
-  throw lastErr;
+  // A malformed script counts as a failed answer, so the next provider gets its turn automatically.
+  const { value: script, provider } = await chat(messages, settings, {
+    signal, log, temperature: 0.6,
+    validate: (text) => normalizeScript(parseJSONLoose(text), { ...options, topic }),
+  });
+  return { script, provider };
 }
 
 export async function factCheck(script, settings, { signal, log, avoid } = {}) {
@@ -283,8 +328,7 @@ export async function factCheck(script, settings, { signal, log, avoid } = {}) {
     { role: 'user', content: checkerPrompt(script) },
   ];
   // Low temperature: a checker should be consistent, not creative.
-  const { text } = await chat(messages, settings, { signal, log, temperature: 0.1, avoid });
-  const data = parseJSONLoose(text);
+  const { value: data } = await chat(messages, settings, { signal, log, temperature: 0.1, avoid, validate: parseJSONLoose });
   const notes = (Array.isArray(data.notes) ? data.notes : []).map(n => cleanText(n, 300)).filter(Boolean);
   const unverified = (Array.isArray(data.unverified) ? data.unverified : []).map(n => cleanText(n, 200)).filter(Boolean).slice(0, 6);
   if (unverified.length) notes.push(`Please double-check before publishing: ${unverified.join('; ')}`);
