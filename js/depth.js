@@ -10,7 +10,7 @@ let progressFn = null;
 function ensureWorker() {
   if (worker || failed) return worker;
   try {
-    worker = new Worker(new URL('./depth-worker.js', import.meta.url), { type: 'module' });
+    worker = new Worker(withVersion(new URL('./depth-worker.js', import.meta.url)), { type: 'module' });
   } catch { failed = true; return null; }
   worker.onmessage = (e) => {
     const d = e.data;
@@ -64,3 +64,6 @@ export async function estimateDepth(image, { log } = {}) {
   const portrait = image.height >= image.width;
   return portrait ? syntheticDepth(96, 160) : syntheticDepth(160, 96);
 }
+
+// Carry this file's ?v= stamp to the worker so browsers never mix old and new code.
+function withVersion(u) { u.search = new URL(import.meta.url).search; return u; }

@@ -74,3 +74,7 @@ Shorter videos are the biggest lever: time scales with the number of scenes, so 
   js/encoder.js             WebCodecs + MP4 muxing (MediaRecorder fallback)
   vendor/                   mp4-muxer (MIT), kokoro-js, transformers.js (Apache-2.0)
 ```
+
+## Updating the site
+
+After changing anything in `css/` or `js/`, run `python3 tools/stamp-version.py` before you push. It gives every file a new version number so visitors' browsers load the new code at once instead of mixing it with old cached copies, which can break the page.

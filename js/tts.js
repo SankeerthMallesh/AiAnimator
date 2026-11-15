@@ -23,7 +23,7 @@ export class Narrator {
   async load() {
     if (this.engine !== 'kokoro') return;
     if (!this.worker) {
-      this.worker = new Worker(new URL('./tts-worker.js', import.meta.url), { type: 'module' });
+      this.worker = new Worker(withVersion(new URL('./tts-worker.js', import.meta.url)), { type: 'module' });
       this.worker.onmessage = (e) => {
         const d = e.data;
         if (d.type === 'progress') { this.onProgress?.(d); return; }
@@ -196,3 +196,6 @@ export function wordTimings(text, t0, t1) {
     return item;
   });
 }
+
+// Carry this file's ?v= stamp to the worker so browsers never mix old and new code.
+function withVersion(u) { u.search = new URL(import.meta.url).search; return u; }
