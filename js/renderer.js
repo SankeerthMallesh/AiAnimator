@@ -195,6 +195,7 @@ export class Renderer {
     if (!drawn) this._drawScene(ctx, cur, t - cur.start);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._atmosphere(cur, t - cur.start);
+    this._effect(cur, t - cur.start);
 
     // Grade: vignette + grain.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -269,6 +270,8 @@ export class Renderer {
     rot += Math.sin(lt * 0.6 + s) * 0.0018;
     px += Math.sin(lt * 0.8 + s) * 0.008;
     py += Math.cos(lt * 0.6 + s) * 0.006;
+    if (scene.effect === 'pulse') { const b = (lt % 0.9) / 0.9; zoom *= 1 + 0.022 * Math.max(Math.exp(-b * 9), 0.7 * Math.exp(-Math.abs(b - 0.28) * 14)); }
+    if (scene.effect === 'speed') zoom *= 1 + 0.05 * clamp(lt / scene.dur, 0, 1);
     // Shots that share a picture look at a different part of it.
     const rf = scene.reframe;
     if (rf) {
@@ -347,6 +350,136 @@ export class Renderer {
   }
 
   // Floating dust in the light + slow light rays, moving with the 3D camera.
+  // Per-shot motion effects: deterministic particles and pulses drawn over the picture.
+  _effect(scene, lt) {
+    const fx = scene.effect;
+    if (!fx || fx === 'none') return;
+    const { ctx, W, H } = this;
+    const u = Math.min(W, H) / 1080;
+    const r = rand((scene.seed >>> 0) + 911);
+    const wrap01 = (v) => ((v % 1) + 1) % 1;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const fadeIn = clamp(lt / 0.4, 0, 1);
+    switch (fx) {
+      case 'dust': case 'bubbles': case 'embers': case 'snow': {
+        const cfg = {
+          dust:    { n: 40, vy: -0.015, size: [5, 22], a: 0.2, comp: 'screen', sway: 0.02 },
+          bubbles: { n: 46, vy: -0.11, size: [10, 46], a: 0.5, comp: 'source-over', sway: 0.025 },
+          embers:  { n: 60, vy: -0.16, size: [4, 14], a: 0.95, comp: 'lighter', sway: 0.04 },
+          snow:    { n: 90, vy: 0.1, size: [5, 16], a: 0.85, comp: 'source-over', sway: 0.03 },
+        }[fx];
+        ctx.globalCompositeOperation = cfg.comp;
+        for (let k = 0; k < cfg.n; k++) {
+          const z = 0.3 + r() * 0.7, bx = r(), by = r(), sp = 0.5 + r(), ph = r() * 6.28;
+          const x = wrap01(bx + Math.sin(lt * 1.3 * sp + ph) * cfg.sway) * W;
+          const y = wrap01(by + lt * cfg.vy * sp * (0.5 + z)) * H;
+          const size = lerp(cfg.size[0], cfg.size[1], z) * u;
+          const tw = 0.6 + 0.4 * Math.sin(lt * 3 * sp + ph);
+          ctx.globalAlpha = cfg.a * (0.35 + z * 0.65) * tw * fadeIn;
+          if (fx === 'bubbles') {
+            ctx.lineWidth = Math.max(1.5, size * 0.09);
+            ctx.strokeStyle = 'rgba(225,245,255,0.9)';
+            ctx.beginPath(); ctx.arc(x, y, size / 2, 0, 6.283); ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.beginPath(); ctx.arc(x - size * 0.16, y - size * 0.16, size * 0.09, 0, 6.283); ctx.fill();
+          } else if (fx === 'embers') {
+            ctx.fillStyle = k % 3 ? '#FF9A3C' : '#FFD66B';
+            ctx.beginPath(); ctx.arc(x, y, size / 2, 0, 6.283); ctx.fill();
+            ctx.globalAlpha *= 0.35;
+            ctx.drawImage(this.mote, x - size * 2, y - size * 2, size * 4, size * 4);
+          } else if (fx === 'snow') {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(x, y, size / 2, 0, 6.283); ctx.fill();
+          } else ctx.drawImage(this.mote, x - size / 2, y - size / 2, size, size);
+        }
+        break;
+      }
+      case 'rain': {
+        ctx.strokeStyle = 'rgba(210,225,245,0.55)';
+        ctx.lineCap = 'round';
+        for (let k = 0; k < 130; k++) {
+          const z = 0.4 + r() * 0.6, bx = r(), by = r();
+          const y = wrap01(by + lt * 1.6 * z) * H * 1.2 - H * 0.1;
+          const x = wrap01(bx + lt * 0.12 * z) * W * 1.1 - W * 0.05;
+          const len = (40 + z * 70) * u;
+          ctx.globalAlpha = (0.25 + z * 0.5) * fadeIn;
+          ctx.lineWidth = (1 + z * 1.6) * u;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + len * 0.12, y + len); ctx.stroke();
+        }
+        break;
+      }
+      case 'sparks': {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.lineCap = 'round';
+        for (let k = 0; k < 46; k++) {
+          const period = 0.7 + r() * 1.1, off = r() * period, ang = r() * 6.283, speed = (0.18 + r() * 0.5), ox = 0.3 + r() * 0.4, oy = 0.35 + r() * 0.3;
+          const life = ((lt + off) % period) / period;
+          const d = speed * life * Math.min(W, H);
+          const x = ox * W + Math.cos(ang) * d, y = oy * H + Math.sin(ang) * d + life * life * H * 0.12;
+          const tail = (16 + speed * 50) * u * (1 - life);
+          ctx.globalAlpha = (1 - life) * fadeIn;
+          ctx.strokeStyle = k % 4 ? '#FFD27A' : '#FFFFFF';
+          ctx.lineWidth = (2 + (1 - life) * 3) * u;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - Math.cos(ang) * tail, y - Math.sin(ang) * tail); ctx.stroke();
+        }
+        break;
+      }
+      case 'smoke': {
+        ctx.globalCompositeOperation = 'screen';
+        for (let k = 0; k < 16; k++) {
+          const bx = r(), by = 0.45 + r() * 0.55, sp = 0.4 + r() * 0.8, ph = r() * 6.28;
+          const life = wrap01(lt * 0.07 * sp + ph / 6.28);
+          const size = (260 + life * 520) * u;
+          const x = (bx + Math.sin(lt * 0.25 * sp + ph) * 0.06) * W, y = (by - life * 0.5) * H;
+          ctx.globalAlpha = 0.16 * Math.sin(Math.PI * life) * fadeIn;
+          const g = ctx.createRadialGradient(x, y, 0, x, y, size / 2);
+          g.addColorStop(0, 'rgba(220,225,232,1)'); g.addColorStop(1, 'rgba(220,225,232,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(x - size / 2, y - size / 2, size, size);
+        }
+        break;
+      }
+      case 'pulse': {
+        // Double-thump heartbeat: red edge glow that swells on each beat.
+        const beat = (lt % 0.9) / 0.9;
+        const k = Math.max(Math.exp(-beat * 9), 0.7 * Math.exp(-Math.abs(beat - 0.28) * 14));
+        const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) * 0.6);
+        g.addColorStop(0, 'rgba(255,40,40,0)'); g.addColorStop(1, `rgba(255,30,30,${0.5 * k * fadeIn})`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        break;
+      }
+      case 'shockwave': {
+        ctx.globalCompositeOperation = 'screen';
+        for (const delay of [0.15, 0.4]) {
+          const p = (lt - delay) / 0.9;
+          if (p <= 0 || p >= 1) continue;
+          ctx.globalAlpha = (1 - p) * 0.7;
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = (26 * (1 - p) + 4) * u;
+          ctx.beginPath(); ctx.arc(W / 2, H * 0.5, easeOutCubic(p) * Math.hypot(W, H) * 0.6, 0, 6.283); ctx.stroke();
+        }
+        break;
+      }
+      case 'speed': {
+        ctx.globalCompositeOperation = 'screen';
+        ctx.lineCap = 'round';
+        const cx = W / 2, cy = H / 2, R = Math.hypot(W, H) / 2;
+        for (let k = 0; k < 70; k++) {
+          const ang = r() * 6.283, period = 0.35 + r() * 0.5, off = r();
+          const life = wrap01(lt / period + off);
+          const d0 = (0.35 + life * 0.75) * R, d1 = d0 + (0.08 + life * 0.22) * R;
+          ctx.globalAlpha = 0.5 * Math.sin(Math.PI * life) * fadeIn;
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = (1.5 + life * 3.5) * u;
+          ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * d0, cy + Math.sin(ang) * d0); ctx.lineTo(cx + Math.cos(ang) * d1, cy + Math.sin(ang) * d1); ctx.stroke();
+        }
+        break;
+      }
+    }
+    ctx.restore();
+  }
+
   _atmosphere(scene, lt) {
     if (!this.look.atmosphere) return;
     const { ctx, W, H } = this;

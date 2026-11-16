@@ -1,7 +1,7 @@
 // Script writing + fact checking with free LLM providers.
 // No key needed for Pollinations; Gemini / Groq / OpenRouter free keys are faster and more reliable.
 
-import { STYLES, CAMERAS, TRANSITIONS, PACES, FORMATS, formatOf } from './presets.js';
+import { STYLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { fetchTimeout } from './net.js';
 
 const WORDS_PER_SECOND = 2.55;
@@ -259,12 +259,13 @@ Return JSON with this exact shape:
       "onScreenText": "optional tiny label like '350 BC' or 'Eratosthenes' or '' for none",
       "keywords": ["one or two words from the narration to highlight in captions"],
       "camera": one of ${JSON.stringify(CAMERAS)},
-      "transition": one of ${JSON.stringify(TRANSITIONS)}
+      "transition": one of ${JSON.stringify(TRANSITIONS)},
+      "effect": one of ${JSON.stringify(EFFECTS)}
     }
   ]
 }
 
-Camera guide: push-in = slow dolly toward the subject (tension, focus); pull-out = reveal; pan-left/pan-right = sideways truck past the scene; tilt-up/tilt-down = crane move; orbit = drift around the subject; vertigo = dolly-zoom for shocking realizations; impact = punch-in for big reveals only. Use "onScreenText" for names, dates, numbers and places only (max 4 words). Write numbers in narration the way they are spoken ("two hundred and forty B.C.").`;
+Camera guide: push-in = slow dolly toward the subject (tension, focus); pull-out = reveal; pan-left/pan-right = sideways truck past the scene; tilt-up/tilt-down = crane move; orbit = drift around the subject; vertigo = dolly-zoom for shocking realizations; impact = punch-in for big reveals only. Effect guide (moving particles drawn over the shot; pick the one that physically fits what is shown, and use a real effect on at least half the scenes): bubbles = underwater, liquids, blood, breath; sparks = electricity, metal, impacts, energy; embers = fire, heat, lava; rain / snow = weather; smoke = fog, steam, dust clouds, explosions; pulse = heartbeat, pressure, alarms, something throbbing; shockwave = one big hit or reveal; speed = fast travel, falling, launch; dust = quiet floating particles; none = calm diagrams. Use "onScreenText" for names, dates, numbers and places only (max 4 words). Write numbers in narration the way they are spoken ("two hundred and forty B.C.").`;
 }
 
 const SYSTEM_CHECKER = `You are a meticulous fact-checker with expertise in history, science and geography.
@@ -323,6 +324,7 @@ export function normalizeScript(raw, options) {
       keywords: (Array.isArray(s.keywords) ? s.keywords : []).map(k => cleanText(k, 40)).filter(Boolean).slice(0, 3),
       camera: CAMERAS.includes(s.camera) ? s.camera : ['push-in', 'pan-left', 'pull-out', 'orbit', 'pan-right', 'tilt-up'][i % 6],
       transition: TRANSITIONS.includes(s.transition) ? s.transition : TRANSITIONS[i % 4],
+      effect: EFFECTS.includes(s.effect) ? s.effect : 'none',
       seed: Math.floor(Math.random() * 1e9),
     }))
     .filter(s => s.narration);

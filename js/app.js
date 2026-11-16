@@ -1,5 +1,5 @@
 // UI controller for Storyforge Studio.
-import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, PACES, FORMATS, formatOf } from './presets.js';
+import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadDepth } from './depth.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
@@ -418,6 +418,9 @@ function renderBoard() {
     const tr = el('select', { 'aria-label': 'Transition in' });
     fillSelect(tr, TRANSITIONS.map(c => [c, `in: ${c}`]), scene.transition);
     tr.addEventListener('change', () => { scene.transition = tr.value; markDirty(scene, card); });
+    const fx = el('select', { 'aria-label': 'Motion effect' });
+    fillSelect(fx, EFFECTS.map(c => [c, `fx: ${c}`]), scene.effect || 'none');
+    fx.addEventListener('change', () => { scene.effect = fx.value; markDirty(scene, card); });
 
     const body = el('div', { class: 'scene-body' },
       el('div', { class: 'scene-top' },
@@ -433,7 +436,7 @@ function renderBoard() {
       el('details', {},
         el('summary', {}, 'visual · label · motion'),
         visual,
-        el('div', { class: 'grid3' }, label, cam, tr)));
+        el('div', { class: 'grid3' }, label, cam, tr, fx)));
     card.append(thumb, body);
     board.append(card);
     updateThumb(i);

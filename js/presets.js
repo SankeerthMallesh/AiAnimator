@@ -121,3 +121,5 @@ export const PACES = {
 
 export const QUALITIES = { '720': 720, '1080': 1080, '1440': 1440 };
 export const TRANSITIONS = ['whip', 'zoom', 'fade', 'flash', 'slide', 'glitch'];
+// Moving effects drawn over a shot, so stills have real motion in them.
+export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', 'snow', 'smoke', 'pulse', 'shockwave', 'speed'];
