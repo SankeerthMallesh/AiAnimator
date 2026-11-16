@@ -57,7 +57,7 @@ const PROVIDERS = {
           }),
         }, signal);
         const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
-        if (!text) throw new Error('Empty response from Gemini');
+        if (!text) throw new Error(`Empty response from Gemini (${data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason || 'no text'})`);
         return text;
       } catch (e) {
         lastErr = e;
@@ -109,7 +109,8 @@ const PROVIDERS = {
 };
 
 export function providerOrder(s, avoid = null) {
-  if (s.llmProvider && s.llmProvider !== 'auto') return [s.llmProvider];
+  // A chosen provider goes first, but the free no-key writer is always the last resort.
+  if (s.llmProvider && s.llmProvider !== 'auto') return s.llmProvider === 'pollinations' ? ['pollinations'] : [s.llmProvider, 'pollinations'];
   const order = [];
   if (s.geminiKey) order.push('gemini');
   if (s.groqKey) order.push('groq');
@@ -138,7 +139,11 @@ export function chat(messages, settings, { signal, log, temperature, avoid, vali
       try {
         log?.(`Asking ${name}${attempt ? ' (retry)' : ''}…`);
         const text = await PROVIDERS[name](messages, settings, ctrl.signal, temperature);
-        const value = validate ? validate(text) : text;
+        let value;
+        try { value = validate ? validate(text) : text; } catch (e) {
+          log?.(`${name} answered: ${String(text).replace(/\s+/g, ' ').slice(0, 220)}`);
+          throw e;
+        }
         return { text, value, provider: name };
       } catch (e) {
         if (ctrl.signal.aborted) throw e;
@@ -287,7 +292,25 @@ function cleanText(v, max = 600) {
   return String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+// Models don't always follow the requested shape: accept a script wrapped in an array or another
+// object, a bare list of scenes, or scenes under a different name.
+function findScript(raw, depth = 0) {
+  if (!raw || typeof raw !== 'object' || depth > 3) return null;
+  if (Array.isArray(raw)) {
+    if (raw.length && raw.every(x => x && typeof x === 'object' && (x.narration || x.text || x.voiceover))) return { scenes: raw };
+    for (const x of raw) { const f = findScript(x, depth + 1); if (f) return f; }
+    return null;
+  }
+  for (const k of ['scenes', 'shots', 'Scenes', 'script', 'storyboard', 'segments']) {
+    const v = raw[k];
+    if (Array.isArray(v) && v.length && v.every(x => x && typeof x === 'object')) return { ...raw, scenes: v };
+  }
+  for (const v of Object.values(raw)) { const f = findScript(v, depth + 1); if (f) return f; }
+  return null;
+}
+
 export function normalizeScript(raw, options) {
+  raw = findScript(raw);
   if (!raw || !Array.isArray(raw.scenes) || raw.scenes.length === 0) {
     throw new Error('The script came back without scenes.');
   }
