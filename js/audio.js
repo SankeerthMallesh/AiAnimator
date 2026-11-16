@@ -228,6 +228,33 @@ function boom(ctx, dest, t, noise, strength = 1) {
   n.start(t); n.stop(t + 0.45);
 }
 
+function thump(ctx, dest, t, strength) {
+  const o = ctx.createOscillator();
+  o.frequency.setValueAtTime(75, t);
+  o.frequency.exponentialRampToValueAtTime(38, t + 0.16);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(strength, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+  o.connect(g).connect(dest);
+  o.start(t); o.stop(t + 0.26);
+}
+
+function zap(ctx, dest, t, noise) {
+  const src = ctx.createBufferSource();
+  src.buffer = noise;
+  const f = ctx.createBiquadFilter();
+  f.type = 'bandpass'; f.Q.value = 3;
+  f.frequency.setValueAtTime(5200, t);
+  f.frequency.exponentialRampToValueAtTime(1400, t + 0.12);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(0.12, t + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+  src.connect(f).connect(g).connect(dest);
+  src.start(t); src.stop(t + 0.16);
+}
+
 export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true } = {}) {
   const total = timeline.total;
   const ctx = new OfflineAudioContext(2, Math.ceil(SAMPLE_RATE * total), SAMPLE_RATE);
@@ -288,6 +315,30 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     timeline.scenes.forEach((s, i) => {
       if (i > 0 && s.transition !== 'fade') whoosh(ctx, fx, Math.max(0, s.start - 0.22), noise, s.transition === 'whip' ? 1 : 0.7);
       if (s.camera === 'impact' && i > 0) boom(ctx, fx, s.start, noise, 0.7);
+      const end = s.start + s.dur;
+      if (s.effect === 'pulse') {
+        // Heartbeat: lub-dub in time with the on-screen pulse.
+        for (let t = s.start; t < end - 0.3; t += 0.9) { thump(ctx, fx, t, 0.5); thump(ctx, fx, t + 0.25, 0.32); }
+      } else if (s.effect === 'shockwave') {
+        boom(ctx, fx, s.start + 0.15, noise, 0.9);
+      } else if (s.effect === 'rain' || s.effect === 'smoke' || s.effect === 'speed') {
+        // A soft bed of filtered noise: rain patter, hiss of steam, or rushing air.
+        const src = ctx.createBufferSource();
+        src.buffer = noise; src.loop = true;
+        const f = ctx.createBiquadFilter();
+        f.type = s.effect === 'rain' ? 'highpass' : 'bandpass';
+        f.frequency.value = s.effect === 'rain' ? 2500 : s.effect === 'speed' ? 900 : 400;
+        const g = ctx.createGain();
+        const level = s.effect === 'rain' ? 0.07 : 0.05;
+        g.gain.setValueAtTime(0.0001, s.start);
+        g.gain.linearRampToValueAtTime(level, s.start + 0.4);
+        g.gain.setValueAtTime(level, Math.max(s.start + 0.4, end - 0.4));
+        g.gain.linearRampToValueAtTime(0.0001, end);
+        src.connect(f).connect(g).connect(fx);
+        src.start(s.start); src.stop(end + 0.05);
+      } else if (s.effect === 'sparks') {
+        for (let k = 0; k < 3; k++) zap(ctx, fx, s.start + 0.2 + k * (s.dur / 3.2), noise);
+      }
     });
   }
 

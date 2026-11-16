@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS = {
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 2,
+  settingsVersion: 3,
 };
 
 function safeGet(key) {
@@ -57,7 +57,7 @@ export function loadSettings() {
   const merged = { ...DEFAULT_SETTINGS, ...saved };
   // One-time move to the fast defaults for people who already have saved settings (keys are kept).
   if (saved.settingsVersion !== DEFAULT_SETTINGS.settingsVersion) {
-    for (const k of ['quality', 'fps', 'depth3d', 'atmosphere']) merged[k] = DEFAULT_SETTINGS[k];
+    for (const k of ['quality', 'fps', 'depth3d', 'atmosphere', 'captionStyle', 'showTitle']) merged[k] = DEFAULT_SETTINGS[k];
     merged.settingsVersion = DEFAULT_SETTINGS.settingsVersion;
   }
   if (merged.quality === 'hd') merged.quality = '1080';

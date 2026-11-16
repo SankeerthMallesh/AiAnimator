@@ -364,8 +364,8 @@ export class Renderer {
     switch (fx) {
       case 'dust': case 'bubbles': case 'embers': case 'snow': {
         const cfg = {
-          dust:    { n: 40, vy: -0.015, size: [5, 22], a: 0.2, comp: 'screen', sway: 0.02 },
-          bubbles: { n: 46, vy: -0.11, size: [10, 46], a: 0.5, comp: 'source-over', sway: 0.025 },
+          dust:    { n: 60, vy: -0.02, size: [8, 30], a: 0.34, comp: 'screen', sway: 0.02 },
+          bubbles: { n: 64, vy: -0.13, size: [14, 64], a: 0.75, comp: 'source-over', sway: 0.025 },
           embers:  { n: 60, vy: -0.16, size: [4, 14], a: 0.95, comp: 'lighter', sway: 0.04 },
           snow:    { n: 90, vy: 0.1, size: [5, 16], a: 0.85, comp: 'source-over', sway: 0.03 },
         }[fx];
@@ -379,7 +379,9 @@ export class Renderer {
           ctx.globalAlpha = cfg.a * (0.35 + z * 0.65) * tw * fadeIn;
           if (fx === 'bubbles') {
             ctx.lineWidth = Math.max(1.5, size * 0.09);
-            ctx.strokeStyle = 'rgba(225,245,255,0.9)';
+            ctx.fillStyle = 'rgba(200,235,255,0.14)';
+            ctx.beginPath(); ctx.arc(x, y, size / 2, 0, 6.283); ctx.fill();
+            ctx.strokeStyle = 'rgba(235,248,255,0.95)';
             ctx.beginPath(); ctx.arc(x, y, size / 2, 0, 6.283); ctx.stroke();
             ctx.fillStyle = 'rgba(255,255,255,0.85)';
             ctx.beginPath(); ctx.arc(x - size * 0.16, y - size * 0.16, size * 0.09, 0, 6.283); ctx.fill();
@@ -432,7 +434,7 @@ export class Renderer {
           const life = wrap01(lt * 0.07 * sp + ph / 6.28);
           const size = (260 + life * 520) * u;
           const x = (bx + Math.sin(lt * 0.25 * sp + ph) * 0.06) * W, y = (by - life * 0.5) * H;
-          ctx.globalAlpha = 0.16 * Math.sin(Math.PI * life) * fadeIn;
+          ctx.globalAlpha = 0.3 * Math.sin(Math.PI * life) * fadeIn;
           const g = ctx.createRadialGradient(x, y, 0, x, y, size / 2);
           g.addColorStop(0, 'rgba(220,225,232,1)'); g.addColorStop(1, 'rgba(220,225,232,0)');
           ctx.fillStyle = g;
@@ -469,7 +471,7 @@ export class Renderer {
           const ang = r() * 6.283, period = 0.35 + r() * 0.5, off = r();
           const life = wrap01(lt / period + off);
           const d0 = (0.35 + life * 0.75) * R, d1 = d0 + (0.08 + life * 0.22) * R;
-          ctx.globalAlpha = 0.5 * Math.sin(Math.PI * life) * fadeIn;
+          ctx.globalAlpha = 0.75 * Math.sin(Math.PI * life) * fadeIn;
           ctx.strokeStyle = '#fff';
           ctx.lineWidth = (1.5 + life * 3.5) * u;
           ctx.beginPath(); ctx.moveTo(cx + Math.cos(ang) * d0, cy + Math.sin(ang) * d0); ctx.lineTo(cx + Math.cos(ang) * d1, cy + Math.sin(ang) * d1); ctx.stroke();
