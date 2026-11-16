@@ -2,7 +2,7 @@
 // Every step is incremental: editing one scene only regenerates what changed.
 
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
-import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier } from './images.js';
+import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
@@ -152,7 +152,8 @@ export class Pipeline {
       for (const s of scenes) if (!todo.includes(s)) queueDepth(s); // e.g. custom uploads
       if (!todo.length) { this.h.step('visuals', 'done', `${scenes.length} images`); return; }
       this.h.step('visuals', 'active', `0 / ${todo.length}`);
-      let done = 0, failed = 0;
+      let done = 0, failed = 0, blocked = 0;
+      const blockedScenes = [];
       const isFree = () => isFreeImageTier(this.s); // can flip mid-run if a saved key is refused
       const free = isFree();
       // Free tier: ask for shots spread across the video first (start, middle, end…), so if the
@@ -164,8 +165,9 @@ export class Pipeline {
         const key = this.imageKey(scene);
         if (limited) { waiting.push(scene); return; }
         const prompt = imagePromptFor(scene, p.script, p.options.style);
-        const bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, quick: isFree(), log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
-        if (!bitmap && isFree()) { limited = true; waiting.push(scene); return; }
+        let bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, quick: isFree(), log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
+        if (bitmap === BLOCKED) { bitmap = null; blocked++; blockedScenes.push(scene); }
+        else if (!bitmap && isFree()) { limited = true; waiting.push(scene); return; }
         if (!bitmap) failed++;
         p.images.set(scene.id, { key, bitmap, custom: false, depth: null });
         done++;
@@ -200,6 +202,18 @@ export class Pipeline {
         }
       }
       for (const scene of scenes) delete scene.reframe;
+      // A shot whose picture was rejected shows the nearest safe picture, framed differently, instead of blank art.
+      blockedScenes.forEach((scene, n) => {
+        const i = scenes.indexOf(scene);
+        const ok = scenes.map((sc, k) => ({ k, e: p.images.get(sc.id) })).filter(x => x.e?.bitmap && !blockedScenes.includes(scenes[x.k]));
+        const near = ok.sort((a, b) => Math.abs(a.k - i) - Math.abs(b.k - i))[0];
+        if (!near) return;
+        p.images.set(scene.id, { key: this.imageKey(scene), bitmap: near.e.bitmap, custom: false, depth: null });
+        const [zoom, x, y] = [[1.35, -0.12, 0.1], [1.3, 0.12, 0.08], [1.5, 0, 0.14], [1.4, -0.14, 0.04]][n % 4];
+        scene.reframe = { zoom, x, y };
+        failed = Math.max(0, failed - 1);
+        this.h.scene?.(i);
+      });
       if (waiting.length) {
         // Rate limited. Rather than wait 45 s per image (or show blank art), the remaining shots
         // reuse the nearest finished image, each framed on a different part of it. ↻ fetches a shot's own later.
@@ -221,6 +235,7 @@ export class Pipeline {
           : 'Image service is rate limited. Wait a minute, then hit ↻.');
         return;
       }
+      if (blocked) { this.log(`${blocked} picture${blocked > 1 ? 's were' : ' was'} rejected by the safety check and replaced with plain artwork. Hit ↻ on that shot or edit its description to try again.`); }
       this.h.step('visuals', failed ? 'warn' : 'done', failed ? `${failed} used fallback art — hit ↻ to retry` : `${scenes.length} images`);
     };
 

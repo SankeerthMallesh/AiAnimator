@@ -1,5 +1,6 @@
 import { FORMATS, formatOf } from './presets.js';
 import { fetchTimeout } from './net.js';
+import { isSafeImage } from './safety.js';
 
 // Free AI image generation. Pollinations needs no key; Hugging Face uses a free token.
 // Always resolves: if every provider fails the scene gets a generated "poster" fallback.
@@ -120,7 +121,18 @@ const providers = {
   },
 };
 
-export async function generateImage(prompt, opts, settings, { signal, log, quick = false } = {}) {
+// Every generated picture passes the safety check before it can be used.
+// Returns an ImageBitmap, null (nothing came back) or BLOCKED (a picture came back but was rejected).
+export const BLOCKED = 'blocked';
+export async function generateImage(prompt, opts, settings, extra = {}) {
+  const bmp = await generateImageRaw(prompt, opts, settings, extra);
+  if (!bmp) return null;
+  if (await isSafeImage(bmp, prompt, extra.log)) return bmp;
+  bmp.close?.();
+  return BLOCKED;
+}
+
+async function generateImageRaw(prompt, opts, settings, { signal, log, quick = false } = {}) {
   const order = [];
   if (settings.imageProvider === 'none') return null;
   if (settings.imageProvider === 'huggingface' && settings.hfToken) order.push('huggingface');

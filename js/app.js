@@ -2,6 +2,7 @@
 import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadDepth } from './depth.js';
+import { preloadSafety } from './safety.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
@@ -647,6 +648,7 @@ function preloadModels() {
   if (navigator.connection?.saveData) return;
   if (settings.ttsEngine === 'kokoro') warmNarrator(getNarrator(settings)).catch(() => {});
   if (settings.depth3d !== 'off') preloadDepth();
+  if (settings.imageProvider !== 'none') preloadSafety();
 }
 (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(preloadModels, { timeout: 4000 });
 const params = new URLSearchParams(location.search);

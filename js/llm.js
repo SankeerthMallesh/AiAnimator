@@ -396,9 +396,24 @@ export async function factCheck(script, settings, { signal, log, avoid } = {}) {
 }
 
 // Build the final image prompt for a scene: scene visual + recurring character looks + style.
+// The free image model tends to draw unclothed figures whenever a prompt mentions a body.
+// Rewrite every prompt so that can't be asked for: bodies become isolated organ models, people are dressed and distant.
+const BARE = /\b(naked|nude|nudity|bare|shirtless|topless|undressed|unclothed|exposed|sensual|seductive)\b/gi;
+const BODY = /\b(?:(?:human|person'?s?|man'?s?|woman'?s?|patient'?s?|male|female|their|his|her|your|the|a)\s+)?(?:body|bodies|torso|chest|abdomen|belly|midsection|waist|hips|figure|silhouette|physique|mannequin|anatomy|skin|flesh)\b/gi;
+const PERSON = /\b(person|people|man|men|woman|women|human|humans|patient|child|kid|boy|girl|guy|teen|teenager|adult|athlete|swimmer|diver|he|she)\b/i;
+export function safeVisual(text) {
+  let t = String(text || '').replace(BARE, ' ');
+  const hadBody = BODY.test(t); BODY.lastIndex = 0;
+  if (hadBody) t = t.replace(BODY, ' 3D medical organ model ');
+  t = t.replace(/\s{2,}/g, ' ').trim();
+  if (hadBody) t += '. Isolated internal organs only, floating as a clean 3D medical model on a plain dark studio background';
+  if (PERSON.test(t)) t += '. Every person is fully dressed in a thick winter jacket, long trousers and shoes, small in the frame, seen from behind at a distance';
+  return t;
+}
+
 export function imagePromptFor(scene, script, styleKey) {
   const style = STYLES[styleKey] || STYLES['cinematic-3d'];
-  let prompt = scene.visual;
+  let prompt = safeVisual(scene.visual);
   for (const c of script.characters || []) {
     const first = c.name.split(' ')[0];
     if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(c.look.slice(0, 30))) {
