@@ -385,7 +385,8 @@ export function imagePromptFor(scene, script, styleKey) {
       prompt += `. ${c.name}: ${c.look}`;
     }
   }
-  return `${prompt}. ${style.prompt}, clear foreground subject with deep background, no text, no letters, no watermark`;
+  // Image models weight the start of a prompt most, so the look goes first.
+  return `${style.lead ? style.lead + '. ' : ''}${prompt}. ${style.prompt}, clear foreground subject with deep background, no text, no letters, no watermark`;
 }
 
 // Split user-written text into scenes (used for "I'll write my own script" mode).

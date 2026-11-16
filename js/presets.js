@@ -4,8 +4,9 @@ export const STYLES = {
   'cgi-short': {
     label: '3D render short',
     hint: 'Clean, realistic 3D animation renders, like popular 3D explainer Shorts',
-    prompt: 'realistic 3D CGI animation render, Blender Cycles, smooth matte materials, clean simple set, soft studio lighting with gentle shadows, subtle subsurface scattering on skin, realistic proportions, muted natural colors, crisp detail, shallow depth of field, single frame from a 3D animated short film',
-    direction: 'Direct it like a realistic 3D animated explainer Short: one clear hero subject per shot on a clean, uncluttered set; cutaway and x-ray views to show what happens inside things; side-by-side comparisons; slow-motion impact moments; close-ups of hands, faces and mechanisms; simple neutral backgrounds (studio floor, road, sky, room). Characters are realistic 3D people with plain clothing and calm expressions.',
+    lead: '3D animated CGI render, Blender animation still, not a photograph',
+    prompt: '3D computer animation, smooth matte materials, clean simple set, soft studio lighting, muted colors, frame from a 3D animated explainer video, everyone fully clothed',
+    direction: 'Direct it like a 3D animated explainer Short. Prefer shots WITHOUT people: standalone 3D models of organs (lungs, brain, heart, blood cells), objects, machines, cutaways of mechanisms, landscapes, maps, side-by-side comparisons, on a plain dark or neutral studio background. Never write close-ups of faces and never describe bodies, skin, mannequins or anatomy on a person. When a person is essential, describe them as small in the frame, fully clothed (say what they wear, e.g. blue hoodie and jeans), seen from behind or from far away, doing the action.',
   },
   'cinematic-3d': {
     label: 'Cinematic 3D',

@@ -20,7 +20,7 @@ export function imageSize(options, outputShortSide = 1080) {
 function pollinationsURL(prompt, { width, height, seed }, s) {
   const q = new URLSearchParams({
     width: String(width), height: String(height), seed: String(seed),
-    model: s.pollinationsImageModel || 'flux', nologo: 'true', private: 'true', enhance: 'false',
+    model: s.pollinationsImageModel || 'flux', nologo: 'true', private: 'true', enhance: 'false', safe: 'true',
   });
   const p = encodeURIComponent(prompt.slice(0, 1500));
   if (s.pollinationsKey) {
