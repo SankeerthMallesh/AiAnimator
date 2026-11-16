@@ -348,11 +348,29 @@ export async function writeScript(topic, options, settings, { signal, log } = {}
     { role: 'user', content: writerPrompt(topic, options) },
   ];
   // A malformed script counts as a failed answer, so the next provider gets its turn automatically.
-  const { value: script, provider } = await chat(messages, settings, {
+  const ask = () => chat(messages, settings, {
     signal, log, temperature: 0.6,
     validate: (text) => normalizeScript(parseJSONLoose(text), { ...options, topic }),
   });
-  return { script, provider };
+  let lastErr;
+  // Free services have bad moments: if every writer fails, pause and go round again (3 rounds in all).
+  for (let round = 0; round < 3; round++) {
+    try {
+      const { value: script, provider } = await ask();
+      return { script, provider };
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      lastErr = e;
+      if (round < 2) {
+        log?.(`No script yet. Trying again in ${6 * (round + 1)} seconds…`);
+        await new Promise((resolve, reject) => {
+          const t = setTimeout(resolve, 6000 * (round + 1));
+          signal?.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
+        });
+      }
+    }
+  }
+  throw lastErr;
 }
 
 export async function factCheck(script, settings, { signal, log, avoid } = {}) {

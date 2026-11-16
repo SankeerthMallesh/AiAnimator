@@ -279,6 +279,7 @@ async function run({ render }) {
   pipeline?.cancel();
   pipeline = new Pipeline(project, settings, hooks());
   const mine = pipeline;
+  $('#btnRetry').classList.add('hidden');
   setBusy(true);
   if (!render) setStep('render', '', project.video ? 'Done earlier — re-render after edits' : 'Waiting for you');
   try {
@@ -309,8 +310,31 @@ function handleError(e) {
   console.error(e);
   log(`Error: ${e.message || e}`);
   if (active) setStep(active.dataset.step, 'error', e.message || 'Failed');
-  toast(e.message || String(e), true, 8000);
+  toast(`${friendly(e)} Press "Try again".`, true, 9000);
+  $('#btnRetry').classList.remove('hidden');
 }
+
+// Plain-language version of the most common failures.
+function friendly(e) {
+  const m = String(e?.message || e);
+  if (/script writers failed/i.test(m)) return 'The free script services did not answer.';
+  if (/Failed to fetch|NetworkError|timed out/i.test(m)) return 'A network request failed. Check your connection.';
+  if (/encod|VideoEncoder|export/i.test(m)) return 'The video could not be encoded in this browser. Chrome or Edge work best.';
+  return m.length > 140 ? m.slice(0, 140) + '…' : m;
+}
+
+$('#btnRetry').addEventListener('click', () => {
+  if (running || !project) return;
+  $('#btnRetry').classList.add('hidden');
+  run({ render: !settings.reviewFirst });
+});
+
+// Nothing should ever fail silently: surface unexpected errors in the activity log.
+window.addEventListener('unhandledrejection', (ev) => {
+  if (ev.reason?.name === 'AbortError') return;
+  log(`Unexpected problem: ${ev.reason?.message || ev.reason}`);
+});
+window.addEventListener('error', (ev) => { if (ev.message) log(`Unexpected problem: ${ev.message}`); });
 
 async function doRender(pl = pipeline) {
   stopPreview();
