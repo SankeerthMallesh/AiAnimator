@@ -14,6 +14,8 @@ export const DEFAULT_SETTINGS = {
   // Visuals
   imageProvider: 'pollinations',  // pollinations | huggingface | none
   pollinationsImageModel: 'flux',
+  videoClips: 'off',              // off | on  (paid: real AI video clips per shot)
+  videoModel: 'wan-fast',
   hfToken: '',
   // Voice
   ttsEngine: 'kokoro',            // kokoro | pollinations | none

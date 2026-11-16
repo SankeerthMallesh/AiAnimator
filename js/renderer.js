@@ -3,6 +3,7 @@
 // drawFrame(t) is deterministic, so the live preview and the exported MP4 look identical.
 
 import { DepthStage, isSoftwareGL } from './gl3d.js';
+import { seekClip } from './clips.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -27,7 +28,8 @@ const CAPTION_FONT = '"Montserrat", "Arial Black", Impact, sans-serif';
 const LABEL_FONT = '"JetBrains Mono", ui-monospace, Menlo, monospace';
 
 export class Renderer {
-  constructor(canvas, { timeline, images, depths = [], options, settings, script }) {
+  constructor(canvas, { timeline, images, depths = [], clips = [], options, settings, script }) {
+    this.clips = timeline.scenes.map((s, i) => clips[i] || null);
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.W = canvas.width;
@@ -279,8 +281,45 @@ export class Renderer {
     return { zoom, x, y, rot, px, py, dolly, focus, three };
   }
 
+  // Where in its clip a shot is at local time lt. Clips are ~5 s: longer shots play them a little slower.
+  _clipTime(scene, lt) {
+    const clip = this.clips[scene.index];
+    const rate = scene.dur > clip.duration ? clip.duration / scene.dur : 1;
+    return clamp(lt, 0, scene.dur) * rate;
+  }
+
+  // Export only: seek every clip that is on screen at time t to its exact frame.
+  async prepareFrame(t) {
+    const jobs = [];
+    for (const scene of this.timeline.scenes) {
+      const clip = this.clips[scene.index];
+      if (!clip || t < scene.start - 0.5 || t > scene.start + scene.dur + 0.5) continue;
+      jobs.push(seekClip(clip, this._clipTime(scene, t - scene.start)));
+    }
+    if (jobs.length) await Promise.all(jobs);
+    this.prepared = true;
+  }
+
   _drawScene(ctx, scene, lt, extra = {}) {
     const { W, H } = this;
+    const clip = this.clips[scene.index];
+    if (clip && clip.video.readyState >= 2) {
+      const v = clip.video;
+      if (!this.prepared) {
+        // Live preview: nudge the clip toward the right moment (export seeks exactly in prepareFrame).
+        const want = this._clipTime(scene, lt);
+        if (!v.seeking && Math.abs(v.currentTime - want) > 0.05) { try { v.currentTime = Math.min(want, clip.duration - 0.06); } catch { /* ignore */ } }
+      }
+      const vw = v.videoWidth || W, vh = v.videoHeight || H;
+      const cover = Math.max(W / vw, H / vh) * 1.02 * (extra.scale || 1);
+      ctx.save();
+      ctx.globalAlpha = extra.alpha ?? 1;
+      ctx.translate(W / 2 + (extra.dx || 0), H / 2 + (extra.dy || 0));
+      ctx.scale(cover, cover);
+      ctx.drawImage(v, -vw / 2, -vh / 2);
+      ctx.restore();
+      return;
+    }
     const cam = this._camera(scene, lt);
     if (cam.three) {
       cam.nx = cam.x / W; cam.ny = cam.y / H;

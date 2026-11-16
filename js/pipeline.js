@@ -8,13 +8,15 @@ import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
 import { exportVideo } from './encoder.js';
 import { estimateDepth, onDepthProgress } from './depth.js';
-import { FORMATS, PACES, formatOf } from './presets.js';
+import { FORMATS, PACES, STYLES, formatOf } from './presets.js';
+import { clipsEnabled, generateClip } from './clips.js';
 
 export const STEPS = [
   ['script', 'Write script'],
   ['facts', 'Fact-check'],
   ['visuals', 'Generate visuals'],
   ['depth', 'Build 3D scenes'],
+  ['motion', 'Animate shots'],
   ['voice', 'Record voiceover'],
   ['sound', 'Score & mix'],
   ['render', 'Render MP4'],
@@ -257,13 +259,47 @@ export class Pipeline {
     };
 
     if (!this.use3d) this.h.step('depth', 'skip', 'Off in settings');
-    await Promise.all([visualJob(), voiceJob()]);
+    await Promise.all([visualJob(), voiceJob(), this.clipJob()]);
     await depthChain;
     if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
     if (this.use3d) {
       const synthetic = scenes.some(s => p.images.get(s.id)?.depth?.synthetic);
       this.h.step('depth', 'done', synthetic ? 'Estimated depth (AI model unavailable)' : `${scenes.length} scenes in 3D`);
     }
+  }
+
+  // Paid, optional: a real AI video clip for every shot.
+  async clipJob() {
+    const p = this.p;
+    if (!clipsEnabled(this.s)) { this.h.step('motion', 'skip', this.s.videoClips === 'on' ? 'Needs a paid Pollinations key' : 'Off (paid option in Settings)'); return; }
+    p.clips = p.clips || new Map();
+    const scenes = p.script.scenes;
+    const style = STYLES[p.options.style] || {};
+    const keyOf = (s) => `${s.visual}|${this.s.videoModel}|${formatOf(p.options)}`;
+    const todo = scenes.filter(s => p.clips.get(s.id)?.key !== keyOf(s));
+    if (!todo.length) { this.h.step('motion', 'done', `${scenes.length} clips`); return; }
+    let done = 0, failed = 0, stop = '';
+    this.h.step('motion', 'active', `0 / ${todo.length} clips · this takes a few minutes`);
+    await mapLimit(todo, 2, async (scene) => {
+      if (stop) return;
+      const motion = { 'push-in': 'slow push-in', 'pull-out': 'slow pull-back', 'pan-left': 'camera trucks left', 'pan-right': 'camera trucks right', orbit: 'camera orbits the subject', impact: 'fast punch-in' }[scene.camera] || 'gentle camera move';
+      const prompt = `${scene.visual}. ${motion}, smooth natural motion. ${(style.prompt || '').slice(0, 160)}`;
+      try {
+        const clip = await generateClip(prompt, { aspectRatio: formatOf(p.options) }, this.s, { signal: this.signal });
+        const old = p.clips.get(scene.id);
+        if (old?.clip?.url) URL.revokeObjectURL(old.clip.url);
+        p.clips.set(scene.id, { key: keyOf(scene), clip });
+        done++;
+      } catch (e) {
+        if (this.signal.aborted) throw e;
+        failed++;
+        this.log(`Scene ${scenes.indexOf(scene) + 1}: video clip failed (${e.message}); using the still picture.`);
+        if ([401, 402, 403].includes(e.status)) stop = e.status === 402 ? 'Your Pollinations key has no paid credit' : 'Your Pollinations key was refused';
+      }
+      this.h.step('motion', 'active', `${done} / ${todo.length} clips`);
+    });
+    if (stop) this.h.step('motion', 'warn', `${stop}. Shots without a clip use pictures.`);
+    else this.h.step('motion', failed ? 'warn' : 'done', failed ? `${done} clips, ${failed} fell back to pictures` : `${done} animated clips`);
   }
 
   voiceSummary() {
@@ -313,6 +349,7 @@ export class Pipeline {
       timeline: p.timeline,
       images: entries.map(e => e?.bitmap || null),
       depths: entries.map(e => (this.use3d ? e?.depth || null : null)),
+      clips: p.script.scenes.map(s => (clipsEnabled(this.s) ? p.clips?.get(s.id)?.clip || null : null)),
       options: p.options,
       settings: this.s,
       script: p.script,

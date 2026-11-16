@@ -89,6 +89,7 @@ async function exportWebCodecs({ renderer, audio, fps, onProgress, signal, v, a 
   for (let f = 0; f < totalFrames; f++) {
     if (signal?.aborted) { venc.close(); aenc.close(); throw new DOMException('Cancelled', 'AbortError'); }
     if (failure) throw failure;
+    if (renderer.prepareFrame) await renderer.prepareFrame(f / fps);
     renderer.drawFrame(f / fps);
     const frame = new VideoFrame(canvas, { timestamp: Math.round(f * 1e6 / fps), duration: Math.round(1e6 / fps) });
     venc.encode(frame, { keyFrame: f % (fps * 2) === 0 });
