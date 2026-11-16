@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS = {
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
   fps: 24,
-  captionStyle: 'classic',        // classic | bold | box | minimal | off
+  captionStyle: 'word',           // word | classic | bold | box | minimal | off
   showTitle: false,
   showProgress: false,
   handle: '',
@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS = {
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 3,
+  settingsVersion: 4,
 };
 
 function safeGet(key) {

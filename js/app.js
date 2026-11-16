@@ -69,7 +69,7 @@ function refreshVoiceSelect() {
 
 function initComposer() {
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 30);
-  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), 'cgi-short');
+  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), 'toon-host');
   fillSelect($('#mood'), Object.entries(MOODS).map(([k, m]) => [k, m.label]), 'curious');
   fillSelect($('#pace'), Object.entries(PACES).map(([k, p]) => [k, p.label]), 'normal');
   $('#quality').value = String(settings.quality || '1080');

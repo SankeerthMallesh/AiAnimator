@@ -3,6 +3,7 @@
 
 import { STYLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { fetchTimeout } from './net.js';
+import { HATS, POSES, EMOTIONS, SIDES } from './mascot.js';
 
 const WORDS_PER_SECOND = 2.55;
 
@@ -83,7 +84,7 @@ const PROVIDERS = {
     const model = s.pollinationsTextModel || 'openai';
     if (s.pollinationsKey && !pollinationsKeyRejected) {
       try {
-        return await openAICompat('https://gen.pollinations.ai/v1/chat/completions', s.pollinationsKey, model, messages, signal, { reasoning_effort: 'low' }, temperature);
+        return await openAICompat('https://gen.pollinations.ai/v1/chat/completions', s.pollinationsKey, model, messages, signal, { reasoning_effort: 'low', max_tokens: 6000 }, temperature);
       } catch (e) {
         if (![401, 402, 403].includes(e.status)) throw e;
         pollinationsKeyRejected = true; // wrong kind of key or out of credit: use the free service
@@ -92,14 +93,14 @@ const PROVIDERS = {
     // Anonymous, free endpoint (rate limited per visitor).
     try {
       // The free model is a reasoning model: without low effort it spends its whole output budget thinking and returns HTTP 400.
-      return await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge', reasoning_effort: 'low' }, temperature);
+      return await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 6000 }, temperature);
     } catch (e) {
       if (signal?.aborted) throw e;
       // Older plain endpoint as a last resort.
       const { res, data: t } = await fetchTimeout('https://text.pollinations.ai/', {
         method: 'POST', signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, model, private: true, referrer: 'storyforge', reasoning_effort: 'low' }),
+        body: JSON.stringify({ messages, model, private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 6000 }),
       }, LLM_TIMEOUT_MS, 'text');
       if (!res.ok) throw new Error(`Pollinations: HTTP ${res.status} (${e.message}). Add a free key in Settings for reliable scripts.`);
       if (!t.trim()) throw new Error('Pollinations returned nothing');
@@ -197,6 +198,14 @@ export function parseJSONLoose(text) {
     // Remove trailing commas, a common small-model mistake.
     try { return JSON.parse(slice.replace(/,\s*([}\]])/g, '$1')); } catch { /* fall through */ }
   }
+  // Cut off mid-answer (token limit)? Keep every complete scene and close the JSON ourselves.
+  const at = t.indexOf('"scenes"');
+  if (start >= 0 && at > start) {
+    let cut = t.lastIndexOf('}');
+    for (let tries = 0; tries < 6 && cut > at; tries++) {
+      try { return JSON.parse(t.slice(start, cut + 1) + ']}'); } catch { cut = t.lastIndexOf('}', cut - 1); }
+    }
+  }
   throw new Error('The model did not return valid JSON.');
 }
 
@@ -249,21 +258,26 @@ Return JSON with this exact shape:
 {
   "title": "short on-screen title, max 6 words",
   "youtubeTitle": "click-worthy but honest title, under 70 characters",
-  "description": "2-3 sentence description of the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
+  "description": "2 short sentences describing the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
   "hashtags": ["5-8 relevant hashtags"],
-  "characters": [{"name": "Aristotle", "look": "elderly ancient Greek philosopher, short grey curly beard, receding hairline, cream wool himation draped over one shoulder, leather sandals"}],
+${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "Aristotle", "look": "elderly ancient Greek philosopher, short grey curly beard, receding hairline, cream wool himation draped over one shoulder, leather sandals"}],
   "scenes": [
     {
       "narration": "spoken words for this scene",
-      "visual": "detailed single-frame image prompt with foreground, midground and background",
+      "visual": "single-frame image prompt, one sentence of at most 30 words: subject, setting, camera angle, lighting",
       "onScreenText": "optional tiny label like '350 BC' or 'Eratosthenes' or '' for none",
       "keywords": ["one or two words from the narration to highlight in captions"],
       "camera": one of ${JSON.stringify(CAMERAS)},
       "transition": one of ${JSON.stringify(TRANSITIONS)},
-      "effect": one of ${JSON.stringify(EFFECTS)}
+      "effect": one of ${JSON.stringify(EFFECTS)}${style.mascot ? `,
+      "pose": one of ${JSON.stringify(POSES)},
+      "emotion": one of ${JSON.stringify(EMOTIONS)},
+      "side": one of ${JSON.stringify(SIDES)}` : ''}
     }
   ]
 }
+
+Be compact: the whole JSON must stay under 1,100 words, so keep every visual to one sentence and leave \"characters\" as an empty list unless a named person appears in several scenes.
 
 Camera guide: push-in = slow dolly toward the subject (tension, focus); pull-out = reveal; pan-left/pan-right = sideways truck past the scene; tilt-up/tilt-down = crane move; orbit = drift around the subject; vertigo = dolly-zoom for shocking realizations; impact = punch-in for big reveals only. Effect guide (moving particles drawn over the shot; pick the one that physically fits what is shown, and use a real effect on at least half the scenes): bubbles = underwater, liquids, blood, breath; sparks = electricity, metal, impacts, energy; embers = fire, heat, lava; rain / snow = weather; smoke = fog, steam, dust clouds, explosions; pulse = heartbeat, pressure, alarms, something throbbing; shockwave = one big hit or reveal; speed = fast travel, falling, launch; dust = quiet floating particles; none = calm diagrams. Use "onScreenText" for names, dates, numbers and places only (max 4 words). Write numbers in narration the way they are spoken ("two hundred and forty B.C.").`;
 }
@@ -325,16 +339,27 @@ export function normalizeScript(raw, options) {
       camera: CAMERAS.includes(s.camera) ? s.camera : ['push-in', 'pan-left', 'pull-out', 'orbit', 'pan-right', 'tilt-up'][i % 6],
       transition: TRANSITIONS.includes(s.transition) ? s.transition : TRANSITIONS[i % 4],
       effect: EFFECTS.includes(s.effect) ? s.effect : 'none',
+      pose: POSES.includes(s.pose) ? s.pose : ['present', 'point', 'think', 'shrug', 'walk', 'shock', 'wave'][i % 7],
+      emotion: EMOTIONS.includes(s.emotion) ? s.emotion : ['neutral', 'skeptical', 'happy', 'shocked'][i % 4],
+      side: SIDES.includes(s.side) ? s.side : ['center', 'left', 'right'][i % 3],
       seed: Math.floor(Math.random() * 1e9),
     }))
     .filter(s => s.narration);
   if (!scenes.length) throw new Error('The script came back empty.');
+  // If the writer parked the host in one spot for the whole video, move it around.
+  if (scenes.length > 2 && scenes.every(sc => sc.side === scenes[0].side)) {
+    scenes.forEach((sc, i) => { sc.side = ['center', 'left', 'right', 'center', 'right', 'left'][i % 6]; });
+  }
   return {
     title: cleanText(raw.title || options.topic, 60),
     youtubeTitle: cleanText(raw.youtubeTitle || raw.title || options.topic, 100),
     description: String(raw.description || '').trim().slice(0, 3000),
     hashtags: (Array.isArray(raw.hashtags) ? raw.hashtags : []).map(h => cleanText(h, 40)).filter(Boolean)
       .map(h => (h.startsWith('#') ? h : '#' + h.replace(/\s+/g, ''))).slice(0, 10),
+    host: {
+      hat: HATS.includes(raw.host?.hat) ? raw.host.hat : 'none',
+      color: /^#[0-9a-f]{6}$/i.test(raw.host?.color || '') ? raw.host.color : '#2F5DA8',
+    },
     characters: (Array.isArray(raw.characters) ? raw.characters : [])
       .map(c => ({ name: cleanText(c.name, 60), look: cleanText(c.look || c.description, 400) }))
       .filter(c => c.name && c.look),
@@ -401,8 +426,13 @@ export async function factCheck(script, settings, { signal, log, avoid } = {}) {
 const BARE = /\b(naked|nude|nudity|bare|shirtless|topless|undressed|unclothed|exposed|sensual|seductive)\b/gi;
 const BODY = /\b(?:(?:human|person'?s?|man'?s?|woman'?s?|patient'?s?|male|female|their|his|her|your|the|a)\s+)?(?:body|bodies|torso|chest|abdomen|belly|midsection|waist|hips|figure|silhouette|physique|mannequin|anatomy|skin|flesh)\b/gi;
 const PERSON = /\b(person|people|man|men|woman|women|human|humans|patient|child|kid|boy|girl|guy|teen|teenager|adult|athlete|swimmer|diver|he|she)\b/i;
-export function safeVisual(text) {
+export function safeVisual(text, noPeople = false) {
   let t = String(text || '').replace(BARE, ' ');
+  if (noPeople) {
+    // Cartoon-host style: the picture is only the set. Remove anyone the writer put in it.
+    t = t.replace(BODY, ' ').replace(new RegExp(PERSON.source, 'gi'), ' ').replace(/\s{2,}/g, ' ').trim();
+    return `${t}. Empty scene, nobody present`;
+  }
   const hadBody = BODY.test(t); BODY.lastIndex = 0;
   if (hadBody) t = t.replace(BODY, ' 3D medical organ model ');
   t = t.replace(/\s{2,}/g, ' ').trim();
@@ -413,7 +443,7 @@ export function safeVisual(text) {
 
 export function imagePromptFor(scene, script, styleKey) {
   const style = STYLES[styleKey] || STYLES['cinematic-3d'];
-  let prompt = safeVisual(scene.visual);
+  let prompt = safeVisual(scene.visual, !!style.mascot);
   for (const c of script.characters || []) {
     const first = c.name.split(' ')[0];
     if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(c.look.slice(0, 30))) {

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611162221">
+<link rel="stylesheet" href="css/app.css?v=202611162257">
 </head>
 <body>
 <div class="app" id="app">
@@ -249,7 +249,7 @@
         <select name="depth3d"><option value="auto">On — AI depth for real parallax (recommended)</option><option value="off">Off — flat 2D camera</option></select></label>
       <label class="check"><input type="checkbox" name="atmosphere"> Cinematic atmosphere (floating dust, light rays)</label>
       <label class="field"><span>Captions</span>
-        <select name="captionStyle"><option value="classic">Classic white (3D short style)</option><option value="bold">Bold pop with yellow words</option><option value="box">Highlight box</option><option value="minimal">Minimal</option><option value="off">Off</option></select></label>
+        <select name="captionStyle"><option value="word">One word at a time (cartoon explainer)</option><option value="classic">Classic white phrases</option><option value="bold">Bold pop with yellow words</option><option value="box">Highlight box</option><option value="minimal">Minimal</option><option value="off">Off</option></select></label>
       <label class="field"><span>Music volume</span><input name="musicVolume" type="range" min="0" max="1" step="0.05"></label>
       <label class="field"><span>Channel handle watermark</span><input name="handle" placeholder="@yourchannel"></label>
       <label class="check"><input type="checkbox" name="showTitle"> Title pop-up in the hook</label>
@@ -267,24 +267,25 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611162221",
-  "./js/audio.js": "./js/audio.js?v=202611162221",
-  "./js/clips.js": "./js/clips.js?v=202611162221",
-  "./js/depth.js": "./js/depth.js?v=202611162221",
-  "./js/encoder.js": "./js/encoder.js?v=202611162221",
-  "./js/gl3d.js": "./js/gl3d.js?v=202611162221",
-  "./js/images.js": "./js/images.js?v=202611162221",
-  "./js/llm.js": "./js/llm.js?v=202611162221",
-  "./js/net.js": "./js/net.js?v=202611162221",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611162221",
-  "./js/presets.js": "./js/presets.js?v=202611162221",
-  "./js/renderer.js": "./js/renderer.js?v=202611162221",
-  "./js/safety.js": "./js/safety.js?v=202611162221",
-  "./js/storage.js": "./js/storage.js?v=202611162221",
-  "./js/tts.js": "./js/tts.js?v=202611162221",
-  "./vendor/mp4-muxer.mjs": "./vendor/mp4-muxer.mjs?v=202611162221"
+  "./js/app.js": "./js/app.js?v=202611162257",
+  "./js/audio.js": "./js/audio.js?v=202611162257",
+  "./js/clips.js": "./js/clips.js?v=202611162257",
+  "./js/depth.js": "./js/depth.js?v=202611162257",
+  "./js/encoder.js": "./js/encoder.js?v=202611162257",
+  "./js/gl3d.js": "./js/gl3d.js?v=202611162257",
+  "./js/images.js": "./js/images.js?v=202611162257",
+  "./js/llm.js": "./js/llm.js?v=202611162257",
+  "./js/mascot.js": "./js/mascot.js?v=202611162257",
+  "./js/net.js": "./js/net.js?v=202611162257",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611162257",
+  "./js/presets.js": "./js/presets.js?v=202611162257",
+  "./js/renderer.js": "./js/renderer.js?v=202611162257",
+  "./js/safety.js": "./js/safety.js?v=202611162257",
+  "./js/storage.js": "./js/storage.js?v=202611162257",
+  "./js/tts.js": "./js/tts.js?v=202611162257",
+  "./vendor/mp4-muxer.mjs": "./vendor/mp4-muxer.mjs?v=202611162257"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611162221"></script>
+<script type="module" src="./js/app.js?v=202611162257"></script>
 </body>
 </html>

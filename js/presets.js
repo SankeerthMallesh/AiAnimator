@@ -1,6 +1,14 @@
 // Visual styles, music moods, voices and example prompts shared by the UI and the pipeline.
 
 export const STYLES = {
+  'toon-host': {
+    label: 'Cartoon host',
+    hint: 'An animated hand-drawn character explains the topic in front of a colourful 3D world',
+    mascot: true,
+    lead: 'Colorful stylized 3D video game environment, empty scene with nobody in it',
+    prompt: 'vibrant saturated colors, simple chunky low-poly shapes, bright blue sky with soft clouds, clean cartoon 3D world, toy-like models, wide view with open ground in the lower middle, scenery and objects only',
+    direction: 'An animated cartoon host character is added on top of every shot automatically, so each "visual" must describe ONLY the place and the objects the narration talks about (for example: a railroad track with a gap between two rails, a steel bridge, a factory floor, a desert, the inside of an engine) as a colourful, simple 3D game-like scene. NEVER put people, characters, faces or animals in a visual. Keep the lower middle of the frame open ground where the host can stand. Give every scene a "pose", "emotion" and "side" for the host that match the line being spoken, and change them from scene to scene.',
+  },
   'cgi-short': {
     label: '3D render short',
     hint: 'Clean, realistic 3D animation renders, like popular 3D explainer Shorts',

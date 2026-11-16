@@ -4,6 +4,8 @@
 
 import { DepthStage, isSoftwareGL } from './gl3d.js';
 import { seekClip } from './clips.js';
+import { drawMascot } from './mascot.js';
+import { STYLES } from './presets.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -30,6 +32,7 @@ const LABEL_FONT = '"JetBrains Mono", ui-monospace, Menlo, monospace';
 export class Renderer {
   constructor(canvas, { timeline, images, depths = [], clips = [], options, settings, script }) {
     this.clips = timeline.scenes.map((s, i) => clips[i] || null);
+    this.hostOn = !!STYLES[options.style]?.mascot && settings.host !== false;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.W = canvas.width;
@@ -196,6 +199,7 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._atmosphere(cur, t - cur.start);
     this._effect(cur, t - cur.start);
+    if (this.hostOn) this._host(cur, t - cur.start);
 
     // Grade: vignette + grain.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -673,11 +677,59 @@ export class Renderer {
     ctx.restore();
   }
 
+  // The animated cartoon host for this shot.
+  _host(scene, lt) {
+    const { ctx, W, H } = this;
+    const vt = lt - scene.voiceOffset;
+    const speaking = (scene.words || []).some(w => vt >= w.start && vt < w.end);
+    const talking = speaking ? 0.35 + 0.65 * Math.abs(Math.sin(vt * 17)) : 0;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    drawMascot(ctx, W, H, {
+      pose: scene.pose || 'idle', emotion: scene.emotion || 'neutral', side: scene.side || 'center',
+      hat: this.script.host?.hat || 'none', color: this.script.host?.color || '#2F5DA8',
+      lt: Math.max(0, lt), dur: scene.dur, talking, seed: scene.seed % 1000,
+    });
+    ctx.restore();
+  }
+
+  // One word at a time, white with a black outline: the classic cartoon-explainer caption.
+  _wordCaption(scene, vt) {
+    const words = scene.words || [];
+    let w = null;
+    for (let k = 0; k < words.length; k++) {
+      const end = k + 1 < words.length ? words[k + 1].start : words[k].end + 0.3;
+      if (vt >= words[k].start - 0.02 && vt < end) { w = words[k]; break; }
+    }
+    if (!w) return;
+    const { ctx, W, H } = this;
+    const text = w.text.replace(/^["'(]+|["'),.;:!?]+$/g, '');
+    if (!text) return;
+    const size = Math.round(this.vertical ? W * 0.092 : H * 0.095);
+    const pop = easeOutBack((vt - w.start + 0.02) / 0.12);
+    ctx.save();
+    ctx.font = `900 ${size}px ${CAPTION_FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.translate(W / 2, this.tall ? H * 0.715 : this.vertical ? H * 0.8 : H * 0.86);
+    ctx.scale(lerp(0.8, 1, pop), lerp(0.8, 1, pop));
+    ctx.lineWidth = size * 0.2;
+    ctx.strokeStyle = '#000';
+    ctx.strokeText(text, 0, 0);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  }
+
   _captions(scene, vt) {
     const groups = this.captionGroups[scene.index];
     const g = groups.find(gr => vt >= gr.start - 0.03 && vt < gr.end);
     if (!g) return;
     const style = this.settings.captionStyle;
+    if (style === 'word') { this._wordCaption(scene, vt); return; }
     if (style === 'classic') { this._classicCaption(g, vt); return; }
     const { ctx, W, H } = this;
     const minimal = style === 'minimal';
