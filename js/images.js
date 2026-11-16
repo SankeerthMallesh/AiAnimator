@@ -42,6 +42,51 @@ const IMAGE_TIMEOUT_MS = 50000; // a stalled request is retried instead of holdi
 
 let keyRejected = false; // set when the saved Pollinations key is refused, for the rest of this visit
 
+// Gemini image generation with the user's own (free) Gemini key. null = untested, false = not available for this key.
+let geminiImages = null;
+const GEMINI_IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image', 'gemini-2.0-flash-preview-image-generation'];
+let geminiImageModel = null;
+
+function b64ToBlob(b64, type) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: type || 'image/png' });
+}
+
+async function geminiImage(prompt, { width, height }, s, signal) {
+  const ratio = width / height;
+  const aspectRatio = ratio < 0.65 ? '9:16' : ratio < 0.9 ? '4:5' : ratio < 1.2 ? '1:1' : '16:9';
+  const models = geminiImageModel ? [geminiImageModel] : GEMINI_IMAGE_MODELS;
+  let last;
+  for (const model of models) {
+    for (const withRatio of [true, false]) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(s.geminiKey)}`;
+      const generationConfig = { responseModalities: ['TEXT', 'IMAGE'] };
+      if (withRatio) generationConfig.imageConfig = { aspectRatio };
+      const text = withRatio ? prompt : `${prompt}. Aspect ratio ${aspectRatio}${ratio < 1 ? ', vertical portrait composition' : ''}.`;
+      const { res, data } = await fetchTimeout(url, {
+        method: 'POST', signal, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `Generate an image: ${text}` }] }], generationConfig }),
+      }, IMAGE_TIMEOUT_MS, 'text');
+      if (res.ok) {
+        let part = null;
+        try { part = JSON.parse(data)?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data); } catch { /* fall through */ }
+        if (part) { geminiImageModel = model; return blobToBitmap(b64ToBlob(part.inlineData.data, part.inlineData.mimeType)); }
+        last = new Error('Gemini returned no image');
+        break; // this model answered; a missing image is not a config problem
+      }
+      let msg = '';
+      try { msg = JSON.parse(data)?.error?.message || ''; } catch { /* ignore */ }
+      last = new Error(`HTTP ${res.status}${msg ? ': ' + msg.slice(0, 140) : ''}`);
+      last.status = res.status;
+      if (res.status === 429) throw last;            // rate limited: the model works, just slow down
+      if (res.status !== 400) break;                 // 404 / 403: try the next model
+    }
+  }
+  throw last || new Error('Gemini images unavailable');
+}
+
 const providers = {
   async pollinations(prompt, opts, s, signal, log) {
     if (s.pollinationsKey && !keyRejected) {
@@ -82,6 +127,25 @@ export async function generateImage(prompt, opts, settings, { signal, log, quick
   order.push('pollinations');
   if (settings.hfToken && !order.includes('huggingface')) order.push('huggingface');
 
+  if (settings.geminiKey && geminiImages !== false) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const bmp = await geminiImage(prompt, opts, settings, signal);
+        if (geminiImages === null) log?.('Using your Gemini key for images.');
+        geminiImages = true;
+        return bmp;
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        if (e.status === 429 && geminiImages === true && attempt === 0) { await sleep(8000, signal); continue; }
+        if (geminiImages !== true || e.status === 429) {
+          // Never worked (not offered on this key) or its quota ran out: stop trying for this visit.
+          geminiImages = false;
+          log?.(`Gemini images not available on this key (${e.message}). Using the free image service.`);
+        } else log?.(`Gemini image failed (${e.message})`);
+        break;
+      }
+    }
+  }
   for (const name of order) {
     for (let attempt = 0; attempt < ((quick || isFreeImageTier(settings)) ? 1 : 4); attempt++) {
       try {
@@ -120,5 +184,5 @@ export function imageConcurrency(settings) {
 
 // With no key the free image service allows a short burst, then about one image every 45 seconds.
 export function isFreeImageTier(settings) {
-  return settings.imageProvider !== 'none' && (!settings.pollinationsKey || keyRejected) && !settings.hfToken;
+  return settings.imageProvider !== 'none' && (!settings.pollinationsKey || keyRejected) && !settings.hfToken && !(settings.geminiKey && geminiImages !== false);
 }
