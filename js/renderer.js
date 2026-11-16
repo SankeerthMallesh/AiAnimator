@@ -22,7 +22,7 @@ function rand(seed) { // mulberry32
 }
 
 const TRANSITION_LEN = { whip: 0.36, zoom: 0.42, fade: 0.6, flash: 0.36, slide: 0.42, glitch: 0.3, cut: 0 };
-const ACCENT = '#A3B24E';
+const ACCENT = '#4C86FF';
 const HIGHLIGHT = '#FFD84D';
 const CAPTION_FONT = '"Montserrat", "Arial Black", Impact, sans-serif';
 const LABEL_FONT = '"JetBrains Mono", ui-monospace, Menlo, monospace';
