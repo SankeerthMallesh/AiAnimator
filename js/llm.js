@@ -260,7 +260,7 @@ Return JSON with this exact shape:
   "youtubeTitle": "click-worthy but honest title, under 70 characters",
   "description": "2 short sentences describing the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
   "hashtags": ["5-8 relevant hashtags"],
-${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "Aristotle", "look": "elderly ancient Greek philosopher, short grey curly beard, receding hairline, cream wool himation draped over one shoulder, leather sandals"}],
+${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: hair = an ordinary person in everyday stories, cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "Aristotle", "look": "elderly ancient Greek philosopher, short grey curly beard, receding hairline, cream wool himation draped over one shoulder, leather sandals"}],
   "scenes": [
     {
       "narration": "spoken words for this scene",

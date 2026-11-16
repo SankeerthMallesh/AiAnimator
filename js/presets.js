@@ -5,9 +5,9 @@ export const STYLES = {
     label: 'Cartoon host',
     hint: 'An animated hand-drawn character explains the topic in front of a colourful 3D world',
     mascot: true,
-    lead: 'Colorful stylized 3D video game environment, empty scene with nobody in it',
-    prompt: 'vibrant saturated colors, simple chunky low-poly shapes, bright blue sky with soft clouds, clean cartoon 3D world, toy-like models, wide view with open ground in the lower middle, scenery and objects only',
-    direction: 'An animated cartoon host character is added on top of every shot automatically, so each "visual" must describe ONLY the place and the objects the narration talks about (for example: a railroad track with a gap between two rails, a steel bridge, a factory floor, a desert, the inside of an engine) as a colourful, simple 3D game-like scene. NEVER put people, characters, faces or animals in a visual. Keep the lower middle of the frame open ground where the host can stand. Give every scene a "pose", "emotion" and "side" for the host that match the line being spoken, and change them from scene to scene.',
+    lead: 'Bright colorful 2D cartoon background from a kids animated TV show, daytime, empty scene with nobody in it',
+    prompt: 'flat bright colors, simple shapes with clean dark outlines, cheerful, open ground in the lower middle, scenery and objects only',
+    direction: 'An animated cartoon host character is added on top of every shot automatically, so each "visual" must describe ONLY the place and the objects the narration talks about (for example: a railroad track with a gap between two rails, a steel bridge, a factory floor, a desert, the inside of an engine) as a bright, simple cartoon scene. Name the concrete objects (a red car on a country road, a lottery counter in a shop, a steel rail with a gap). NEVER put people, characters, faces or animals in a visual. Keep the lower middle of the frame open ground where the host can stand. Give every scene a "pose", "emotion" and "side" for the host that match the line being spoken, and change them from scene to scene.',
   },
   'cgi-short': {
     label: '3D render short',

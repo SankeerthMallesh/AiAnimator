@@ -2,7 +2,7 @@
 // round white head, thick ink outline, simple face, a costume that fits the topic.
 // It hops in, bobs, blinks, tilts its head, gestures, and its mouth moves with the narration.
 
-export const HATS = ['none', 'cap', 'hardhat', 'laurel', 'tophat', 'crown', 'helmet', 'chef', 'grad', 'beanie'];
+export const HATS = ['none', 'hair', 'cap', 'hardhat', 'laurel', 'tophat', 'crown', 'helmet', 'chef', 'grad', 'beanie'];
 export const POSES = ['idle', 'point', 'shrug', 'think', 'shock', 'wave', 'present', 'walk', 'cheer', 'facepalm'];
 export const EMOTIONS = ['neutral', 'skeptical', 'happy', 'shocked', 'sad', 'angry'];
 export const SIDES = ['left', 'center', 'right'];
@@ -50,6 +50,18 @@ function hat(ctx, kind, color, u) {
   ctx.lineJoin = 'round';
   const S = (x, y, w, h, r, fill) => { roundRect(ctx, x * u, y * u, w * u, h * u, r * u); ctx.fillStyle = fill; ctx.fill(); ctx.stroke(); };
   switch (kind) {
+    case 'hair': {
+      // Brown side-swept hair with a little tuft on top.
+      ctx.beginPath();
+      ctx.arc(0, -6.2 * u, 2.07 * u, Math.PI * 1.02, Math.PI * 1.98);
+      ctx.quadraticCurveTo(0.9 * u, -7.4 * u, 0, -7.1 * u);
+      ctx.quadraticCurveTo(-1.1 * u, -6.9 * u, -2.07 * u, -6.3 * u);
+      ctx.closePath();
+      ctx.fillStyle = '#8A5A33'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-0.2 * u, -8.2 * u); ctx.quadraticCurveTo(0.2 * u, -9.4 * u, 0.9 * u, -8.9 * u); ctx.quadraticCurveTo(0.4 * u, -8.8 * u, 0.4 * u, -8.2 * u); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      break;
+    }
     case 'cap': {
       S(-1.75, -9.0, 3.5, 1.5, 0.7, color);                 // crown
       S(-1.9, -7.75, 3.8, 0.55, 0.25, '#1b1b22');           // band
@@ -209,7 +221,13 @@ export function drawMascot(ctx, W, H, st) {
   const wide = st.emotion === 'shocked' ? 1.35 : 1;
   ctx.fillStyle = INK;
   for (const ex of [0.35, 1.25]) {
-    ctx.beginPath(); ctx.ellipse(ex * u, -6.35 * u, 0.2 * u * wide, 0.3 * u * wide * blink, 0, 0, Math.PI * 2); ctx.fill();
+    if (st.emotion === 'happy') {
+      // Laughing eyes: little upward arcs.
+      ctx.lineWidth = 0.2 * u; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(ex * u, -6.2 * u, 0.3 * u, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.ellipse(ex * u, -6.35 * u, 0.2 * u * wide, 0.3 * u * wide * blink, 0, 0, Math.PI * 2); ctx.fill();
+    }
   }
   // Brows carry the emotion.
   ctx.lineWidth = 0.2 * u; ctx.lineCap = 'round';
@@ -221,8 +239,10 @@ export function drawMascot(ctx, W, H, st) {
   // Mouth: opens with the narration.
   const open = st.talking;
   const mx = 0.85, my = -5.45;
-  if (st.emotion === 'happy' && open < 0.15) {
-    ctx.beginPath(); ctx.arc(mx * u, (my - 0.25) * u, 0.45 * u, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+  if (st.emotion === 'happy') {
+    // Big open grin that widens while talking.
+    ctx.beginPath(); ctx.arc(mx * u, (my - 0.3) * u, (0.5 + open * 0.12) * u, 0.08 * Math.PI, 0.92 * Math.PI); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#E8687A'; ctx.beginPath(); ctx.ellipse(mx * u, (my + 0.08) * u, 0.24 * u, 0.1 * u, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = INK;
   } else if (st.emotion === 'sad' && open < 0.15) {
     ctx.beginPath(); ctx.arc(mx * u, (my + 0.3) * u, 0.4 * u, 1.15 * Math.PI, 1.85 * Math.PI); ctx.stroke();
   } else {
