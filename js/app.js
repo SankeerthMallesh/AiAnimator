@@ -128,6 +128,7 @@ function initComposer() {
       quality: $('#quality').value,
       fps: Number($('#fps').value),
       extra: $('#extra').value.trim(),
+      patient: $('#patient').checked,
     });
   });
 }

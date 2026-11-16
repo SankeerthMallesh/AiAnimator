@@ -182,22 +182,41 @@ export class Pipeline {
         const again = waiting; waiting = []; limited = false;
         await fetchRound(again, 1); // one at a time: a burst right after the reset gets refused
       }
+      if (waiting.length && p.options.patient && isFree()) {
+        // Patient mode: the free service gives about one image every 45 s, so fetch the rest one by one.
+        const rest = waiting; waiting = [];
+        for (let k = 0; k < rest.length; k++) {
+          for (let left = 46; left > 0; left--) {
+            this.h.step('visuals', 'active', `${done} / ${todo.length} · next free image in ${left}s`);
+            await new Promise((resolve, reject) => {
+              const t = setTimeout(resolve, 1000);
+              this.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
+            });
+          }
+          limited = false;
+          await fetchRound([rest[k]], 1);
+        }
+      }
+      for (const scene of scenes) delete scene.reframe;
       if (waiting.length) {
         // Rate limited. Rather than wait 45 s per image (or show blank art), the remaining shots
-        // reuse the nearest finished image with their own camera move. ↻ on a shot fetches its own later.
+        // reuse the nearest finished image, each framed on a different part of it. ↻ fetches a shot's own later.
         const have = scenes.map((s, i) => ({ i, e: p.images.get(s.id) })).filter(x => x.e?.bitmap && x.e.key !== 'borrowed');
         this.log(`Free image limit reached after ${have.length} image${have.length === 1 ? '' : 's'} (about 1 every 45 s without a key). Reusing them for the other ${waiting.length} shot${waiting.length === 1 ? '' : 's'}.`);
-        for (const scene of waiting) {
+        // Gentle crops that favour the upper half, where faces and subjects usually are.
+        const FRAMES = [[1.35, -0.12, 0.1], [1.3, 0.12, 0.08], [1.5, 0, 0.14], [1.35, 0.14, 0], [1.4, -0.14, 0.04], [1.55, 0.05, 0.12], [1.3, -0.08, 0.12]];
+        waiting.sort((a, b) => scenes.indexOf(a) - scenes.indexOf(b));
+        waiting.forEach((scene, n) => {
           const i = scenes.indexOf(scene);
           const near = have.slice().sort((a, b) => Math.abs(a.i - i) - Math.abs(b.i - i))[0];
           p.images.set(scene.id, { key: 'borrowed', bitmap: near ? near.e.bitmap : null, custom: false, depth: null });
-          if (!near) failed++;
+          if (near) { const [zoom, x, y] = FRAMES[n % FRAMES.length]; scene.reframe = { zoom, x, y }; } else failed++;
           this.h.scene?.(i);
           queueDepth(scene);
-        }
+        });
         this.h.step('visuals', 'warn', have.length
-          ? `${have.length} images shared across ${scenes.length} shots (free limit). A free Pollinations key gives every shot its own.`
-          : 'Image service is rate limited. Wait a minute, then hit ↻, or add a free Pollinations key.');
+          ? `${have.length} of ${scenes.length} pictures (free limit). Tick "Unique picture for every shot" under More to wait for all.`
+          : 'Image service is rate limited. Wait a minute, then hit ↻.');
         return;
       }
       this.h.step('visuals', failed ? 'warn' : 'done', failed ? `${failed} used fallback art — hit ↻ to retry` : `${scenes.length} images`);

@@ -267,6 +267,15 @@ export class Renderer {
     rot += Math.sin(lt * 0.6 + s) * 0.0018;
     px += Math.sin(lt * 0.8 + s) * 0.008;
     py += Math.cos(lt * 0.6 + s) * 0.006;
+    // Shots that share a picture look at a different part of it.
+    const rf = scene.reframe;
+    if (rf) {
+      zoom *= rf.zoom;
+      x += rf.x * W * rf.zoom; y += rf.y * H * rf.zoom;
+      // Never slide past the edge of the picture.
+      const mx = Math.max(0, (zoom - 1) / 2 - 0.02) * W, my = Math.max(0, (zoom - 1) / 2 - 0.02) * H;
+      x = clamp(x, -mx, mx); y = clamp(y, -my, my);
+    }
     return { zoom, x, y, rot, px, py, dolly, focus, three };
   }
 
