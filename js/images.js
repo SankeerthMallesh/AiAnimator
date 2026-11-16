@@ -40,9 +40,26 @@ async function blobToBitmap(blob) {
 
 const IMAGE_TIMEOUT_MS = 50000; // a stalled request is retried instead of holding a slot forever
 
+let keyRejected = false; // set when the saved Pollinations key is refused, for the rest of this visit
+
 const providers = {
-  async pollinations(prompt, opts, s, signal) {
-    const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, s), { signal }, IMAGE_TIMEOUT_MS, 'blob');
+  async pollinations(prompt, opts, s, signal, log) {
+    if (s.pollinationsKey && !keyRejected) {
+      let why = '';
+      try {
+        const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, s), { signal }, IMAGE_TIMEOUT_MS, 'blob');
+        if (res.ok) return await blobToBitmap(data);
+        why = `HTTP ${res.status}`;
+        try { why += ': ' + (JSON.parse(await data.text())?.error?.message || '').slice(0, 160); } catch { /* ignore */ }
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        why = e.message;
+      }
+      // The keyed service refused or failed (wrong kind of key, no credit, blocked): use the free no-key service.
+      keyRejected = true;
+      log?.(`Pollinations key did not work (${why}). Using free no-key images instead. Image keys must be secret keys starting with sk_.`);
+    }
+    const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), { signal }, IMAGE_TIMEOUT_MS, 'blob');
     if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
     return blobToBitmap(data);
   },
@@ -65,16 +82,15 @@ export async function generateImage(prompt, opts, settings, { signal, log, quick
   order.push('pollinations');
   if (settings.hfToken && !order.includes('huggingface')) order.push('huggingface');
 
-  const tries = quick ? 1 : 4;
   for (const name of order) {
-    for (let attempt = 0; attempt < tries; attempt++) {
+    for (let attempt = 0; attempt < ((quick || isFreeImageTier(settings)) ? 1 : 4); attempt++) {
       try {
-        return await providers[name](prompt, opts, settings, signal);
+        return await providers[name](prompt, opts, settings, signal, log);
       } catch (e) {
         if (signal?.aborted) throw e;
         log?.(`${name} image attempt ${attempt + 1} failed (${e.message})`);
         if (e.status === 401 || e.status === 403 || /No .* token/.test(e.message)) break;
-        if (attempt === tries - 1) break;
+        if (quick || isFreeImageTier(settings)) break;
         // Anonymous tiers are rate limited; back off and try again.
         await sleep(e.status === 429 ? 6000 + attempt * 4000 : 2500 + attempt * 2500, signal);
       }
@@ -98,11 +114,11 @@ export async function mapLimit(items, limit, fn) {
 }
 
 export function imageConcurrency(settings) {
-  if (settings.pollinationsKey || (settings.imageProvider === 'huggingface' && settings.hfToken)) return 4;
+  if ((settings.pollinationsKey && !keyRejected) || (settings.imageProvider === 'huggingface' && settings.hfToken)) return 4;
   return 3;
 }
 
 // With no key the free image service allows a short burst, then about one image every 45 seconds.
 export function isFreeImageTier(settings) {
-  return settings.imageProvider !== 'none' && !settings.pollinationsKey && !settings.hfToken;
+  return settings.imageProvider !== 'none' && (!settings.pollinationsKey || keyRejected) && !settings.hfToken;
 }

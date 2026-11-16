@@ -151,18 +151,19 @@ export class Pipeline {
       if (!todo.length) { this.h.step('visuals', 'done', `${scenes.length} images`); return; }
       this.h.step('visuals', 'active', `0 / ${todo.length}`);
       let done = 0, failed = 0;
-      const free = isFreeImageTier(this.s);
+      const isFree = () => isFreeImageTier(this.s); // can flip mid-run if a saved key is refused
+      const free = isFree();
       // Free tier: ask for shots spread across the video first (start, middle, end…), so if the
       // service's limit cuts us off, the images we did get cover the whole story.
       const order = free ? spreadOrder(todo) : todo;
       let limited = false;
       let waiting = [];
-      const fetchRound = (list) => mapLimit(list, imageConcurrency(this.s), async (scene) => {
+      const fetchRound = (list, limit = imageConcurrency(this.s)) => mapLimit(list, limit, async (scene) => {
         const key = this.imageKey(scene);
         if (limited) { waiting.push(scene); return; }
         const prompt = imagePromptFor(scene, p.script, p.options.style);
-        const bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, quick: free, log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
-        if (!bitmap && free) { limited = true; waiting.push(scene); return; }
+        const bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, quick: isFree(), log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
+        if (!bitmap && isFree()) { limited = true; waiting.push(scene); return; }
         if (!bitmap) failed++;
         p.images.set(scene.id, { key, bitmap, custom: false, depth: null });
         done++;
@@ -171,7 +172,7 @@ export class Pipeline {
         queueDepth(scene);
       });
       await fetchRound(order);
-      if (free && waiting.length === order.length) {
+      if (isFree() && waiting.length === order.length) {
         // Not a single image: the allowance is used up right now. One wait for it to reset is worth it.
         this.h.step('visuals', 'active', 'Free image limit hit — waiting 45 s for it to reset…');
         await new Promise((resolve, reject) => {
@@ -179,7 +180,7 @@ export class Pipeline {
           this.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
         });
         const again = waiting; waiting = []; limited = false;
-        await fetchRound(again);
+        await fetchRound(again, 1); // one at a time: a burst right after the reset gets refused
       }
       if (waiting.length) {
         // Rate limited. Rather than wait 45 s per image (or show blank art), the remaining shots

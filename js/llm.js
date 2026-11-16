@@ -31,6 +31,8 @@ async function openAICompat(url, key, model, messages, signal, extra = {}, tempe
   return content;
 }
 
+let pollinationsKeyRejected = false;
+
 const PROVIDERS = {
   async gemini(messages, s, signal, temperature = 0.8) {
     if (!s.geminiKey) throw new Error('No Gemini key');
@@ -79,8 +81,13 @@ const PROVIDERS = {
   // the original temperature instead of the per-task one the other providers receive.
   async pollinations(messages, s, signal, temperature = 0.8) {
     const model = s.pollinationsTextModel || 'openai';
-    if (s.pollinationsKey) {
-      return openAICompat('https://gen.pollinations.ai/v1/chat/completions', s.pollinationsKey, model, messages, signal, { reasoning_effort: 'low' }, temperature);
+    if (s.pollinationsKey && !pollinationsKeyRejected) {
+      try {
+        return await openAICompat('https://gen.pollinations.ai/v1/chat/completions', s.pollinationsKey, model, messages, signal, { reasoning_effort: 'low' }, temperature);
+      } catch (e) {
+        if (![401, 402, 403].includes(e.status)) throw e;
+        pollinationsKeyRejected = true; // wrong kind of key or out of credit: use the free service
+      }
     }
     // Anonymous, free endpoint (rate limited per visitor).
     try {
