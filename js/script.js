@@ -365,6 +365,65 @@ export class Script {
         }
       }
     }
+    // Interactions: the cast uses the things in the scene instead of standing next to them.
+    // ride = sits in a vehicle and drives it across; carry = lifts the floating prop overhead and walks with it;
+    // push = shoves a heavy object along; hand = holds a small item and passes it over; inspect = walks up and points.
+    scenes.forEach((sc, i) => {
+      const who = sc.who || [];
+      if (!who.length) return;
+      const props = sc.props || [];
+      const acts = sc.acts = sc.acts || [];
+      const speaker = who.find(w => w.id === sc.say) || who[0];
+      const other = who.find(w => w !== speaker) || null;
+      const text = String(sc.line || sc.narration || '').toLowerCase();
+      const vehicle = props.find(p => ['car', 'train', 'boat'].includes(p.kind));
+      const mini = props.find(p => ['money', 'coin', 'ticket', 'phone'].includes(p.kind));
+      const toon = props.find(p => PropKit.TOONS.includes(p.kind));
+      const heavy = props.find(p => ['engine', 'desk', 'chair', 'sign'].includes(p.kind));
+      const ground = props.find(p => ['tree', 'house', 'counter', 'bridge', 'rocket', 'planet'].includes(p.kind));
+      const dropActs = (id) => { for (let k = acts.length - 1; k >= 0; k--) if (acts[k].id === id) acts.splice(k, 1); };
+      if (vehicle) {
+        const rider = speaker;
+        const ltr = i % 2 === 0;
+        dropActs(rider.id); dropActs(vehicle.id);
+        rider.x = ltr ? 0.2 : 0.8; rider.face = ltr ? 1 : -1; rider.pose = 'drive';
+        rider.x = ltr ? 0.14 : 0.86;
+        acts.push({ t: 0.25, id: rider.id, do: 'drive', x: other ? (ltr ? 0.5 : 0.5) : (ltr ? 0.8 : 0.2), dur: 2.4 });
+        if (other) { other.x = ltr ? 0.88 : 0.12; other.face = ltr ? -1 : 1; acts.push({ t: 1.2, id: other.id, do: 'jump' }); }
+        sc.use = { who: rider.id, how: 'ride', prop: vehicle.id };
+      } else if (mini && other) {
+        sc.props = props.filter(p => p !== mini);
+        speaker.hold = mini.kind;
+        dropActs(speaker.id);
+        acts.push({ t: 0.2, id: speaker.id, do: 'hold', hold: mini.kind }, { t: 1.3, id: speaker.id, do: 'give', hold: mini.kind, to: other.id }, { t: 1.85, id: other.id, do: 'hold', hold: mini.kind });
+        acts.push({ t: 2.0, id: other.id, do: 'cheer' });
+        sc.use = { who: speaker.id, how: 'hand', prop: mini.id };
+      } else if (heavy || /\b(push|pushes|pushing|shove|drag|move[sd]?|haul)\b/.test(text)) {
+        const target = heavy || props.find(p => !PropKit.TOONS.includes(p.kind) && p.kind !== 'sun');
+        if (target) {
+          const pusher = other || speaker;
+          const ltr = pusher.x < 0.5;
+          dropActs(pusher.id);
+          pusher.x = ltr ? 0.14 : 0.86; pusher.face = ltr ? 1 : -1;
+          acts.push({ t: 0.3, id: pusher.id, do: 'walk', x: ltr ? 0.42 : 0.58, dur: 2.6 });
+          sc.use = { who: pusher.id, how: 'push', prop: target.id };
+        }
+      } else if (toon && ['earth', 'moon', 'bulb', 'book', 'clock', 'star', 'gear', 'atom', 'thermometer'].includes(toon.kind) && (i % 2 === 1 || who.length === 1)) {
+        const carrier = other || speaker;
+        const left = carrier.x < 0.5;
+        dropActs(carrier.id);
+        acts.push({ t: 0.35, id: carrier.id, do: 'walk', x: who.length === 1 ? (left ? 0.62 : 0.38) : (left ? 0.3 : 0.7), dur: 2.2 });
+        sc.use = { who: carrier.id, how: 'carry', prop: toon.id };
+      } else if (ground) {
+        const near = who.slice().sort((a, b) => Math.abs(a.x - ground.x) - Math.abs(b.x - ground.x))[0];
+        const side = near.x < ground.x ? -1 : 1;
+        dropActs(near.id);
+        acts.push({ t: 0.3, id: near.id, do: 'walk', x: Math.max(0.1, Math.min(0.9, ground.x + side * 0.2)), dur: 1.3 }, { t: 1.7, id: near.id, do: 'point' });
+        near.face = -side;
+        sc.use = { who: near.id, how: 'inspect', prop: ground.id };
+      }
+      acts.sort((a, b) => a.t - b.t);
+    });
     return {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
       youtubeTitle: Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90),

@@ -105,8 +105,18 @@ export class Stage {
     const cast = new Map((view.script?.cast || []).map(c => [c.id, c]));
     const actors = Stage.actors(scene, local, cast);
     const props = Stage.props(scene, local);
+    // Interaction for this scene: who is using which prop, and how.
+    const use = scene.use || null;
+    const ua = use ? actors.find(a => a.id === use.who) : null;
+    const up = use ? props.find(p => (p.id || p.kind) === use.prop) : null;
+    if (ua && up && use.how === 'ride') { ua.pose = 'drive'; up.x = ua.x; }
+    if (ua && up && use.how === 'push') { up.x = ua.x + ua.face * 0.21; if (ua.pose === 'walk' || ua.pose === 'idle') ua.pose = 'give'; }
+    if (ua && up && use.how === 'carry') ua.pose = 'cheer';
+    const vehicle = ua && up && use.how === 'ride' ? up : null;
+    const carried = ua && up && use.how === 'carry' ? up : null;
     const driving = actors.some(a => a.pose === 'drive');
     for (const p of props) {
+      if (p === vehicle || p === carried) continue;
       if (p.kind === 'car' && driving) continue;
       if (p.kind === 'sun') Stage.sun(ctx, p, W, u, H, local);
       else {
@@ -146,9 +156,15 @@ export class Stage {
     }
     if (driving) {
       for (const p of props) {
-        if (p.kind !== 'car') continue;
-        PropKit.draw(ctx, { ...p, x: p.x * W }, u, ground, local);
+        // A ridden vehicle is drawn big enough to sit in.
+        if (p === vehicle) PropKit.draw(ctx, { ...p, x: p.x * W }, u * 1.75, ground, local);
+        else if (p.kind === 'car' && !vehicle) PropKit.draw(ctx, { ...p, x: p.x * W }, u, ground, local);
       }
+    }
+    if (carried) {
+      // Held overhead, bobbing with the carrier's steps.
+      const bob = Math.abs(Math.sin(local * 6)) * 0.25;
+      PropKit.draw(ctx, { ...carried, x: ua.x * W, y: 9.0 + bob }, u * 0.8, ground, local);
     }
     if (driving) {
       for (const a of actors.filter(x => x.pose === 'drive')) {
