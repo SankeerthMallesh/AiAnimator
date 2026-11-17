@@ -123,32 +123,15 @@ const PROVIDERS = {
       }
     }
     // Anonymous, free endpoint (one reply about every 45 seconds per IP).
+    // One endpoint only. The plain text.pollinations.ai/ URL answers slowly or not at all
+    // from a browser, and waiting on it after a fast error left the script step stuck.
     try {
-      // The free model is a reasoning model: without low effort it spends its whole output budget thinking and returns HTTP 400.
       const text = await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 1400 }, temperature);
       holdFreeText();
       return text;
     } catch (e) {
-      if (signal?.aborted) throw e;
-      // A 402 is the IP limit. The fallback URL is the same limit, so a second call only burns the wait.
-      if (e.status === 402) {
-        holdFreeText(limitWaitMs(e.message));
-        throw e;
-      }
-      const { res, data: t } = await fetchTimeout('https://text.pollinations.ai/', {
-        method: 'POST', signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, model, private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 1400 }),
-      }, LLM_TIMEOUT_MS, 'text');
-      if (!res.ok) {
-        const err = new Error(`Pollinations: HTTP ${res.status} (${e.message}). Add a free key in Settings for reliable scripts.`);
-        err.status = res.status;
-        if (res.status === 402) holdFreeText(limitWaitMs(typeof t === 'string' ? t : e.message));
-        throw err;
-      }
-      if (!String(t || '').trim()) throw new Error('Pollinations returned nothing');
-      holdFreeText();
-      return t;
+      if (e.status === 402) holdFreeText(limitWaitMs(e.message));
+      throw e;
     }
   },
 };

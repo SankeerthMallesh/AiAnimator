@@ -96,7 +96,22 @@ export class Pipeline {
       this.h.scriptReady?.();
       return;
     }
-    const { script, provider } = await writeScript(p.topic, p.options, this.s, { signal: this.signal, log: (m) => this.log(m) });
+    this.h.step('script', 'active', 'Asking the writer…');
+    this.log('Asking the writer…');
+    let waited = 0;
+    const tick = setInterval(() => {
+      waited += 1;
+      this.h.step('script', 'active', `Asking the writer… ${waited}s`);
+    }, 1000);
+    let script, provider;
+    try {
+      ({ script, provider } = await writeScript(p.topic, p.options, this.s, {
+        signal: this.signal,
+        log: (m) => { this.log(m); this.h.step('script', 'active', m.slice(0, 90)); },
+      }));
+    } finally {
+      clearInterval(tick);
+    }
     p.script = script;
     this.writerProvider = provider;
     this.h.step('script', 'done', `${script.scenes.length} scenes · ${provider} · ${((performance.now() - t0) / 1000).toFixed(1)}s`);
@@ -221,7 +236,7 @@ export class Pipeline {
       this.narrator.onProgress = (d) => {
         if (d?.total) this.h.step('voice', 'active', `Downloading voice ${Math.round(d.loaded / d.total * 100)}% (one time)`);
       };
-      try { await warmNarrator(this.narrator); }
+      try { await deadline(warmNarrator(this.narrator), 90000, 'Voice download'); }
       catch (e) {
         if (this.signal.aborted) throw e;
         this.log(`Built-in voice could not load (${e.message}). Captions will carry the film.`);
@@ -235,7 +250,13 @@ export class Pipeline {
       if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const narration = scene.narration;
       const key = `${narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${p.options.pace}|${this.s.elevenVoice || ''}`;
-      const data = await this.narrator.speak(narration, this.pace.voice);
+      let data = null;
+      try {
+        data = await deadline(this.narrator.speak(narration, this.pace.voice), 40000, 'Voice line');
+      } catch (e) {
+        if (this.signal.aborted) throw e;
+        this.log(`Voice line failed (${e.message}). That line stays as captions.`);
+      }
       p.voices.set(scene.id, { key, data });
       done++;
       this.h.step('voice', 'active', `${done} / ${todo.length} lines`);
@@ -320,4 +341,11 @@ export class Pipeline {
       renderer.dispose();
     }
   }
+}
+
+function deadline(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+    promise.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
 }

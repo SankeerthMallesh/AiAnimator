@@ -452,6 +452,7 @@ Check each line on its own. For every real-world claim, decide whether it is fal
 A two-part account is wrong when the line denies one of the parts or mashes them into one object. Eratosthenes used both, separately: at Syene a well had no noon shadow on the solstice, and at Alexandria a stick cast a shadow. "A stick in a well", "a stick, not a well", and "no well" are false.
 Major-jackpot odds are hundreds of millions to one. Powerball is about 1 in 292 million. "1 in 292,201" is a thousand times too small.
 A heartbeat moves about 70 mL. About 5 litres is a minute of output, not one beat.
+Check the arithmetic in every line. If a line says two amounts are close, multiply or add them out. 288,000 is not close to 40,030.
 ${flags.length ? `A local check already flagged:\n${flags.map(f => `- ${f}`).join('\n')}\n` : ''}Fix every wrong line. Omit a line that is already right. Keep each fix short. No nudity, no gore.
 Return JSON only:
 {"notes":["what you fixed, or empty"],"fixes":[{"i":0,"line":"replacement, omit if the line was already right"}],"unverified":["names or numbers a human should double-check"]}`;
@@ -481,6 +482,18 @@ Return JSON only:
         notes.push('A line puts the stick in the well, or denies the well. At Syene the well had no noon shadow; in Alexandria a stick cast the shadow.');
         break;
       }
+    }
+    const closeWord = /\b(?:close to|nearly equal to|about the same as)\b/gi;
+    for (const m of lines.matchAll(closeWord)) {
+      const before = lines.slice(Math.max(0, m.index - 48), m.index);
+      const after = lines.slice(m.index + m[0].length, m.index + m[0].length + 48);
+      const left = [...before.matchAll(/(\d[\d\s,]*)/g)].pop();
+      const right = after.match(/(\d[\d\s,]*)/);
+      const a = Number(String(left?.[1] || '').replace(/[\s,]/g, ''));
+      const b = Number(String(right?.[1] || '').replace(/[\s,]/g, ''));
+      if (!(a > 0 && b > 0)) continue;
+      const ratio = Math.max(a, b) / Math.min(a, b);
+      if (ratio > 2) notes.push(`A line calls ${a} close to ${b}, but they differ by about ${ratio.toFixed(1)}×.`);
     }
     return notes;
   }
