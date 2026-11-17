@@ -303,3 +303,22 @@ export async function factCheck(script, settings, { signal, log, avoid, topic, o
   }
   return { notes, changed };
 }
+
+// Settings → "Check keys": one tiny request per configured script writer, so a bad or
+// out-of-quota key shows up here and not halfway through a video.
+export async function checkWriters(settings) {
+  const names = ['gemini', 'groq', 'openrouter', 'pollinations'].filter(n => n === 'pollinations' || settings[`${n}Key`]);
+  const msg = [{ role: 'system', content: 'Reply with JSON only.' }, { role: 'user', content: 'Return {"ok":true}' }];
+  return Promise.all(names.map(async (name) => {
+    const t0 = performance.now();
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const out = await PROVIDERS[name](msg, settings, ctrl.signal, 0);
+      parseJSONLoose(out);
+      return { name, ok: true, ms: Math.round(performance.now() - t0) };
+    } catch (e) {
+      return { name, ok: false, error: ctrl.signal.aborted ? 'no answer in 30 s' : String(e.message || e).slice(0, 160) };
+    } finally { clearTimeout(timer); }
+  }));
+}

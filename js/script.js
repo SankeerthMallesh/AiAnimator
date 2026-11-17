@@ -443,6 +443,16 @@ export class Script {
       lastHow = sc.use ? sc.use.how : '';
       acts.sort((a, b) => a.t - b.t);
     });
+    // Cuts like a real animated short: a plain cut while the story stays in one place,
+    // a whip or zoom only when it moves somewhere new, and never two flashy cuts in a row.
+    {
+      let flashy = false;
+      scenes.forEach((sc, i) => {
+        const moved = i > 0 && sc.set !== scenes[i - 1].set;
+        if (i === 0 || !moved || flashy) { sc.cut = 'cut'; flashy = false; }
+        else { sc.cut = sc.cut === 'zoom' ? 'zoom' : (i % 2 ? 'whip' : 'zoom'); flashy = true; }
+      });
+    }
     return {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
       youtubeTitle: Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90),

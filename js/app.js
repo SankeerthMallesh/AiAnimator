@@ -732,6 +732,23 @@ $('#settingsDlg').addEventListener('close', () => {
   refreshVoiceSelect();
   toast('Settings saved.');
 });
+$('#btnCheckKeys').addEventListener('click', async () => {
+  // Check what is typed in the form right now, saved or not.
+  const f = $('#settingsForm');
+  const draft = { ...settings };
+  for (const k of ['geminiKey', 'groqKey', 'openrouterKey', 'pollinationsKey', 'geminiModel', 'groqModel', 'openrouterModel', 'pollinationsTextModel']) {
+    if (f.elements[k]) draft[k] = f.elements[k].value.trim();
+  }
+  const btn = $('#btnCheckKeys');
+  btn.disabled = true; btn.textContent = 'Checking…';
+  try {
+    const { checkWriters } = await import('./llm.js');
+    const res = await checkWriters(draft);
+    const label = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', pollinations: 'Free writer (no key)' };
+    toast(res.map(r => (r.ok ? `✓ ${label[r.name]} works (${(r.ms / 1000).toFixed(1)} s)` : `✗ ${label[r.name]}: ${r.error}`)).join('\n'), res.some(r => !r.ok), 12000);
+  } finally { btn.disabled = false; btn.textContent = 'Check keys'; }
+});
+
 $('#btnResetKeys').addEventListener('click', () => {
   for (const k of ['geminiKey', 'groqKey', 'openrouterKey', 'pollinationsKey', 'hfToken']) {
     settings[k] = '';

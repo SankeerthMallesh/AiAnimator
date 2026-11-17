@@ -76,33 +76,30 @@ export class Stage {
     stage.drawFrame(Math.min(localT, dur - 0.05));
   }
 
+  // One continuous camera move per scene, eased, with a gentle handheld drift, so a shot
+  // never jumps mid-line. Transitions happen only at scene changes.
   static shot(scene, local) {
-    const beats = scene.dur > 4.3;
-    const i = beats ? Math.floor(local / BEAT) : 0;
-    const cams = [scene.cam || 'push', 'punch', 'pan', 'tilt', 'pull', 'hold'];
-    const cam = cams[i % cams.length];
-    const lt = beats ? local - i * BEAT : local;
-    const shotDur = beats ? Math.min(BEAT, scene.dur - i * BEAT) : scene.dur;
-    let whip = 0;
-    let zoom = 1;
-    if (i === 0 && local < 0.2) {
-      if (scene.cut === 'whip') whip = 1 - local / 0.2;
-      if (scene.cut === 'zoom') zoom = 1.22 - 0.22 * (local / 0.2);
-    } else if (i > 0 && lt < 0.16 && i % 2 === 1) {
-      whip = 1 - lt / 0.16;
-    }
-    const p = shotDur > 0 ? Ink.clamp(lt / shotDur, 0, 1) : 0;
-    let z = zoom, panX = 0, panY = 0, rot = 0;
-    if (cam === 'push') z *= 1 + 0.1 * Ink.smooth(p);
-    else if (cam === 'pull') z *= 1.1 - 0.1 * Ink.smooth(p);
-    else if (cam === 'pan') panX = Math.sin(p * Math.PI) * (i % 2 ? -1 : 1);
-    else if (cam === 'tilt') rot = Math.sin(p * Math.PI) * 0.03;
+    const dur = Math.max(0.5, scene.dur);
+    const p = Ink.smooth(Ink.clamp(local / dur, 0, 1));
+    const cam = scene.cam || 'push';
+    let whip = 0, z = 1, panX = 0, panY = 0, rot = 0;
+    if (local < 0.22 && scene.cut === 'whip') whip = 1 - local / 0.22;
+    if (local < 0.3 && scene.cut === 'zoom') z = 1.16 - 0.16 * Ink.smooth(local / 0.3);
+    if (cam === 'push') z *= 1 + 0.07 * p;
+    else if (cam === 'pull') z *= 1.07 - 0.07 * p;
+    else if (cam === 'pan') { panX = (p - 0.5) * (scene.index % 2 ? -0.9 : 0.9); z *= 1.05; }
+    else if (cam === 'tilt') { rot = (p - 0.5) * 0.035; z *= 1.04; }
     else if (cam === 'punch') {
-      const k = lt - 0.32;
-      if (k > 0 && k < 0.22) z *= 1 + 0.14 * Math.sin((k / 0.22) * Math.PI);
+      // A quick punch-in on the first beat of the line, then a slow settle.
+      const k = local - 0.3;
+      z *= 1.02 + (k > 0 && k < 0.5 ? 0.11 * Math.sin((k / 0.5) * Math.PI) * (k < 0.25 ? 1 : 0.6) : 0) + 0.03 * p;
     }
+    // Breathing: barely visible, but it keeps every frame alive.
+    z *= 1 + 0.006 * Math.sin(local * 0.9 + scene.index);
+    panX += 0.02 * Math.sin(local * 0.6 + scene.index * 1.7);
+    panY += 3 * Math.sin(local * 0.75 + scene.index);
     if (whip) panX += (scene.index % 2 ? 1 : -1) * whip * whip * 0.42;
-    return { cam, z, panX, panY, rot, whip, lt };
+    return { cam, z, panX, panY, rot, whip, lt: local };
   }
 
   static world(ctx, W, H, view, scene, local, shot) {
@@ -147,6 +144,25 @@ export class Stage {
     }
     const talkId = scene.say || actors[0]?.id;
     const talk = Stage.mouth(scene, local);
+    // Talking with the hands: the speaker gestures on the first word of each sentence and on
+    // long, important words, timed to the voice, then relaxes back.
+    {
+      const sp = actors.find(a => a.id === talkId);
+      if (sp && sp.pose === 'idle') {
+        const vt = local - (scene.voiceOffset || 0);
+        const ws = scene.words || [];
+        const moves = ['present', 'point', 'shrug', 'present'];
+        let n = 0;
+        for (let k = 0; k < ws.length; k++) {
+          const w = ws[k];
+          const first = k === 0 || /[.!?]["')]?$/.test(ws[k - 1].text);
+          const big = w.text.replace(/[^\p{L}\p{N}]/gu, '').length >= 8;
+          if (!first && !big) continue;
+          n++;
+          if (vt >= w.start - 0.05 && vt < w.start + 0.75) { sp.pose = moves[n % moves.length]; sp.poseT = vt - w.start; break; }
+        }
+      }
+    }
     for (const a of actors) {
       const look = cast.get(a.id) || {};
       Cast.draw(ctx, {
