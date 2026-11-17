@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Storyforge Studio</title>
-<meta name="description" content="Free AI studio that turns a written brief into an animated, narrated, captioned video (MP4). Runs in your browser.">
+<title>Storyforge</title>
+<meta name="description" content="Free cartoon studio that turns a prompt into a narrated YouTube Short (MP4). Drawn in your browser. Nothing is posted.">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F5FE0'/%3E%3Crect x='8' y='9' width='16' height='14' rx='2' fill='none' stroke='%23F4F3E7' stroke-width='2.4'/%3E%3Cpath d='M8 13h16' stroke='%23F4F3E7' stroke-width='2.4'/%3E%3Cpath d='M11 9l3 4M16 9l3 4' stroke='%23F4F3E7' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611170025">
+<link rel="stylesheet" href="css/app.css?v=202611170047">
 </head>
 <body>
 <div class="app" id="app">
@@ -44,8 +44,8 @@
       <div class="home-grid">
         <div class="brief-col">
           <p class="eyebrow">Production brief</p>
-          <h1 class="headline">Write the brief.<br><em>Get back a finished film.</em></h1>
-          <p class="lede">Describe any video. Storyforge writes the script, checks the facts, paints every shot, moves a 3D camera through them, narrates and scores it, then hands you an MP4.</p>
+          <h1 class="headline">Type a topic.<br><em>Get a cartoon short.</em></h1>
+          <p class="lede">Storyforge writes a fact-checked script, then a small cast acts it out: thick outlines, stick limbs, props and sets drawn on the page. A voice, music and captions come with it. You download the MP4.</p>
 
           <form class="sheet" id="composer" autocomplete="off">
             <div class="sheet-tabs mode-seg" role="tablist">
@@ -71,7 +71,6 @@
             <div class="slot-grid">
               <label class="slot"><span class="lbl">Runtime</span><select id="duration"></select></label>
               <label class="slot"><span class="lbl">Pace</span><select id="pace"></select></label>
-              <label class="slot"><span class="lbl">Look</span><select id="style"></select></label>
               <label class="slot"><span class="lbl">Narrator</span><select id="voice"></select></label>
               <label class="slot"><span class="lbl">Score</span><select id="mood"></select></label>
               <button type="button" class="slot slot-btn" id="btnMore" aria-expanded="false"><span class="lbl">More</span><span>Quality, notes…</span></button>
@@ -83,13 +82,14 @@
                 <label class="slot"><span class="lbl">Quality</span><select id="quality"><option value="720">720p · fastest</option><option value="1080">1080p · HD</option><option value="1440">1440p · 2K</option></select></label>
                 <label class="slot"><span class="lbl">Frame rate</span><select id="fps"><option value="24">24 fps · film</option><option value="30">30 fps</option><option value="60">60 fps · smooth</option></select></label>
               </div>
-              <label class="check"><input type="checkbox" id="patient" checked> Unique picture for every shot (free, but adds about 45 seconds per shot)</label>
+              <label class="check"><input type="checkbox" id="patient" checked> Try one painted background (free, gives up after 20 seconds)</label>
               <label class="check"><input type="checkbox" id="reviewFirst"> Stop at the storyboard so I can edit before rendering</label>
             </div>
 
             <div class="sheet-foot">
               <p class="fine">No sign-up. Free and private: nothing is posted anywhere.</p>
-              <button class="go" id="btnGo" type="submit">Roll camera <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button class="go" id="btnGo" type="submit">Make the short <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button class="btn ghost" id="btnDemo" type="button">20s test reel</button>
             </div>
           </form>
         </div>
@@ -100,10 +100,10 @@
           <div class="how">
             <p class="eyebrow">What happens when you roll</p>
             <ol class="how-list">
-              <li><b>Script</b> written and fact-checked by free AI</li>
-              <li><b>Shots</b> painted, then turned 3D with a depth map</li>
-              <li><b>Voice</b> recorded on your own device</li>
-              <li><b>Score</b> composed, mixed, rendered to MP4</li>
+              <li><b>Script</b> written and fact-checked, then repaired if the model truncates it</li>
+              <li><b>Cast</b> walks, points, jumps and lip-flaps in a drawn cartoon set</li>
+              <li><b>Voice</b> recorded on your own device, with music and sound effects</li>
+              <li><b>MP4</b> encoded in the browser. Nothing is posted anywhere</li>
             </ol>
           </div>
         </aside>
@@ -125,9 +125,9 @@
       <div class="proj-grid">
         <div class="col-left">
           <div class="notes card hidden" id="factNotes">
-            <p class="card-title">Fact-check notes</p>
+            <p class="card-title" id="factTitle">Fact-check notes</p>
             <ul id="factList"></ul>
-            <p class="fine">AI can still be wrong. Read the script below before you publish.</p>
+            <p class="fine" id="factFine">AI can still be wrong. Read the script below before you publish.</p>
           </div>
 
           <div class="board-head">
@@ -139,7 +139,7 @@
           </div>
           <div class="board" id="board"></div>
 
-          <details class="log-wrap">
+          <details class="log-wrap" open>
             <summary>Activity log</summary>
             <pre class="log" id="log"></pre>
           </details>
@@ -158,6 +158,7 @@
               <span class="time" id="time">0:00</span>
             </div>
             <div class="progress hidden" id="renderProg"><div class="bar"><i id="renderBar"></i></div><div class="fine" id="renderText"></div></div>
+            <p class="fact-flag hidden" id="factFlag" role="status"></p>
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Render MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
@@ -209,20 +210,17 @@
 
     <fieldset>
       <legend>Visuals</legend>
-      <label class="field"><span>Image AI</span>
+      <label class="field"><span>Background plates</span>
         <select name="imageProvider">
-          <option value="pollinations">Pollinations FLUX (no key)</option>
-          <option value="huggingface">Hugging Face FLUX (free token)</option>
-          <option value="none">None — abstract backgrounds</option>
+          <option value="pollinations">Pollinations (no key, optional)</option>
+          <option value="huggingface">Hugging Face (free token)</option>
+          <option value="none">Off — drawn backgrounds only</option>
         </select></label>
+      <p class="fine">Plates are optional scenery in a window or the sky. Characters, props and motion are always drawn in code. The film never waits more than 20 seconds for a picture, and every picture is safety-checked first.</p>
       <label class="field"><span>Pollinations key, optional <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">get one ↗</a></span><input name="pollinationsKey" type="password" placeholder="faster, fewer limits"></label>
       <label class="field"><span>Pollinations image model</span><input name="pollinationsImageModel"></label>
-      <label class="field"><span>Animate shots with AI video (paid)</span>
-        <select name="videoClips"><option value="off">Off — pictures with a moving camera (free)</option><option value="on">On — a real moving clip for every shot (costs Pollinations credit)</option></select></label>
-      <label class="field"><span>Video model</span>
-        <select name="videoModel"><option value="wan-fast">Wan 2.2 Fast — 480p, cheapest</option><option value="p-video">Pruna P-Video — 720p</option><option value="seedance-pro">Seedance Pro Fast — 720p</option><option value="veo">Veo 3.1 Fast — best, most expensive</option></select></label>
-      <p class="fine">Animation needs a secret Pollinations key (starts with sk_) with paid credit. There is no free video model. Expect a few minutes per video.</p>
       <label class="field"><span>Hugging Face token <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">get free token ↗</a></span><input name="hfToken" type="password" placeholder="hf_…"></label>
+      <p class="fine">There is no free AI video model. Motion is the cartoon cast, not a generated clip. A Pollinations image key must start with sk_.</p>
     </fieldset>
 
     <fieldset>
@@ -245,9 +243,6 @@
       <legend>Video</legend>
       <label class="field"><span>Default quality</span>
         <select name="quality"><option value="720">720p — fastest on old laptops</option><option value="1080">1080p — HD</option><option value="1440">1440p — 2K</option></select></label>
-      <label class="field"><span>3D camera</span>
-        <select name="depth3d"><option value="auto">On — AI depth for real parallax (recommended)</option><option value="off">Off — flat 2D camera</option></select></label>
-      <label class="check"><input type="checkbox" name="atmosphere"> Cinematic atmosphere (floating dust, light rays)</label>
       <label class="field"><span>Captions</span>
         <select name="captionStyle"><option value="word">One word at a time (cartoon explainer)</option><option value="classic">Classic white phrases</option><option value="bold">Bold pop with yellow words</option><option value="box">Highlight box</option><option value="minimal">Minimal</option><option value="off">Off</option></select></label>
       <label class="field"><span>Music volume</span><input name="musicVolume" type="range" min="0" max="1" step="0.05"></label>
@@ -267,26 +262,25 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611170025",
-  "./js/audio.js": "./js/audio.js?v=202611170025",
-  "./js/clips.js": "./js/clips.js?v=202611170025",
-  "./js/depth.js": "./js/depth.js?v=202611170025",
-  "./js/encoder.js": "./js/encoder.js?v=202611170025",
-  "./js/gl3d.js": "./js/gl3d.js?v=202611170025",
-  "./js/images.js": "./js/images.js?v=202611170025",
-  "./js/llm.js": "./js/llm.js?v=202611170025",
-  "./js/mascot.js": "./js/mascot.js?v=202611170025",
-  "./js/net.js": "./js/net.js?v=202611170025",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611170025",
-  "./js/presets.js": "./js/presets.js?v=202611170025",
-  "./js/props.js": "./js/props.js?v=202611170025",
-  "./js/renderer.js": "./js/renderer.js?v=202611170025",
-  "./js/safety.js": "./js/safety.js?v=202611170025",
-  "./js/storage.js": "./js/storage.js?v=202611170025",
-  "./js/tts.js": "./js/tts.js?v=202611170025",
-  "./vendor/mp4-muxer.mjs": "./vendor/mp4-muxer.mjs?v=202611170025"
+  "./js/app.js": "./js/app.js?v=202611170047",
+  "./js/audio.js": "./js/audio.js?v=202611170047",
+  "./js/cast.js": "./js/cast.js?v=202611170047",
+  "./js/demo.js": "./js/demo.js?v=202611170047",
+  "./js/encoder.js": "./js/encoder.js?v=202611170047",
+  "./js/images.js": "./js/images.js?v=202611170047",
+  "./js/llm.js": "./js/llm.js?v=202611170047",
+  "./js/net.js": "./js/net.js?v=202611170047",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611170047",
+  "./js/presets.js": "./js/presets.js?v=202611170047",
+  "./js/props.js": "./js/props.js?v=202611170047",
+  "./js/safety.js": "./js/safety.js?v=202611170047",
+  "./js/script.js": "./js/script.js?v=202611170047",
+  "./js/stage.js": "./js/stage.js?v=202611170047",
+  "./js/storage.js": "./js/storage.js?v=202611170047",
+  "./js/tts.js": "./js/tts.js?v=202611170047",
+  "./vendor/mp4-muxer.mjs": "./vendor/mp4-muxer.mjs?v=202611170047"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611170025"></script>
+<script type="module" src="./js/app.js?v=202611170047"></script>
 </body>
 </html>

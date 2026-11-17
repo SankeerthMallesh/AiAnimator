@@ -20,7 +20,14 @@ export async function fetchTimeout(url, opts = {}, ms = 45000, kind = null) {
     const res = await fetch(url, { ...rest, signal: ctrl.signal });
     if (!kind) return res;
     // Read the body even for errors, so callers can show the server's message.
-    const data = await res[kind]();
+    // Race the read against the same deadline: aborting a stalled body stream does not
+    // always reject, and that is what left the script step waiting with no end.
+    const data = await new Promise((resolve, reject) => {
+      const onAbort = () => reject(new DOMException('Cancelled', 'AbortError'));
+      if (ctrl.signal.aborted) { onAbort(); return; }
+      ctrl.signal.addEventListener('abort', onAbort, { once: true });
+      res[kind]().then(resolve, reject);
+    });
     return { res, data };
   } catch (e) {
     if (timedOut && !parent?.aborted) {

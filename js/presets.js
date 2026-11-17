@@ -91,17 +91,15 @@ export const VOICES = [
 export const CLOUD_VOICES = ['onyx', 'echo', 'fable', 'alloy', 'nova', 'shimmer'];
 
 export const LENGTHS = [
-  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [90, '90 sec'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [600, '10 min'],
+  [15, '15 sec'], [20, '20 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [90, '90 sec'], [120, '2 min'], [180, '3 min'],
 ];
 
 export const EXAMPLES = [
-  'What could actually move a Cybertruck?',
-  'How ancient Greeks proved the Earth was round 2,000 years before satellites',
-  'What happens to your body if you swallow a magnet',
-  'What would happen if you fell into a black hole',
-  'How Roman concrete has lasted 2,000 years',
-  'Why octopuses are the closest thing to aliens on Earth',
-  'What actually happens to your body when you hold your breath',
+  'Why jointed railroad tracks leave a gap',
+  'Why lottery clerks seem to win more often',
+  'How your heart pumps blood',
+  'How a rocket actually stays in orbit',
+  'How Eratosthenes measured the Earth with a stick',
 ];
 
 export const CAMERAS = ['push-in', 'pull-out', 'pan-left', 'pan-right', 'tilt-up', 'tilt-down', 'orbit', 'vertigo', 'impact'];
@@ -122,9 +120,9 @@ export function formatOf(options) {
 
 // Pacing: how long each shot lasts and how fast the narrator talks.
 export const PACES = {
-  chill:  { label: 'Chill',  secPerScene: 5.8, voice: 0.94, wps: 2.35 },
-  normal: { label: 'Normal', secPerScene: 4.2, voice: 1.0,  wps: 2.55 },
-  fast:   { label: 'Fast',   secPerScene: 3.0, voice: 1.12, wps: 2.85 },
+  chill:  { label: 'Chill',  secPerScene: 4.0, voice: 0.94, wps: 2.3 },
+  normal: { label: 'Normal', secPerScene: 3.3, voice: 1.02, wps: 2.55 },
+  fast:   { label: 'Fast',   secPerScene: 2.7, voice: 1.12, wps: 2.9 },
 };
 
 export const QUALITIES = { '720': 720, '1080': 1080, '1440': 1440 };

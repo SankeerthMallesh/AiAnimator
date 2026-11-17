@@ -189,6 +189,44 @@ export async function mapLimit(items, limit, fn) {
   return results;
 }
 
+// One background plate. Never retries for 45 seconds — the caller caps the whole wait at 20s.
+export function platePrompt(bg) {
+  const clean = String(bg || 'open landscape')
+    .replace(/\b(naked|nude|gore|gory|blood|bloody|person|people|man|woman|human|child|boy|girl|body|bodies|skin|face|character)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 180);
+  return `bright colorful 2D cartoon background from a kids animated TV show, flat colors, clean dark outlines, empty scenery, landscape and objects only, no figures, no letters. ${clean || 'open landscape'}`;
+}
+
+export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {
+  if (!settings || settings.imageProvider === 'none') return null;
+  const ms = Math.max(2000, Math.min(20000, timeout));
+  let bmp = null;
+  try {
+    if (settings.imageProvider === 'huggingface' && settings.hfToken) {
+      bmp = await providers.huggingface(prompt, opts, settings, signal);
+    } else {
+      const keyed = settings.pollinationsKey && !keyRejected;
+      const url = pollinationsURL(prompt, opts, keyed ? settings : { ...settings, pollinationsKey: '' });
+      const { res, data } = await fetchTimeout(url, { signal }, ms, 'blob');
+      if (!res.ok) {
+        if ([401, 402, 403].includes(res.status)) keyRejected = true;
+        log?.(`Background plate HTTP ${res.status}`);
+        return null;
+      }
+      bmp = await blobToBitmap(data);
+    }
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    log?.(`Background plate skipped (${e.message})`);
+    return null;
+  }
+  if (!bmp) return null;
+  if (!(await isSafeImage(bmp, prompt, log))) { bmp.close?.(); return null; }
+  return bmp;
+}
+
 export function imageConcurrency(settings) {
   if ((settings.pollinationsKey && !keyRejected) || (settings.imageProvider === 'huggingface' && settings.hfToken)) return 4;
   return 3;
