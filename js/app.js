@@ -3,6 +3,8 @@ import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSI
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadDepth } from './depth.js';
 import { preloadSafety } from './safety.js';
+import { PROPS } from './props.js';
+import { POSES } from './mascot.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
@@ -447,6 +449,13 @@ function renderBoard() {
     fillSelect(fx, EFFECTS.map(c => [c, `fx: ${c}`]), scene.effect || 'none');
     fx.addEventListener('change', () => { scene.effect = fx.value; markDirty(scene, card); });
 
+    const prop = el('select', { 'aria-label': 'Prop' });
+    fillSelect(prop, PROPS.map(c => [c, `prop: ${c}`]), scene.prop || 'none');
+    prop.addEventListener('change', () => { scene.prop = prop.value; markDirty(scene, card); });
+    const pose = el('select', { 'aria-label': 'Host pose' });
+    fillSelect(pose, POSES.map(c => [c, `pose: ${c}`]), scene.pose || 'idle');
+    pose.addEventListener('change', () => { scene.pose = pose.value; markDirty(scene, card); });
+
     const body = el('div', { class: 'scene-body' },
       el('div', { class: 'scene-top' },
         el('span', { class: 'tc' }, t ? `${fmt(t.start)} → ${fmt(t.start + t.dur)} · ${t.dur.toFixed(1)}s` : `scene ${i + 1}`),
@@ -461,7 +470,7 @@ function renderBoard() {
       el('details', {},
         el('summary', {}, 'visual · label · motion'),
         visual,
-        el('div', { class: 'grid3' }, label, cam, tr, fx)));
+        el('div', { class: 'grid3' }, label, cam, tr, fx, prop, pose)));
     card.append(thumb, body);
     board.append(card);
     updateThumb(i);

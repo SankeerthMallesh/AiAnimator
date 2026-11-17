@@ -127,11 +127,13 @@ function hat(ctx, kind, color, u) {
 // state: { pose, emotion, side, hat, color, lt (seconds into the shot), dur, talking (0..1 mouth open), seed }
 export function drawMascot(ctx, W, H, st) {
   const tall = H / W > 1.5;
-  const height = tall ? H * 0.4 : H * 0.62;      // head-to-toe size on screen
+  const close = st.shot === 'close';
+  const height = (tall ? H * 0.4 : H * 0.62) * (close ? 1.5 : 1);      // head-to-toe size on screen
   const u = height / 10;
   const baseX = { left: 0.3, center: 0.5, right: 0.7 }[st.side] ?? 0.5;
   const faceDir = st.side === 'right' ? -1 : 1;  // look toward the middle of the frame
-  const groundY = tall ? H * 0.665 : H * 0.9;
+  // In a close-up the host is bigger and its feet drop out of frame behind the captions.
+  const groundY = (tall ? H * 0.665 : H * 0.9) + (close ? height * 0.36 : 0);
   const t = st.lt;
   const ph = (st.seed % 100) / 10;
 
@@ -143,6 +145,7 @@ export function drawMascot(ctx, W, H, st) {
   let jump = 0;
   if (st.pose === 'shock') jump = Math.max(0, Math.sin(clamp(t / 0.45, 0, 1) * Math.PI)) * 1.3;
   if (st.pose === 'cheer') jump = Math.abs(Math.sin(t * 5)) * 0.7;
+  jump += (st.hop || 0) * 0.55;   // little hop on key words
   if (st.pose === 'walk') {
     const p = smooth(t / Math.max(1.2, st.dur));
     x = lerp(baseX - 0.16 * faceDir, baseX + 0.12 * faceDir, p) * W;

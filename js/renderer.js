@@ -5,6 +5,7 @@
 import { DepthStage, isSoftwareGL } from './gl3d.js';
 import { seekClip } from './clips.js';
 import { drawMascot } from './mascot.js';
+import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -687,7 +688,23 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+    // Hop when a highlighted key word is spoken.
+    const keys = (scene.keywords || []).flatMap(k => k.toLowerCase().split(/\s+/)).map(norm);
+    let hop = 0;
+    for (const w of scene.words || []) {
+      const d = vt - w.start;
+      if (d >= 0 && d < 0.3 && keys.includes(norm(w.text))) hop = Math.sin((d / 0.3) * Math.PI);
+    }
+    // The prop floats on the opposite side from the host (or above-right when the host is centred).
+    if (scene.prop && scene.prop !== 'none') {
+      const side = scene.side || 'center';
+      const px = side === 'left' ? 0.7 : side === 'right' ? 0.3 : 0.74;
+      const size = (this.tall ? W * 0.34 : H * 0.34);
+      const py = this.tall ? (scene.shot === 'close' ? H * 0.2 : side === 'center' ? H * 0.25 : H * 0.3) : H * 0.3;
+      drawProp(ctx, scene.prop, px * W, py, size, Math.max(0, lt));
+    }
     drawMascot(ctx, W, H, {
+      shot: scene.shot, hop,
       pose: scene.pose || 'idle', emotion: scene.emotion || 'neutral', side: scene.side || 'center',
       hat: this.script.host?.hat || 'none', color: this.script.host?.color || '#2F5DA8',
       lt: Math.max(0, lt), dur: scene.dur, talking, seed: scene.seed % 1000,

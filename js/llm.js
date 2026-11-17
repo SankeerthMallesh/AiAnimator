@@ -4,6 +4,7 @@
 import { STYLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { fetchTimeout } from './net.js';
 import { HATS, POSES, EMOTIONS, SIDES } from './mascot.js';
+import { PROPS } from './props.js';
 
 const WORDS_PER_SECOND = 2.55;
 
@@ -270,6 +271,8 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
       "camera": one of ${JSON.stringify(CAMERAS)},
       "transition": one of ${JSON.stringify(TRANSITIONS)},
       "effect": one of ${JSON.stringify(EFFECTS)}${style.mascot ? `,
+      "prop": one of ${JSON.stringify(PROPS)},
+      "shot": "wide" or "close",
       "pose": one of ${JSON.stringify(POSES)},
       "emotion": one of ${JSON.stringify(EMOTIONS)},
       "side": one of ${JSON.stringify(SIDES)}` : ''}
@@ -339,6 +342,8 @@ export function normalizeScript(raw, options) {
       camera: CAMERAS.includes(s.camera) ? s.camera : ['push-in', 'pan-left', 'pull-out', 'orbit', 'pan-right', 'tilt-up'][i % 6],
       transition: TRANSITIONS.includes(s.transition) ? s.transition : TRANSITIONS[i % 4],
       effect: EFFECTS.includes(s.effect) ? s.effect : 'none',
+      prop: PROPS.includes(s.prop) ? s.prop : 'none',
+      shot: s.shot === 'close' || s.shot === 'wide' ? s.shot : (i % 3 === 2 ? 'close' : 'wide'),
       pose: POSES.includes(s.pose) ? s.pose : ['present', 'point', 'think', 'shrug', 'walk', 'shock', 'wave'][i % 7],
       emotion: EMOTIONS.includes(s.emotion) ? s.emotion : ['neutral', 'skeptical', 'happy', 'shocked'][i % 4],
       side: SIDES.includes(s.side) ? s.side : ['center', 'left', 'right'][i % 3],
