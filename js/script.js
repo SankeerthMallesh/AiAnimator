@@ -449,7 +449,7 @@ LINES:
 ${JSON.stringify(scenes)}
 
 Check each line on its own. For every real-world claim, decide whether it is false, a myth told as fact, the wrong unit, or only half of a two-part account.
-A two-part account is wrong when the line denies one of the parts. Eratosthenes used both: at Syene a well had no noon shadow on the solstice, and at Alexandria a stick did cast a shadow. "A stick, not a well" or "no well" is false.
+A two-part account is wrong when the line denies one of the parts or mashes them into one object. Eratosthenes used both, separately: at Syene a well had no noon shadow on the solstice, and at Alexandria a stick cast a shadow. "A stick in a well", "a stick, not a well", and "no well" are false.
 Major-jackpot odds are hundreds of millions to one. Powerball is about 1 in 292 million. "1 in 292,201" is a thousand times too small.
 A heartbeat moves about 70 mL. About 5 litres is a minute of output, not one beat.
 ${flags.length ? `A local check already flagged:\n${flags.map(f => `- ${f}`).join('\n')}\n` : ''}Fix every wrong line. Omit a line that is already right. Keep each fix short. No nudity, no gore.
@@ -476,7 +476,24 @@ Return JSON only:
     if (/\bheart|ventricle|pulse\b/.test(about) && /\b\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*(?:l|litres|liters)\b[^.\n]{0,40}\b(?:per|each|a)\s+beat\b/i.test(lines)) {
       notes.push('Litres per beat is off by orders of magnitude. One beat moves tens of millilitres; about 5 litres is per minute.');
     }
+    for (const s of script?.scenes || []) {
+      if (/stick in a well|stick into a well|not a well|no well|without a well/i.test(s.narration || '')) {
+        notes.push('A line puts the stick in the well, or denies the well. At Syene the well had no noon shadow; in Alexandria a stick cast the shadow.');
+        break;
+      }
+    }
     return notes;
+  }
+
+  // The small writer keeps mashing Eratosthenes's two tools into one. Correct that line in place.
+  static fixWellStick(script) {
+    let changed = 0;
+    for (const s of script?.scenes || []) {
+      if (!/stick in a well|stick into a well|not a well|no well|without a well/i.test(s.narration || '')) continue;
+      s.narration = 'At Syene a well had no noon shadow, and in Alexandria a stick cast one.';
+      changed++;
+    }
+    return changed;
   }
 }
 

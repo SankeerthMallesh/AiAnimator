@@ -122,6 +122,11 @@ export class Pipeline {
         const { notes, changed } = await factCheck(p.script, this.s, {
           signal: this.signal, log: (m) => this.log(m), avoid: this.writerProvider, topic: p.topic, onWait,
         });
+        const fixed = Script.fixWellStick(p.script);
+        if (fixed) {
+          notes.push('Replaced a line that put the stick in the well. Syene’s well had no noon shadow; Alexandria’s stick cast the shadow.');
+          this.log('Fact-check caught “a stick in a well” and split it into the well at Syene and the stick at Alexandria.');
+        }
         const flags = Script.sanity(p.script, p.topic);
         p.factCheckNotes = [...notes, ...flags];
         p.factChecked = true;
@@ -130,13 +135,16 @@ export class Pipeline {
           this.log(`Fact-check finished, and a quantity is still off by orders of magnitude. ${flags.join(' ')}`);
           this.h.step('facts', 'warn', 'Flagged — a number is off');
         } else {
-          this.h.step('facts', 'done', changed ? `${changed} fix${changed > 1 ? 'es' : ''} applied` : 'No problems found');
+          const n = changed + fixed;
+          this.h.step('facts', 'done', n ? `${n} fix${n > 1 ? 'es' : ''} applied` : 'No problems found');
         }
         this.h.scriptReady?.();
-        return { changed };
+        return { changed: changed + fixed };
       } catch (e) {
         if (this.signal.aborted) return { aborted: true, changed: 0 };
+        const fixed = Script.fixWellStick(p.script);
         const flags = Script.sanity(p.script, p.topic);
+        if (fixed) flags.unshift('Replaced a line that put the stick in the well. Syene’s well had no noon shadow; Alexandria’s stick cast the shadow.');
         p.factChecked = false;
         p.factStatus = 'unchecked';
         p.factCheckNotes = [
@@ -146,7 +154,7 @@ export class Pipeline {
         this.log(`Not fact-checked: the free checker did not answer after the rate-limit wait (${e.message}). Do not treat these lines as verified.`);
         this.h.step('facts', 'warn', 'Not fact-checked');
         this.h.scriptReady?.();
-        return { changed: 0 };
+        return { changed: fixed };
       }
     })();
   }
