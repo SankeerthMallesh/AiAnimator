@@ -177,7 +177,8 @@ export function speechBounds(samples, sampleRate) {
 
 // Spread words over the spoken time, weighted by length and punctuation pauses.
 export function wordTimings(text, t0, t1) {
-  const words = text.split(/\s+/).filter(Boolean);
+  // Long dashes join two words with no space ("sphere—science"); caption them as separate words.
+  const words = text.replace(/\s*[—–]\s*/g, ' ').split(/\s+/).filter(Boolean);
   const weights = words.map(w => {
     const letters = w.replace(/[^\p{L}\p{N}]/gu, '').length;
     let wgt = 1.2 + letters * 0.9;

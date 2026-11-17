@@ -732,7 +732,9 @@ export class Renderer {
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
     ctx.translate(W / 2, this.tall ? H * 0.715 : this.vertical ? H * 0.8 : H * 0.86);
-    ctx.scale(lerp(0.8, 1, pop), lerp(0.8, 1, pop));
+    // Long words shrink to stay inside the frame.
+    const fit = Math.min(1, (W * 0.9) / Math.max(1, ctx.measureText(text).width + size * 0.3));
+    ctx.scale(lerp(0.8, 1, pop) * fit, lerp(0.8, 1, pop) * fit);
     ctx.lineWidth = size * 0.2;
     ctx.strokeStyle = '#000';
     ctx.strokeText(text, 0, 0);
