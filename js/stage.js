@@ -301,6 +301,15 @@ export class Stage {
 
   static mouth(scene, local) {
     const v = scene.voice;
+    if (v?.env) {
+      // Smoothed loudness of the real voice, read a hair early so the mouth leads the sound like real speech.
+      const { env, rate } = v.env;
+      const f = (local - (scene.voiceOffset || 0) + 0.03) * rate;
+      if (f < 0 || f >= env.length - 1) return 0;
+      const i = Math.floor(f), k = f - i;
+      const x = env[i] * (1 - k) + env[i + 1] * k;
+      return x < 0.08 ? 0 : Ink.clamp(Math.pow(x, 0.8) * 1.05, 0, 1);
+    }
     if (v?.samples?.length) {
       const at = (local - (scene.voiceOffset || 0)) * v.sampleRate;
       if (at < 0 || at >= v.samples.length) return 0;
@@ -315,7 +324,7 @@ export class Stage {
 
   static chunks(words) {
     const out = [];
-    const bare = (w) => String(w || '').replace(/[’‘]/g, "'").replace(/[—–-]/g, ' ').replace(/(\d)[.,](?=\d)/g, '$1\u0001').replace(/[^\p{L}\p{N}' \u0001]/gu, '').replace(/\u0001/g, '.').replace(/(^|\s)'+|'+(\s|$)/g, '$1$2').replace(/\s+/g, ' ').trim();
+    const bare = (w) => String(w || '').replace(/[’‘]/g, "'").replace(/[—–-]/g, ' ').replace(/(\d)\.(?=\d)/g, '$1\u0001').replace(/(\d),(?=\d)/g, '$1\u0002').replace(/[^\p{L}\p{N}' \u0001\u0002]/gu, '').replace(/\u0001/g, '.').replace(/\u0002/g, ',').replace(/(^|\s)'+|'+(\s|$)/g, '$1$2').replace(/\s+/g, ' ').trim();
     for (let i = 0; i < (words || []).length;) {
       const a = words[i];
       const b = words[i + 1];

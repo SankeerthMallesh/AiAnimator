@@ -2,7 +2,7 @@
 // Everything is synthesized locally with the Web Audio API, so there is nothing to license.
 
 import { MOODS } from './presets.js';
-import { speechBounds, wordTimings } from './tts.js';
+import { speechBounds, wordTimings, alignWords, voiceEnvelope } from './tts.js';
 
 export const SAMPLE_RATE = 48000;
 const WPS = 2.55;
@@ -19,7 +19,8 @@ export function buildTimeline(scenes, voices, { endPad = 0.9, wps = WPS } = {}) 
     if (v && v.samples?.length) {
       const b = speechBounds(v.samples, v.sampleRate);
       dur = lead + b.end + 0.2;
-      words = wordTimings(narration, lead + b.start, lead + b.end);
+      words = alignWords(narration, v.samples, v.sampleRate, lead, v.sentences);
+      if (!v.env) v.env = voiceEnvelope(v.samples, v.sampleRate);
     } else {
       const n = narration.split(/\s+/).filter(Boolean).length;
       dur = Math.max(1.8, n / wps + 0.45);

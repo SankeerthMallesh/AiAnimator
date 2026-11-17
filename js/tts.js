@@ -55,8 +55,33 @@ export class Narrator {
     if (this.engine === 'kokoro') {
       try {
         const speed = Math.max(0.6, Math.min(1.6, (Number(s.voiceSpeed) || 1) * speedMul));
-        const d = await this._call({ type: 'speak', text: speakable(text), voice: s.voice, speed });
-        return { samples: d.samples, sampleRate: d.sampleRate };
+        // One sentence at a time, so we know exactly where each sentence starts and ends:
+        // captions and mouths then stay locked to the voice for the whole line.
+        const sentences = speakable(text).match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g)?.map(x => x.trim()).filter(Boolean) || [speakable(text)];
+        const pieces = [];
+        let sampleRate = 24000;
+        for (const sent of sentences) {
+          const d = await this._call({ type: 'speak', text: sent, voice: s.voice, speed });
+          sampleRate = d.sampleRate;
+          // Trim the model's own silence at both ends, keeping 40 ms so consonants aren't clipped.
+          const b = speechBounds(d.samples, d.sampleRate);
+          const pad = Math.round(d.sampleRate * 0.04);
+          const a0 = Math.max(0, Math.round(b.start * d.sampleRate) - pad);
+          const a1 = Math.min(d.samples.length, Math.round(b.end * d.sampleRate) + pad);
+          pieces.push({ text: sent, samples: d.samples.slice(a0, a1) });
+        }
+        const gap = Math.round(sampleRate * 0.22); // a natural breath between sentences
+        const total = pieces.reduce((n, p) => n + p.samples.length, 0) + gap * Math.max(0, pieces.length - 1);
+        const samples = new Float32Array(total);
+        const sentencesOut = [];
+        let o = 0;
+        for (const p of pieces) {
+          samples.set(p.samples, o);
+          const b = speechBounds(p.samples, sampleRate);
+          sentencesOut.push({ text: p.text, start: o / sampleRate + b.start, end: o / sampleRate + b.end });
+          o += p.samples.length + gap;
+        }
+        return { samples, sampleRate, sentences: sentencesOut };
       } catch (e) {
         this.log(`Built-in voice failed (${e.message}); trying the cloud voice.`);
         this.engine = 'pollinations';
@@ -200,3 +225,94 @@ export function wordTimings(text, t0, t1) {
 
 // Carry this file's ?v= stamp to the worker so browsers never mix old and new code.
 function withVersion(u) { u.search = new URL(import.meta.url).search; return u; }
+
+// ---------- lip sync and caption sync ----------
+
+// A smooth loudness curve for the voice, sampled every 10 ms: fast attack, gentle release,
+// normalised to the line's own peak. Drives the mouths so they open on syllables and close
+// in pauses without fluttering from one frame to the next.
+export function voiceEnvelope(samples, sampleRate) {
+  const hop = Math.max(1, Math.round(sampleRate * 0.01));
+  const n = Math.ceil(samples.length / hop);
+  const raw = new Float32Array(n);
+  let peak = 1e-6;
+  for (let f = 0; f < n; f++) {
+    let s = 0, c = 0;
+    const a = f * hop, b = Math.min(samples.length, a + hop * 2);
+    for (let i = a; i < b; i += 2) { s += samples[i] * samples[i]; c++; }
+    raw[f] = Math.sqrt(s / (c || 1));
+    if (raw[f] > peak) peak = raw[f];
+  }
+  const env = new Float32Array(n);
+  let v = 0;
+  for (let f = 0; f < n; f++) {
+    const x = Math.min(1, raw[f] / (peak * 0.7));
+    v = x > v ? v + (x - v) * 0.65 : v + (x - v) * 0.22;
+    env[f] = v;
+  }
+  return { env, rate: sampleRate / hop };
+}
+
+// Place each word on the parts of the line where the voice is actually sounding.
+// Silent gaps (breaths, commas, full stops) get no words, so captions change exactly
+// when the narrator moves on instead of drifting ahead or behind.
+export function alignWords(text, samples, sampleRate, offset = 0, sentences = null) {
+  // Best case: we recorded sentence by sentence and know each one's exact span.
+  if (Array.isArray(sentences) && sentences.length) {
+    const all = text.replace(/\s*[—–]\s*/g, ' ').split(/\s+/).filter(Boolean);
+    const out = [];
+    let wi = 0;
+    sentences.forEach((sent, k) => {
+      const n = sent.text.replace(/\s*[—–]\s*/g, ' ').split(/\s+/).filter(Boolean).length;
+      const take = k === sentences.length - 1 ? all.slice(wi) : all.slice(wi, wi + n);
+      wi += take.length;
+      if (take.length) out.push(...wordTimings(take.join(' '), offset + sent.start, offset + sent.end));
+    });
+    if (out.length) return out;
+  }
+  const words = text.replace(/\s*[—–]\s*/g, ' ').split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  const { env, rate } = voiceEnvelope(samples, sampleRate);
+  // Voiced frames, with tiny gaps (< 70 ms, inside words) filled in.
+  const on = Array.from(env, (x) => x > 0.12);
+  const fill = Math.round(0.07 * rate);
+  for (let f = 0; f < on.length; f++) {
+    if (on[f]) continue;
+    let g = f; while (g < on.length && !on[g]) g++;
+    if (f > 0 && g < on.length && g - f <= fill) for (let k = f; k < g; k++) on[k] = true;
+    f = g;
+  }
+  const runs = [];
+  for (let f = 0; f < on.length; f++) {
+    if (!on[f]) continue;
+    let g = f; while (g < on.length && on[g]) g++;
+    runs.push([f / rate, g / rate]);
+    f = g;
+  }
+  if (!runs.length) {
+    const b = speechBounds(samples, sampleRate);
+    return wordTimings(text, offset + b.start, offset + b.end);
+  }
+  const voiced = runs.reduce((n, [a, b]) => n + (b - a), 0);
+  // Map "share of spoken time" to real time, skipping the silent gaps.
+  const at = (frac) => {
+    let need = frac * voiced;
+    for (const [a, b] of runs) {
+      if (need <= b - a) return a + need;
+      need -= b - a;
+    }
+    return runs[runs.length - 1][1];
+  };
+  const weights = words.map(w => {
+    const letters = w.replace(/[^\p{L}\p{N}]/gu, '').length;
+    return 1 + letters * (/\d/.test(w) ? 2.2 : 1);
+  });
+  const total = weights.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  return words.map((w, i) => {
+    const s = at(acc / total);
+    acc += weights[i];
+    const e = at(acc / total);
+    return { text: w, start: offset + s, end: offset + Math.max(s + 0.06, e) };
+  });
+}

@@ -10,7 +10,8 @@ const VIDEO_CODECS = [
 ];
 
 async function pickVideoConfig(width, height, fps) {
-  const bitrate = Math.round(width * height * fps * 0.17); // ~10.5 Mbps at 1080x1920@30: clean edges on flat cartoon colours
+  // ~10.5 Mbps at 1080x1920@30, capped at 14 Mbps for 60 fps: clean edges on flat cartoon colours.
+  const bitrate = Math.min(14_000_000, Math.round(width * height * fps * 0.17));
   for (const accel of ['prefer-hardware', 'no-preference']) {
     for (const [mux, codec] of VIDEO_CODECS) {
       const config = { codec, width, height, bitrate, framerate: fps, hardwareAcceleration: accel, latencyMode: 'quality' };
