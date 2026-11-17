@@ -1,4 +1,6 @@
-# Storyforge
+# Stickman Studio, 3D Explainer Studio and Idea Board
+
+Three free tools in one static site: `/` makes cartoon shorts, `/explainer/` makes 3D-style explainer shorts, `/board/` is a pinboard for planning ideas.
 
 Type a topic. Get a finished vertical cartoon short (MP4). No sign-up and no API key. It runs in the browser, so a cheap laptop is enough, and it never posts anything anywhere.
 
@@ -20,7 +22,8 @@ There is no free AI video model. Motion is the cartoon cast, not a generated cli
 
 ## Use it
 
-- **Online:** after this branch is merged, GitHub Pages serves it from `main` at https://sankeerthmallesh.github.io/AiAnimator/ . A branch preview is not available without changing repository settings.
+- **Cloudflare Pages (recommended):** see "Host on Cloudflare" below.
+- **GitHub Pages:** also works from `main` at https://sankeerthmallesh.github.io/AiAnimator/ .
 - **Locally:** `python3 -m http.server` in this folder, then open `http://localhost:8000/`. Chrome or Edge is the best export path.
 
 Optional keys live only in this browser (Settings):
@@ -29,6 +32,26 @@ Optional keys live only in this browser (Settings):
 - Groq, OpenRouter, a Pollinations secret key (`sk_…`, not `pk_…`), Hugging Face
 
 The free text model is a small reasoning model. Requests send `reasoning_effort: "low"`. Answers are short, so scripts stay compact and a cut-off answer is salvaged.
+
+## Host on Cloudflare
+
+The whole folder is the site. There is no build step, and `_headers`, `_redirects`, `404.html` and `wrangler.toml` are already set up.
+
+**Option A, connected to GitHub (updates itself on every push):**
+
+1. In the Cloudflare dashboard open **Workers & Pages**, choose **Create**, then the **Pages** tab, then **Connect to Git**.
+2. Pick this repository and the `main` branch.
+3. Framework preset: **None**. Build command: leave empty. Build output directory: `/`.
+4. Save and deploy. The site is at `https://<project>.pages.dev`. Add your own domain under **Custom domains** if you want one.
+
+**Option B, upload from your computer:**
+
+```
+npx wrangler login
+npx wrangler pages deploy . --project-name aianimator
+```
+
+Short links: `/3d` opens the explainer and `/plan` opens the board.
 
 ## Honest limits
 

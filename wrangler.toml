@@ -1,0 +1,4 @@
+# Cloudflare Pages project. No build step: the folder itself is the site.
+name = "aianimator"
+pages_build_output_dir = "."
+compatibility_date = "2026-11-01"

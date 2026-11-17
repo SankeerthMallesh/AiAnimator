@@ -1,0 +1,37 @@
+# Cloudflare Pages headers. All three tools are plain static files.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Pages always fetch fresh so a new deploy shows up right away.
+/
+  Cache-Control: no-cache
+/*.html
+  Cache-Control: no-cache
+/explainer/
+  Cache-Control: no-cache
+/board/
+  Cache-Control: no-cache
+
+# Code and styles are version-stamped (?v=...), but revalidate anyway; it is cheap.
+/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+/css/*
+  Cache-Control: public, max-age=0, must-revalidate
+/explainer/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+/explainer/css/*
+  Cache-Control: public, max-age=0, must-revalidate
+/board/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+/board/css/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Third-party libraries change rarely.
+/vendor/*
+  Cache-Control: public, max-age=86400
+
+# Not part of the site.
+/tools/*
+  X-Robots-Tag: noindex
