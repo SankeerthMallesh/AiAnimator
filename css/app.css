@@ -554,3 +554,7 @@ body { font: 15px/1.55 var(--sans); }
 
 .key-tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .toast { white-space: pre-line; }
+
+/* Links to the other tools */
+a.nav-btn.tool-link { text-decoration: none; color: inherit; }
+@media (max-width: 520px) { a.nav-btn.tool-link span { display: none; } }
