@@ -82,6 +82,8 @@ export function saveProjectToHistory(project) {
     options: project.options,
     script: project.script,
     factCheckNotes: project.factCheckNotes || [],
+    factChecked: project.factChecked === true,
+    factStatus: project.factStatus || '',
   };
   const list = loadHistory().filter(p => p.id !== project.id);
   list.unshift(slim);

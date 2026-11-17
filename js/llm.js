@@ -33,6 +33,39 @@ async function openAICompat(url, key, model, messages, signal, extra = {}, tempe
 
 let pollinationsKeyRejected = false;
 
+// The free text endpoint allows about one reply a minute per IP. A "retry after 1s"
+// hint from that 402 has been wrong; the "every N seconds" figure is the real gap.
+const FREE_TEXT_GAP_MS = 46000;
+let freeTextAt = 0;
+
+export function msUntilFreeText() {
+  return Math.max(0, freeTextAt - Date.now());
+}
+
+function holdFreeText(ms = FREE_TEXT_GAP_MS) {
+  freeTextAt = Math.max(freeTextAt, Date.now() + ms);
+}
+
+function limitWaitMs(message) {
+  const every = /every\s+(\d+)\s*seconds?/i.exec(String(message || ''));
+  const n = every ? Number(every[1]) * 1000 : FREE_TEXT_GAP_MS;
+  return Math.min(90000, Math.max(FREE_TEXT_GAP_MS, n));
+}
+
+export async function waitForFreeText(signal, onWait) {
+  let left = msUntilFreeText();
+  if (left < 400) return;
+  while (left > 0) {
+    if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
+    onWait?.(left);
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(resolve, Math.min(1000, left));
+      signal?.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
+    });
+    left = msUntilFreeText();
+  }
+}
+
 const PROVIDERS = {
   async gemini(messages, s, signal, temperature = 0.8) {
     if (!s.geminiKey) throw new Error('No Gemini key');
@@ -89,20 +122,32 @@ const PROVIDERS = {
         pollinationsKeyRejected = true; // wrong kind of key or out of credit: use the free service
       }
     }
-    // Anonymous, free endpoint (rate limited per visitor).
+    // Anonymous, free endpoint (one reply about every 45 seconds per IP).
     try {
       // The free model is a reasoning model: without low effort it spends its whole output budget thinking and returns HTTP 400.
-      return await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 1400 }, temperature);
+      const text = await openAICompat('https://text.pollinations.ai/openai', '', model, messages, signal, { private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 1400 }, temperature);
+      holdFreeText();
+      return text;
     } catch (e) {
       if (signal?.aborted) throw e;
-      // Older plain endpoint as a last resort.
+      // A 402 is the IP limit. The fallback URL is the same limit, so a second call only burns the wait.
+      if (e.status === 402) {
+        holdFreeText(limitWaitMs(e.message));
+        throw e;
+      }
       const { res, data: t } = await fetchTimeout('https://text.pollinations.ai/', {
         method: 'POST', signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages, model, private: true, referrer: 'storyforge', reasoning_effort: 'low', max_tokens: 1400 }),
       }, LLM_TIMEOUT_MS, 'text');
-      if (!res.ok) throw new Error(`Pollinations: HTTP ${res.status} (${e.message}). Add a free key in Settings for reliable scripts.`);
-      if (!t.trim()) throw new Error('Pollinations returned nothing');
+      if (!res.ok) {
+        const err = new Error(`Pollinations: HTTP ${res.status} (${e.message}). Add a free key in Settings for reliable scripts.`);
+        err.status = res.status;
+        if (res.status === 402) holdFreeText(limitWaitMs(typeof t === 'string' ? t : e.message));
+        throw err;
+      }
+      if (!String(t || '').trim()) throw new Error('Pollinations returned nothing');
+      holdFreeText();
       return t;
     }
   },
@@ -126,7 +171,7 @@ export function providerOrder(s, avoid = null) {
 // The first valid answer wins and the others are cancelled, so one slow free service never stalls a video.
 const HEDGE_MS = 10000;
 
-export function chat(messages, settings, { signal, log, temperature, avoid, validate } = {}) {
+export function chat(messages, settings, { signal, log, temperature, avoid, validate, hedge = true, onWait } = {}) {
   const order = providerOrder(settings, avoid);
   const errors = [];
   const ctrl = new AbortController();
@@ -156,12 +201,18 @@ export function chat(messages, settings, { signal, log, temperature, avoid, vali
         log?.(`${name} failed: ${e.message}`);
         if (e.status === 401 || e.status === 403 || /No .* key/.test(e.message)) break;
         // The free writer allows about one reply a minute. A short retry just hits the same wall.
-        const wait = e.status === 402 ? 46000 : 1200;
-        if (e.status === 402) log?.('Free text limit reached. Waiting 45 seconds for another reply…');
-        await new Promise((resolve, reject) => {
-          const t = setTimeout(resolve, wait);
-          ctrl.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
-        });
+        const wait = e.status === 402 ? Math.max(msUntilFreeText(), FREE_TEXT_GAP_MS) : 1200;
+        if (e.status === 402) log?.(`Free text limit. Waiting ${Math.ceil(wait / 1000)}s for another reply…`);
+        const end = Date.now() + wait;
+        while (Date.now() < end) {
+          if (ctrl.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+          onWait?.(end - Date.now());
+          const slice = Math.min(1000, end - Date.now());
+          await new Promise((resolve, reject) => {
+            const t = setTimeout(resolve, slice);
+            ctrl.signal.addEventListener('abort', () => { clearTimeout(t); reject(new DOMException('Cancelled', 'AbortError')); }, { once: true });
+          });
+        }
       }
     }
     throw last;
@@ -191,7 +242,7 @@ export function chat(messages, settings, { signal, log, temperature, avoid, vali
       return true;
     };
     launch();
-    timer = setInterval(() => { if (!settled) launch(); }, HEDGE_MS);
+    if (hedge && order.length > 1) timer = setInterval(() => { if (!settled) launch(); }, HEDGE_MS);
     if (signal?.aborted) finish(reject, new DOMException('Cancelled', 'AbortError'));
   });
 }
@@ -210,7 +261,8 @@ The pictures are drawn in code, so you only return a compact storyboard JSON.
 Never present a myth as fact. If a popular belief is wrong, the narration says so.
 No nudity, no gore, no blood. Characters stay clothed. Body topics use organ props.`;
 
-const SYSTEM_CHECKER = `You fact-check a short narration. Fix myths stated as fact, wrong dates and wrong numbers.
+const SYSTEM_CHECKER = `You fact-check every spoken line of a short. Check each claim on its own.
+Fix myths stated as fact, wrong dates, wrong numbers, wrong units, and a famous story that drops the half that makes it true.
 Keep each replacement line short. Do not add nudity or gore. Output only JSON.`;
 
 export async function writeScript(topic, options, settings, { signal, log } = {}) {
@@ -248,13 +300,13 @@ export async function writeScript(topic, options, settings, { signal, log } = {}
   throw lastErr;
 }
 
-export async function factCheck(script, settings, { signal, log, avoid } = {}) {
+export async function factCheck(script, settings, { signal, log, avoid, topic, onWait } = {}) {
   const messages = [
     { role: 'system', content: SYSTEM_CHECKER },
-    { role: 'user', content: Script.checkPrompt(script) },
+    { role: 'user', content: Script.checkPrompt(script, topic) },
   ];
   const { value: data } = await chat(messages, settings, {
-    signal, log, temperature: 0.1, avoid, validate: (text) => Script.parse(text),
+    signal, log, temperature: 0.1, avoid, hedge: false, onWait, validate: (text) => Script.parse(text),
   });
   const notes = (Array.isArray(data.notes) ? data.notes : []).map(n => Script.clean(n, 300)).filter(Boolean);
   const unverified = (Array.isArray(data.unverified) ? data.unverified : []).map(n => Script.clean(n, 200)).filter(Boolean).slice(0, 6);

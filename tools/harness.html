@@ -140,6 +140,7 @@ window.renderTopic = async (topic) => {
     b64: btoa(s), ext: video.ext, codec: video.codec, size: video.blob.size,
     title: project.script.title, seconds: project.timeline.total,
     notes: project.factCheckNotes || [],
+    factStatus: project.factStatus || '',
     log: logs.join('\n'),
     lines: project.script.scenes.map(sc => sc.narration),
     stills,

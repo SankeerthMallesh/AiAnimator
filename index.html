@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611162359">
+<link rel="stylesheet" href="css/app.css?v=202611170030">
 </head>
 <body>
 <div class="app" id="app">
@@ -125,9 +125,9 @@
       <div class="proj-grid">
         <div class="col-left">
           <div class="notes card hidden" id="factNotes">
-            <p class="card-title">Fact-check notes</p>
+            <p class="card-title" id="factTitle">Fact-check notes</p>
             <ul id="factList"></ul>
-            <p class="fine">AI can still be wrong. Read the script below before you publish.</p>
+            <p class="fine" id="factFine">AI can still be wrong. Read the script below before you publish.</p>
           </div>
 
           <div class="board-head">
@@ -158,6 +158,7 @@
               <span class="time" id="time">0:00</span>
             </div>
             <div class="progress hidden" id="renderProg"><div class="bar"><i id="renderBar"></i></div><div class="fine" id="renderText"></div></div>
+            <p class="fact-flag hidden" id="factFlag" role="status"></p>
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Render MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
@@ -261,25 +262,25 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611162359",
-  "./js/audio.js": "./js/audio.js?v=202611162359",
-  "./js/cast.js": "./js/cast.js?v=202611162359",
-  "./js/demo.js": "./js/demo.js?v=202611162359",
-  "./js/encoder.js": "./js/encoder.js?v=202611162359",
-  "./js/images.js": "./js/images.js?v=202611162359",
-  "./js/llm.js": "./js/llm.js?v=202611162359",
-  "./js/net.js": "./js/net.js?v=202611162359",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611162359",
-  "./js/presets.js": "./js/presets.js?v=202611162359",
-  "./js/props.js": "./js/props.js?v=202611162359",
-  "./js/safety.js": "./js/safety.js?v=202611162359",
-  "./js/script.js": "./js/script.js?v=202611162359",
-  "./js/stage.js": "./js/stage.js?v=202611162359",
-  "./js/storage.js": "./js/storage.js?v=202611162359",
-  "./js/tts.js": "./js/tts.js?v=202611162359",
-  "./vendor/mp4-muxer.mjs": "./vendor/mp4-muxer.mjs?v=202611162359"
+  "./js/app.js": "./js/app.js?v=202611170030",
+  "./js/audio.js": "./js/audio.js?v=202611170030",
+  "./js/cast.js": "./js/cast.js?v=202611170030",
+  "./js/demo.js": "./js/demo.js?v=202611170030",
+  "./js/encoder.js": "./js/encoder.js?v=202611170030",
+  "./js/images.js": "./js/images.js?v=202611170030",
+  "./js/llm.js": "./js/llm.js?v=202611170030",
+  "./js/net.js": "./js/net.js?v=202611170030",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611170030",
+  "./js/presets.js": "./js/presets.js?v=202611170030",
+  "./js/props.js": "./js/props.js?v=202611170030",
+  "./js/safety.js": "./js/safety.js?v=202611170030",
+  "./js/script.js": "./js/script.js?v=202611170030",
+  "./js/stage.js": "./js/stage.js?v=202611170030",
+  "./js/storage.js": "./js/storage.js?v=202611170030",
+  "./js/tts.js": "./js/tts.js?v=202611170030",
+  "./vendor/mp4-muxer.mjs": "./vendor/mp4-muxer.mjs?v=202611170030"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611162359"></script>
+<script type="module" src="./js/app.js?v=202611170030"></script>
 </body>
 </html>

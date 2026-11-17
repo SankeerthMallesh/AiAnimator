@@ -109,7 +109,15 @@ export class Stage {
     for (const p of props) {
       if (p.kind === 'car' && driving) continue;
       if (p.kind === 'sun') Stage.sun(ctx, p, W, u, H, local);
-      else PropKit.draw(ctx, { ...p, x: p.x * W }, u, ground, local);
+      else {
+        let x = p.x;
+        if (['tree', 'house', 'car', 'train', 'planet'].includes(p.kind) && !(p.kind === 'car' && driving)) {
+          for (const a of actors) {
+            if (Math.abs(x - a.x) < 0.18) x = Math.max(0.08, Math.min(0.92, a.x + (a.x < 0.5 ? 0.28 : -0.28)));
+          }
+        }
+        PropKit.draw(ctx, { ...p, x: x * W }, u, ground, local);
+      }
     }
     for (const a of actors.filter(a => a.pose === 'sit')) {
       PropKit.draw(ctx, { kind: 'chair', x: a.x * W }, u, ground, local);
@@ -190,6 +198,16 @@ export class Stage {
   static actors(scene, local, cast) {
     const rows = (scene.who || []).map(w => ({ ...Stage.sampleActor(w, scene.acts, local, scene.dur) }));
     rows.sort((a, b) => a.x - b.x);
+    // Heads are wide. If the script parks two actors on the same spot, push them apart
+    // so they don't draw through each other.
+    const gap = 0.3;
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i].x - rows[i - 1].x < gap) rows[i].x = rows[i - 1].x + gap;
+    }
+    if (rows.length && rows[rows.length - 1].x > 0.84) {
+      const shift = rows[rows.length - 1].x - 0.84;
+      for (const a of rows) a.x = Math.max(0.14, a.x - shift);
+    }
     void cast;
     return rows;
   }

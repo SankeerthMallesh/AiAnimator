@@ -1,7 +1,7 @@
 // Script, optional background plates, voice, score, then a code-drawn render.
 // Plates never hold the video longer than 20 seconds. A missing plate is a drawn set.
 
-import { writeScript, factCheck } from './llm.js';
+import { writeScript, factCheck, waitForFreeText } from './llm.js';
 import { Script } from './script.js';
 import { Demo } from './demo.js';
 import { fetchPlate, platePrompt, mapLimit } from './images.js';
@@ -39,6 +39,7 @@ export function newProject(topic, options) {
     topic, options,
     script: null,
     factCheckNotes: [],
+    factStatus: '',
     plates: new Map(),
     voices: new Map(),
     music: null, musicKey: '',
@@ -68,7 +69,9 @@ export class Pipeline {
     const p = this.p;
     if (p.script?.scenes?.length) {
       this.h.step('script', 'done', `${p.script.scenes.length} scenes`);
-      this.h.step('facts', p.factChecked ? 'done' : 'skip');
+      if (p.factStatus === 'unchecked') this.h.step('facts', 'warn', 'Not fact-checked');
+      else if (p.factStatus === 'flagged') this.h.step('facts', 'warn', 'Flagged — a number is off');
+      else this.h.step('facts', p.factChecked ? 'done' : 'skip');
       return;
     }
     this.h.step('script', 'active');
@@ -76,6 +79,7 @@ export class Pipeline {
     if (this.demo) {
       p.script = Script.normalize(Demo.raw(), { ...p.options, topic: p.topic });
       p.factChecked = true;
+      p.factStatus = 'baked';
       this.h.step('script', 'done', 'Built-in test reel');
       this.h.step('facts', 'skip', 'Baked script');
       this.h.scriptReady?.();
@@ -84,7 +88,11 @@ export class Pipeline {
     if (p.options.mode === 'own') {
       p.script = Script.fromText(p.options.ownScript || p.topic, { ...p.options, topic: p.topic });
       this.h.step('script', 'done', `${p.script.scenes.length} scenes from your text`);
-      this.h.step('facts', 'skip', 'Your own script');
+      p.factChecked = false;
+      p.factStatus = 'unchecked';
+      p.factCheckNotes = ['Not fact-checked. This is your own script, so nothing verified these lines.'];
+      this.log('Not fact-checked: this is your own script.');
+      this.h.step('facts', 'warn', 'Not fact-checked');
       this.h.scriptReady?.();
       return;
     }
@@ -97,30 +105,48 @@ export class Pipeline {
     else this.startFactCheck();
   }
 
+  factTick(left) {
+    const secs = Math.max(1, Math.ceil(left / 1000));
+    this.h.step('facts', 'active', `Free text limit. Fact-check in ${secs}s…`);
+  }
+
   startFactCheck() {
     const p = this.p;
-    this.h.step('facts', 'active', 'Checking in the background…');
+    this.h.step('facts', 'active', 'Checking each claim…');
+    this.log('Fact-check started.');
     this.factJob = (async () => {
-      const ctrl = new AbortController();
-      const onAbort = () => ctrl.abort();
-      this.signal.addEventListener('abort', onAbort, { once: true });
-      let late = false;
-      const timer = setTimeout(() => { late = true; ctrl.abort(); }, 70000);
+      const onWait = (left) => this.factTick(left);
       try {
-        const { notes, changed } = await factCheck(p.script, this.s, { signal: ctrl.signal, log: (m) => this.log(m), avoid: this.writerProvider });
-        p.factCheckNotes = notes;
+        await waitForFreeText(this.signal, onWait);
+        if (this.signal.aborted) return { aborted: true, changed: 0 };
+        const { notes, changed } = await factCheck(p.script, this.s, {
+          signal: this.signal, log: (m) => this.log(m), avoid: this.writerProvider, topic: p.topic, onWait,
+        });
+        const flags = Script.sanity(p.script, p.topic);
+        p.factCheckNotes = [...notes, ...flags];
         p.factChecked = true;
-        this.h.step('facts', 'done', changed ? `${changed} fix${changed > 1 ? 'es' : ''} applied` : 'No problems found');
+        p.factStatus = flags.length ? 'flagged' : 'checked';
+        if (flags.length) {
+          this.log(`Fact-check finished, and a quantity is still off by orders of magnitude. ${flags.join(' ')}`);
+          this.h.step('facts', 'warn', 'Flagged — a number is off');
+        } else {
+          this.h.step('facts', 'done', changed ? `${changed} fix${changed > 1 ? 'es' : ''} applied` : 'No problems found');
+        }
         this.h.scriptReady?.();
         return { changed };
       } catch (e) {
         if (this.signal.aborted) return { aborted: true, changed: 0 };
-        this.log(late ? 'Fact-check skipped: the free checker took over a minute.' : `Fact-check skipped: ${e.message}`);
-        this.h.step('facts', 'warn', 'Skipped — review the lines yourself');
+        const flags = Script.sanity(p.script, p.topic);
+        p.factChecked = false;
+        p.factStatus = 'unchecked';
+        p.factCheckNotes = [
+          'Not fact-checked. The free checker did not answer, so these lines are not verified.',
+          ...flags,
+        ];
+        this.log(`Not fact-checked: the free checker did not answer after the rate-limit wait (${e.message}). Do not treat these lines as verified.`);
+        this.h.step('facts', 'warn', 'Not fact-checked');
+        this.h.scriptReady?.();
         return { changed: 0 };
-      } finally {
-        clearTimeout(timer);
-        this.signal.removeEventListener('abort', onAbort);
       }
     })();
   }
@@ -258,6 +284,8 @@ export class Pipeline {
   async render() {
     const p = this.p;
     await loadFonts();
+    if (p.factStatus === 'unchecked') this.log('Exporting without a fact-check. This film is marked not fact-checked.');
+    if (p.factStatus === 'flagged') this.log('Exporting with a quantity still flagged.');
     this.h.step('render', 'active', 'Starting encoder…');
     const { width, height } = outputSize(p.options, this.s);
     const canvas = document.createElement('canvas');

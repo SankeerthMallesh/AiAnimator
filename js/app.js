@@ -201,7 +201,8 @@ function openFromHistory(item) {
   p.createdAt = item.createdAt;
   p.script = item.script;
   p.factCheckNotes = item.factCheckNotes || [];
-  p.factChecked = true;
+  p.factChecked = item.factChecked === true;
+  p.factStatus = item.factStatus || (p.factChecked ? 'checked' : '');
   openProject(p, { render: false });
 }
 
@@ -386,11 +387,30 @@ function onScriptReady() {
   $('#ytDesc').value = s.description || '';
   $('#ytTags').value = (s.hashtags || []).join(' ');
   $('#metaCard').classList.remove('hidden');
-  const notes = project.factCheckNotes || [];
-  $('#factNotes').classList.toggle('hidden', !notes.length);
+  showFacts();
+  renderBoard();
+}
+
+function showFacts() {
+  const status = project?.factStatus || '';
+  const notes = project?.factCheckNotes || [];
+  const card = $('#factNotes');
+  const flag = $('#factFlag');
+  const bad = status === 'unchecked' || status === 'flagged';
+  card.classList.toggle('hidden', !bad && !notes.length);
+  card.classList.toggle('bad', bad);
+  $('#factTitle').textContent = status === 'unchecked' ? 'Not fact-checked' : status === 'flagged' ? 'Number flagged' : 'Fact-check notes';
+  $('#factFine').textContent = status === 'unchecked'
+    ? 'The checker did not run. Do not treat these lines as verified.'
+    : 'AI can still be wrong. Read the script below before you publish.';
   $('#factList').innerHTML = '';
   for (const n of notes) $('#factList').append(el('li', {}, n));
-  renderBoard();
+  flag.classList.toggle('hidden', !bad);
+  flag.textContent = status === 'unchecked'
+    ? 'Not fact-checked. These lines were not verified.'
+    : status === 'flagged'
+      ? 'A quantity in this script is off by orders of magnitude.'
+      : '';
 }
 
 function hasDirty() { return !!project?.script?.scenes.some(s => s.dirty); }

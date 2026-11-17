@@ -177,7 +177,7 @@ export class PropKit {
   }
 
   static planet(ctx, s, t) {
-    ctx.translate(0, -2.4 * s);
+    ctx.translate(0, -6.2 * s);
     ctx.rotate(t * 0.3);
     Ink.oval(ctx, 0, 0, 1.15, 1.15, '#3D74E0', s, 0.1);
     ctx.strokeStyle = '#F2C230'; ctx.lineWidth = 0.12 * s;

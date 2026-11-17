@@ -440,16 +440,43 @@ Output ONLY compact JSON, under 900 words:
 {"title":"","youtubeTitle":"","description":"","hashtags":["#shorts"],"cast":[{"id":"a","name":"June","color":"#2A9D8F","hat":"cap","hair":"brown","costume":"vest"},{"id":"b","name":"Bo","color":"#E8B931","hat":"hardhat","hair":"black","costume":"vest"}],"scenes":[{"line":"","bg":"","set":"sky","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"props":[{"id":"p","kind":"tree","x":0.8}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
-  static checkPrompt(script) {
+  static checkPrompt(script, topic) {
     const scenes = script.scenes.map((s, i) => ({ i, line: s.narration }));
-    return `Title: ${script.title}
+    const flags = Script.sanity(script, topic);
+    return `Topic: ${topic || script.title}
+Title: ${script.title}
 LINES:
 ${JSON.stringify(scenes)}
 
-Find false claims, myths stated as fact, wrong dates, wrong numbers, wrong units (per minute versus per beat, thousands versus millions) and anachronisms. Fiction jokes stay; real-world claims must be right.
-Fix with the smallest edit that keeps the line short. Do not add nudity or gore.
+Check each line on its own. For every real-world claim, decide whether it is false, a myth told as fact, the wrong unit, or only half of a two-part account.
+A two-part account is wrong when the line denies one of the parts. Eratosthenes used both: at Syene a well had no noon shadow on the solstice, and at Alexandria a stick did cast a shadow. "A stick, not a well" or "no well" is false.
+Major-jackpot odds are hundreds of millions to one. Powerball is about 1 in 292 million. "1 in 292,201" is a thousand times too small.
+A heartbeat moves about 70 mL. About 5 litres is a minute of output, not one beat.
+${flags.length ? `A local check already flagged:\n${flags.map(f => `- ${f}`).join('\n')}\n` : ''}Fix every wrong line. Omit a line that is already right. Keep each fix short. No nudity, no gore.
 Return JSON only:
 {"notes":["what you fixed, or empty"],"fixes":[{"i":0,"line":"replacement, omit if the line was already right"}],"unverified":["names or numbers a human should double-check"]}`;
+  }
+
+  // Orders-of-magnitude slips the small writer makes. Not a fact encyclopedia.
+  static sanity(script, topic = '') {
+    const lines = (script?.scenes || []).map(s => s.narration || '').join('\n');
+    const about = `${topic} ${script?.title || ''} ${lines}`.toLowerCase();
+    const notes = [];
+    const lottery = /lottery|powerball|mega millions|jackpot/.test(about);
+    for (const m of lines.matchAll(/\b1\s+in\s+([\d][\d,]*(?:\.\d+)?)(?:\s*(thousand|million|billion))?/gi)) {
+      let n = Number(m[1].replace(/,/g, ''));
+      const unit = (m[2] || '').toLowerCase();
+      if (unit === 'thousand') n *= 1e3;
+      if (unit === 'million') n *= 1e6;
+      if (unit === 'billion') n *= 1e9;
+      if (lottery && n > 0 && n < 1e7) {
+        notes.push(`"${m[0]}" is orders of magnitude too small for a major jackpot. Powerball is about 1 in 292 million.`);
+      }
+    }
+    if (/\bheart|ventricle|pulse\b/.test(about) && /\b\d+(?:\.\d+)?(?:\s*[-–]\s*\d+(?:\.\d+)?)?\s*(?:l|litres|liters)\b[^.\n]{0,40}\b(?:per|each|a)\s+beat\b/i.test(lines)) {
+      notes.push('Litres per beat is off by orders of magnitude. One beat moves tens of millilitres; about 5 litres is per minute.');
+    }
+    return notes;
   }
 }
 
