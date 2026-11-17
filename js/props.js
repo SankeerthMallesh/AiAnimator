@@ -252,6 +252,67 @@ export class SetKit {
   static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'space', 'water', 'field', 'night', 'desert', 'lab', ...RICH_SETS];
   static RICH = RICH_SETS;
 
+  // Lighten (amt > 0) or darken (amt < 0) a #RRGGBB colour.
+  static shadeHex(hex, amt) {
+    const n = parseInt(String(hex).replace('#', ''), 16);
+    if (Number.isNaN(n)) return hex;
+    const ch = (v) => Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt));
+    const r = ch((n >> 16) & 255), g = ch((n >> 8) & 255), b = ch(n & 255);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  static farHills(ctx, W, H, horizon, sky, floor, set) {
+    const y = H * horizon;
+    const tint = set === 'desert' ? '#E9B87A' : set === 'night' ? '#2E3A63' : set === 'rails' ? '#D98A4E' : SetKit.shadeHex(floor, 0.35);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = tint;
+    ctx.beginPath();
+    ctx.moveTo(-W * 0.2, y + 2);
+    for (let k = 0; k <= 8; k++) {
+      const x = -W * 0.2 + (k / 8) * W * 1.4;
+      const hgt = H * (0.035 + 0.03 * Math.abs(Math.sin(k * 1.7 + set.length)));
+      ctx.quadraticCurveTo(x - W * 0.09, y - hgt * 1.6, x, y - hgt * 0.4);
+    }
+    ctx.lineTo(W * 1.2, y + 2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // Small things on the ground that sell the scale: grass tufts, pebbles, floor boards, tiles.
+  static groundDetail(ctx, W, H, horizon, floor, set, indoor) {
+    if (set === 'rails' || set === 'road' || set === 'shop' || set === 'water' || set === 'bridge') return;
+    let seed = set.length * 977 + 13;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    const top = H * horizon;
+    ctx.save();
+    if (indoor) {
+      // Floor boards with a soft wall-to-floor shadow.
+      const g = ctx.createLinearGradient(0, top, 0, top + H * 0.05);
+      g.addColorStop(0, 'rgba(0,0,0,0.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, top, W, H * 0.05);
+      ctx.strokeStyle = SetKit.shadeHex(floor, -0.12); ctx.lineWidth = Math.max(2, W * 0.003);
+      for (let k = 1; k < 9; k++) { const y = top + (H - top) * (k / 9) ** 1.35; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    } else {
+      const dark = SetKit.shadeHex(floor, -0.18), light = SetKit.shadeHex(floor, 0.18);
+      ctx.lineCap = 'round'; ctx.lineWidth = Math.max(2.5, W * 0.0045);
+      for (let k = 0; k < 26; k++) {
+        const depth = rnd();                       // 0 = far, 1 = near
+        const x = rnd() * W, y = top + (H - top) * (0.06 + depth * 0.9);
+        const sz = W * (0.008 + depth * 0.02);
+        if (set === 'space' || set === 'desert' || set === 'night') {
+          ctx.fillStyle = k % 2 ? dark : light;
+          ctx.beginPath(); ctx.ellipse(x, y, sz * 1.4, sz * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+        } else {
+          ctx.strokeStyle = k % 3 ? dark : light;
+          ctx.beginPath(); ctx.moveTo(x - sz, y); ctx.lineTo(x - sz * 0.5, y - sz * 1.4);
+          ctx.moveTo(x, y); ctx.lineTo(x, y - sz * 1.8); ctx.moveTo(x + sz, y); ctx.lineTo(x + sz * 0.6, y - sz * 1.3); ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
   static palette(id) {
     const set = SetKit.IDS.includes(id) ? id : 'sky';
     const sky = {
@@ -281,17 +342,27 @@ export class SetKit {
     const { set, sky, floor, horizon } = SetKit.palette(id);
     // Overscan so a pan or a whip never reveals the empty canvas.
     const m = Math.max(W, H) * 0.55;
-    ctx.fillStyle = sky;
-    ctx.fillRect(-m, -m, W + m * 2, H * horizon + m);
-    ctx.fillStyle = floor;
-    ctx.fillRect(-m, H * horizon, W + m * 2, H + m);
     const indoor = set === 'shop' || set === 'room' || set === 'office' || set === 'lab';
+    // Depth: the sky fades lighter toward the horizon, the floor darkens toward the viewer.
+    const skyG = ctx.createLinearGradient(0, -m * 0.2, 0, H * horizon);
+    skyG.addColorStop(0, SetKit.shadeHex(sky, set === 'space' || set === 'night' ? -0.25 : -0.12));
+    skyG.addColorStop(1, SetKit.shadeHex(sky, set === 'space' || set === 'night' ? 0.12 : 0.28));
+    ctx.fillStyle = skyG;
+    ctx.fillRect(-m, -m, W + m * 2, H * horizon + m);
+    const floorG = ctx.createLinearGradient(0, H * horizon, 0, H + m * 0.3);
+    floorG.addColorStop(0, SetKit.shadeHex(floor, 0.06));
+    floorG.addColorStop(1, SetKit.shadeHex(floor, -0.13));
+    ctx.fillStyle = floorG;
+    ctx.fillRect(-m, H * horizon, W + m * 2, H + m);
     if (plate && !indoor && set !== 'space') SetKit.skyPlate(ctx, W, H, horizon, plate, sky);
     if (set === 'space' || set === 'night') SetKit.stars(ctx, W, H, t);
     else if (!indoor) SetKit.clouds(ctx, W, H * horizon, t, sky);
     if (plate && indoor) SetKit.windowPlate(ctx, W, H, horizon, plate);
-    ctx.fillStyle = floor;
+    // Distant hills in the haze, so outdoor sets have a background and not just a line.
+    if (!indoor && set !== 'space' && set !== 'water') SetKit.farHills(ctx, W, H, horizon, sky, floor, set);
+    ctx.fillStyle = floorG;
     ctx.fillRect(0, H * horizon, W, H);
+    SetKit.groundDetail(ctx, W, H, horizon, floor, set, indoor);
     ctx.strokeStyle = Ink.INK;
     ctx.lineWidth = Math.max(7, W * 0.012);
     ctx.beginPath();

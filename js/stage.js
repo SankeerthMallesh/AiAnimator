@@ -39,6 +39,19 @@ export class Stage {
     const local = Math.max(0, Math.min(scene.dur - 0.001, t - scene.start));
     const shot = Stage.shot(scene, local);
     Stage.world(ctx, W, H, view, scene, local, shot);
+    // Finish: warm light from the top left and a gentle vignette tie every set together.
+    if (!this._finish || this._finish.width !== W || this._finish.height !== H) {
+      const f = document.createElement('canvas'); f.width = W; f.height = H;
+      const fx = f.getContext('2d');
+      const light = fx.createRadialGradient(W * 0.15, H * 0.05, 0, W * 0.15, H * 0.05, Math.hypot(W, H) * 0.7);
+      light.addColorStop(0, 'rgba(255,246,222,0.18)'); light.addColorStop(1, 'rgba(255,244,214,0)');
+      fx.fillStyle = light; fx.fillRect(0, 0, W, H);
+      const vig = fx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.45, W / 2, H * 0.45, Math.hypot(W, H) * 0.62);
+      vig.addColorStop(0, 'rgba(20,18,40,0)'); vig.addColorStop(1, 'rgba(20,18,40,0.15)');
+      fx.fillStyle = vig; fx.fillRect(0, 0, W, H);
+      this._finish = f;
+    }
+    ctx.drawImage(this._finish, 0, 0);
     if (shot.whip > 0) Stage.speedLines(ctx, W, H, shot.whip);
     if (view.settings?.captionStyle !== 'off') Stage.caption(ctx, W, H, scene, local);
   }
