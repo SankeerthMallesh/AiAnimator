@@ -164,7 +164,8 @@ export class Stage {
     if (carried) {
       // Held overhead, bobbing with the carrier's steps.
       const bob = Math.abs(Math.sin(local * 6)) * 0.25;
-      PropKit.draw(ctx, { ...carried, x: ua.x * W, y: 9.0 + bob }, u * 0.8, ground, local);
+      const tall = ['tophat', 'chef', 'crown', 'helmet'].includes(cast.get(ua.id)?.hat);
+      PropKit.draw(ctx, { ...carried, x: ua.x * W, y: (tall ? 10.9 : 9.8) + bob }, u * 0.8, ground, local);
     }
     if (driving) {
       for (const a of actors.filter(x => x.pose === 'drive')) {

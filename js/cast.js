@@ -23,6 +23,26 @@ export class Ink {
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] * u, pts[i][1] * u);
     ctx.stroke();
   }
+  // Cel shading for the current path: a soft shadow on the side away from the light (upper left)
+  // and a small highlight on the lit side. Call right after filling, before stroking.
+  static shade(ctx, cx, cy, rx, ry, u, dark = 0.16, rebuild = null) {
+    ctx.save();
+    ctx.clip();
+    ctx.beginPath();
+    ctx.ellipse((cx - rx * 0.32) * u, (cy - ry * 0.3) * u, rx * 1.18 * u, ry * 1.18 * u, 0, 0, Math.PI * 2);
+    ctx.rect(-1e4, -1e4, 2e4, 2e4);
+    ctx.fillStyle = `rgba(30,35,60,${dark})`;
+    ctx.fill('evenodd');
+    ctx.beginPath();
+    ctx.ellipse((cx - rx * 0.42) * u, (cy - ry * 0.5) * u, rx * 0.26 * u, ry * 0.16 * u, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fill();
+    ctx.restore();
+    // Paths are not part of save/restore: put the shape's outline back so the caller strokes the right thing.
+    ctx.beginPath();
+    if (rebuild) rebuild();
+  }
+
   static oval(ctx, x, y, rx, ry, fill, u, width = 0.15) {
     ctx.beginPath();
     ctx.ellipse(x * u, y * u, Math.max(0.01, Math.abs(rx)) * u, Math.max(0.01, Math.abs(ry)) * u, 0, 0, Math.PI * 2);
@@ -180,6 +200,7 @@ export class Cast {
       Ink.rrect(ctx, -1.05 * u, y * u, 2.1 * u, h * u, 0.48 * u);
       ctx.fillStyle = costume === 'suit' ? '#2C3E6B' : color;
       ctx.fill();
+      Ink.shade(ctx, 0, y + h / 2, 1.05, h / 2, u, 0.2, () => Ink.rrect(ctx, -1.05 * u, y * u, 2.1 * u, h * u, 0.48 * u));
       ctx.lineWidth = 0.16 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
       // Shirt placket and tie, so the torso never reads as bare skin.
       Ink.poly(ctx, [[-0.28, y + 0.05], [0.28, y + 0.05], [0.08, y + 0.55], [-0.08, y + 0.55]], '#F4F1EA', u, 0.1);
@@ -192,7 +213,8 @@ export class Cast {
       Ink.rrect(ctx, -0.95 * u, (y + 0.35) * u, 1.9 * u, (h - 0.4) * u, 0.38 * u);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.stroke();
+      Ink.shade(ctx, 0, y + 0.35 + (h - 0.4) / 2, 0.95, (h - 0.4) / 2, u, 0.2, () => Ink.rrect(ctx, -0.95 * u, (y + 0.35) * u, 1.9 * u, (h - 0.4) * u, 0.38 * u));
+      ctx.lineWidth = 0.15 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(-0.22 * u, (y + 0.35) * u);
       ctx.lineTo(0, (y + 0.85) * u);
@@ -224,6 +246,9 @@ export class Cast {
     }
     Cast.hairBack(ctx, st, u, hy);
     Ink.oval(ctx, 0, hy, 1.34, 1.26, '#FFFFFF', u, 0.18);
+    ctx.beginPath(); ctx.ellipse(0, hy * u, 1.34 * u, 1.26 * u, 0, 0, Math.PI * 2);
+    Ink.shade(ctx, 0, hy, 1.34, 1.26, u, 0.09, () => ctx.ellipse(0, hy * u, 1.34 * u, 1.26 * u, 0, 0, Math.PI * 2));
+    ctx.lineWidth = 0.18 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
     Cast.face(ctx, st, u, hy);
     Cast.hat(ctx, st, u, hy);
     if (st.pose === 'facepalm') {

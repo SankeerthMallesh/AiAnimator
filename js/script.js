@@ -217,6 +217,20 @@ export class Script {
       hair: Script.oneOf(Cast.HAIR, c.hair, ['brown', 'black', 'blonde', 'red'][i % 4]),
       costume: Script.oneOf(Cast.COSTUMES, c.costume, i === 2 ? 'suit' : 'vest'),
     }));
+    // Every character gets its own colour so they never look like twins.
+    {
+      const palette = ['#2A9D8F', '#E8B931', '#E76F51', '#5B7FE0', '#9B5DE5', '#F15BB5'];
+      const used = new Set();
+      cast.forEach((c, i) => {
+        if (used.has(c.color.toLowerCase())) c.color = palette.find(p => !used.has(p.toLowerCase())) || palette[i % palette.length];
+        used.add(c.color.toLowerCase());
+      });
+    }
+    // A bare round head reads as unfinished: everyone gets hair, and a hat if the writer gave none.
+    cast.forEach((c, i) => {
+      if (c.hair === 'none') c.hair = ['brown', 'black', 'blonde', 'red'][i % 4];
+      if (c.hat === 'none' && i % 2 === 1) c.hat = ['cap', 'beanie', 'fedora'][i % 3];
+    });
     if (cast.length < 2) {
       const extras = [
         { id: 'a', name: 'June', color: '#2A9D8F', hat: 'cap', hair: 'brown', costume: 'vest' },
@@ -368,9 +382,12 @@ export class Script {
     // Interactions: the cast uses the things in the scene instead of standing next to them.
     // ride = sits in a vehicle and drives it across; carry = lifts the floating prop overhead and walks with it;
     // push = shoves a heavy object along; hand = holds a small item and passes it over; inspect = walks up and points.
+    let lastHow = '', handCount = 0;
     scenes.forEach((sc, i) => {
       const who = sc.who || [];
       if (!who.length) return;
+      // Variety: never the same interaction twice in a row, and at most two hand-overs per video.
+      const allow = (how) => how !== lastHow && !(how === 'hand' && handCount >= 2);
       const props = sc.props || [];
       const acts = sc.acts = sc.acts || [];
       const speaker = who.find(w => w.id === sc.say) || who[0];
@@ -382,7 +399,7 @@ export class Script {
       const heavy = props.find(p => ['engine', 'desk', 'chair', 'sign'].includes(p.kind));
       const ground = props.find(p => ['tree', 'house', 'counter', 'bridge', 'rocket', 'planet'].includes(p.kind));
       const dropActs = (id) => { for (let k = acts.length - 1; k >= 0; k--) if (acts[k].id === id) acts.splice(k, 1); };
-      if (vehicle) {
+      if (vehicle && allow('ride')) {
         const rider = speaker;
         const ltr = i % 2 === 0;
         dropActs(rider.id); dropActs(vehicle.id);
@@ -391,14 +408,15 @@ export class Script {
         acts.push({ t: 0.25, id: rider.id, do: 'drive', x: other ? (ltr ? 0.5 : 0.5) : (ltr ? 0.8 : 0.2), dur: 2.4 });
         if (other) { other.x = ltr ? 0.88 : 0.12; other.face = ltr ? -1 : 1; acts.push({ t: 1.2, id: other.id, do: 'jump' }); }
         sc.use = { who: rider.id, how: 'ride', prop: vehicle.id };
-      } else if (mini && other) {
+      } else if (mini && other && allow('hand')) {
+        handCount++;
         sc.props = props.filter(p => p !== mini);
         speaker.hold = mini.kind;
         dropActs(speaker.id);
         acts.push({ t: 0.2, id: speaker.id, do: 'hold', hold: mini.kind }, { t: 1.3, id: speaker.id, do: 'give', hold: mini.kind, to: other.id }, { t: 1.85, id: other.id, do: 'hold', hold: mini.kind });
         acts.push({ t: 2.0, id: other.id, do: 'cheer' });
         sc.use = { who: speaker.id, how: 'hand', prop: mini.id };
-      } else if (heavy || /\b(push|pushes|pushing|shove|drag|move[sd]?|haul)\b/.test(text)) {
+      } else if ((heavy || /\b(push|pushes|pushing|shove|drag|move[sd]?|haul)\b/.test(text)) && allow('push')) {
         const target = heavy || props.find(p => !PropKit.TOONS.includes(p.kind) && p.kind !== 'sun');
         if (target) {
           const pusher = other || speaker;
@@ -408,13 +426,13 @@ export class Script {
           acts.push({ t: 0.3, id: pusher.id, do: 'walk', x: ltr ? 0.42 : 0.58, dur: 2.6 });
           sc.use = { who: pusher.id, how: 'push', prop: target.id };
         }
-      } else if (toon && ['earth', 'moon', 'bulb', 'book', 'clock', 'star', 'gear', 'atom', 'thermometer'].includes(toon.kind) && (i % 2 === 1 || who.length === 1)) {
+      } else if (toon && ['earth', 'moon', 'bulb', 'book', 'clock', 'star', 'gear', 'atom', 'thermometer'].includes(toon.kind) && allow('carry')) {
         const carrier = other || speaker;
         const left = carrier.x < 0.5;
         dropActs(carrier.id);
         acts.push({ t: 0.35, id: carrier.id, do: 'walk', x: who.length === 1 ? (left ? 0.62 : 0.38) : (left ? 0.3 : 0.7), dur: 2.2 });
         sc.use = { who: carrier.id, how: 'carry', prop: toon.id };
-      } else if (ground) {
+      } else if (ground && allow('inspect')) {
         const near = who.slice().sort((a, b) => Math.abs(a.x - ground.x) - Math.abs(b.x - ground.x))[0];
         const side = near.x < ground.x ? -1 : 1;
         dropActs(near.id);
@@ -422,6 +440,7 @@ export class Script {
         near.face = -side;
         sc.use = { who: near.id, how: 'inspect', prop: ground.id };
       }
+      lastHow = sc.use ? sc.use.how : '';
       acts.sort((a, b) => a.t - b.t);
     });
     return {
