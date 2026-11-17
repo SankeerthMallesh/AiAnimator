@@ -12,20 +12,25 @@ export function buildTimeline(scenes, voices, { endPad = 0.9, wps = WPS } = {}) 
   const out = scenes.map((scene, i) => {
     const v = voices[i];
     const lead = i === 0 ? 0.08 : 0.04;
-    let dur, words;
+    const last = i === scenes.length - 1;
+    const narration = scene.narration || scene.line || '';
+    let dur;
+    let words;
     if (v && v.samples?.length) {
       const b = speechBounds(v.samples, v.sampleRate);
-      dur = lead + b.end + 0.16;
-      words = wordTimings(scene.narration, lead + b.start, lead + b.end);
+      dur = lead + b.end + 0.2;
+      words = wordTimings(narration, lead + b.start, lead + b.end);
     } else {
-      const n = scene.narration.split(/\s+/).filter(Boolean).length;
-      const speak = n / wps;
-      dur = Math.max(1.8, speak + 0.45);
-      words = wordTimings(scene.narration, 0.15, 0.15 + speak);
+      const n = narration.split(/\s+/).filter(Boolean).length;
+      dur = Math.max(1.8, n / wps + 0.45);
     }
-    dur = Math.max(1.6, dur);
-    if (i === scenes.length - 1) dur += endPad;
-    const item = { ...scene, index: i, start: t, dur, voice: v || null, voiceOffset: lead, words };
+    dur = Math.max(1.6, dur, Number(scene.hold) || 0);
+    if (last) dur += endPad;
+    if (!(v && v.samples?.length)) {
+      const tail = last ? endPad : 0;
+      words = wordTimings(narration, 0.16, Math.max(0.45, dur - tail - 0.24));
+    }
+    const item = { ...scene, narration, index: i, start: t, dur, voice: v || null, voiceOffset: lead, words };
     t += dur;
     return item;
   });
@@ -240,6 +245,60 @@ function thump(ctx, dest, t, strength) {
   o.start(t); o.stop(t + 0.26);
 }
 
+export class Sfx {
+  static boing(ctx, dest, t) {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(190, t);
+    o.frequency.exponentialRampToValueAtTime(720, t + 0.1);
+    o.frequency.exponentialRampToValueAtTime(220, t + 0.28);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.28, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    o.connect(g).connect(dest);
+    o.start(t); o.stop(t + 0.36);
+  }
+  static pop(ctx, dest, t) {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(620, t);
+    o.frequency.exponentialRampToValueAtTime(180, t + 0.08);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.2, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    o.connect(g).connect(dest);
+    o.start(t); o.stop(t + 0.1);
+  }
+  static cash(ctx, dest, t) {
+    for (const [dt, freq] of [[0, 880], [0.09, 1320]]) {
+      const o = ctx.createOscillator();
+      o.type = 'square';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t + dt);
+      g.gain.linearRampToValueAtTime(0.05, t + dt + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.12);
+      o.connect(g).connect(dest);
+      o.start(t + dt); o.stop(t + dt + 0.14);
+    }
+  }
+  static engine(ctx, dest, noise, t0, t1) {
+    const src = ctx.createBufferSource();
+    src.buffer = noise; src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 280;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(0.07, t0 + 0.25);
+    g.gain.setValueAtTime(0.07, Math.max(t0 + 0.25, t1 - 0.3));
+    g.gain.linearRampToValueAtTime(0.0001, t1);
+    src.connect(f).connect(g).connect(dest);
+    src.start(t0); src.stop(t1 + 0.05);
+  }
+}
+
 function zap(ctx, dest, t, noise) {
   const src = ctx.createBufferSource();
   src.buffer = noise;
@@ -313,8 +372,20 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     fx.connect(comp);
     boom(ctx, fx, 0.0, noise, 0.8);
     timeline.scenes.forEach((s, i) => {
-      if (i > 0 && s.transition !== 'fade') whoosh(ctx, fx, Math.max(0, s.start - 0.22), noise, s.transition === 'whip' ? 1 : 0.7);
-      if (s.camera === 'impact' && i > 0) boom(ctx, fx, s.start, noise, 0.7);
+      const cut = s.cut || s.transition;
+      if (i > 0 && cut !== 'cut' && cut !== 'fade') whoosh(ctx, fx, Math.max(0, s.start - 0.18), noise, cut === 'whip' ? 1 : 0.65);
+      if ((s.cam === 'punch' || s.camera === 'impact') && i > 0) boom(ctx, fx, s.start + 0.28, noise, 0.45);
+      for (const a of s.acts || []) {
+        const tt = s.start + Number(a.t || 0);
+        if (tt < 0.01 || tt > total - 0.05) continue;
+        if (a.do === 'jump' || a.do === 'shock') Sfx.boing(ctx, fx, tt);
+        else if (a.do === 'walk' || a.do === 'enter' || a.do === 'exit') whoosh(ctx, fx, tt, noise, 0.4);
+        else if (a.do === 'point' || a.do === 'give' || a.do === 'cheer') Sfx.pop(ctx, fx, tt);
+        else if (a.do === 'facepalm') thump(ctx, fx, tt, 0.35);
+      }
+      const kinds = new Set((s.props || []).map(p => p.kind));
+      if (kinds.has('train') || kinds.has('car') || kinds.has('rocket') || kinds.has('boat')) Sfx.engine(ctx, fx, noise, s.start, s.start + s.dur);
+      if (kinds.has('money') || kinds.has('ticket') || s.set === 'shop') Sfx.cash(ctx, fx, s.start + 0.35);
       const end = s.start + s.dur;
       if (s.effect === 'pulse') {
         // Heartbeat: lub-dub in time with the on-screen pulse.

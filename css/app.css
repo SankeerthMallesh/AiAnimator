@@ -174,7 +174,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round
 .scene { display: grid; grid-template-rows: auto 1fr; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .scene.dirty { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .thumb { position: relative; background: var(--panel); overflow: hidden; width: 100%; }
-.thumb canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb canvas { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; display: block; background: #1a1a1a; }
 .thumb .shimmer { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .28) 50%, transparent 70%) var(--panel); background-size: 250% 100%; animation: shimmer 1.4s infinite; }
 @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 .thumb .num { position: absolute; left: 8px; top: 8px; font: 600 11px var(--mono); background: rgba(26, 28, 19, .78); color: #EBEADA; padding: 2px 7px; border-radius: 5px; }
@@ -313,7 +313,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round
 .board { grid-area: board; display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 14px; grid-template-columns: none; scroll-snap-type: x proximity; }
 .board .scene { flex: 0 0 210px; scroll-snap-align: start; }
 .scene .narr { font: 400 13.5px/1.45 var(--sans); min-height: 76px; }
-.thumb { max-height: 190px; }
+.thumb { height: 168px; background: #1a1a1a; }
 
 @media (max-width: 1100px) {
   .view.project { grid-template-columns: minmax(0, 1fr) 280px; grid-template-areas: "head head" "monitor steps" "monitor log" "notes notes" "bhead bhead" "board board" "meta meta"; grid-template-rows: auto; }

@@ -1,14 +1,16 @@
-// UI controller for Storyforge Studio.
-import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
+// UI controller for Storyforge.
+import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
-import { preloadDepth } from './depth.js';
 import { preloadSafety } from './safety.js';
-import { PROPS } from './props.js';
-import { POSES } from './mascot.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
-import { loadFonts } from './renderer.js';
+import { Stage, loadFonts } from './stage.js';
+import { Script } from './script.js';
+import { SetKit } from './props.js';
+import { Cast } from './cast.js';
+import { Demo } from './demo.js';
+import { isSafeImage } from './safety.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -71,7 +73,6 @@ function refreshVoiceSelect() {
 
 function initComposer() {
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 30);
-  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), 'toon-host');
   fillSelect($('#mood'), Object.entries(MOODS).map(([k, m]) => [k, m.label]), 'curious');
   fillSelect($('#pace'), Object.entries(PACES).map(([k, p]) => [k, p.label]), 'normal');
   $('#quality').value = String(settings.quality || '1080');
@@ -125,14 +126,17 @@ function initComposer() {
       ownScript: own,
       format: ui.format,
       duration: Number($('#duration').value),
-      style: $('#style').value,
+      style: 'cartoon',
       mood: $('#mood').value,
       pace: $('#pace').value,
       quality: $('#quality').value,
       fps: Number($('#fps').value),
       extra: $('#extra').value.trim(),
-      patient: $('#patient').checked,
+      plates: $('#patient').checked,
     });
+  });
+  $('#btnDemo').addEventListener('click', () => {
+    startProject(Demo.topic(), Demo.options());
   });
 }
 
@@ -249,7 +253,7 @@ function openProject(p, { render }) {
   showStage('canvas');
   $('#stageEmpty').classList.remove('hidden');
   $('#projTitle').textContent = p.script?.title || p.topic;
-  $('#projMeta').textContent = `${formatOf(p.options)} · ${STYLES[p.options.style]?.label || ''} · ${PACES[p.options.pace]?.label || 'Normal'} pace · ${MOODS[p.options.mood]?.label || ''}`;
+  $('#projMeta').textContent = `${formatOf(p.options)} · cartoon cast · ${PACES[p.options.pace]?.label || 'Normal'} pace · ${MOODS[p.options.mood]?.label || ''}`;
   if (p.script) onScriptReady();
   renderHistory();
   run({ render });
@@ -396,65 +400,89 @@ function markDirty(scene, card) {
   $('#btnApply').disabled = running;
 }
 
+function actText(scene) {
+  return (scene.acts || []).map(a => [a.t, a.id, a.do, a.x != null ? a.x : ''].filter(x => x !== '').join(' ')).join('\n');
+}
+function parseActs(text) {
+  const acts = [];
+  for (const line of text.split('\n')) {
+    const s = line.trim();
+    if (!s) continue;
+    const m = s.match(/^(\d*\.?\d+)\s+(\S+)\s+([a-z]+)(?:\s+(-?\d*\.?\d+))?/i);
+    if (!m) return null;
+    const act = { t: Number(m[1]), id: m[2].toLowerCase(), do: m[3].toLowerCase() };
+    if (m[4] != null) act.x = Number(m[4]);
+    acts.push(act);
+  }
+  return acts;
+}
+
 function renderBoard() {
   const board = $('#board');
   board.innerHTML = '';
   if (!project?.script) return;
   const ratio = FORMATS[formatOf(project.options)].ratio;
-  const landscape = ratio > 1;
   const tl = project.timeline;
+  const cast = project.script.cast || [];
   project.script.scenes.forEach((scene, i) => {
     const t = tl?.scenes.find(x => x.id === scene.id);
-    const card = el('div', { class: `scene${landscape ? ' landscape' : ''}${scene.dirty ? ' dirty' : ''}`, 'data-id': scene.id });
-    const thumb = el('div', { class: 'thumb', style: `aspect-ratio:${Math.max(ratio, 0.8)}` }, el('div', { class: 'shimmer' }), el('span', { class: 'num' }, String(i + 1)));
+    const card = el('div', { class: `scene${scene.dirty ? ' dirty' : ''}`, 'data-id': scene.id });
+    const thumb = el('div', { class: 'thumb', style: `aspect-ratio:${Math.max(ratio, 0.56)}` }, el('span', { class: 'num' }, String(i + 1)));
+    thumb.addEventListener('click', () => scrubTo(t ? t.start + 0.25 : 0));
     const fileIn = el('input', { type: 'file', accept: 'image/*', onchange: async (e) => {
       const f = e.target.files[0];
       if (!f) return;
       try {
         const bmp = await createImageBitmap(f);
-        project.images.set(scene.id, { key: 'custom', bitmap: bmp, custom: true });
+        const ok = await isSafeImage(bmp, scene.bg || scene.narration, (m) => log(m));
+        if (!ok) { bmp.close?.(); toast('That picture was blocked by the safety check.', true); return; }
+        project.plates.set(scene.id, { key: 'custom', bitmap: bmp, custom: true });
         updateThumb(i);
         markDirty(scene, card);
       } catch { toast('Could not read that image.', true); }
     } });
     thumb.append(el('div', { class: 'thumb-tools' },
-      el('button', { type: 'button', title: 'Generate a new image', onclick: () => {
+      el('button', { type: 'button', title: 'New background seed', onclick: (ev) => {
+        ev.stopPropagation();
         scene.seed = Math.floor(Math.random() * 1e9);
-        const cur = project.images.get(scene.id);
-        if (cur?.custom) project.images.delete(scene.id);
+        const cur = project.plates.get(scene.id);
+        if (cur && !cur.custom) project.plates.delete(scene.id);
         markDirty(scene, card);
         if (!running) run({ render: false });
       } }, '↻'),
-      el('label', { title: 'Use your own image' }, '⤒', fileIn)));
+      el('label', { title: 'Use your own background' }, '⤒', fileIn)));
 
-    const narr = el('textarea', { class: 'narr', rows: '3', 'aria-label': `Scene ${i + 1} narration` });
+    const narr = el('textarea', { class: 'narr', rows: '3', 'aria-label': `Scene ${i + 1} line` });
     narr.value = scene.narration;
     narr.addEventListener('input', () => { scene.narration = narr.value; markDirty(scene, card); });
 
-    const visual = el('textarea', { class: 'visual', rows: '4', 'aria-label': 'Image prompt' });
-    visual.value = scene.visual;
-    visual.addEventListener('input', () => { scene.visual = visual.value; markDirty(scene, card); });
+    const setSel = el('select', { 'aria-label': 'Set' });
+    fillSelect(setSel, SetKit.IDS.map(s => [s, s]), scene.set);
+    setSel.addEventListener('change', () => { scene.set = setSel.value; markDirty(scene, card); updateThumb(i); });
+    const bg = el('input', { type: 'text', 'aria-label': 'Background', value: scene.bg || '' });
+    bg.addEventListener('input', () => { scene.bg = bg.value; markDirty(scene, card); });
+    const cam = el('select', { 'aria-label': 'Camera' });
+    fillSelect(cam, Script.CAMS.map(c => [c, c]), scene.cam);
+    cam.addEventListener('change', () => { scene.cam = cam.value; markDirty(scene, card); updateThumb(i); });
+    const cut = el('select', { 'aria-label': 'Cut' });
+    fillSelect(cut, Script.CUTS.map(c => [c, c]), scene.cut);
+    cut.addEventListener('change', () => { scene.cut = cut.value; markDirty(scene, card); });
 
-    const label = el('input', { type: 'text', placeholder: 'on-screen label', 'aria-label': 'On-screen label' });
-    label.value = scene.onScreenText || '';
-    label.addEventListener('input', () => { scene.onScreenText = label.value; markDirty(scene, card); });
-
-    const cam = el('select', { 'aria-label': 'Camera move' });
-    fillSelect(cam, CAMERAS.map(c => [c, `cam: ${c}`]), scene.camera);
-    cam.addEventListener('change', () => { scene.camera = cam.value; markDirty(scene, card); });
-    const tr = el('select', { 'aria-label': 'Transition in' });
-    fillSelect(tr, TRANSITIONS.map(c => [c, `in: ${c}`]), scene.transition);
-    tr.addEventListener('change', () => { scene.transition = tr.value; markDirty(scene, card); });
-    const fx = el('select', { 'aria-label': 'Motion effect' });
-    fillSelect(fx, EFFECTS.map(c => [c, `fx: ${c}`]), scene.effect || 'none');
-    fx.addEventListener('change', () => { scene.effect = fx.value; markDirty(scene, card); });
-
-    const prop = el('select', { 'aria-label': 'Prop' });
-    fillSelect(prop, PROPS.map(c => [c, `prop: ${c}`]), scene.prop || 'none');
-    prop.addEventListener('change', () => { scene.prop = prop.value; markDirty(scene, card); });
-    const pose = el('select', { 'aria-label': 'Host pose' });
-    fillSelect(pose, POSES.map(c => [c, `pose: ${c}`]), scene.pose || 'idle');
-    pose.addEventListener('change', () => { scene.pose = pose.value; markDirty(scene, card); });
+    const whoEdits = (scene.who || []).map((w) => {
+      const look = cast.find(c => c.id === w.id);
+      const pose = el('select', { 'aria-label': `${w.id} pose` });
+      fillSelect(pose, Cast.POSES.map(p => [p, p]), w.pose);
+      pose.addEventListener('change', () => { w.pose = pose.value; markDirty(scene, card); updateThumb(i); });
+      const x = el('input', { type: 'range', min: '0.1', max: '0.9', step: '0.02', value: String(w.x ?? 0.5), 'aria-label': `${w.id} position` });
+      x.addEventListener('input', () => { w.x = Number(x.value); markDirty(scene, card); updateThumb(i); });
+      return el('label', { class: 'who' }, `${look?.name || w.id}`, pose, x);
+    });
+    const acts = el('textarea', { class: 'visual', rows: '3', 'aria-label': 'Actions', spellcheck: 'false' });
+    acts.value = actText(scene);
+    acts.addEventListener('input', () => {
+      const parsed = parseActs(acts.value);
+      if (parsed) { scene.acts = parsed; markDirty(scene, card); }
+    });
 
     const body = el('div', { class: 'scene-body' },
       el('div', { class: 'scene-top' },
@@ -462,15 +490,14 @@ function renderBoard() {
         el('button', { class: 'del', type: 'button', onclick: () => {
           if (project.script.scenes.length <= 1) return;
           project.script.scenes.splice(project.script.scenes.indexOf(scene), 1);
-          if (project.script.scenes[0]) project.script.scenes[0].dirty = true;
           renderBoard();
           $('#btnApply').disabled = running;
         } }, 'remove')),
       narr,
-      el('details', {},
-        el('summary', {}, 'visual · label · motion'),
-        visual,
-        el('div', { class: 'grid3' }, label, cam, tr, fx, prop, pose)));
+      el('div', { class: 'grid3' }, setSel, cam, cut),
+      bg,
+      ...whoEdits,
+      el('details', {}, el('summary', {}, 'actions · time id do x'), acts));
     card.append(thumb, body);
     board.append(card);
     updateThumb(i);
@@ -482,9 +509,13 @@ $('#btnAddScene').addEventListener('click', () => {
   const last = project.script.scenes[project.script.scenes.length - 1];
   project.script.scenes.push({
     id: 's' + Math.random().toString(36).slice(2, 9),
-    narration: 'New line of narration.',
-    visual: last ? last.visual : project.topic,
-    onScreenText: '', keywords: [], camera: 'push-in', transition: 'whip',
+    narration: 'And then something else happens.',
+    bg: last?.bg || project.topic,
+    set: last?.set || 'sky',
+    cam: 'push', cut: 'whip', say: project.script.cast?.[0]?.id || 'a',
+    who: (last?.who || []).map(w => ({ ...w })),
+    props: (last?.props || []).map(p => ({ ...p })),
+    acts: [],
     seed: Math.floor(Math.random() * 1e9), dirty: true,
   });
   renderBoard();
@@ -499,25 +530,24 @@ function updateThumb(i) {
   const card = scene && $(`#board .scene[data-id="${scene.id}"]`);
   if (!card) return;
   const thumb = $('.thumb', card);
-  const entry = project.images.get(scene.id);
-  if (!entry) return;
-  $('.shimmer', thumb)?.remove();
   thumb.querySelector('canvas')?.remove();
   const c = document.createElement('canvas');
   const ratio = FORMATS[formatOf(project.options)].ratio;
-  c.width = ratio > 1 ? 320 : Math.round(320 * ratio); c.height = ratio > 1 ? Math.round(320 / ratio) : 320;
-  const x = c.getContext('2d');
-  if (entry.bitmap) {
-    const s = Math.max(c.width / entry.bitmap.width, c.height / entry.bitmap.height);
-    const w = entry.bitmap.width * s, h = entry.bitmap.height * s;
-    x.drawImage(entry.bitmap, (c.width - w) / 2, (c.height - h) / 2, w, h);
-  } else {
-    x.fillStyle = '#2A2D20'; x.fillRect(0, 0, c.width, c.height);
-    x.fillStyle = '#A8AA8D'; x.font = '12px monospace'; x.textAlign = 'center';
-    x.fillText('fallback art', c.width / 2, c.height / 2);
-    x.fillText('tap ↻ to retry', c.width / 2, c.height / 2 + 16);
-  }
+  c.width = ratio > 1 ? 320 : 180;
+  c.height = ratio > 1 ? 180 : 320;
+  const plate = project.plates?.get(scene.id)?.bitmap || null;
+  try { Stage.still(c, project.script, scene, plate, 0.85); }
+  catch (e) { log(`Preview frame failed: ${e.message}`); }
   thumb.prepend(c);
+}
+
+function scrubTo(t) {
+  if (!player.renderer) return;
+  stopPreview();
+  showStage('canvas');
+  player.offset = t;
+  player.renderer.drawFrame(t);
+  updateTime(t);
 }
 
 // ---------------- preview player ----------------
@@ -656,7 +686,6 @@ renderHistory();
 function preloadModels() {
   if (navigator.connection?.saveData) return;
   if (settings.ttsEngine === 'kokoro') warmNarrator(getNarrator(settings)).catch(() => {});
-  if (settings.depth3d !== 'off') preloadDepth();
   if (settings.imageProvider !== 'none') preloadSafety();
 }
 (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(preloadModels, { timeout: 4000 });

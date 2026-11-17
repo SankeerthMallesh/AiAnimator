@@ -23,10 +23,9 @@ export const DEFAULT_SETTINGS = {
   voiceSpeed: 1.12,
   cloudVoice: 'onyx',
   // Output
-  // Fast by default: 720p / 24 fps / flat camera / no dust overlay renders far quicker, especially on
-  // laptops. Switch 3D camera, atmosphere and 1080p back on in Settings for the full cinematic look.
+  // 720p / 24 fps is the fast path on ordinary laptops. The picture is drawn in code.
   quality: '720',                 // 720 | 1080 | 1440
-  depth3d: 'off',                 // auto | off
+  depth3d: 'off',
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
   fps: 24,
@@ -38,7 +37,7 @@ export const DEFAULT_SETTINGS = {
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 5,
+  settingsVersion: 6,
 };
 
 function safeGet(key) {

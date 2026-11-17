@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Storyforge harness</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#111;color:#eee;font:14px sans-serif} canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<pre id="log"></pre>
+<script type="module">
+import { Script } from '../js/script.js';
+import { Demo } from '../js/demo.js';
+import { Stage, loadFonts } from '../js/stage.js';
+import { buildTimeline, synthMusic, mixSoundtrack } from '../js/audio.js';
+import { exportVideo } from '../js/encoder.js';
+import { newProject, Pipeline } from '../js/pipeline.js';
+import { DEFAULT_SETTINGS } from '../js/storage.js';
+
+const log = (m) => { const n = document.getElementById('log'); n.textContent += m + '\n'; console.log(m); };
+
+function paintSheet(script, times) {
+  const w = 360, h = 640, gap = 8;
+  const c = document.getElementById('c');
+  c.width = times.length * (w + gap);
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, c.width, c.height);
+  times.forEach((t, i) => {
+    const tile = document.createElement('canvas');
+    tile.width = w; tile.height = h;
+    const scene = script.scenes[Math.min(script.scenes.length - 1, i)];
+    Stage.still(tile, script, scene, null, t);
+    ctx.drawImage(tile, i * (w + gap), 0);
+  });
+}
+
+window.renderSheet = async () => {
+  await loadFonts();
+  const script = Script.normalize(Demo.raw(), { ...Demo.options(), topic: Demo.topic() });
+  paintSheet(script, [0.6, 0.9, 1.1, 0.7, 1.4, 0.8]);
+  log('sheet ' + script.scenes.length + ' scenes / ' + script.title);
+  return true;
+};
+
+window.renderDemo = async () => {
+  await loadFonts();
+  const options = Demo.options();
+  const script = Script.normalize(Demo.raw(), { ...options, topic: Demo.topic() });
+  const voices = script.scenes.map(() => null);
+  const timeline = buildTimeline(script.scenes, voices, { wps: 2.85, endPad: 0.9 });
+  const music = await synthMusic('curious', timeline.total);
+  const audio = await mixSoundtrack({ ...timeline, scenes: timeline.scenes.map(s => ({ ...s, transition: s.cut })) }, { music, musicVolume: 0.7, sfx: true });
+  const canvas = document.createElement('canvas');
+  canvas.width = 720; canvas.height = 1280;
+  const stage = new Stage(canvas);
+  stage.setView({ script, timeline, plates: new Map(), settings: { captionStyle: 'word' } });
+  log('timeline ' + timeline.total.toFixed(2) + 's');
+  const out = await exportVideo({
+    renderer: stage, audio, fps: 24,
+    onProgress: ({ frame, total }) => { if (frame % 48 === 0) log(`frame ${frame}/${total}`); },
+  });
+  const buf = await out.blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) s += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  log('mp4 ' + out.blob.size + ' ' + out.codec);
+  return { b64: btoa(s), type: out.blob.type, ext: out.ext, codec: out.codec, seconds: timeline.total, size: out.blob.size };
+};
+
+window.gallery = async () => {
+  await loadFonts();
+  const base = {
+    title: 'Gallery', cast: [
+      { id: 'a', name: 'June', color: '#2A9D8F', hat: 'cap', hair: 'brown', costume: 'vest' },
+      { id: 'b', name: 'Bo', color: '#2C3E6B', hat: 'fedora', hair: 'black', costume: 'suit' },
+    ],
+  };
+  const scenes = [
+    { line: 'you were', set: 'rails', cam: 'hold', cut: 'cut', say: 'a', bg: 'tracks', who: [{ id: 'a', x: 0.28, pose: 'point', feel: 'angry', face: 1 }, { id: 'b', x: 0.68, pose: 'idle', feel: 'skeptical', face: -1 }], props: [{ id: 'tr', kind: 'train', x: 0.84 }], acts: [] },
+    { line: 'a suit', set: 'shop', cam: 'hold', cut: 'cut', say: 'b', bg: 'shop', who: [{ id: 'a', x: 0.32, pose: 'sit', feel: 'happy', face: 1 }, { id: 'b', x: 0.62, pose: 'cheer', feel: 'happy', face: -1, hold: 'ticket' }], props: [{ id: 'c', kind: 'counter', x: 0.78 }, { id: 'm', kind: 'money', x: 0.48 }], acts: [] },
+    { line: 'a pump', set: 'lab', cam: 'push', cut: 'cut', say: 'a', bg: 'lab', who: [{ id: 'a', x: 0.3, pose: 'point', feel: 'happy', face: 1 }, { id: 'b', x: 0.72, pose: 'think', feel: 'neutral', face: -1 }], props: [{ id: 'h', kind: 'heart', x: 0.52 }], acts: [] },
+    { line: 'in orbit', set: 'space', cam: 'punch', cut: 'cut', say: 'b', bg: 'space', who: [{ id: 'a', x: 0.28, pose: 'wave', feel: 'shocked', face: 1 }, { id: 'b', x: 0.62, pose: 'point', feel: 'happy', face: -1 }], props: [{ id: 'r', kind: 'rocket', x: 0.8 }, { id: 'p', kind: 'planet', x: 0.55 }], acts: [] },
+  ].map((s, i) => ({ ...s, id: 'g' + i, hold: 3 }));
+  const script = Script.normalize({ ...base, scenes }, { topic: 'gallery', duration: 20, pace: 'fast', format: '9:16' });
+  const w = 360, h = 640, gap = 8;
+  const c = document.getElementById('c');
+  c.width = scenes.length * (w + gap); c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, c.width, c.height);
+  script.scenes.forEach((scene, i) => {
+    const tile = document.createElement('canvas');
+    tile.width = w; tile.height = h;
+    Stage.still(tile, script, scene, null, 0.7);
+    ctx.drawImage(tile, i * (w + gap), 0);
+  });
+  return true;
+};
+
+window.grabFrame = async (sceneIndex, localT) => {
+  await loadFonts();
+  const script = Script.normalize(Demo.raw(), { ...Demo.options(), topic: Demo.topic() });
+  const scene = script.scenes[sceneIndex] || script.scenes[0];
+  const c = document.getElementById('c');
+  c.width = 720; c.height = 1280;
+  Stage.still(c, script, scene, null, localT ?? 0.8);
+  return c.toDataURL('image/png');
+};
+
+window.renderTopic = async (topic) => {
+  await loadFonts();
+  const settings = { ...DEFAULT_SETTINGS, imageProvider: 'pollinations', ttsEngine: 'kokoro', factCheck: true, voice: 'am_puck' };
+  const project = newProject(topic, { mode: 'ai', format: '9:16', duration: 20, pace: 'fast', mood: 'curious', quality: '720', fps: 24, style: 'cartoon' });
+  const logs = [];
+  const pipeline = new Pipeline(project, settings, { log: (m) => { logs.push(m); log(m); }, step: (id, state, detail) => log(`step ${id} ${state} ${detail || ''}`) });
+  await pipeline.prepare();
+  const video = await pipeline.render();
+  const buf = await video.blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let s = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) s += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  // A few stills from the finished timeline, plates included.
+  const stills = [];
+  const times = [0.4, 0.35, 0.5].map((f, i) => {
+    const sc = project.timeline.scenes[Math.min(project.timeline.scenes.length - 1, Math.floor(project.timeline.scenes.length * (i / 2)))];
+    return sc.start + sc.dur * f;
+  });
+  for (const t of times) {
+    const frame = document.createElement('canvas');
+    frame.width = 720; frame.height = 1280;
+    const stage = pipeline.makeRenderer(frame);
+    stage.drawFrame(t);
+    stills.push(frame.toDataURL('image/jpeg', 0.82));
+  }
+  return {
+    b64: btoa(s), ext: video.ext, codec: video.codec, size: video.blob.size,
+    title: project.script.title, seconds: project.timeline.total,
+    notes: project.factCheckNotes || [],
+    log: logs.join('\n'),
+    lines: project.script.scenes.map(sc => sc.narration),
+    stills,
+  };
+};
+
+const q = new URLSearchParams(location.search);
+if (q.get('sheet') === '1') window.renderSheet();
+</script>
+</body>
+</html>
