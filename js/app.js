@@ -68,7 +68,7 @@ function refreshVoiceSelect() {
   if (settings.ttsEngine === 'none') fillSelect(sel, [['none', 'None']], 'none');
   else if (settings.ttsEngine === 'elevenlabs' && settings.elevenKey) fillSelect(sel, [['eleven', 'ElevenLabs']], 'eleven');
   else if (settings.ttsEngine === 'pollinations') fillSelect(sel, CLOUD_VOICES.map(v => [v, v]), settings.cloudVoice);
-  else fillSelect(sel, VOICES.map(([v, l]) => [v, l.split(' — ')[0]]), settings.voice);
+  else fillSelect(sel, VOICES.map(([v, l]) => [v, l]), settings.voice);
 }
 
 function initComposer() {
@@ -80,7 +80,50 @@ function initComposer() {
   refreshVoiceSelect();
   $('#reviewFirst').checked = !!settings.reviewFirst;
 
-  $('#voice').addEventListener('change', (e) => {
+  // Hear a narrator before choosing it: each voice says "Hello, my name is <name>".
+const voicePreview = { ctx: null, src: null, cache: new Map() };
+async function hearVoice() {
+  const btn = $('#btnHear');
+  const id = $('#voice').value;
+  if (voicePreview.src) { try { voicePreview.src.stop(); } catch { /* already stopped */ } voicePreview.src = null; }
+  if (!id || id === 'none') { toast('Pick a narrator first.'); return; }
+  const label = $('#voice').selectedOptions[0]?.textContent || id;
+  const name = label.split(/\s+[—-]\s+/)[0].trim();
+  voicePreview.ctx = voicePreview.ctx || new AudioContext();
+  voicePreview.ctx.resume();
+  btn.classList.add('busy');
+  try {
+    let clip = voicePreview.cache.get(`${settings.ttsEngine}|${id}`);
+    if (!clip) {
+      const engineSettings = { ...settings };
+      if (settings.ttsEngine === 'pollinations') engineSettings.cloudVoice = id; else engineSettings.voice = id;
+      const n = getNarrator(engineSettings);
+      n.settings = engineSettings;
+      if (n.engine === 'kokoro') {
+        if (!n.ready) toast('Loading the free voice model (about 90 MB, one time)…', false, 6000);
+        await warmNarrator(n);
+      }
+      clip = await n.speak(`Hello, my name is ${name}.`);
+      if (!clip) throw new Error('no audio');
+      voicePreview.cache.set(`${settings.ttsEngine}|${id}`, clip);
+    }
+    const buf = voicePreview.ctx.createBuffer(1, clip.samples.length, clip.sampleRate);
+    buf.copyToChannel(clip.samples, 0);
+    const src = voicePreview.ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(voicePreview.ctx.destination);
+    src.onended = () => { btn.classList.remove('playing'); if (voicePreview.src === src) voicePreview.src = null; };
+    voicePreview.src = src;
+    btn.classList.remove('busy'); btn.classList.add('playing');
+    src.start();
+  } catch (e) {
+    btn.classList.remove('busy', 'playing');
+    toast(`Could not play that voice (${e.message}).`, true);
+  }
+}
+$('#btnHear').addEventListener('click', hearVoice);
+
+$('#voice').addEventListener('change', (e) => {
     if (settings.ttsEngine === 'pollinations') settings.cloudVoice = e.target.value;
     else if (settings.ttsEngine === 'kokoro') settings.voice = e.target.value;
     saveSettings(settings);

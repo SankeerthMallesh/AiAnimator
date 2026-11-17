@@ -78,13 +78,19 @@ export const VOICES = [
   ['bm_george', 'George — British storyteller'],
   ['bm_fable', 'Fable — British male'],
   ['bm_lewis', 'Lewis — British male'],
+  ['am_echo', 'Echo — clear US male'],
+  ['am_liam', 'Liam — young US male'],
+  ['bm_daniel', 'Daniel — calm British male'],
   ['af_heart', 'Heart — warm US female'],
+  ['af_jessica', 'Jessica — upbeat US female'],
+  ['af_river', 'River — relaxed US female'],
   ['af_bella', 'Bella — bright US female'],
   ['af_nicole', 'Nicole — soft US female'],
   ['af_sarah', 'Sarah — US female'],
   ['af_nova', 'Nova — US female'],
   ['bf_emma', 'Emma — British female'],
   ['bf_isabella', 'Isabella — British female'],
+  ['bf_lily', 'Lily — young British female'],
 ];
 
 // Voices for the cloud fallback (Pollinations / OpenAI-style names).

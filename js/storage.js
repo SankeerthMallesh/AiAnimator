@@ -23,12 +23,12 @@ export const DEFAULT_SETTINGS = {
   voiceSpeed: 1.12,
   cloudVoice: 'onyx',
   // Output
-  // 720p / 24 fps is the fast path on ordinary laptops. The picture is drawn in code.
-  quality: '720',                 // 720 | 1080 | 1440
+  // The picture is drawn in code, so 1080p / 30 fps renders in seconds even on ordinary laptops.
+  quality: '1080',                // 720 | 1080 | 1440
   depth3d: 'off',
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
-  fps: 24,
+  fps: 30,
   captionStyle: 'word',           // word | classic | bold | box | minimal | off
   showTitle: false,
   showProgress: false,
@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS = {
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 6,
+  settingsVersion: 7,
 };
 
 function safeGet(key) {

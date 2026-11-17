@@ -334,3 +334,14 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round
 .thumb .shimmer::after { content: "picture on its way…"; position: absolute; inset: 0; display: grid; place-items: center; font: 500 11.5px var(--mono); color: var(--faint); text-align: center; padding: 8px; }
 
 .proj-buttons { display: flex; gap: 8px; flex: none; }
+
+/* narrator preview */
+.voice-row { display: flex; align-items: center; gap: 6px; }
+.voice-row select { flex: 1; min-width: 0; }
+.hear { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--paper); display: grid; place-items: center; cursor: pointer; color: var(--accent); }
+.hear svg { width: 13px; height: 13px; fill: currentColor; stroke: none; }
+.hear:hover { border-color: var(--accent); }
+.hear.busy { animation: hearPulse 0.9s ease-in-out infinite; }
+.hear.playing { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+@keyframes hearPulse { 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .hear.busy { animation: none; } }
