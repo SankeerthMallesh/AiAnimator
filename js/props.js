@@ -3,8 +3,17 @@
 
 import { Ink, PropMini } from './cast.js';
 
+import { drawProp } from './toons.js';
+import { drawSet } from './sets.js';
+
+// Animated floating props (spinning Earth, eclipse shadow, ship sinking below the horizon…).
+const TOONS = ['earth', 'moon', 'eclipse', 'ship', 'stick', 'bulb', 'question', 'exclaim', 'clock', 'book', 'thermometer', 'gear', 'atom', 'star', 'fire', 'drop', 'bolt'];
+// Fully drawn, animated sets with their own scenery.
+const RICH_SETS = ['temple', 'sea', 'city', 'mountains', 'snow', 'forest', 'underwater'];
+
 export class PropKit {
-  static KINDS = ['car', 'train', 'boat', 'house', 'counter', 'desk', 'phone', 'money', 'ticket', 'rocket', 'planet', 'tree', 'sign', 'chair', 'heart', 'lungs', 'stomach', 'magnet', 'sun', 'coin', 'engine', 'bridge'];
+  static KINDS = ['car', 'train', 'boat', 'house', 'counter', 'desk', 'phone', 'money', 'ticket', 'rocket', 'planet', 'tree', 'sign', 'chair', 'heart', 'lungs', 'stomach', 'magnet', 'sun', 'coin', 'engine', 'bridge', ...TOONS];
+  static TOONS = TOONS;
 
   static behind(kind) {
     return ['house', 'tree', 'planet', 'desk', 'counter', 'chair', 'bridge', 'sign', 'sun'].includes(kind);
@@ -15,6 +24,13 @@ export class PropKit {
     ctx.save();
     ctx.translate(prop.x, ground);
     const s = u;
+    if (TOONS.includes(kind)) {
+      // Floats above the cast and keeps moving.
+      const lift = prop.y != null ? prop.y : 9.6;
+      drawProp(ctx, kind, 0, -lift * s, 3.9 * s, t);
+      ctx.restore();
+      return;
+    }
     if (kind === 'train') PropKit.train(ctx, s, t);
     else if (kind === 'car') PropKit.car(ctx, s, t);
     else if (kind === 'boat') PropKit.boat(ctx, s, t);
@@ -233,7 +249,8 @@ export class PropKit {
 }
 
 export class SetKit {
-  static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'space', 'water', 'field', 'night', 'desert', 'lab'];
+  static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'space', 'water', 'field', 'night', 'desert', 'lab', ...RICH_SETS];
+  static RICH = RICH_SETS;
 
   static palette(id) {
     const set = SetKit.IDS.includes(id) ? id : 'sky';
@@ -252,6 +269,15 @@ export class SetKit {
   }
 
   static draw(ctx, W, H, id, t, plate) {
+    if (RICH_SETS.includes(id)) {
+      // Overscan in the set's own colours so a pan or whip never shows an empty edge.
+      const m = Math.max(W, H) * 0.55;
+      const [top, bottom] = { temple: ['#7CC8F2', '#D9C98F'], sea: ['#6EC6F5', '#F2D68A'], city: ['#7CC8F2', '#8D949E'], mountains: ['#7CC8F2', '#6CC070'], snow: ['#A9D8F5', '#FFFFFF'], forest: ['#8FD3F7', '#5DB868'], underwater: ['#3FB6E8', '#E8D08A'] }[id];
+      ctx.fillStyle = top; ctx.fillRect(-m, -m, W + m * 2, H * 0.6 + m);
+      ctx.fillStyle = bottom; ctx.fillRect(-m, H * 0.6, W + m * 2, H + m);
+      drawSet(ctx, W, H, id, t, id.length * 31 + 7);
+      return;
+    }
     const { set, sky, floor, horizon } = SetKit.palette(id);
     // Overscan so a pan or a whip never reveals the empty canvas.
     const m = Math.max(W, H) * 0.55;

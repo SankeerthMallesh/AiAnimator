@@ -235,9 +235,17 @@ export class Script {
     const scenesIn = Array.isArray(raw.scenes) ? raw.scenes : [];
     const scenes = [];
     scenesIn.forEach((s, i) => {
-      const narration = Script.clean(s.line || s.narration || s.text || s.voiceover, 280);
+      // Writers sometimes prefix a line with "Scene 3:" or a speaker name; the narrator must not read that.
+      const narration = Script.clean(s.line || s.narration || s.text || s.voiceover, 280)
+        .replace(/^\s*(scene|shot)\s*\d+\s*[:.\-–—]?\s*/i, '')
+        .replace(/^\s*[A-Z][a-zA-Z]{1,14}\s*:\s+/, '');
       if (!narration) return;
-      let set = Script.oneOf(SetKit.IDS, s.set || s.place, Script.guessSet(narration + ' ' + (options.topic || '')));
+      let set = Script.oneOf(SetKit.IDS, s.set || s.place, '');
+      // A missing or generic set is replaced by what this line is actually about, then by the topic.
+      if (!set || set === 'sky' || set === 'field' || set === 'temple') {
+        const byLine = Script.guessSet(narration + ' ' + (s.bg || ''));
+        set = byLine !== 'sky' ? byLine : (set && set !== 'sky' ? set : Script.guessSet(options.topic || ''));
+      }
       const about = (narration + ' ' + (s.bg || '')).toLowerCase();
       if (/rail|railroad|\btracks?\b|\btrain\b/.test(about) && (set === 'road' || set === 'sky')) set = 'rails';
       if (/\b(heart|lung|lungs|blood|organ|stomach)\b/.test(about) && (set === 'sky' || set === 'room')) set = 'lab';
@@ -266,12 +274,15 @@ export class Script {
       if (who.length === 2 && who[0].x > who[1].x) who.reverse();
       who.sort((a, b) => a.x - b.x);
       for (let n = 1; n < who.length; n++) {
-        if (who[n].x - who[n - 1].x < 0.22) who[n].x = Math.min(0.9, who[n - 1].x + 0.22);
+        // Tall frames are narrow: keep the cast well apart so they never overlap.
+        const gap = who.length === 2 ? (options.format === '16:9' ? 0.26 : 0.4) : 0.24;
+        if (who[n].x - who[n - 1].x < gap) who[n].x = Math.min(0.9, who[n - 1].x + gap);
       }
       if (who.length && who[who.length - 1].x > 0.9) {
         const shift = who[who.length - 1].x - 0.9;
         for (const w of who) w.x = Math.max(0.08, w.x - shift);
       }
+      if (who.length === 2 && who[1].x - who[0].x < 0.36 && options.format !== '16:9') { who[0].x = 0.28; who[1].x = 0.72; }
       if (who.length >= 2) { who[0].face = 1; who[who.length - 1].face = -1; }
       const specified = Array.isArray(s.props) || Array.isArray(s.objects);
       const propsIn = specified ? (s.props || s.objects) : [];
@@ -285,7 +296,18 @@ export class Script {
           y: p.y == null ? null : InkClamp(Script.num(p.y, 0.5), 0.05, 0.9),
         };
       }).filter(Boolean).slice(0, 4);
-      if (!props.length && !(specified && propsIn.length === 0)) props = Script.guessProps(narration, set);
+      if (!props.length) props = Script.guessProps(narration, set);
+      // Every scene gets one animated floating prop that illustrates the line, centred above the cast.
+      {
+        const toons = props.filter(p => PropKit.TOONS.includes(p.kind));
+        if (!toons.length) {
+          const g = Script.guessProps(`${narration} ${s.bg || ''}`, set).find(p => PropKit.TOONS.includes(p.kind));
+          if (g) props = [g, ...props].slice(0, 4);
+        }
+        let seen = false;
+        props = props.filter(p => { if (!PropKit.TOONS.includes(p.kind)) return true; if (seen) return false; seen = true; return true; });
+        for (const p of props) if (PropKit.TOONS.includes(p.kind)) { p.x = 0.5; p.y = null; }
+      }
       const actsIn = Array.isArray(s.acts) ? s.acts : Array.isArray(s.actions) ? s.actions : [];
       const acts = [];
       for (const a of actsIn) {
@@ -329,6 +351,20 @@ export class Script {
       while (seen.has(s.id)) s.id += 'x';
       seen.add(s.id);
     }
+    // Two characters in a narrow frame each keep to their own half, including where they walk to.
+    if (options.format !== '16:9') {
+      const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      for (const sc of scenes) {
+        if (!Array.isArray(sc.who) || sc.who.length !== 2) continue;
+        const [l, r] = sc.who;
+        l.x = cl(l.x, 0.13, 0.25); r.x = cl(r.x, 0.75, 0.87);
+        for (const act of sc.acts || []) {
+          if (typeof act.x !== 'number') continue;
+          if (act.id === l.id) act.x = cl(act.x, 0.12, 0.28);
+          else if (act.id === r.id) act.x = cl(act.x, 0.72, 0.88);
+        }
+      }
+    }
     return {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
       youtubeTitle: Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90),
@@ -361,6 +397,16 @@ export class Script {
 
   static guessSet(text) {
     const t = text.toLowerCase();
+    if (/eclipse|lunar|moonlight|starry|stars? at night|\bmoon\b/.test(t)) return 'night';
+    if (/egypt|syene|alexandria|pyramid|camel|nile|\bwell\b|stick|noon/.test(t)) return 'desert';
+    if (/underwater|ocean floor|fish|submarine|dive|octopus|whale/.test(t)) return 'underwater';
+    if (/ship|harbor|harbour|horizon|coast|beach|sailor|\bsea\b/.test(t)) return 'sea';
+    if (/satellite|orbit|from space|astronaut|planet|globe|sphere/.test(t)) return 'space';
+    if (/city|skyscraper|street|downtown|traffic/.test(t)) return 'city';
+    if (/mountain|volcano|cliff|summit/.test(t)) return 'mountains';
+    if (/snow|ice|arctic|winter|frozen|glacier/.test(t)) return 'snow';
+    if (/forest|jungle|woods/.test(t)) return 'forest';
+    if (/greek|greece|roman|rome|athens|temple|philosoph|aristotle|ancient|toga/.test(t)) return 'temple';
     if (/rail|train|track/.test(t)) return 'rails';
     if (/shop|store|cashier|lottery|counter/.test(t)) return 'shop';
     if (/heart|lung|organ|blood|breath|stomach|anatom|body|medic/.test(t)) return 'lab';
@@ -380,6 +426,24 @@ export class Script {
     const t = text.toLowerCase();
     const out = [];
     const add = (kind, x) => { if (!out.some(p => p.kind === kind)) out.push({ id: kind, kind, x, y: null }); };
+    // Animated floating props first: they show what the line is about.
+    if (/eclipse|earth'?s shadow|shadow on the moon/.test(t)) add('eclipse', 0.5);
+    else if (/\bmoon\b|lunar/.test(t)) add('moon', 0.5);
+    if (/ship|hull|sail|horizon/.test(t)) add('ship', 0.5);
+    if (/stick|shadow|syene|alexandria|eratosthenes|angle|measur/.test(t)) add('stick', 0.5);
+    if (/earth|globe|sphere|round|planet|world|circumference/.test(t)) add('earth', 0.5);
+    if (/idea|realiz|figured|discover|proved|proof|clever|genius|solution|answer/.test(t)) add('bulb', 0.5);
+    if (/years|century|centuries|ago|b\.?c\.?|hours|minutes|time|clock/.test(t)) add('clock', 0.5);
+    if (/wrote|book|study|scholar|library|read|learn/.test(t)) add('book', 0.5);
+    if (/temperature|degrees|thermo|hot|heat|cold/.test(t)) add('thermometer', 0.5);
+    if (/machine|gear|engine|mechan|factory/.test(t)) add('gear', 0.5);
+    if (/atom|molecule|particle|chemical|electron/.test(t)) add('atom', 0.5);
+    if (/fire|burn|flame|lava/.test(t)) add('fire', 0.5);
+    if (/water|rain|drop|liquid|sweat/.test(t)) add('drop', 0.5);
+    if (/electric|lightning|power|energy|shock|volt/.test(t)) add('bolt', 0.5);
+    if (/win|best|amazing|famous|record|champion/.test(t)) add('star', 0.5);
+    if (/\?|\bwhy\b|\bhow\b|mystery|puzzle|what if/.test(t)) add('question', 0.5);
+    if (/!|danger|warning|suddenly|but then|shock|wrong/.test(t)) add('exclaim', 0.5);
     if (/train/.test(t) || set === 'rails') add('train', 0.82);
     if (/car|truck/.test(t) || set === 'road') add('car', 0.7);
     if (/rocket/.test(t)) add('rocket', 0.62);
@@ -434,10 +498,16 @@ Cast of 2, 3 or 4. hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
+Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.
+Lines are narration read by one narrator. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
+Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, sea = ships and coasts, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Use at least 3 different sets in a video.
+Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them.
+Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, point, jump, shrug, cheer, facepalm, turn).
 bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
-Output ONLY compact JSON, under 900 words:
-{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts"],"cast":[{"id":"a","name":"June","color":"#2A9D8F","hat":"cap","hair":"brown","costume":"vest"},{"id":"b","name":"Bo","color":"#E8B931","hat":"hardhat","hair":"black","costume":"vest"}],"scenes":[{"line":"","bg":"","set":"sky","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"props":[{"id":"p","kind":"tree","x":0.8}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+Stay compact so the answer is never cut off: write "bg" only on the first scene, at most 2 acts per scene, short names, no extra keys.
+Output ONLY compact JSON on one line, under 700 words:
+{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   static checkPrompt(script, topic) {

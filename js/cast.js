@@ -56,7 +56,7 @@ export class Ink {
 }
 
 export class Cast {
-  static HATS = ['none', 'hair', 'cap', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler'];
+  static HATS = ['none', 'hair', 'cap', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel'];
   static FEELS = ['neutral', 'happy', 'sad', 'angry', 'shocked', 'skeptical'];
   static POSES = ['idle', 'walk', 'turn', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'shock', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'enter', 'exit'];
   static HAIR = ['none', 'brown', 'black', 'blonde', 'red'];
@@ -315,6 +315,18 @@ export class Cast {
     const color = st.color || '#2A9D8F';
     const top = hy - 1.05;
     ctx.lineJoin = 'round';
+    if (kind === 'laurel') {
+      // Green laurel wreath for ancient Greeks and Romans.
+      ctx.lineWidth = 0.1 * u; ctx.strokeStyle = Ink.INK; ctx.fillStyle = '#4E9A4A';
+      for (let k = -4; k <= 4; k++) {
+        if (k === 0) continue;
+        const a = Math.PI * 1.5 + k * 0.3;
+        ctx.beginPath();
+        ctx.ellipse(Math.cos(a) * 1.08 * u, (hy + Math.sin(a) * 1.08) * u, 0.3 * u, 0.14 * u, a + (k < 0 ? -0.9 : 0.9), 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+      }
+      return;
+    }
     if (kind === 'cap') {
       Ink.rrect(ctx, -0.85 * u, (top - 0.55) * u, 1.7 * u, 0.7 * u, 0.2 * u);
       ctx.fillStyle = color; ctx.fill(); ctx.lineWidth = 0.12 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();

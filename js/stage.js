@@ -298,7 +298,7 @@ export class Stage {
 
   static chunks(words) {
     const out = [];
-    const bare = (w) => String(w || '').replace(/[—–-]/g, ' ').replace(/[^\p{L}\p{N}' ]/gu, '').replace(/\s+/g, ' ').trim();
+    const bare = (w) => String(w || '').replace(/[’‘]/g, "'").replace(/[—–-]/g, ' ').replace(/(\d)[.,](?=\d)/g, '$1\u0001').replace(/[^\p{L}\p{N}' \u0001]/gu, '').replace(/\u0001/g, '.').replace(/(^|\s)'+|'+(\s|$)/g, '$1$2').replace(/\s+/g, ' ').trim();
     for (let i = 0; i < (words || []).length;) {
       const a = words[i];
       const b = words[i + 1];
