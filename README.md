@@ -1,4 +1,4 @@
-# Stickman Studio, 3D Explainer Studio and Idea Board
+# Loomy
 
 Three free tools in one static site: `/` makes cartoon shorts, `/explainer/` makes 3D-style explainer shorts, `/board/` is a pinboard for planning ideas.
 
@@ -48,7 +48,7 @@ The whole folder is the site. There is no build step, and `_headers`, `_redirect
 
 ```
 npx wrangler login
-npx wrangler pages deploy . --project-name aianimator
+npx wrangler pages deploy . --project-name loomy
 ```
 
 Short links: `/3d` opens the explainer and `/plan` opens the board.
