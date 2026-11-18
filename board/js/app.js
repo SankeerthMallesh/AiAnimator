@@ -11,6 +11,7 @@ let board = null;
 let color = COLORS[0];
 let selNote = null, selLink = null;
 let saveTimer = null;
+const embedded = window.top !== window;
 
 // ---------- storage ----------
 function blank() {
@@ -144,7 +145,8 @@ cardsEl.addEventListener('click', (e) => {
   const topic = [n.title, n.body].filter(Boolean).join(': ');
   if (b.dataset.act === 'del') { removeNote(n.id); return; }
   if (!topic) { toast('Write something on the note first.'); return; }
-  const url = new URL(b.dataset.act === 'video' ? '../' : '../explainer/', location.href);
+  if (embedded) { parent.postMessage({ loomy: 'open', tool: b.dataset.act === 'video' ? 'cartoon' : '3d', topic }, location.origin); return; }
+  const url = new URL(b.dataset.act === 'video' ? '../cartoon/' : '../explainer/', location.href);
   url.searchParams.set('topic', topic);
   window.open(url.toString(), '_blank', 'noopener');
 });
@@ -330,7 +332,7 @@ function clean(obj) {
 }
 $('#shareBtn').addEventListener('click', async () => {
   const code = await pack({ name: board.name, notes: board.notes, links: board.links });
-  const url = `${location.origin}${location.pathname}#b=${code}`;
+  const url = embedded ? `${new URL('../', location.href).href}#board:b=${code}` : `${location.origin}${location.pathname}#b=${code}`;
   try { await navigator.clipboard.writeText(url); toast('Link copied. Anyone who opens it gets their own copy of this board to edit.', 4500); }
   catch { prompt('Copy this link to share the board:', url); }
 });

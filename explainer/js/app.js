@@ -662,3 +662,12 @@ function preloadModels() {
 (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(preloadModels, { timeout: 4000 });
 const params = new URLSearchParams(location.search);
 if (params.get('topic')) $('#topic').value = params.get('topic');
+
+// Inside Loomy's combined view, the Board can hand a note over as the topic.
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin || e.data?.loomy !== 'topic' || typeof e.data.topic !== 'string') return;
+  if ($('#viewHome').classList.contains('hidden') && !confirmLeave()) return;
+  showHome();
+  $('#topic').value = e.data.topic.slice(0, 600);
+  toast('Topic added from your board. Check it, then press the make button.');
+});

@@ -10,7 +10,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 v = time.strftime('%Y%m%d%H%M')
 
 # Each tool lives in its own folder and shares the root vendor/ libraries.
-for app, vendor in [('.', './vendor'), ('explainer', '../vendor'), ('board', None)]:
+for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('board', None)]:
     d = os.path.join(root, app)
     if not os.path.exists(os.path.join(d, 'index.html')):
         continue

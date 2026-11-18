@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>if (window.top !== window) document.documentElement.classList.add("embedded");</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loomy</title>
+<meta name="description" content="Free cartoon studio that turns a prompt into a narrated YouTube Short (MP4). Drawn in your browser. Nothing is posted.">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231F5FE0'/%3E%3Crect x='8' y='9' width='16' height='14' rx='2' fill='none' stroke='%23F4F3E7' stroke-width='2.4'/%3E%3Cpath d='M8 13h16' stroke='%23F4F3E7' stroke-width='2.4'/%3E%3Cpath d='M11 9l3 4M16 9l3 4' stroke='%23F4F3E7' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css?v=202611172357">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="masthead">
+    <a class="wordmark" href="./" id="btnHome" aria-label="Loomy home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="21" rx="3"/><path d="M3 12.5h26"/><path d="M8.5 6l4 6.5M15.5 6l4 6.5M22.5 6l4 6.5"/></svg>
+      <span>Loomy</span>
+    </a>
+    <nav class="mast-nav">
+      <a class="nav-btn tool-link" href="../explainer/" title="3D videos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12L4 7.5M12 12v9"/></svg><span>3D videos</span></a><a class="nav-btn tool-link" href="../board/" title="Idea board"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.6"/><circle cx="16" cy="14" r="1.6"/><path d="M8 9l8 5"/></svg><span>Idea board</span></a>
+      <button class="nav-btn primary" id="btnNew"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>New film</span></button>
+      <button class="nav-btn" id="btnLibrary" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 4v16"/></svg><span>Library</span><b class="count" id="libCount"></b></button>
+      <button class="nav-btn" id="btnSettings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Settings</span></button>
+      <button class="nav-btn icon" id="btnTheme" aria-label="Switch theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" class="fill"/></svg><span class="sr" id="themeLabel">Theme</span></button>
+    </nav>
+  </header>
+
+  <aside class="library" id="sidebar" aria-label="Library">
+    <div class="lib-head">
+      <h2>Library</h2>
+      <button class="nav-btn icon" id="btnCloseLib" aria-label="Close library"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="fine">Scripts are kept in this browser only. Opening one rebuilds its visuals and voice.</p>
+    <nav class="history" id="history"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="main">
+    <!-- HOME -->
+    <section class="view home" id="viewHome">
+      <div class="home-grid">
+        <div class="brief-col">
+          <div class="page-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="3" y="6" width="26" height="21" rx="3"/><path d="M3 12.5h26"/><path d="M8.5 6l4 6.5M15.5 6l4 6.5M22.5 6l4 6.5"/></svg></div>
+          <h1 class="headline">New cartoon short</h1>
+          <p class="lede">Loomy writes a fact-checked script, then a small cast acts it out: thick outlines, stick limbs, props and sets drawn on the page. A voice, music and captions come with it. You download the MP4.</p>
+
+          <form class="sheet" id="composer" autocomplete="off">
+            <div class="sheet-tabs mode-seg" role="tablist">
+              <button type="button" class="on" data-mode="ai">Write it for me</button>
+              <button type="button" data-mode="own">Use my script</button>
+            </div>
+            <label class="slot slot-big"><span class="lbl">Logline</span>
+              <textarea id="topic" rows="3" placeholder="How ancient Greeks proved the Earth was round using a lunar eclipse and a stick in Egypt"></textarea>
+            </label>
+            <label class="slot slot-big hidden" id="ownWrap"><span class="lbl">Narration</span>
+              <textarea id="ownScript" rows="6" placeholder="Paste your narration. Every sentence or two becomes one shot."></textarea>
+            </label>
+
+            <div class="slot"><span class="lbl">Frame</span>
+              <div class="frames" id="formatSeg" role="radiogroup" aria-label="Frame">
+                <button type="button" class="on" data-format="9:16" title="Shorts, TikTok, Reels"><i style="width:14px;height:25px"></i><span>9:16</span></button>
+                <button type="button" data-format="16:9" title="YouTube video"><i style="width:30px;height:17px"></i><span>16:9</span></button>
+                <button type="button" data-format="1:1" title="Square post"><i style="width:21px;height:21px"></i><span>1:1</span></button>
+                <button type="button" data-format="4:5" title="Instagram feed"><i style="width:19px;height:24px"></i><span>4:5</span></button>
+              </div>
+            </div>
+
+            <div class="slot-grid">
+              <label class="slot"><span class="lbl">Runtime</span><select id="duration"></select></label>
+              <label class="slot"><span class="lbl">Pace</span><select id="pace"></select></label>
+              <div class="slot voice-slot"><label class="lbl" for="voice">Narrator</label><div class="voice-row"><select id="voice"></select><button type="button" class="hear" id="btnHear" title="Hear this voice" aria-label="Hear this voice"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg></button></div></div>
+              <label class="slot"><span class="lbl">Score</span><select id="mood"></select></label>
+              <button type="button" class="slot slot-btn" id="btnMore" aria-expanded="false"><span class="lbl">More</span><span>Quality, notes…</span></button>
+            </div>
+
+            <div class="more hidden" id="morePanel">
+              <label class="slot"><span class="lbl">Director's notes</span><input id="extra" type="text" placeholder="Tone, audience, facts to include, the ending twist…"></label>
+              <div class="slot-grid two">
+                <label class="slot"><span class="lbl">Quality</span><select id="quality"><option value="720">720p · fastest</option><option value="1080">1080p · HD</option><option value="1440">1440p · 2K</option></select></label>
+                <label class="slot"><span class="lbl">Frame rate</span><select id="fps"><option value="24">24 fps · film</option><option value="30">30 fps</option><option value="60">60 fps · smoothest</option></select></label>
+              </div>
+              <label class="check"><input type="checkbox" id="patient" checked> Try one painted background (free, gives up after 20 seconds)</label>
+              <label class="check"><input type="checkbox" id="reviewFirst"> Stop at the storyboard so I can edit before rendering</label>
+            </div>
+
+            <div class="sheet-foot">
+              <p class="fine">No sign-up. Free and private: nothing is posted anywhere.</p>
+              <button class="go" id="btnGo" type="submit">Make the short <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+              <button class="btn ghost" id="btnDemo" type="button">20s test reel</button>
+            </div>
+          </form>
+        </div>
+
+        <aside class="ideas-col">
+          <p class="eyebrow">Ideas</p>
+          <div class="ideas" id="examples"></div>
+          <div class="how">
+            <p class="eyebrow">How it works</p>
+            <ol class="how-list">
+              <li><b>Script</b> written and fact-checked, then repaired if the model truncates it</li>
+              <li><b>Cast</b> walks, points, jumps and lip-flaps in a drawn cartoon set</li>
+              <li><b>Voice</b> recorded on your own device, with music and sound effects</li>
+              <li><b>MP4</b> encoded in the browser. Nothing is posted anywhere</li>
+            </ol>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PROJECT -->
+    <section class="view project hidden" id="viewProject">
+      <div class="proj-head">
+        <div class="proj-titles">
+          <p class="eyebrow" id="projMeta"></p>
+          <h2 class="proj-title" id="projTitle">Untitled</h2>
+        </div>
+        <div class="proj-buttons"><button class="btn primary hidden" id="btnRetry">Try again</button><button class="btn ghost" id="btnCancel">Stop</button></div>
+      </div>
+
+      <ol class="track" id="steps" aria-label="Production progress"></ol>
+
+      <div class="proj-grid">
+        <div class="col-left">
+          <div class="notes card hidden" id="factNotes">
+            <p class="card-title" id="factTitle">Fact-check notes</p>
+            <ul id="factList"></ul>
+            <p class="fine" id="factFine">AI can still be wrong. Read the script below before you publish.</p>
+          </div>
+
+          <div class="board-head">
+            <p class="card-title">Storyboard</p>
+            <div class="board-actions">
+              <button class="btn ghost small" id="btnAddScene">Add shot</button>
+              <button class="btn small" id="btnApply" disabled>Apply edits</button>
+            </div>
+          </div>
+          <div class="board" id="board"></div>
+
+          <details class="log-wrap" open>
+            <summary>Activity log</summary>
+            <pre class="log" id="log"></pre>
+          </details>
+        </div>
+
+        <div class="col-right">
+          <div class="monitor card">
+            <div class="stage" id="stage">
+              <canvas id="preview" width="540" height="960"></canvas>
+              <video id="outVideo" class="hidden" controls playsinline></video>
+              <div class="stage-empty" id="stageEmpty">The preview appears here</div>
+            </div>
+            <div class="transport">
+              <button class="icon-btn play" id="btnPlay" disabled aria-label="Play preview"><svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"/></svg></button>
+              <input type="range" id="scrub" min="0" max="1000" value="0" disabled aria-label="Scrub preview">
+              <span class="time" id="time">0:00</span>
+            </div>
+            <div class="progress hidden" id="renderProg"><div class="bar"><i id="renderBar"></i></div><div class="fine" id="renderText"></div></div>
+            <p class="fact-flag hidden" id="factFlag" role="status"></p>
+            <div class="render-actions">
+              <button class="btn primary wide" id="btnRender" disabled>Render MP4</button>
+              <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
+            </div>
+          </div>
+
+          <div class="card meta-card hidden" id="metaCard">
+            <p class="card-title">Upload kit</p>
+            <label class="field"><span>Title</span><div class="copyrow"><input id="ytTitle"><button class="btn small ghost" data-copy="ytTitle">Copy</button></div></label>
+            <label class="field"><span>Description</span><div class="copyrow"><textarea id="ytDesc" rows="5"></textarea><button class="btn small ghost" data-copy="ytDesc">Copy</button></div></label>
+            <label class="field"><span>Hashtags</span><div class="copyrow"><input id="ytTags"><button class="btn small ghost" data-copy="ytTags">Copy</button></div></label>
+            <label class="field"><span>Your own background music (optional)</span><input type="file" id="musicFile" accept="audio/*"></label>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="settingsDlg" class="dlg">
+  <form method="dialog" class="dlg-inner" id="settingsForm">
+    <div class="dlg-head">
+      <h3>Settings</h3>
+      <button class="icon-btn" value="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <p class="fine">Everything works with no keys at all. Free keys make scripts smarter and faster. Keys are saved only in this browser and sent only to that provider.</p>
+
+    <fieldset>
+      <legend>Script writer</legend>
+      <label class="field"><span>Provider</span>
+        <select name="llmProvider">
+          <option value="auto">Auto (best available)</option>
+          <option value="pollinations">Pollinations (no key)</option>
+          <option value="gemini">Google Gemini (free key)</option>
+          <option value="groq">Groq (free key)</option>
+          <option value="openrouter">OpenRouter (free models)</option>
+        </select></label>
+      <label class="field"><span>Gemini key <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">get free key ↗</a></span><input name="geminiKey" type="password" placeholder="AIza…"></label>
+      <label class="field"><span>Groq key <a href="https://console.groq.com/keys" target="_blank" rel="noopener">get free key ↗</a></span><input name="groqKey" type="password" placeholder="gsk_…"></label>
+      <label class="field"><span>OpenRouter key <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">get free key ↗</a></span><input name="openrouterKey" type="password" placeholder="sk-or-…"></label>
+      <details><summary class="mono">model names</summary>
+        <label class="field"><span>Gemini model</span><input name="geminiModel"></label>
+        <label class="field"><span>Groq model</span><input name="groqModel"></label>
+        <label class="field"><span>OpenRouter model</span><input name="openrouterModel"></label>
+        <label class="field"><span>Pollinations text model</span><input name="pollinationsTextModel"></label>
+      </details>
+      <label class="check"><input type="checkbox" name="factCheck"> Second AI pass that fact-checks the script</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Visuals</legend>
+      <label class="field"><span>Background plates</span>
+        <select name="imageProvider">
+          <option value="pollinations">Pollinations (no key, optional)</option>
+          <option value="huggingface">Hugging Face (free token)</option>
+          <option value="none">Off — drawn backgrounds only</option>
+        </select></label>
+      <p class="fine">Plates are optional scenery in a window or the sky. Characters, props and motion are always drawn in code. The film never waits more than 20 seconds for a picture, and every picture is safety-checked first.</p>
+      <label class="field"><span>Pollinations key, optional <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">get one ↗</a></span><input name="pollinationsKey" type="password" placeholder="faster, fewer limits"></label>
+      <label class="field"><span>Pollinations image model</span><input name="pollinationsImageModel"></label>
+      <label class="field"><span>Hugging Face token <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">get free token ↗</a></span><input name="hfToken" type="password" placeholder="hf_…"></label>
+      <p class="fine">There is no free AI video model. Motion is the cartoon cast, not a generated clip. A Pollinations image key must start with sk_.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Voice</legend>
+      <label class="field"><span>Engine</span>
+        <select name="ttsEngine">
+          <option value="kokoro">Built-in Kokoro — free, runs on your device</option>
+          <option value="pollinations">Cloud voice (Pollinations)</option>
+          <option value="elevenlabs">ElevenLabs (your own key)</option>
+          <option value="none">No voice — captions + music</option>
+        </select></label>
+      <label class="field"><span>ElevenLabs key, optional <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">get key ↗</a></span><input name="elevenKey" type="password" placeholder="only if you pick ElevenLabs"></label>
+      <label class="field"><span>ElevenLabs voice ID</span><input name="elevenVoice" placeholder="JBFqnCBsd6RMkjVDRZzb"></label>
+      <label class="field"><span>Speed <output id="speedOut"></output></span><input name="voiceSpeed" type="range" min="0.8" max="1.3" step="0.05"></label>
+      <label class="field"><span>Cloud voice</span>
+        <select name="cloudVoice"><option>onyx</option><option>echo</option><option>fable</option><option>alloy</option><option>nova</option><option>shimmer</option></select></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Video</legend>
+      <label class="field"><span>Default quality</span>
+        <select name="quality"><option value="720">720p — fastest on old laptops</option><option value="1080">1080p — HD</option><option value="1440">1440p — 2K</option></select></label>
+      <label class="field"><span>Captions</span>
+        <select name="captionStyle"><option value="word">One word at a time (cartoon explainer)</option><option value="classic">Classic white phrases</option><option value="bold">Bold pop with yellow words</option><option value="box">Highlight box</option><option value="minimal">Minimal</option><option value="off">Off</option></select></label>
+      <label class="field"><span>Music volume</span><input name="musicVolume" type="range" min="0" max="1" step="0.05"></label>
+      <label class="field"><span>Channel handle watermark</span><input name="handle" placeholder="@yourchannel"></label>
+      <label class="check"><input type="checkbox" name="showTitle"> Title pop-up in the hook</label>
+      <label class="check"><input type="checkbox" name="showProgress"> Progress bar at the top</label>
+    </fieldset>
+
+    <div class="dlg-foot">
+      <div class="key-tools"><button class="btn ghost" type="button" id="btnResetKeys">Clear saved keys</button><button class="btn" type="button" id="btnCheckKeys">Check keys</button></div>
+      <button class="btn primary" value="save" id="btnSaveSettings">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script type="importmap">
+{"imports": {
+  "./js/app.js": "./js/app.js?v=202611172357",
+  "./js/audio.js": "./js/audio.js?v=202611172357",
+  "./js/cast.js": "./js/cast.js?v=202611172357",
+  "./js/demo.js": "./js/demo.js?v=202611172357",
+  "./js/encoder.js": "./js/encoder.js?v=202611172357",
+  "./js/images.js": "./js/images.js?v=202611172357",
+  "./js/llm.js": "./js/llm.js?v=202611172357",
+  "./js/net.js": "./js/net.js?v=202611172357",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611172357",
+  "./js/presets.js": "./js/presets.js?v=202611172357",
+  "./js/props.js": "./js/props.js?v=202611172357",
+  "./js/safety.js": "./js/safety.js?v=202611172357",
+  "./js/script.js": "./js/script.js?v=202611172357",
+  "./js/sets.js": "./js/sets.js?v=202611172357",
+  "./js/stage.js": "./js/stage.js?v=202611172357",
+  "./js/storage.js": "./js/storage.js?v=202611172357",
+  "./js/toons.js": "./js/toons.js?v=202611172357",
+  "./js/tts.js": "./js/tts.js?v=202611172357",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611172357"
+}}
+</script>
+<script type="module" src="./js/app.js?v=202611172357"></script>
+</body>
+</html>

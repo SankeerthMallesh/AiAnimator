@@ -336,3 +336,7 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round
 a.nav-btn.tool-link { text-decoration: none; color: inherit; }
 @media (max-width: 520px) { a.nav-btn.tool-link span { display: none; } }
 @media (max-width: 520px) { .wordmark span { display: none; } }
+
+/* Inside Loomy, the top bar switches sections, so hide the cross-links. */
+.embedded a.nav-btn.tool-link { display: none; }
+.embedded .wordmark { display: none; }

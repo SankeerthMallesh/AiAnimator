@@ -1,6 +1,6 @@
 # Loomy
 
-Three free tools in one static site: `/` makes cartoon shorts, `/explainer/` makes 3D-style explainer shorts, `/board/` is a pinboard for planning ideas.
+One free tool with three sections, switched from the top bar: **Cartoons** makes cartoon shorts, **3D** makes 3D-style explainer shorts, **Board** is a pinboard for planning ideas. Links: `/` (Cartoons), `/#3d`, `/#board`. Each section also works on its own at `/cartoon/`, `/explainer/` and `/board/`.
 
 Type a topic. Get a finished vertical cartoon short (MP4). No sign-up and no API key. It runs in the browser, so a cheap laptop is enough, and it never posts anything anywhere.
 
@@ -51,7 +51,7 @@ npx wrangler login
 npx wrangler pages deploy . --project-name loomy
 ```
 
-Short links: `/3d` opens the explainer and `/plan` opens the board.
+Short links: `/3d` opens the 3D section and `/plan` opens the Board.
 
 ## Honest limits
 
@@ -63,20 +63,21 @@ Short links: `/3d` opens the explainer and `/plan` opens the board.
 ## Files
 
 ```
-index.html, css/app.css    editor: preview, timeline, steps
-js/cast.js                 character rig
-js/props.js                props and sets
-js/stage.js                scene language, camera, captions
-js/script.js               storyboard JSON, repair, defaults
-js/pipeline.js             script → facts → plates + voice → mix → mp4
-js/llm.js                  free writers and the fact-check
-js/images.js               optional background plates
-js/audio.js                music and action sound effects
-js/tts.js                  Kokoro
-js/safety.js               in-browser image safety check
-js/encoder.js              WebCodecs MP4, MediaRecorder fallback
+index.html                 Loomy: top bar with the three sections
+cartoon/                   Cartoons section
+  js/cast.js               character rig
+  js/props.js              props and sets
+  js/stage.js              scene language, camera, captions
+  js/script.js             storyboard JSON, repair, defaults
+  js/pipeline.js           script → facts → plates + voice → mix → mp4
+  js/llm.js                free writers and the fact-check
+  js/audio.js, js/tts.js   music, effects, Kokoro voice
+  js/encoder.js            WebCodecs MP4, MediaRecorder fallback
+explainer/                 3D section (AI pictures with depth)
+board/                     Board section (notes, yarn, share links)
+vendor/                    shared libraries
 ```
 
 ## Updating the site
 
-After changing anything in `css/` or `js/`, run `python3 tools/stamp-version.py` before you push. Visitors otherwise keep a cached mix of old and new files.
+After changing any CSS or JS file, run `python3 tools/stamp-version.py` before you push. Visitors otherwise keep a cached mix of old and new files.

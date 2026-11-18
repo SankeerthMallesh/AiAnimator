@@ -1,6 +1,6 @@
 // Runs the Kokoro text-to-speech model in a background thread, 100% in the browser.
 // The model (~90 MB, quantized) is downloaded once from Hugging Face and cached by the browser.
-import { KokoroTTS } from '../vendor/kokoro.web.js';
+import { KokoroTTS } from '../../vendor/kokoro.web.js';
 
 let tts = null;
 let loading = null;

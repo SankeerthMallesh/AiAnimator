@@ -1,7 +1,7 @@
 // MP4 export. Uses WebCodecs (hardware video encoding, faster than real time) + mp4-muxer.
 // Falls back to real-time MediaRecorder on browsers without WebCodecs.
 
-import { Muxer, ArrayBufferTarget } from '../vendor/mp4-muxer.mjs';
+import { Muxer, ArrayBufferTarget } from '../../vendor/mp4-muxer.mjs';
 
 const VIDEO_CODECS = [
   ['avc', 'avc1.640034'], ['avc', 'avc1.64002A'], ['avc', 'avc1.640028'], ['avc', 'avc1.4D0034'],

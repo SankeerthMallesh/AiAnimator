@@ -1,6 +1,6 @@
 // Image safety check, in a background thread: a small ViT classifier that flags explicit pictures.
 // The free image model sometimes draws unclothed figures; nothing flagged here reaches a video.
-import { pipeline, RawImage, env } from '../vendor/transformers.min.js';
+import { pipeline, RawImage, env } from '../../vendor/transformers.min.js';
 
 env.allowLocalModels = false;
 let clf = null;

@@ -11,13 +11,15 @@
   Cache-Control: no-cache
 /explainer/
   Cache-Control: no-cache
+/cartoon/
+  Cache-Control: no-cache
 /board/
   Cache-Control: no-cache
 
 # Code and styles are version-stamped (?v=...), but revalidate anyway; it is cheap.
-/js/*
+/cartoon/js/*
   Cache-Control: public, max-age=0, must-revalidate
-/css/*
+/cartoon/css/*
   Cache-Control: public, max-age=0, must-revalidate
 /explainer/js/*
   Cache-Control: public, max-age=0, must-revalidate
