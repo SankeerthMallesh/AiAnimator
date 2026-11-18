@@ -35,23 +35,24 @@ The free text model is a small reasoning model. Requests send `reasoning_effort:
 
 ## Host on Cloudflare
 
-The whole folder is the site. There is no build step, and `_headers`, `_redirects`, `404.html` and `wrangler.toml` are already set up.
-
-**Option A, connected to GitHub (updates itself on every push):**
-
-1. In the Cloudflare dashboard open **Workers & Pages**, choose **Create**, then the **Pages** tab, then **Connect to Git**.
-2. Pick this repository and the `main` branch.
-3. Framework preset: **None**. Build command: leave empty. Build output directory: `/`.
-4. Save and deploy. The site is at `https://<project>.pages.dev`. Add your own domain under **Custom domains** if you want one.
-
-**Option B, upload from your computer:**
+The folder is the site. `functions/api/` adds optional Google sign-in with sync (Cloudflare Pages Functions + a free D1 database).
 
 ```
-npx wrangler login
-npx wrangler pages deploy . --project-name loomy
+bash tools/deploy-cloudflare.sh
 ```
 
-Short links: `/3d` opens the 3D section and `/plan` opens the Board.
+The first run signs you in to Cloudflare, picks a free `*.pages.dev` name, asks for an optional Google Client ID, and creates the `loomy-db` database. Later runs upload the latest version. Short links: `/3d` opens the 3D section and `/plan` opens the Board.
+
+## Google sign-in (optional)
+
+Signed out, everything is saved in the browser as before. Signed in, the video libraries, settings and boards sync to the account, so they follow you to other devices. API keys typed into Settings never leave the device. "Delete my synced data" in the account menu removes everything stored for that account.
+
+To turn it on, make a free Google OAuth Client ID:
+
+1. Open https://console.cloud.google.com/auth/overview and create a project (for example "Loomy"). Click **Get started**: app name Loomy, your email, audience **External**, then **Create**.
+2. **Audience**: click **Publish app** so anyone can sign in. Name, email and profile picture need no Google review.
+3. **Clients** → **Create client** → **Web application**. Under **Authorized JavaScript origins** add your site, for example `https://loomy-app.pages.dev`. Click **Create** and copy the Client ID.
+4. Run the deploy script and paste the Client ID when it asks.
 
 ## Honest limits
 

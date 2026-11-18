@@ -25,4 +25,9 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
     s = re.sub(r'<script type="importmap">.*?</script>\n', '', s, flags=re.S)
     s = re.sub(r'<script type="module" src="\./js/app\.js(\?v=[^"]*)?"></script>', lambda m: imap + f'<script type="module" src="./js/app.js?v={v}"></script>', s)
     open('index.html', 'w').write(s)
+# The Loomy page itself loads account.js.
+os.chdir(root)
+s = open('index.html').read()
+s = re.sub(r'src="account\.js(\?v=[^"]*)?"', f'src="account.js?v={v}"', s)
+open('index.html', 'w').write(s)
 print('stamped', v)

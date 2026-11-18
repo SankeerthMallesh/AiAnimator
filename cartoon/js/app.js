@@ -887,3 +887,6 @@ window.addEventListener('message', (e) => {
   $('#topic').value = e.data.topic.slice(0, 600);
   toast('Topic added from your board. Check it, then press the make button.');
 });
+
+// Loomy's top bar asks this before reloading a section after a sync.
+window.loomyBusy = () => running;
