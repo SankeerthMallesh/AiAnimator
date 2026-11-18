@@ -106,3 +106,6 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round
 
 /* Inside Loomy, the top bar switches sections. */
 .embedded .home { display: none; }
+
+/* Loomy pro theme: dark bar. */
+:root:not([data-theme="light"]) { --bar: #141414; --ink: #ECECEC; --muted: #A1A1A1; --line: #2A2A2A; --hover: rgba(255,255,255,.07); }

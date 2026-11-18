@@ -480,9 +480,98 @@ function parseActs(text) {
   return acts;
 }
 
+const inspectors = new Map();
+let selectedShot = null;
+
+// Select a shot: highlight it in the storyboard and timeline and show its controls in the inspector.
+function selectShot(id, seek) {
+  selectedShot = id;
+  const idx = project?.script?.scenes.findIndex(x => x.id === id) ?? -1;
+  $$('#board .scene').forEach(c => c.classList.toggle('sel', c.dataset.id === id));
+  $$('#tlVideo .clip').forEach(c => c.classList.toggle('sel', c.dataset.id === id));
+  const ins = $('#inspector');
+  ins.replaceChildren();
+  const panel = inspectors.get(id);
+  ins.append(panel || el('p', { class: 'fine insp-empty' }, 'Pick a shot in the storyboard or the timeline to edit it.'));
+  $('#inspName').textContent = idx >= 0 ? `Shot ${idx + 1}` : 'No shot selected';
+  if (seek) {
+    const t = project?.timeline?.scenes.find(x => x.id === id);
+    if (t) scrubTo(t.start + 0.05);
+  }
+}
+
+// ---------------- timeline: filmstrip, waveform, playhead ----------------
+function renderTimeline() {
+  const lane = $('#tlVideo'), ruler = $('#tlRuler');
+  lane.replaceChildren();
+  ruler.replaceChildren();
+  const tl = project?.timeline;
+  const total = tl?.total || 0;
+  if (!project?.script || !total) { drawWave(); moveHead(0); return; }
+  project.script.scenes.forEach((scene, i) => {
+    const t = tl.scenes.find(x => x.id === scene.id);
+    if (!t) return;
+    const clip = el('button', { class: 'clip', type: 'button', 'data-id': scene.id, title: `Shot ${i + 1}: ${scene.narration.slice(0, 80)}`,
+      style: `left:${t.start / total * 100}%;width:${t.dur / total * 100}%` }, el('span', {}, String(i + 1)));
+    clip.addEventListener('click', (ev) => { ev.stopPropagation(); selectShot(scene.id, true); });
+    lane.append(clip);
+    copyThumbToClip(i);
+  });
+  const step = total > 90 ? 15 : total > 40 ? 5 : 2;
+  for (let x = 0; x <= total + 0.01; x += step) ruler.append(el('span', { style: `left:${x / total * 100}%` }, tc(x)));
+  drawWave();
+  moveHead(player.offset || 0);
+}
+function copyThumbToClip(i) {
+  const scene = project?.script?.scenes[i];
+  const src = scene && $(`#board .scene[data-id="${scene.id}"] .thumb canvas`);
+  const clip = scene && $(`#tlVideo .clip[data-id="${scene.id}"]`);
+  if (!src || !clip) return;
+  try { clip.style.backgroundImage = `url(${src.toDataURL('image/jpeg', 0.6)})`; } catch { /* canvas unavailable */ }
+}
+function drawWave() {
+  const c = $('#tlWave');
+  const w = Math.max(200, Math.round(c.clientWidth * devicePixelRatio)), h = Math.max(20, Math.round(c.clientHeight * devicePixelRatio));
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, w, h);
+  const buf = project?.audio;
+  if (!buf) return;
+  const data = buf.getChannelData(0), per = Math.max(1, Math.floor(data.length / w));
+  g.fillStyle = getComputedStyle(c).color || '#3D8BFF';
+  for (let x = 0; x < w; x++) {
+    let peak = 0;
+    for (let k = x * per, e = Math.min(data.length, k + per); k < e; k += 8) peak = Math.max(peak, Math.abs(data[k]));
+    const bh = Math.max(1, peak * h * 0.9);
+    g.fillRect(x, (h - bh) / 2, 1, bh);
+  }
+}
+function tc(t) {
+  const f = Math.floor((t % 1) * 30), sec = Math.floor(t) % 60, m = Math.floor(t / 60);
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}:${String(f).padStart(2, '0')}`;
+}
+function moveHead(t) {
+  const total = project?.timeline?.total || 0;
+  $('#tlHead').style.setProperty('--x', total ? `${Math.min(1, t / total) * 100}%` : '0%');
+  if (!total) return;
+  const cur = project.timeline.scenes.find(x => t >= x.start && t < x.start + x.dur);
+  $$('#tlVideo .clip').forEach(c => c.classList.toggle('now', c.dataset.id === cur?.id));
+}
+for (const id of ['#tlVideo', '#tlAudio', '#tlRuler']) {
+  $(id).addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.clip')) return;
+    const total = project?.timeline?.total;
+    if (!total || !player.renderer) return;
+    const r = $('#tlVideo').getBoundingClientRect();
+    scrubTo(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * total);
+  });
+}
+addEventListener('resize', () => { if (project?.audio) drawWave(); });
+
 function renderBoard() {
   const board = $('#board');
   board.innerHTML = '';
+  inspectors.clear();
   if (!project?.script) return;
   const ratio = FORMATS[formatOf(project.options)].ratio;
   const tl = project.timeline;
@@ -547,24 +636,39 @@ function renderBoard() {
       if (parsed) { scene.acts = parsed; markDirty(scene, card); }
     });
 
+    const row = (label, ...ctl) => el('div', { class: 'insp-row' }, el('span', { class: 'insp-label' }, label), el('div', { class: 'insp-ctl' }, ...ctl));
+    const inspector = el('div', { class: 'insp-body' },
+      el('p', { class: 'sect-title' }, 'Shot'),
+      row('Set', setSel), row('Camera', cam), row('Cut in', cut), row('Background', bg),
+      ...(whoEdits.length ? [el('p', { class: 'sect-title' }, 'Characters'), ...whoEdits] : []),
+      el('details', { class: 'insp-acts' }, el('summary', {}, 'Actions: time id do x'), acts));
+    inspectors.set(scene.id, inspector);
+
+    const play = el('button', { class: 'thumb-play', type: 'button', 'aria-label': `Play from shot ${i + 1}`, onclick: (ev) => {
+      ev.stopPropagation(); selectShot(scene.id, true);
+      if (player.renderer && project.audio) playPreview();
+    } }, el('i'));
+    thumb.append(play);
     const body = el('div', { class: 'scene-body' },
       el('div', { class: 'scene-top' },
         el('span', { class: 'tc' }, t ? `${fmt(t.start)} → ${fmt(t.start + t.dur)} · ${t.dur.toFixed(1)}s` : `scene ${i + 1}`),
-        el('button', { class: 'del', type: 'button', onclick: () => {
+        el('button', { class: 'del', type: 'button', onclick: (ev) => {
+          ev.stopPropagation();
           if (project.script.scenes.length <= 1) return;
           project.script.scenes.splice(project.script.scenes.indexOf(scene), 1);
           renderBoard();
           $('#btnApply').disabled = running;
         } }, 'remove')),
       narr,
-      el('div', { class: 'grid3' }, setSel, cam, cut),
-      bg,
-      ...whoEdits,
-      el('details', {}, el('summary', {}, 'actions · time id do x'), acts));
+      el('button', { class: 'btn small ghost edit-shot', type: 'button', onclick: (ev) => { ev.stopPropagation(); selectShot(scene.id, true); } }, 'Edit shot'));
+    card.addEventListener('click', (ev) => { if (!ev.target.closest('textarea, input, select, label, button')) selectShot(scene.id, false); });
     card.append(thumb, body);
     board.append(card);
     updateThumb(i);
   });
+  renderTimeline();
+  const keep = project.script.scenes.find(x => x.id === selectedShot);
+  selectShot(keep ? keep.id : project.script.scenes[0]?.id, false);
 }
 
 $('#btnAddScene').addEventListener('click', () => {
@@ -602,6 +706,7 @@ function updateThumb(i) {
   try { Stage.still(c, project.script, scene, plate, 0.85); }
   catch (e) { log(`Preview frame failed: ${e.message}`); }
   thumb.prepend(c);
+  copyThumbToClip(i);
 }
 
 function scrubTo(t) {
@@ -632,12 +737,14 @@ async function setupPreview() {
   if (!project.video) showStage('canvas');
   player.renderer.drawFrame(0.6);
   updateTime(0);
+  $('#playerInfo').textContent = `${formatOf(project.options)} · ${fmt(project.timeline?.total || 0)}`;
 }
 
 function updateTime(t) {
   const total = project?.timeline?.total || 0;
-  $('#time').textContent = `${fmt(t)} / ${fmt(total)}`;
+  $('#time').textContent = `${tc(t)} / ${tc(total)}`;
   $('#scrub').value = total ? String(Math.round(t / total * 1000)) : '0';
+  moveHead(t);
 }
 
 function playPreview() {

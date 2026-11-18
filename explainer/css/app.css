@@ -340,3 +340,23 @@ a.nav-btn.tool-link { text-decoration: none; color: inherit; }
 /* Inside Loomy, the top bar switches sections, so hide the cross-links. */
 .embedded a.nav-btn.tool-link { display: none; }
 .embedded .wordmark { display: none; }
+
+/* ===== Loomy pro theme: dark editor look (default). Light only when chosen in the theme switch. ===== */
+html:root:not([data-theme="light"]) {
+  --bg: #121212; --paper: #1B1B1B; --panel: #222222; --ink: #ECECEC; --muted: #A1A1A1; --faint: #6C6C6C;
+  --line: #2A2A2A; --line-2: #383838; --hover: rgba(255, 255, 255, .06); --press: rgba(255, 255, 255, .1);
+  --accent: #3D8BFF; --accent-ink: #6AA8FF; --accent-soft: rgba(61, 139, 255, .14); --accent-tint: #15233D; --on-accent: #FFFFFF;
+  --ok: #4CC38A; --warn: #E5A84B; --err: #FF6B61; --value: #6AA8FF; --playhead: #FF4D4D;
+  --shadow: 0 0 0 1px rgba(255, 255, 255, .05), 0 8px 24px rgba(0, 0, 0, .45);
+  --radius: 10px;
+  color-scheme: dark;
+}
+:root { --value: #1F5FE0; --playhead: #E5383B; }
+html:root:not([data-theme="light"]) body { background: var(--bg); }
+.masthead { background: #0D0D0D; border-bottom: 1px solid var(--line); }
+html:root[data-theme="light"] .masthead { background: var(--bg); }
+.btn.primary, .go { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover, .go:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+.btn { border-radius: 8px; }
+.embedded #btnTheme { display: none; }
+
