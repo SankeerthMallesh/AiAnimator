@@ -383,15 +383,23 @@ export class Stage {
     fit();
     while (ctx.measureText(c.text).width > W * 0.9 && size > 28) { size -= 2; fit(); }
     const age = local - c.start;
-    const pop = age < 0.14 ? Ink.back(age / 0.14) : 1;
-    const y = H * (portrait ? 0.9 : 0.86);
+    // Pop in from 80% with a small overshoot, never from nothing, so no frame shows a tiny word.
+    const k = Math.min(1, Math.max(0, age / 0.16));
+    const pop = 0.8 + 0.2 * Ink.back(k);
+    const y = H * (portrait ? 0.9 : 0.86) + (1 - k) * size * 0.12;
+    // Numbers and long key words get the yellow highlight that Shorts captions use.
+    const hot = /\d/.test(c.text) || c.text.split(/\s+/).some(w => w.replace(/[^A-Za-z]/g, '').length >= 7);
     ctx.save();
     ctx.translate(W / 2, y);
     ctx.scale(pop, pop);
-    ctx.lineWidth = Math.max(8, size * 0.2);
+    ctx.shadowColor = 'rgba(0,0,0,.45)';
+    ctx.shadowBlur = size * 0.18;
+    ctx.shadowOffsetY = size * 0.06;
+    ctx.lineWidth = Math.max(8, size * 0.22);
     ctx.strokeStyle = '#141414';
     ctx.strokeText(c.text, 0, 0);
-    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = hot ? '#FFD43B' : '#FFFFFF';
     ctx.fillText(c.text, 0, 0);
     ctx.restore();
   }

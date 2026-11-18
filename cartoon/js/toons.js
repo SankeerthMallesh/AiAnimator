@@ -244,3 +244,73 @@ export function drawProp(ctx, name, cx, cy, size, t) {
   }
   ctx.restore();
 }
+
+// ---------- Emoji stickers ----------
+// Any topic gets a picture of its key thing (a bee, a pizza, a volcano) as a sticker in the
+// cartoon's own style: a thick ink outline around a white border, popping in and bobbing.
+const stickerCache = new Map();
+function stickerImage(emoji, px) {
+  const key = `${emoji}|${px}`;
+  if (stickerCache.has(key)) return stickerCache.get(key);
+  const pad = Math.ceil(px * 0.22);
+  const S = px + pad * 2;
+  const glyph = document.createElement('canvas');
+  glyph.width = glyph.height = S;
+  const g = glyph.getContext('2d');
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `${px}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+  g.fillText(emoji, S / 2, S / 2 + px * 0.06);
+  // Silhouette grown outward in a ring: ink first, then white, then the emoji on top.
+  const ring = (radius, color) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = S;
+    const x = c.getContext('2d');
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * TAU;
+      x.drawImage(glyph, Math.cos(a) * radius, Math.sin(a) * radius);
+    }
+    x.drawImage(glyph, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = color; x.fillRect(0, 0, S, S);
+    return c;
+  };
+  const out = document.createElement('canvas');
+  out.width = out.height = S;
+  const o = out.getContext('2d');
+  o.drawImage(ring(px * 0.13, INK), 0, 0);
+  o.drawImage(ring(px * 0.085, '#FFFFFF'), 0, 0);
+  o.drawImage(glyph, 0, 0);
+  // An emoji the device cannot draw comes out empty; report that so the caller can skip it.
+  const probe = g.getImageData(S / 2 - px / 4, S / 2 - px / 4, px / 2, px / 2).data;
+  let ink = 0;
+  for (let i = 3; i < probe.length; i += 16) if (probe[i] > 0) ink++;
+  const result = ink > 3 ? out : null;
+  if (stickerCache.size > 60) stickerCache.clear();
+  stickerCache.set(key, result);
+  return result;
+}
+
+export function drawSticker(ctx, emoji, cx, cy, size, t) {
+  const pop = easeOutBack((t - 0.2) / 0.4);
+  if (pop <= 0 || !emoji) return;
+  const px = Math.max(24, Math.round(size * 0.78 / 8) * 8);
+  const img = stickerImage(emoji, px);
+  if (!img) return;
+  const bob = Math.sin(t * 2.3) * size * 0.04;
+  const tilt = Math.sin(t * 1.4) * 0.07;
+  const sq = 1 + Math.sin(t * 4.6) * 0.015;
+  ctx.save();
+  // Soft shadow under the sticker.
+  ctx.globalAlpha = 0.18 * Math.min(1, pop);
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + size * 0.62, size * 0.32, size * 0.06, 0, 0, TAU);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.translate(cx, cy + bob);
+  ctx.rotate(tilt);
+  ctx.scale(pop * sq, pop / sq);
+  const d = size * (img.width / px) * 0.78;
+  ctx.drawImage(img, -d / 2, -d / 2, d, d);
+  ctx.restore();
+}

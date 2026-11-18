@@ -322,6 +322,17 @@ export class Script {
         props = props.filter(p => { if (!PropKit.TOONS.includes(p.kind)) return true; if (seen) return false; seen = true; return true; });
         for (const p of props) if (PropKit.TOONS.includes(p.kind)) { p.x = 0.5; p.y = null; }
       }
+      // An emoji sticker shows the line's key thing for any topic. It replaces the generic floating
+      // props (question mark, drop, bolt...) but sits beside the specific ones (globe, eclipse, ship...).
+      {
+        const emoji = Script.emoji(s.icon || s.emoji);
+        if (emoji) {
+          const GENERIC = ['question', 'exclaim', 'drop', 'bolt', 'star', 'bulb', 'clock', 'gear', 'fire'];
+          props = props.filter(p => !GENERIC.includes(p.kind));
+          const toon = props.find(p => PropKit.TOONS.includes(p.kind));
+          props = [...props, toon ? { id: 'icon', kind: 'icon', emoji, x: 0.82, y: 11.6, small: true } : { id: 'icon', kind: 'icon', emoji, x: 0.5, y: null }].slice(-4);
+        }
+      }
       const actsIn = Array.isArray(s.acts) ? s.acts : Array.isArray(s.actions) ? s.actions : [];
       const acts = [];
       for (const a of actsIn) {
@@ -510,6 +521,16 @@ export class Script {
     return 'sky';
   }
 
+  // First emoji picture in the text, or '' (faces, people, hands and flags are skipped).
+  static emoji(v) {
+    const str = String(v || '').trim();
+    if (!str) return '';
+    const parts = typeof Intl !== 'undefined' && Intl.Segmenter ? [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(str)].map(x => x.segment) : [...str];
+    const bad = /[\u{1F600}-\u{1F64F}\u{1F466}-\u{1F487}\u{1F574}-\u{1F57A}\u{1F3C3}-\u{1F3CC}\u{1F6B4}-\u{1F6B6}\u{1F90C}-\u{1F91F}\u{1F926}\u{1F930}-\u{1F93E}\u{1F9B5}-\u{1F9BB}\u{1F9CD}-\u{1F9DF}\u{1F44A}-\u{1F450}\u{270A}-\u{270D}\u{1F1E6}-\u{1F1FF}\u{1F595}\u{1F596}\u{1F918}]/u;
+    const g = parts.find(x => /\p{Extended_Pictographic}/u.test(x));
+    return g && !bad.test(g) && g.length <= 12 ? g : '';
+  }
+
   static guessProps(text, set) {
     const t = text.toLowerCase();
     const out = [];
@@ -589,13 +610,13 @@ props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shru
 Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.
 Lines are narration read by one narrator. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, sea = ships and coasts, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Use at least 3 different sets in a video.
-Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them.
+Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠), never a face, person, hand or flag.
 Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, point, jump, shrug, cheer, facepalm, turn).
 bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
 Stay compact so the answer is never cut off: write "bg" only on the first scene, at most 2 acts per scene, short names, no extra keys.
 Output ONLY compact JSON on one line, under 700 words:
-{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   static checkPrompt(script, topic) {

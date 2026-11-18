@@ -3,7 +3,7 @@
 
 import { Ink, PropMini } from './cast.js';
 
-import { drawProp } from './toons.js';
+import { drawProp, drawSticker } from './toons.js';
 import { drawSet } from './sets.js';
 
 // Animated floating props (spinning Earth, eclipse shadow, ship sinking below the horizon…).
@@ -24,6 +24,12 @@ export class PropKit {
     ctx.save();
     ctx.translate(prop.x, ground);
     const s = u;
+    if (kind === 'icon') {
+      const lift = prop.y != null ? prop.y : 9.6;
+      drawSticker(ctx, prop.emoji, 0, -lift * s, (prop.small ? 3.0 : 3.9) * s, t);
+      ctx.restore();
+      return;
+    }
     if (TOONS.includes(kind)) {
       // Floats above the cast and keeps moving.
       const lift = prop.y != null ? prop.y : 9.6;
@@ -412,6 +418,8 @@ export class SetKit {
     ctx.rect(0, 0, W, H * horizon);
     ctx.clip();
     const sc = Math.max(W / plate.width, (H * horizon) / plate.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(plate, (W - plate.width * sc) / 2, (H * horizon - plate.height * sc) / 2, plate.width * sc, plate.height * sc);
     ctx.fillStyle = sky;
     ctx.globalAlpha = 0.42;
@@ -425,6 +433,8 @@ export class SetKit {
     Ink.rrect(ctx, x, y, w, h, 10);
     ctx.clip();
     const sc = Math.max(w / plate.width, h / plate.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(plate, x + (w - plate.width * sc) / 2, y + (h - plate.height * sc) / 2, plate.width * sc, plate.height * sc);
     ctx.restore();
     ctx.lineWidth = Math.max(6, W * 0.01);

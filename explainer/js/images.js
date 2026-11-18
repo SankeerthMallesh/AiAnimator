@@ -32,11 +32,17 @@ function pollinationsURL(prompt, { width, height, seed }, s) {
   return `https://image.pollinations.ai/prompt/${p}?${q}`;
 }
 
-async function blobToBitmap(blob) {
+async function blobToBitmap(blob, trimLogo = false) {
   if (!blob || blob.size < 2000 || !/^image\//.test(blob.type || 'image/')) {
     throw new Error('Not an image');
   }
-  return await createImageBitmap(blob);
+  const bmp = await createImageBitmap(blob);
+  if (!trimLogo) return bmp;
+  // The free no-key service stamps its logo in the bottom-right corner and ignores nologo.
+  // Cut that strip off so it never shows up in a video.
+  const cut = await createImageBitmap(bmp, 0, 0, bmp.width, Math.round(bmp.height * 0.9));
+  bmp.close?.();
+  return cut;
 }
 
 const IMAGE_TIMEOUT_MS = 50000; // a stalled request is retried instead of holding a slot forever
@@ -107,7 +113,7 @@ const providers = {
     }
     const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), { signal }, IMAGE_TIMEOUT_MS, 'blob');
     if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
-    return blobToBitmap(data);
+    return blobToBitmap(data, true);
   },
   async huggingface(prompt, { width, height, seed }, s, signal) {
     if (!s.hfToken) throw new Error('No Hugging Face token');
