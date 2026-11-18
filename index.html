@@ -80,7 +80,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 </header>
 <main class="views" id="views"></main>
 <div class="toast" id="toast" role="status" hidden></div>
-<script src="account.js?v=202611182037"></script>
+<script src="account.js?v=202611182145"></script>
 <script>
 (() => {
   const SECTIONS = {
@@ -157,6 +157,11 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
     }
   }
   (window.LoomyAccount?.ready || Promise.resolve()).catch(() => {}).then(boot);
+  addEventListener('hashchange', () => {
+    const h = location.hash.slice(1);
+    if (h.startsWith('board:')) { boot(); return; }
+    show(h === '3d' || h === 'board' ? h : 'cartoon', '', false);
+  });
 })();
 </script>
 </body>
