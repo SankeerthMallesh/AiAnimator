@@ -51,6 +51,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 /* Hidden sections stay alive (so a video keeps rendering) but sit behind the active one. */
 .views iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); opacity: 0; pointer-events: none; z-index: 0; }
 .views iframe.on { opacity: 1; pointer-events: auto; z-index: 1; }
+.views iframe { transition: opacity .18s ease; }
+@media (prefers-reduced-motion: reduce) { .views iframe { transition: none; } }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 9; background: #2B2B2B; color: #fff; border: 1px solid #3A3A3A; padding: 10px 14px; border-radius: 9px; }
 .toast[hidden] { display: none; }
 @media (max-width: 860px) { .brand small { display: none; } .share span { display: none; } .tab { padding: 9px 12px; } }
@@ -80,7 +82,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 </header>
 <main class="views" id="views"></main>
 <div class="toast" id="toast" role="status" hidden></div>
-<script src="account.js?v=202611182156"></script>
+<script src="account.js?v=202611182204"></script>
 <script>
 (() => {
   const SECTIONS = {

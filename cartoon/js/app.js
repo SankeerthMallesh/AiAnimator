@@ -222,14 +222,25 @@ function renderHistory() {
   h.innerHTML = '';
   const list = loadHistory();
   $('#libCount').textContent = list.length ? String(list.length) : '';
-  if (!list.length) { h.append(el('div', { class: 'empty' }, 'Your videos show up here.')); return; }
+  if (!list.length) {
+    h.append(el('div', { class: 'empty' },
+      el('b', {}, 'No videos yet'),
+      el('span', {}, 'Every video you make is listed here, so you can reopen it, edit the shots and export again.')));
+    return;
+  }
   for (const item of list) {
     h.append(el('div', {
       class: 'item' + (project?.id === item.id ? ' on' : ''), role: 'button', tabindex: '0',
       onclick: () => openFromHistory(item),
       onkeydown: (e) => { if (e.key === 'Enter') openFromHistory(item); },
     },
-    el('span', {}, item.script?.title || item.topic),
+    el('span', { class: 'item-main' },
+      el('b', {}, item.script?.title || item.topic),
+      el('small', {}, [
+        item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '',
+        item.options?.format || '',
+        item.script?.scenes?.length ? `${item.script.scenes.length} shots` : '',
+      ].filter(Boolean).join(' · '))),
     el('button', {
       class: 'x', 'aria-label': 'Delete', title: 'Delete',
       onclick: (e) => { e.stopPropagation(); deleteFromHistory(item.id); renderHistory(); },
