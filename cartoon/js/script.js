@@ -35,7 +35,7 @@ const TOON_WORDS = {
 
 // Backup stickers: common things and their emoji, used when the script writer leaves "icon" out.
 const EMOJI_WORDS = {
-  calendar: '📅', year: '📅', leap: '📅', february: '📅', month: '📅', week: '📅', birthday: '🎂', season: '🍂', autumn: '🍂', winter: '⛄', summer: '🏖️', spring: '🌸',
+  calendar: '🗓️', year: '🗓️', leap: '🗓️', february: '🗓️', month: '🗓️', week: '🗓️', birthday: '🎂', season: '🍂', autumn: '🍂', winter: '⛄', summer: '🏖️', spring: '🌸',
   orbit: '🌍', sky: '🌤️', light: '💡', sunlight: '☀️', shadow: '🌗', star: '⭐', galaxy: '🌌', comet: '☄️', meteor: '☄️', asteroid: '☄️', mars: '🔴', saturn: '🪐', jupiter: '🪐',
   wheat: '🌾', grain: '🌾', farm: '🚜', farmer: '🚜', crop: '🌾', harvest: '🌾', rice: '🍚', corn: '🌽', potato: '🥔', carrot: '🥕', tomato: '🍅', apple: '🍎', fruit: '🍎', vegetable: '🥦',
   cup: '☕', caffeine: '☕', espresso: '☕', water: '💧', river: '🏞️', lake: '🏞️', beach: '🏖️', sand: '🏖️', wave: '🌊', bubble: '🫧', glass: '🥛', bottle: '🍾',
@@ -344,6 +344,7 @@ export class Script {
     const known = new Set(cast.map(c => c.id));
     const scenesIn = Array.isArray(raw.scenes) ? raw.scenes : [];
     const scenes = [];
+    let lastIcon = '';
     scenesIn.forEach((s, i) => {
       // Writers sometimes prefix a line with "Scene 3:" or a speaker name; the narrator must not read that.
       const narration = Script.clean(s.line || s.narration || s.text || s.voiceover, 280)
@@ -449,6 +450,11 @@ export class Script {
             }
           }
         }
+        // Never the same sticker two shots in a row: pick another thing from the line, or none.
+        if (emoji && emoji === lastIcon) {
+          emoji = Script.guessEmojis(narration).find(e => e !== lastIcon) || (topicEmoji && topicEmoji !== lastIcon ? topicEmoji : '');
+        }
+        lastIcon = emoji || '';
         if (emoji) {
           const GENERIC = ['question', 'exclaim', 'drop', 'bolt', 'star', 'bulb', 'clock', 'gear', 'fire'];
           // A specific prop the line never mentions (a stick, an atom for a line about cat spines) goes too.
@@ -670,6 +676,22 @@ export class Script {
   }
 
   // An emoji for the first common thing named in the text, or ''.
+  // Every sticker the text suggests, best first (for picking a different one than the last shot).
+  static guessEmojis(text) {
+    const low = String(text || '').toLowerCase();
+    const strong = [], weak = [];
+    for (const raw of low.match(/[a-z]+/g) || []) {
+      for (const w of [raw, raw.replace(/ies$/, 'y'), raw.replace(/es$/, ''), raw.replace(/s$/, '')]) {
+        if (!Object.prototype.hasOwnProperty.call(EMOJI_WORDS, w)) continue;
+        const sense = WORD_SENSES[w];
+        if (sense && sense[0].test(low)) { if (sense[1]) weak.push(sense[1]); break; }
+        (BROAD_WORDS.has(w) ? weak : strong).push(EMOJI_WORDS[w]);
+        break;
+      }
+    }
+    return [...new Set([...strong, ...weak])];
+  }
+
   static guessEmoji(text) {
     const low = String(text || '').toLowerCase();
     let other = ''; // the other meaning of a two-meaning word, or a broad word: used if nothing clearer comes up
