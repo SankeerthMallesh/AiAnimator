@@ -43,6 +43,16 @@ bash tools/deploy-cloudflare.sh
 
 The first run signs you in to Cloudflare, picks a free `*.pages.dev` name, asks for an optional Google Client ID, and creates the `loomy-db` database. Later runs upload the latest version. Short links: `/3d` opens the 3D section and `/plan` opens the Board.
 
+## Access codes (optional lock)
+
+Make Loomy private: every browser needs a code once, then stays unlocked until the code expires. Codes are made only on your computer from a secret in `~/.loomy-access-secret`; Cloudflare checks them without a list.
+
+```
+bash tools/access-code.sh forever   # a code that never expires (the first run turns the lock on)
+bash tools/access-code.sh 30        # a code for a friend that works for 30 days
+bash tools/access-code.sh reset     # cancel every code, then make a new one
+```
+
 ## Google sign-in (optional)
 
 Signed out, everything is saved in the browser as before. Signed in, the video libraries, settings and boards sync to the account, so they follow you to other devices. API keys typed into Settings never leave the device. "Delete my synced data" in the account menu removes everything stored for that account.
