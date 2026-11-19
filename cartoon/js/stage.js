@@ -166,14 +166,14 @@ export class Stage {
       // Detailed sets end at the frame edge: enlarge them a little while they move.
       ctx.translate(W / 2, ground); ctx.scale(1.3, 1.3); ctx.translate(-W / 2, -ground);
     }
-    SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene || photo, blur: photo });
+    SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene || photo, blur: photo, vx: pe?.vx || 0, vz: pe?.vz || 1, tint: pe?.tint || null });
     ctx.restore();
     if (mv) Stage.applyMotion(mv, actors, scene, local, talkIdFor(scene, actors), bgX, W);
     if (photo) {
       // The picture itself as a framed card at the top, steady on screen while the camera moves.
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      SetKit.photoCard(ctx, W, H, pe.bitmap, local, scene.dur);
+      SetKit.photoCard(ctx, W, H, pe.bitmap, local, scene.dur, pe.vx || 0, pe.vz || 1);
       ctx.restore();
     }
     // Interaction for this scene: who is using which prop, and how.

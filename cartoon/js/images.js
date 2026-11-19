@@ -217,8 +217,8 @@ const SET_WORDS = {
   night: 'a quiet town street at night',
 };
 export function scenePrompt(bg, set, topic = '') {
-  const place = SET_WORDS[set] || 'an open outdoor scene';
-  const indoor = ['shop', 'lab', 'office', 'room'].includes(set);
+  const place = SET_WORDS[set] || (set ? `${set} scene` : 'an open outdoor scene');
+  const indoor = ['shop', 'lab', 'office', 'room', 'inside'].includes(set);
   const clean = String(bg || '')
     .replace(/\b(naked|nude|gore|gory|blood|bloody|person|people|man|woman|human|child|boy|girl|body|bodies|skin|face|character|crowd|dark|dim|gloomy|grim|realistic|photo\w*)\b/gi, '')
     .replace(/\s{2,}/g, ' ').trim().slice(0, 120);

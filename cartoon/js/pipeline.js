@@ -98,6 +98,7 @@ export class Pipeline {
       this.h.scriptReady?.();
       return;
     }
+    this.startPainting();
     this.h.step('script', 'active', 'Asking the writer…');
     this.log('Asking the writer…');
     let waited = 0;
@@ -181,6 +182,39 @@ export class Pipeline {
     return `${scene.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}`;
   }
 
+  // Painting starts the moment the video starts: the free image service allows about one picture
+  // every 45 seconds, and writing the script takes 15 seconds to a few minutes, so that time
+  // becomes extra backgrounds. Before the script exists it paints topic views; after, the sets.
+  startPainting() {
+    const p = this.p;
+    if (this.demo || this.s.imageProvider === 'none' || p.options.plates === false || this.paint) return;
+    const views = [['wide establishing view', 'field'], ['up close at street level', 'city'], ['inside a building', 'inside'], ['at golden sunset', 'mountains']];
+    const pool = [];
+    const done = new Set();
+    this.paint = { pool, stop: false };
+    const fmt = formatOf(p.options);
+    const size = fmt === '16:9' ? { width: 1024, height: 576 } : fmt === '1:1' ? { width: 768, height: 768 } : fmt === '4:5' ? { width: 640, height: 800 } : { width: 576, height: 1024 };
+    const next = () => {
+      const sc = p.script?.scenes || [];
+      const set = sc.map(x => x.set).find(x => x && !done.has(`set:${x}`));
+      if (set) { done.add(`set:${set}`); return { prompt: scenePrompt(sc.find(x => x.set === set)?.bg || '', set, p.topic), set }; }
+      const v = views.find(([w]) => !done.has(w));
+      if (v && !sc.length) { done.add(v[0]); return { prompt: scenePrompt(v[0], v[1], p.topic), set: null }; }
+      return null;
+    };
+    this.paint.running = (async () => {
+      let misses = 0;
+      while (!this.paint.stop && pool.length < 6 && misses < 12) {
+        if (this.signal.aborted) return;
+        const job = next();
+        if (!job) { await new Promise(r => setTimeout(r, 2000)); misses++; continue; }
+        const bmp = await fetchPlate(job.prompt, { ...size, seed: (Math.random() * 1e9) | 0 }, this.s, { signal: this.signal, timeout: 20000, log: (m) => this.log(m) }).catch(() => null);
+        if (bmp) { pool.push({ bitmap: bmp, set: job.set }); misses = 0; this.log(`Painted background ${pool.length}.`); }
+        else { misses++; await new Promise(r => setTimeout(r, 9000)); }
+      }
+    })();
+  }
+
   async ensurePlates() {
     const p = this.p;
     if (this.demo || this.s.imageProvider === 'none' || p.options.plates === false) {
@@ -188,6 +222,7 @@ export class Pipeline {
       return;
     }
     const scenes = p.script.scenes;
+    this.paintOnly = null;
     // Real photos, maps and paintings of the topic from Wikipedia come first.
     if (p.options.photos !== false && !this.demo) {
       const missing = scenes.filter(sc => { const h = p.plates.get(sc.id); return !(h?.custom || (h?.photo && h.key === this.plateKey(sc))); });
@@ -201,74 +236,72 @@ export class Pipeline {
         p.sources = r.sources;
         p.credits = r.credits;
         if (r.byScene.size) {
-          for (const sc of scenes) {
+          // Plenty of pictures: every scene gets one. Only a few: a picture goes where it clearly
+          // matches the line, and the other scenes get painted 3D backgrounds, so one photo never
+          // fills the whole video. A photo shown more than once is framed differently each time.
+          const few = r.credits.length < Math.min(3, scenes.length);
+          const shown = new Map();
+          const rest = [];
+          scenes.forEach((sc, i) => {
             const v = r.byScene.get(sc.id);
-            if (!v || p.plates.get(sc.id)?.custom) continue;
-            p.plates.set(sc.id, { key: this.plateKey(sc), bitmap: v.bitmap, photo: true, own: true });
-            this.h.scene?.(scenes.indexOf(sc));
+            if (p.plates.get(sc.id)?.custom) return;
+            if (!v || (few && i > 0 && v.score < 2 && (shown.get(v.bitmap) || 0) > 0)) { rest.push(sc); return; }
+            const n = shown.get(v.bitmap) || 0;
+            shown.set(v.bitmap, n + 1);
+            p.plates.set(sc.id, { key: this.plateKey(sc), bitmap: v.bitmap, photo: true, own: true,
+              vx: [0, -0.18, 0.18, -0.1, 0.12][n % 5], vz: n ? [1, 1.35, 1.5, 1.4, 1.6][n % 5] : 1 });
+            this.h.scene?.(i);
+          });
+          this.h.step('plates', 'active', `${r.credits.length} real picture${r.credits.length === 1 ? '' : 's'} from Wikipedia`);
+          if (!rest.length) {
+            this.h.step('plates', 'done', `${r.credits.length} real picture${r.credits.length === 1 ? '' : 's'} from Wikipedia`);
+            if (this.paint) this.paint.stop = true;
+            return;
           }
-          this.h.step('plates', 'done', `${r.credits.length} real picture${r.credits.length === 1 ? '' : 's'} from Wikipedia`);
-          return;
+          this.paintOnly = new Set(rest.map(x => x.id));
+          this.log(`Only ${r.credits.length} usable Wikipedia picture${r.credits.length === 1 ? '' : 's'}: painting backgrounds for ${rest.length} more scenes.`);
         }
-        this.log('Wikipedia had no usable pictures for this topic. Painting 3D scenes instead.');
+        else this.log('Wikipedia had no usable pictures for this topic. Painting 3D scenes instead.');
       } catch (e) {
         if (this.signal.aborted) throw e;
         this.log(`Real pictures unavailable (${e.message}). Painting 3D scenes instead.`);
       }
     }
-    const look = (s) => `${s.bg}|${s.set}`;
-    const wanted = [];
-    for (const scene of scenes) {
-      const have = p.plates.get(scene.id);
-      if (have?.custom || (have?.bitmap && have.key === this.plateKey(scene) && have.own)) continue;
-      if (wanted.some(s => look(s) === look(scene))) continue;
-      wanted.push(scene);
-      if (wanted.length >= 3) break;
-    }
-    if (!wanted.length) { this.h.step('plates', 'done', 'Already have them'); return; }
-    this.h.step('plates', 'active', 'Painting 3D scenes…');
-    // Runs while the voice records, so waiting here rarely adds time.
+    this.startPainting();
+    if (!this.paint) { this.h.step('plates', 'skip', 'Drawn in code'); return; }
+    const pool = this.paint.pool;
+    const sets = [...new Set(scenes.map(x => x.set))];
+    const want = Math.min(4, Math.max(2, sets.length));
+    this.h.step('plates', 'active', pool.length ? `${pool.length} painted so far…` : 'Painting 3D scenes…');
+    // Keep painting while the voice records, up to 40 seconds, or until there are enough.
     const deadline = performance.now() + 40000;
-    const fmt = formatOf(p.options);
-    const size = fmt === '16:9' ? { width: 1024, height: 576 } : fmt === '1:1' ? { width: 768, height: 768 } : fmt === '4:5' ? { width: 640, height: 800 } : { width: 576, height: 1024 };
-    let got = 0;
-    for (const scene of wanted) {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-        const remain = deadline - performance.now();
-        if (remain < 4000) break;
-        const bmp = await fetchPlate(scenePrompt(scene.bg, scene.set, p.topic), { ...size, seed: scene.seed || 1 }, this.s, {
-          signal: this.signal, timeout: Math.min(20000, remain), log: (m) => this.log(m),
-        });
-        if (bmp) {
-          got++;
-          for (const s of scenes) {
-            if (look(s) !== look(scene) || p.plates.get(s.id)?.custom) continue;
-            p.plates.set(s.id, { key: this.plateKey(s), bitmap: bmp, scene: true, own: true });
-          }
-          this.h.scene?.(scenes.indexOf(scene));
-          this.h.step('plates', 'active', `${got} 3D scene${got > 1 ? 's' : ''}`);
-          break;
-        }
-        // The free service allows a burst, then asks for a pause: wait a little and try again.
-        if (deadline - performance.now() > 12000) await new Promise(r => setTimeout(r, 7000));
-      }
+    while (pool.length < want && performance.now() < deadline && !this.signal.aborted) {
+      await new Promise(r => setTimeout(r, 1000));
+      this.h.step('plates', 'active', `${pool.length} painted 3D scene${pool.length === 1 ? '' : 's'}…`);
     }
-    // Scenes still without a picture borrow the nearest earlier one, mirrored, so the look stays
-    // consistent. With no pictures at all, every scene uses its drawn set.
-    if (got) {
-      let last = null, flip = false;
-      for (const s of scenes) {
-        const cur = p.plates.get(s.id);
-        if (cur?.custom) continue;
-        if (cur?.own && cur.key === this.plateKey(s)) { last = cur; flip = false; continue; }
-        if (!last) last = [...p.plates.values()].find(v => v.own);
-        if (!last) continue;
-        flip = !flip;
-        p.plates.set(s.id, { key: this.plateKey(s), bitmap: last.bitmap, scene: true, flip });
-      }
+    this.paint.stop = true;
+    if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+    if (!pool.length) { this.h.step('plates', this.paintOnly ? 'done' : 'warn', this.paintOnly ? 'Real pictures, plus drawn sets' : 'Drawn sets: the image service was busy'); return; }
+    // Each set gets its own picture when there is one; otherwise pictures are shared round-robin.
+    // Every scene gets its own crop, zoom, mirror and light so neighbours never look the same.
+    const bySet = new Map();
+    let rr = 0;
+    for (const set of sets) {
+      const own = pool.find(x => x.set === set);
+      bySet.set(set, own || pool[rr++ % pool.length]);
     }
-    this.h.step('plates', got ? 'done' : 'warn', got ? `${got} painted 3D scene${got > 1 ? 's' : ''}` : 'Drawn sets: the image service was busy');
+    const tints = [null, 'warm', null, 'cool', null, 'gold'];
+    scenes.forEach((sc, i) => {
+      if (p.plates.get(sc.id)?.custom) return;
+      if (this.paintOnly && !this.paintOnly.has(sc.id)) return;
+      const pic = bySet.get(sc.set) || pool[i % pool.length];
+      p.plates.set(sc.id, {
+        key: this.plateKey(sc), bitmap: pic.bitmap, scene: true, own: true,
+        flip: i % 2 === 1, vx: [0, -0.09, 0.08, -0.05, 0.1][i % 5], vz: [1, 1.12, 1.05, 1.2, 1.08][i % 5], tint: tints[i % tints.length],
+      });
+      this.h.scene?.(i);
+    });
+    this.h.step('plates', 'done', `${pool.length} painted 3D scene${pool.length === 1 ? '' : 's'}`);
   }
 
   async ensureVoice() {

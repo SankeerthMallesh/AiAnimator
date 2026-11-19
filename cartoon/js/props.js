@@ -336,7 +336,7 @@ export class SetKit {
   }
 
   static draw(ctx, W, H, id, t, plate, opts = {}) {
-    if (plate && opts.scene) { SetKit.scenePlate(ctx, W, H, opts.blur ? SetKit.blurred(plate) : plate, t, !!opts.flip); return; }
+    if (plate && opts.scene) { SetKit.scenePlate(ctx, W, H, opts.blur ? SetKit.blurred(plate) : plate, t, !!opts.flip, opts); return; }
     if (RICH_SETS.includes(id)) {
       // Overscan in the set's own colours so a pan or whip never shows an empty edge.
       const m = Math.max(W, H) * 0.55;
@@ -390,18 +390,23 @@ export class SetKit {
 
   // A full-frame 3D scene behind the cast, with overscan for pans, a slow drift for depth,
   // and a soft floor shade so the drawn characters sit in it.
-  static scenePlate(ctx, W, H, plate, t, flip) {
-    const over = 1.3;
+  static scenePlate(ctx, W, H, plate, t, flip, v = {}) {
+    const over = 1.3 * (v.vz || 1);
     const sc = Math.max((W * over) / plate.width, (H * over) / plate.height);
     const w = plate.width * sc, h = plate.height * sc;
     const drift = Math.sin(t * 0.08) * W * 0.012;
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.translate(W / 2 + drift, H * 0.5);
+    ctx.translate(W / 2 + drift + (v.vx || 0) * W, H * 0.5);
     if (flip) ctx.scale(-1, 1);
     ctx.drawImage(SetKit.graded(plate), -w / 2, -h / 2, w, h);
     ctx.restore();
+    if (v.tint) {
+      // Time-of-day light, so scenes that share a picture still feel like different moments.
+      ctx.fillStyle = { warm: 'rgba(255,140,60,0.16)', cool: 'rgba(60,110,255,0.16)', gold: 'rgba(255,200,80,0.14)' }[v.tint] || 'transparent';
+      ctx.fillRect(-W * 0.5, -H * 0.5, W * 2, H * 2);
+    }
     const g = ctx.createLinearGradient(0, H * 0.55, 0, H * 1.1);
     g.addColorStop(0, 'rgba(10,12,30,0)');
     g.addColorStop(1, 'rgba(10,12,30,0.18)');
@@ -444,7 +449,7 @@ export class SetKit {
   }
 
   // The real picture as a framed card near the top of the frame, slightly tilted, with a slow push-in.
-  static photoCard(ctx, W, H, img, t, dur) {
+  static photoCard(ctx, W, H, img, t, dur, vx = 0, vz = 1) {
     const portrait = H >= W;
     const maxW = W * (portrait ? 0.9 : 0.56), maxH = H * (portrait ? 0.36 : 0.5);
     const sc = Math.min(maxW / img.width, maxH / img.height);
@@ -452,7 +457,7 @@ export class SetKit {
     const cx = W / 2, cy = H * (portrait ? 0.06 : 0.06) + h / 2;
     const pop = Math.min(1, t / 0.35);
     const ease = 1 - Math.pow(1 - pop, 3);
-    const zoom = 1 + 0.06 * Math.min(1, t / Math.max(1, dur || 4));
+    const zoom = vz * (1 + 0.06 * Math.min(1, t / Math.max(1, dur || 4)));
     const b = Math.max(6, W * 0.012);
     ctx.save();
     ctx.translate(cx, cy);
@@ -465,7 +470,9 @@ export class SetKit {
     ctx.shadowColor = 'transparent';
     ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip();
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, -w * zoom / 2, -h * zoom / 2, w * zoom, h * zoom);
+    // A repeated photo is zoomed into a different part each time.
+    const shift = Math.max(-1, Math.min(1, vx * 2)) * (w * zoom - w) / 2;
+    ctx.drawImage(img, -w * zoom / 2 + shift, -h * zoom / 2, w * zoom, h * zoom);
     ctx.restore();
   }
 

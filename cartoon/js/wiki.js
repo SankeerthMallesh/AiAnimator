@@ -21,7 +21,7 @@ const strip = (html) => String(html || '').replace(/<[^>]*>/g, '').replace(/\s+/
 
 // Candidate pictures for a topic: lead images of the top articles first, then the pictures inside
 // the best-matching article.
-async function candidates(topic, signal) {
+export async function candidates(topic, signal) {
   const search = await api({ action: 'query', list: 'search', srsearch: topic, srlimit: '4', srnamespace: '0' }, signal);
   const titles = (search.query?.search || []).map(r => r.title);
   if (!titles.length) return { titles, items: [] };
@@ -67,8 +67,13 @@ async function candidates(topic, signal) {
   return { titles, items };
 }
 
-async function load(url, signal) {
-  const res = await fetch(url, { signal });
+async function load(url, signal, tries = 3) {
+  let res = await fetch(url, { signal });
+  // Wikimedia answers "too many requests" to bursts: wait a moment and try again.
+  for (let k = 1; res.status === 429 && k < tries; k++) {
+    await new Promise(r => setTimeout(r, 1500 * k));
+    res = await fetch(url, { signal });
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
   if (blob.size < 3000) throw new Error('Too small');
@@ -101,26 +106,32 @@ export async function topicPictures(topic, scenes, { signal, log, isSafe, max = 
       if (score > bestScore) { bestScore = score; best = it; }
     }
     used.set(best.file, (used.get(best.file) || 0) + 1);
-    plan.push([s.id, best]);
+    plan.push([s.id, best, bestScore]);
   });
   // Download each chosen picture once.
   const unique = [...new Set(plan.map(([, it]) => it))].slice(0, max);
   const bitmaps = new Map();
-  await Promise.all(unique.map(async (it) => {
-    try {
-      if (performance.now() > deadline) return;
-      const bmp = await load(it.url, signal);
-      if (isSafe && !(await isSafe(bmp, it.name))) { bmp.close?.(); log?.(`Skipped a picture that failed the safety check: ${it.name}`); return; }
-      bitmaps.set(it, bmp);
-    } catch (e) {
-      if (signal?.aborted) throw e;
+  // Two downloads at a time: Wikimedia refuses bigger bursts.
+  const queue = [...unique];
+  const worker = async () => {
+    while (queue.length) {
+      const it = queue.shift();
+      try {
+        if (performance.now() > deadline) return;
+        const bmp = await load(it.url, signal);
+        if (isSafe && !(await isSafe(bmp, it.name))) { bmp.close?.(); log?.(`Skipped a picture that failed the safety check: ${it.name}`); continue; }
+        bitmaps.set(it, bmp);
+      } catch (e) {
+        if (signal?.aborted) throw e;
+      }
     }
-  }));
+  };
+  await Promise.all([worker(), worker()]);
   const byScene = new Map();
   const got = [...bitmaps.keys()];
-  plan.forEach(([id, it], k) => {
+  plan.forEach(([id, it, score], k) => {
     const pick = bitmaps.has(it) ? it : got[k % Math.max(1, got.length)];
-    if (pick) byScene.set(id, { bitmap: bitmaps.get(pick), credit: pick });
+    if (pick) byScene.set(id, { bitmap: bitmaps.get(pick), credit: pick, score: pick === it ? score : 0 });
   });
   const credits = got.map(it => ({ file: it.name, artist: it.artist, license: it.license, url: it.page }));
   return { byScene, sources, credits };
