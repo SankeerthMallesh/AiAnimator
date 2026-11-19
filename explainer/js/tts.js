@@ -245,34 +245,69 @@ async function auraLine(text, speaker) {
 
 async function auraSpeak(text, s, log) {
   const speaker = auraSpeaker(s.voice);
-  const sentences = speakable(text).match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g)?.map(x => x.trim()).filter(Boolean) || [speakable(text)];
+  // Aura-2 reads a whole line in one go, with its own natural flow between sentences.
+  const parts = phrases(text, 900);
   const pieces = [];
   let sampleRate = 24000;
   try {
-    for (const sent of sentences) {
-      const d = await auraLine(sent, speaker);
+    for (const part of parts) {
+      const d = await auraLine(part, speaker);
       sampleRate = d.sampleRate;
-      const b = speechBounds(d.samples, d.sampleRate);
-      const pad = Math.round(d.sampleRate * 0.04);
-      const a0 = Math.max(0, Math.round(b.start * d.sampleRate) - pad);
-      const a1 = Math.min(d.samples.length, Math.round(b.end * d.sampleRate) + pad);
-      pieces.push({ text: sent, samples: d.samples.slice(a0, a1) });
+      pieces.push({ text: part, samples: trimmed(d) });
     }
   } catch (e) {
     if (e.used) { auraState = false; log?.('The free daily Cloudflare voice allowance is used up: using the built-in voice.'); }
     throw e;
   }
-  const gap = Math.round(sampleRate * 0.2);
-  const total = pieces.reduce((n, p) => n + p.samples.length, 0) + gap * Math.max(0, pieces.length - 1);
+  const { samples, sentences } = joinPhrases(pieces, sampleRate);
+  auraHits++;
+  return { samples, sampleRate, sentences, engine: 'aura' };
+}
+
+// ---------- Natural delivery ----------
+// A person reads a few sentences in one breath, so the voice is recorded in phrases (2-3 sentences)
+// instead of one sentence at a time, which made every sentence start and end in the same flat way.
+const SENT_RE = /[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g;
+function phrases(text, maxChars) {
+  const sents = speakable(text).match(SENT_RE)?.map(x => x.trim()).filter(Boolean) || [speakable(text)];
+  const out = [];
+  for (const s of sents) {
+    const last = out[out.length - 1];
+    if (last && last.length + 1 + s.length <= maxChars && !/\?["')\]]*$/.test(last)) out[out.length - 1] = `${last} ${s}`;
+    else out.push(s);
+  }
+  return out;
+}
+// Small, stable variation from the text itself, so the same line always sounds the same.
+function wobble(str, k = 0) {
+  let h = 2166136261 ^ k;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 1000) / 1000; // 0..1
+}
+// The pause after a phrase: longer after a question, shorter after a quick line, never the same twice.
+function pauseAfter(phrase) {
+  const base = /\?["')\]]*$/.test(phrase) ? 0.3 : /!["')\]]*$/.test(phrase) ? 0.26 : phrase.split(/\s+/).length < 6 ? 0.18 : 0.24;
+  return base + (wobble(phrase) - 0.5) * 0.12;
+}
+// Join recorded phrases with natural pauses; returns the line and each phrase's span (for captions).
+function joinPhrases(pieces, sampleRate) {
+  const gaps = pieces.map((p, i) => (i < pieces.length - 1 ? Math.round(sampleRate * pauseAfter(p.text)) : 0));
+  const total = pieces.reduce((n, p, i) => n + p.samples.length + gaps[i], 0);
   const samples = new Float32Array(total);
-  const sentencesOut = [];
+  const sentences = [];
   let o = 0;
-  for (const p of pieces) {
+  pieces.forEach((p, i) => {
     samples.set(p.samples, o);
     const b = speechBounds(p.samples, sampleRate);
-    sentencesOut.push({ text: p.text, start: o / sampleRate + b.start, end: o / sampleRate + b.end });
-    o += p.samples.length + gap;
-  }
-  auraHits++;
-  return { samples, sampleRate, sentences: sentencesOut, engine: 'aura' };
+    sentences.push({ text: p.text, start: o / sampleRate + b.start, end: o / sampleRate + b.end });
+    o += p.samples.length + gaps[i];
+  });
+  return { samples, sentences };
+}
+function trimmed(d) {
+  const b = speechBounds(d.samples, d.sampleRate);
+  const pad = Math.round(d.sampleRate * 0.05);
+  const a0 = Math.max(0, Math.round(b.start * d.sampleRate) - pad);
+  const a1 = Math.min(d.samples.length, Math.round(b.end * d.sampleRate) + pad);
+  return d.samples.slice(a0, a1);
 }

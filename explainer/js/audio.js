@@ -329,16 +329,19 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
   const voiceBus = ctx.createGain();
   voiceBus.gain.value = 1;
   const eq = (type, f, g, q = 0.8) => { const n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; n.gain.value = g; n.Q.value = q; return n; };
-  const hp = eq('highpass', 85, 0, 0.7);
-  const warm = eq('lowshelf', 190, 2.5);
-  const mud = eq('peaking', 450, -2, 1.1);
-  const presence = eq('peaking', 3400, 3, 0.9);
-  const deess = eq('peaking', 7200, -3.5, 2.2);
-  const air = eq('highshelf', 11000, 2.5);
+  // Gentle and warm: the synthetic sheen of AI voices lives in the top band, so it is softened
+  // rather than boosted, and light compression keeps the natural rise and fall of a real reader.
+  const hp = eq('highpass', 80, 0, 0.7);
+  const warm = eq('lowshelf', 180, 2);
+  const mud = eq('peaking', 420, -1.5, 1.1);
+  const presence = eq('peaking', 2800, 1.2, 0.8);
+  const harsh = eq('peaking', 5200, -1.5, 1.4);
+  const deess = eq('peaking', 7000, -4, 2.2);
+  const soften = eq('lowpass', 9800, 0, 0.6);
   const vcomp = ctx.createDynamicsCompressor();
-  vcomp.threshold.value = -24; vcomp.knee.value = 6; vcomp.ratio.value = 3; vcomp.attack.value = 0.004; vcomp.release.value = 0.14;
-  const makeup = ctx.createGain(); makeup.gain.value = 1.1;
-  voiceBus.connect(hp).connect(warm).connect(mud).connect(presence).connect(deess).connect(air).connect(vcomp).connect(makeup);
+  vcomp.threshold.value = -21; vcomp.knee.value = 10; vcomp.ratio.value = 2.2; vcomp.attack.value = 0.008; vcomp.release.value = 0.2;
+  const makeup = ctx.createGain(); makeup.gain.value = 1.12;
+  voiceBus.connect(hp).connect(warm).connect(mud).connect(presence).connect(harsh).connect(deess).connect(soften).connect(vcomp).connect(makeup);
   makeup.connect(comp);
   // A short room: decaying noise as an impulse, mixed in quietly.
   const room = ctx.createConvolver();
@@ -350,8 +353,8 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     for (let i = 0; i < irLen; i++) { seed = (seed * 16807) % 2147483647; d[i] = ((seed / 2147483647) * 2 - 1) * Math.pow(1 - i / irLen, 3.2); }
   }
   room.buffer = ir;
-  const roomLp = eq('lowpass', 5200, 0, 0.7);
-  const wet = ctx.createGain(); wet.gain.value = 0.11;
+  const roomLp = eq('lowpass', 4200, 0, 0.7);
+  const wet = ctx.createGain(); wet.gain.value = 0.075;
   makeup.connect(room).connect(roomLp).connect(wet).connect(comp);
 
   for (const s of timeline.scenes) {

@@ -28,13 +28,23 @@ const WORD_SENSES = {
 };
 const VAGUE_EMOJI = new Set(['❓', '❔', '❗', '❕', '✨', '💧', '⚙', '📦', '⏱', '⏰', '💡', '⭐', '🌟', '💥', '🎉', '👍', '✅', '❌', '🔍', '🔎', '📈', '📉', '💭', '💬', '🗯', '❤', '🔥', '⚡', '🌀', '💫', '🎯', '🏆', '📌', '📝', '📚', '📖', '🧩', '🔑']);
 const TOON_WORDS = {
-  stick: /stick|shadow|pole/, atom: /atom|molecule|particle|electron|proton|chemi/, book: /book|read|librar|writ|stud/,
-  earth: /earth|globe|planet|world|round/, moon: /moon|lunar/, eclipse: /eclipse/, ship: /ship|boat|sail|horizon|sea|ocean/,
-  thermometer: /temperat|hot|cold|heat|degree|thermo|warm|freez/,
+  stick: /\b(sticks?|shadows?|poles?)\b/, atom: /\b(atoms?|molecules?|particles?|electrons?|protons?|chemi\w*)\b/, book: /\b(books?|read\w*|librar\w*|wr[io]te?\w*|stud\w*)\b/,
+  earth: /\b(earth|globe|planets?|world|round)\b/, moon: /\b(moons?|lunar)\b/, eclipse: /\beclipse/, ship: /\b(ships?|boats?|sail\w*|horizon|seas?|oceans?)\b/,
+  thermometer: /\b(temperat\w*|hot|cold|heat\w*|degrees?|thermo\w*|warm\w*|freez\w*)\b/,
 };
 
 // Backup stickers: common things and their emoji, used when the script writer leaves "icon" out.
 const EMOJI_WORDS = {
+  calendar: '📅', year: '📅', leap: '📅', february: '📅', month: '📅', week: '📅', birthday: '🎂', season: '🍂', autumn: '🍂', winter: '⛄', summer: '🏖️', spring: '🌸',
+  orbit: '🌍', sky: '🌤️', light: '💡', sunlight: '☀️', shadow: '🌗', star: '⭐', galaxy: '🌌', comet: '☄️', meteor: '☄️', asteroid: '☄️', mars: '🔴', saturn: '🪐', jupiter: '🪐',
+  wheat: '🌾', grain: '🌾', farm: '🚜', farmer: '🚜', crop: '🌾', harvest: '🌾', rice: '🍚', corn: '🌽', potato: '🥔', carrot: '🥕', tomato: '🍅', apple: '🍎', fruit: '🍎', vegetable: '🥦',
+  cup: '☕', caffeine: '☕', espresso: '☕', water: '💧', river: '🏞️', lake: '🏞️', beach: '🏖️', sand: '🏖️', wave: '🌊', bubble: '🫧', glass: '🥛', bottle: '🍾',
+  king: '👑', queen: '👑', emperor: '👑', war: '⚔️', army: '🪖', soldier: '🪖', knight: '🛡️', castle: '🏰', history: '📜', ancient: '🏛️', rome: '🏛️', roman: '🏛️', law: '⚖️', court: '⚖️', vote: '🗳️', flag: '🏳️',
+  brain: '🧠', sleep: '😴', dream: '💭', muscle: '💪', bone: '🦴', blood: '🩸', lung: '🫁', lungs: '🫁', stomach: '🍽️', ear: '👂', nose: '👃', eye: '👁️', skin: '🧴', hair: '💇', doctor: '🩺', nurse: '🩺',
+  speed: '💨', fast: '💨', race: '🏁', gravity: '🍎', energy: '⚡', power: '⚡', sound: '🔊', noise: '🔊', voice: '🗣️', song: '🎵', radio: '📻', tv: '📺', movie: '🎬', video: '🎬', photo: '📷', internet: '🌐', wifi: '📶', email: '📧', code: '💻', ai: '🤖',
+  car: '🚗', wheel: '🛞', fuel: '⛽', gas: '⛽', oil: '🛢️', metal: '🔩', iron: '🔩', steel: '🔩', wood: '🪵', rock: '🪨', stone: '🪨', gem: '💎', crystal: '💎',
+  bread: '🍞', pasta: '🍝', sushi: '🍣', taco: '🌮', soup: '🍲', ice: '🧊', cream: '🍦', icecream: '🍦', popcorn: '🍿', donut: '🍩', salt: '🧂', pepper: '🌶️', spicy: '🌶️',
+  bird: '🐦', duck: '🦆', parrot: '🦜', bat: '🦇', bug: '🐛', insect: '🐛', worm: '🪱', snail: '🐌', jellyfish: '🪼', squid: '🦑', bear: '🐻', deer: '🦌', kangaroo: '🦘', sloth: '🦥', gorilla: '🦍',
   sunset: '🌅', sunsets: '🌅', sunrise: '🌅', dusk: '🌅', rainbow: '🌈', prism: '🌈', colour: '🎨', color: '🎨', paint: '🎨',
   cat: '🐱', kitten: '🐱', dog: '🐶', puppy: '🐶', bee: '🐝', honey: '🍯', hive: '🍯', ant: '🐜', spider: '🕷️', butterfly: '🦋',
   bird: '🐦', eagle: '🦅', owl: '🦉', penguin: '🐧', chicken: '🐔', egg: '🥚', fish: '🐟', shark: '🦈', whale: '🐋', dolphin: '🐬',
@@ -58,6 +68,17 @@ const EMOJI_WORDS = {
   pyramid: '🔺', greek: '🏛️', temple: '🏛️', egypt: '🔺', pirate: '🏴‍☠️', sword: '🗡️', shield: '🛡️', gift: '🎁', party: '🎉',
   lottery: '🎟️', ticket: '🎟️', oil: '🛢️', plastic: '♻️', trash: '🗑️', recycle: '♻️', wind: '💨', cloud: '☁️', rainbow: '🌈',
 };
+// Common words that only pick the sticker when nothing more specific is in the line.
+const BROAD_WORDS = new Set(['year', 'month', 'week', 'light', 'sky', 'speed', 'fast', 'power', 'energy', 'sound', 'history', 'ancient', 'race', 'water', 'time', 'world', 'home', 'house', 'city', 'road', 'game', 'science', 'music', 'money', 'school', 'heat']);
+
+// Which words each sticker stands for, to check that a writer's sticker belongs to its line.
+const EMOJI_FOR = new Map();
+for (const [w, e] of Object.entries(EMOJI_WORDS)) {
+  const k = e.replace(/\uFE0F/g, '');
+  if (!EMOJI_FOR.has(k)) EMOJI_FOR.set(k, new Set());
+  EMOJI_FOR.get(k).add(w);
+}
+
 
 export class Script {
   static CAMS = ['hold', 'push', 'pull', 'pan', 'tilt', 'punch'];
@@ -407,6 +428,16 @@ export class Script {
         const topicEmoji = Script.guessEmoji(`${options.topic || ''} ${raw.title || ''}`);
         if (!emoji || VAGUE_EMOJI.has(emoji.replace(/\uFE0F/g, ''))) emoji = lineEmoji || topicEmoji || emoji;
         else if (topicEmoji && lineEmoji === topicEmoji) emoji = topicEmoji; // the line is about the subject
+        // A sticker must match something in its line or the video's topic. A writer's pick we know
+        // the words for (☕ coffee, 🌾 wheat) that matches neither is swapped for one that does.
+        if (emoji) {
+          const words = EMOJI_FOR.get(emoji.replace(/\uFE0F/g, ''));
+          if (words) {
+            const text = `${narration} ${options.topic || ''} ${raw.title || ''}`.toLowerCase();
+            const stems = new Set((text.match(/[a-z]+/g) || []).flatMap(w => [w, w.replace(/ies$/, 'y'), w.replace(/es$/, ''), w.replace(/s$/, '')]));
+            if (![...words].some(w => stems.has(w))) emoji = lineEmoji || topicEmoji || '';
+          }
+        }
         // The writer picked the wrong meaning of a word (🍊 for an orange sky): use the right one.
         if (emoji) {
           const low = narration.toLowerCase();
@@ -641,12 +672,13 @@ export class Script {
   // An emoji for the first common thing named in the text, or ''.
   static guessEmoji(text) {
     const low = String(text || '').toLowerCase();
-    let other = ''; // the other meaning of a two-meaning word, used if nothing clearer comes up
+    let other = ''; // the other meaning of a two-meaning word, or a broad word: used if nothing clearer comes up
     for (const raw of low.match(/[a-z]+/g) || []) {
       for (const w of [raw, raw.replace(/ies$/, 'y'), raw.replace(/es$/, ''), raw.replace(/s$/, '')]) {
         if (!Object.prototype.hasOwnProperty.call(EMOJI_WORDS, w)) continue;
         const sense = WORD_SENSES[w];
         if (sense && sense[0].test(low)) { other ||= sense[1]; break; }
+        if (BROAD_WORDS.has(w)) { other ||= EMOJI_WORDS[w]; break; }
         return EMOJI_WORDS[w];
       }
     }
@@ -670,35 +702,35 @@ export class Script {
     // Animated floating props first: they show what the line is about.
     if (/eclipse|earth'?s shadow|shadow on the moon/.test(t)) add('eclipse', 0.5);
     else if (/\bmoon\b|lunar/.test(t)) add('moon', 0.5);
-    if (/ship|hull|sail|horizon/.test(t)) add('ship', 0.5);
-    if (/stick|shadow|syene|alexandria|eratosthenes|angle|measur/.test(t)) add('stick', 0.5);
-    if (/earth|globe|sphere|round|planet|world|circumference/.test(t)) add('earth', 0.5);
-    if (/idea|realiz|figured|discover|proved|proof|clever|genius|solution|answer/.test(t)) add('bulb', 0.5);
-    if (/years|century|centuries|ago|b\.?c\.?|hours|minutes|time|clock/.test(t)) add('clock', 0.5);
-    if (/wrote|book|study|scholar|library|read|learn/.test(t)) add('book', 0.5);
-    if (/temperature|degrees|thermo|hot|heat|cold/.test(t)) add('thermometer', 0.5);
-    if (/machine|gear|engine|mechan|factory/.test(t)) add('gear', 0.5);
-    if (/atom|molecule|particle|chemical|electron/.test(t)) add('atom', 0.5);
-    if (/fire|burn|flame|lava/.test(t)) add('fire', 0.5);
-    if (/water|rain|drop|liquid|sweat/.test(t)) add('drop', 0.5);
-    if (/electric|lightning|power|energy|shock|volt/.test(t)) add('bolt', 0.5);
-    if (/win|best|amazing|famous|record|champion/.test(t)) add('star', 0.5);
+    if (/\b(ships?|hulls?|sail\w*|horizon)\b/.test(t)) add('ship', 0.5);
+    if (/\b(sticks?|shadows?|syene|alexandria|eratosthenes|angles?|measur\w*)\b/.test(t)) add('stick', 0.5);
+    if (/\b(earth|globe|sphere|round|planets?|world|circumference)\b/.test(t)) add('earth', 0.5);
+    if (/\b(ideas?|realiz\w*|figured|discover\w*|proved|proof|clever|genius|solution|answer)\b/.test(t)) add('bulb', 0.5);
+    if (/\b(years|century|centuries|ago|b\.?c\.?|hours|minutes|time|clocks?)\b/.test(t)) add('clock', 0.5);
+    if (/\b(wrote|books?|stud(y|ied|ies)|scholars?|library|read(s|ing)?|learn\w*)\b/.test(t)) add('book', 0.5);
+    if (/\b(temperatures?|degrees|thermo\w*|hot|heat|cold|freez\w*)\b/.test(t)) add('thermometer', 0.5);
+    if (/\b(machines?|gears?|engines?|mechan\w*|factor(y|ies))\b/.test(t)) add('gear', 0.5);
+    if (/\b(atoms?|molecules?|particles?|chemicals?|electrons?)\b/.test(t)) add('atom', 0.5);
+    if (/\b(fires?|burn\w*|flames?|lava)\b/.test(t)) add('fire', 0.5);
+    if (/\b(water|rain\w*|drops?|liquids?|sweat\w*)\b/.test(t)) add('drop', 0.5);
+    if (/\b(electric\w*|lightning|power|energy|shock\w*|volt\w*)\b/.test(t)) add('bolt', 0.5);
+    if (/\b(win|wins|won|best|amazing|famous|record|champions?)\b/.test(t)) add('star', 0.5);
     if (/\?|\bwhy\b|\bhow\b|mystery|puzzle|what if/.test(t)) add('question', 0.5);
-    if (/!|danger|warning|suddenly|but then|shock|wrong/.test(t)) add('exclaim', 0.5);
-    if (/train/.test(t) || set === 'rails') add('train', 0.82);
-    if (/car|truck/.test(t) || set === 'road') add('car', 0.7);
-    if (/rocket/.test(t)) add('rocket', 0.62);
-    if (/planet|orbit|moon/.test(t) || set === 'space') add('planet', 0.72);
-    if (/heart|pulse|blood/.test(t)) add('heart', 0.62);
-    if (/lung|breath/.test(t)) add('lungs', 0.62);
-    if (/stomach|digest|swallow/.test(t)) add('stomach', 0.62);
-    if (/magnet/.test(t)) add('magnet', 0.58);
-    if (/money|cash|dollar|coin|jackpot|lottery/.test(t)) add('money', 0.55);
-    if (/ticket/.test(t)) add('ticket', 0.48);
-    if (/phone/.test(t)) add('phone', 0.5);
-    if (/boat|ship/.test(t)) add('boat', 0.62);
-    if (/tree/.test(t) || set === 'field') add('tree', 0.8);
-    if (/sun|heat|summer/.test(t)) add('sun', 0.5);
+    if (/!|\b(danger\w*|warning|suddenly|but then|shock\w*|wrong)\b/.test(t)) add('exclaim', 0.5);
+    if (/\btrains?\b/.test(t) || set === 'rails') add('train', 0.82);
+    if (/\b(cars?|trucks?)\b/.test(t) || set === 'road') add('car', 0.7);
+    if (/\brockets?\b/.test(t)) add('rocket', 0.62);
+    if (/\b(planets?|orbit\w*|moons?)\b/.test(t) || set === 'space') add('planet', 0.72);
+    if (/\b(hearts?|pulse|blood)\b/.test(t)) add('heart', 0.62);
+    if (/\b(lungs?|breath\w*)\b/.test(t)) add('lungs', 0.62);
+    if (/\b(stomachs?|digest\w*|swallow\w*)\b/.test(t)) add('stomach', 0.62);
+    if (/\bmagnet\w*/.test(t)) add('magnet', 0.58);
+    if (/\b(money|cash|dollars?|coins?|jackpots?|lotter(y|ies))\b/.test(t)) add('money', 0.55);
+    if (/\btickets?\b/.test(t)) add('ticket', 0.48);
+    if (/\bphones?\b/.test(t)) add('phone', 0.5);
+    if (/\b(boats?|ships?)\b/.test(t)) add('boat', 0.62);
+    if (/\btrees?\b/.test(t) || set === 'field') add('tree', 0.8);
+    if (/\b(sun|sunny|heat|summer)\b/.test(t)) add('sun', 0.5);
     if (set === 'shop') add('counter', 0.72);
     return out.slice(0, 3);
   }
@@ -741,7 +773,7 @@ sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CU
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
 ${options.crew?.length ? '' : `Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.`}
-Lines are narration read by one narrator. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
+Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"). Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, sea = ships and coasts, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Move to a new set that fits the line every 1 or 2 scenes, as if the cast walks and talks through different places on the journey; use at least 4 different sets in a video.
 Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠). When the video is about an animal or a thing, use that animal or thing in most scenes (a video about cats: 🐱 🐈). Never a face, person, hand or flag, and never vague symbols like ❓ ✨ 💧 ⚙️ 📦.
 Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, point, jump, shrug, cheer, facepalm, turn).
