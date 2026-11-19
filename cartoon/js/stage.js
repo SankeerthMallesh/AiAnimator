@@ -350,7 +350,7 @@ export class Stage {
 
   // Background gags: while one character talks, the others do quirky things, like the side jokes
   // in the reference Shorts. Each listener gets one gag per scene, picked by scene and character.
-  static GAGS = ['zzz', 'coffee', 'fly', 'juggle', 'phone', 'popcorn', 'sneeze', 'balloon'];
+  static GAGS = ['zzz', 'coffee', 'fly', 'juggle', 'phone', 'popcorn', 'balloon'];
   static gagSetup(actors, talkId, scene, local) {
     if (actors.length < 2) return;
     actors.forEach((a, i) => {
