@@ -6,6 +6,7 @@ const HISTORY_KEY = 'explainer.history.v1';
 
 export const DEFAULT_SETTINGS = {
   // Script writer (LLM)
+  routeMode: 'auto',              // auto | best | free | cheap | fast | manual (the AI Model Router)
   llmProvider: 'auto',            // auto | pollinations | gemini | groq | openrouter
   geminiKey: '', geminiModel: 'gemini-flash-lite-latest',
   groqKey: '', groqModel: 'llama-3.3-70b-versatile',

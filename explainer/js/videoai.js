@@ -1,3 +1,4 @@
+import { videoChoice, videoName } from './router.js';
 // Real AI video for a shot, from whichever service the visitor connected:
 //   fal.ai  (one key: Kling, Google Veo, Hailuo, Wan)   - paid per clip, through /api/fal
 //   Runway  (Gen-4 Turbo)                                - paid per clip, through /api/runway
@@ -13,18 +14,11 @@ export const FAL_MODELS = [
 ];
 
 export function videoProvider(s) {
-  if (s.videoProvider === 'runway' && s.runwayKey) return 'runway';
-  if (s.videoProvider === 'fal' && s.falKey) return 'fal';
-  if (s.falKey) return 'fal';
-  if (s.runwayKey) return 'runway';
-  return null;
+  return videoChoice(s)?.provider || null;
 }
 
 export function videoProviderLabel(s) {
-  const p = videoProvider(s);
-  if (p === 'runway') return 'Runway Gen-4 Turbo';
-  if (p === 'fal') return (FAL_MODELS.find(m => m[0] === (s.falModel || FAL_MODELS[0][0]))?.[1] || s.falModel || 'fal.ai').split(' (')[0];
-  return null;
+  return videoName(videoChoice(s));
 }
 
 const RATIOS = { '9:16': '720:1280', '16:9': '1280:720', '1:1': '960:960', '4:5': '832:1104' };
@@ -56,7 +50,7 @@ export async function animateImage({ image, prompt, format = '9:16', duration = 
     }
     throw new Error('Runway took too long');
   }
-  const model = s.falModel || FAL_MODELS[0][0];
+  const model = videoChoice(s)?.model || s.falModel || FAL_MODELS[0][0];
   const start = await (await post('/api/fal', { key: s.falKey, action: 'start', model, input: { prompt, image_url: image } }, signal)).json();
   if (!start.ok) throw new Error(start.error || 'fal.ai refused the shot');
   while (Date.now() < until) {

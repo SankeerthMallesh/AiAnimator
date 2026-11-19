@@ -3,6 +3,7 @@ import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatO
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
 import { creditText } from './wiki.js';
+import { hubRows, capabilities } from './router.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
@@ -1064,3 +1065,25 @@ document.getElementById('btnRunway')?.addEventListener('click', async () => {
   toast(failed ? `${done} shots animated, ${failed} failed (see the activity log). Press Export MP4.` : `All ${done} shots animated. Press Export MP4 to render the video.`, !!failed && !done, 9000);
   $('#btnRender').disabled = false;
 });
+const HUB_KIND = 'cartoon';
+
+// ---------- Model Hub: what each production step uses in the chosen mode ----------
+async function renderHub() {
+  const box = document.getElementById('modelHub');
+  if (!box) return;
+  const f = document.getElementById('settingsForm');
+  const draft = { ...settings };
+  for (const k of Object.keys(DEFAULT_SETTINGS)) { const input = f?.elements[k]; if (input && input.type !== 'checkbox' && input.type !== 'range') draft[k] = input.value.trim(); }
+  const caps = await capabilities();
+  box.replaceChildren(...hubRows(draft, caps, HUB_KIND).map(r => {
+    const row = document.createElement('div');
+    row.className = 'hub-row';
+    const a = document.createElement('span'); a.textContent = r.step;
+    const b = document.createElement('span'); const bb = document.createElement('b'); bb.textContent = r.model; const sm = document.createElement('small'); sm.textContent = r.fallback && !['—', 'none'].includes(r.fallback) ? `Fallback: ${r.fallback}` : ''; b.append(bb, sm);
+    const c = document.createElement('span'); c.className = 'cost' + (/paid|plan/i.test(r.cost) ? ' paid' : ''); c.textContent = r.cost;
+    row.append(a, b, c);
+    return row;
+  }));
+}
+document.getElementById('settingsForm')?.addEventListener('input', () => renderHub());
+document.getElementById('btnSettings')?.addEventListener('click', () => setTimeout(renderHub, 50));

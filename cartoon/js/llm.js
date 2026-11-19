@@ -1,3 +1,4 @@
+import { writerOrder } from './router.js';
 // Script writing + fact checking with free LLM providers.
 // No key needed for Pollinations; Gemini / Groq / OpenRouter free keys are faster and more reliable.
 
@@ -163,17 +164,8 @@ const PROVIDERS = {
 };
 
 export function providerOrder(s, avoid = null) {
-  // A chosen provider goes first, but the free no-key writer is always the last resort.
-  const last = serverAI ? 'cloudflare' : 'pollinations';
-  if (s.llmProvider && s.llmProvider !== 'auto') return s.llmProvider === 'pollinations' ? [last] : [s.llmProvider, last];
-  const order = [];
-  if (s.geminiKey) order.push('gemini');
-  if (s.groqKey) order.push('groq');
-  if (s.openrouterKey) order.push('openrouter');
-  // With the site's own Cloudflare AI, the free no-key service is not used: it is slow, refuses
-  // often, and every refusal is a red error in the console.
-  if (serverAI) order.push('cloudflare');
-  else order.push('pollinations');
+  // The AI Model Router picks the order for the chosen Production mode (Settings).
+  const order = writerOrder(s, { server: !!serverAI });
   // `avoid` = the provider that wrote the script. A fact-check by a *different* model catches
   // errors the writer is blind to (a model re-reading its own work tends to agree with itself).
   if (avoid && order.length > 1 && order[0] === avoid) order.push(order.shift());

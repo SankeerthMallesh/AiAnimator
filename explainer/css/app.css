@@ -648,3 +648,12 @@ html.viewonly .go, html.viewonly #btnRender, html.viewonly #btnDemo { opacity: .
 .shot-pack .shot-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 
 #btnShotPack { grid-column: 1 / -1; }
+
+/* Model Hub */
+.model-hub { display: grid; gap: 6px; margin-top: 6px; }
+.model-hub .hub-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); font-size: 13px; }
+.model-hub .hub-row b { color: var(--ink); font-weight: 600; }
+.model-hub .hub-row small { display: block; color: var(--faint); margin-top: 2px; }
+.model-hub .cost { font: 600 11.5px var(--sans); padding: 3px 8px; border-radius: 99px; background: rgba(76, 195, 138, .15); color: #4CC38A; white-space: nowrap; }
+.model-hub .cost.paid { background: rgba(229, 168, 75, .15); color: #E5A84B; }
+@media (max-width: 560px) { .model-hub .hub-row { grid-template-columns: minmax(0, 1fr) auto; } .model-hub .hub-row > span:first-child { grid-column: 1 / -1; } }

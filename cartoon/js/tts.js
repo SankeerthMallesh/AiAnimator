@@ -1,3 +1,4 @@
+import { voiceChoice } from './router.js';
 // Narration: Kokoro (free, runs in the browser) with a cloud fallback and a silent mode.
 import { fetchTimeout } from './net.js';
 
@@ -127,9 +128,9 @@ export class Narrator {
 // One shared narrator per engine, so the voice model loads once (in the background) and stays warm.
 let shared = null;
 export function getNarrator(settings, log) {
-  // A saved ElevenLabs key means a human-sounding voice: use it unless the voice is turned off.
-  const engine = settings.elevenKey && settings.ttsEngine !== 'none' ? 'elevenlabs'
-    : settings.ttsEngine === 'elevenlabs' && !settings.elevenKey ? 'kokoro' : settings.ttsEngine;
+  const eleven = voiceChoice(settings) === 'elevenlabs';
+  const engine = settings.ttsEngine === 'none' ? 'none' : eleven ? 'elevenlabs'
+    : settings.ttsEngine === 'elevenlabs' ? 'kokoro' : settings.ttsEngine;
   if (!shared || shared.wantEngine !== engine) {
     shared?.dispose();
     shared = new Narrator({ ...settings, ttsEngine: engine }, log);
