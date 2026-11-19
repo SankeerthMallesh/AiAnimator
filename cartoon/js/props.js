@@ -26,14 +26,14 @@ export class PropKit {
     const s = u;
     if (kind === 'icon') {
       const lift = prop.y != null ? prop.y : 9.6;
-      drawSticker(ctx, prop.emoji, 0, -lift * s, (prop.small ? 3.0 : 3.9) * s, t);
+      drawSticker(ctx, prop.emoji, 0, -lift * s, (prop.small ? 3.0 : 3.9) * (prop.scale || 1) * s, t);
       ctx.restore();
       return;
     }
     if (TOONS.includes(kind)) {
       // Floats above the cast and keeps moving.
       const lift = prop.y != null ? prop.y : 9.6;
-      drawProp(ctx, kind, 0, -lift * s, 3.9 * s, t);
+      drawProp(ctx, kind, 0, -lift * s, 3.9 * (prop.scale || 1) * s, t);
       ctx.restore();
       return;
     }
@@ -335,7 +335,8 @@ export class SetKit {
     return { set, sky, floor, horizon };
   }
 
-  static draw(ctx, W, H, id, t, plate) {
+  static draw(ctx, W, H, id, t, plate, opts = {}) {
+    if (plate && opts.scene) { SetKit.scenePlate(ctx, W, H, plate, t, !!opts.flip); return; }
     if (RICH_SETS.includes(id)) {
       // Overscan in the set's own colours so a pan or whip never shows an empty edge.
       const m = Math.max(W, H) * 0.55;
@@ -385,6 +386,42 @@ export class SetKit {
     else if (set === 'space') SetKit.moon(ctx, W, H, horizon);
     else if (set === 'desert') SetKit.dunes(ctx, W, H, horizon);
     else if (set === 'field' || set === 'sky') SetKit.hills(ctx, W, H, horizon);
+  }
+
+  // A full-frame 3D scene behind the cast, with overscan for pans, a slow drift for depth,
+  // and a soft floor shade so the drawn characters sit in it.
+  static scenePlate(ctx, W, H, plate, t, flip) {
+    const over = 1.3;
+    const sc = Math.max((W * over) / plate.width, (H * over) / plate.height);
+    const w = plate.width * sc, h = plate.height * sc;
+    const drift = Math.sin(t * 0.08) * W * 0.012;
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.translate(W / 2 + drift, H * 0.5);
+    if (flip) ctx.scale(-1, 1);
+    ctx.drawImage(SetKit.graded(plate), -w / 2, -h / 2, w, h);
+    ctx.restore();
+    const g = ctx.createLinearGradient(0, H * 0.55, 0, H * 1.1);
+    g.addColorStop(0, 'rgba(10,12,30,0)');
+    g.addColorStop(1, 'rgba(10,12,30,0.18)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-W * 0.5, H * 0.55, W * 2, H);
+  }
+
+  // A little extra colour so the set pops like the reference renders. Done once per picture,
+  // not every frame: a canvas filter on a full frame is slow.
+  static graded(plate) {
+    SetKit._graded ||= new WeakMap();
+    let c = SetKit._graded.get(plate);
+    if (c) return c;
+    c = document.createElement('canvas');
+    c.width = plate.width; c.height = plate.height;
+    const x = c.getContext('2d');
+    if ('filter' in x) x.filter = 'saturate(1.18) contrast(1.06) brightness(1.04)';
+    x.drawImage(plate, 0, 0);
+    SetKit._graded.set(plate, c);
+    return c;
   }
 
   static stars(ctx, W, H, t) {

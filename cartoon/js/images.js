@@ -205,6 +205,28 @@ export function platePrompt(bg) {
   return `bright colorful 2D cartoon background from a kids animated TV show, flat colors, clean dark outlines, empty scenery, landscape and objects only, no figures, no letters. ${clean || 'open landscape'}`;
 }
 
+// A full-frame 3D cartoon environment, the look of the reference Shorts: bright, saturated,
+// soft light, an empty floor in the lower half where the drawn cast stands.
+const SET_WORDS = {
+  rails: 'a train station platform beside railway tracks', shop: 'inside a colorful little shop with a counter',
+  road: 'a sunny countryside road', lab: 'a bright science lab', office: 'a tidy office', room: 'a cozy living room',
+  water: 'a wooden dock on a lake', bridge: 'a big bridge over a river', space: 'the grey surface of the Moon under a starry sky',
+  desert: 'a sandy desert with dunes', field: 'green fields under a blue sky', sky: 'green hills under a big blue sky',
+  temple: 'ancient Greek temple ruins on a sunny hill', sea: 'a seaside harbor', city: 'a city street',
+  mountains: 'a mountain valley', snow: 'a snowy landscape', forest: 'a forest clearing', underwater: 'the sea floor underwater',
+  night: 'a quiet town street at night',
+};
+export function scenePrompt(bg, set) {
+  const place = SET_WORDS[set] || 'an open outdoor scene';
+  const indoor = ['shop', 'lab', 'office', 'room'].includes(set);
+  const clean = String(bg || '')
+    .replace(/\b(naked|nude|gore|gory|blood|bloody|person|people|man|woman|human|child|boy|girl|body|bodies|skin|face|character|crowd|dark|dim|gloomy|grim|realistic|photo\w*)\b/gi, '')
+    .replace(/\s{2,}/g, ' ').trim().slice(0, 120);
+  // This wording was tested against the free image model: it gives bright 3D-cartoon sets
+  // like the reference Shorts instead of dim, realistic photos.
+  return `Background art from a 3D animated cartoon movie, Pixar Dreamworks style, bright cheerful daylight, vivid candy colors, ${place}${clean ? `, ${clean}` : ''}, smooth rounded toy-like shapes, ${indoor ? 'warm sunny window light' : 'big blue sky with puffy clouds'}, wide shot, empty, no people, no text`;
+}
+
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {
   if (!settings || settings.imageProvider === 'none') return null;
   const ms = Math.max(2000, Math.min(20000, timeout));

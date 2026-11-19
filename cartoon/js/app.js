@@ -599,7 +599,7 @@ function renderBoard() {
         const bmp = await createImageBitmap(f);
         const ok = await isSafeImage(bmp, scene.bg || scene.narration, (m) => log(m));
         if (!ok) { bmp.close?.(); toast('That picture was blocked by the safety check.', true); return; }
-        project.plates.set(scene.id, { key: 'custom', bitmap: bmp, custom: true });
+        project.plates.set(scene.id, { key: 'custom', bitmap: bmp, custom: true, scene: true });
         updateThumb(i);
         markDirty(scene, card);
       } catch { toast('Could not read that image.', true); }
@@ -713,7 +713,7 @@ function updateThumb(i) {
   const ratio = FORMATS[formatOf(project.options)].ratio;
   c.width = ratio > 1 ? 320 : 180;
   c.height = ratio > 1 ? 180 : 320;
-  const plate = project.plates?.get(scene.id)?.bitmap || null;
+  const plate = project.plates?.get(scene.id) || null;
   try { Stage.still(c, project.script, scene, plate, 0.85); }
   catch (e) { log(`Preview frame failed: ${e.message}`); }
   thumb.prepend(c);

@@ -4,7 +4,7 @@
 import { writeScript, factCheck, waitForFreeText } from './llm.js';
 import { Script } from './script.js';
 import { Demo } from './demo.js';
-import { fetchPlate, platePrompt, mapLimit } from './images.js';
+import { fetchPlate, platePrompt, scenePrompt, mapLimit } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
@@ -186,39 +186,59 @@ export class Pipeline {
       return;
     }
     const scenes = p.script.scenes;
+    const look = (s) => `${s.bg}|${s.set}`;
     const wanted = [];
     for (const scene of scenes) {
       const have = p.plates.get(scene.id);
-      if (have?.custom || (have?.bitmap && have.key === this.plateKey(scene))) continue;
-      if (wanted.some(s => s.bg === scene.bg)) continue;
+      if (have?.custom || (have?.bitmap && have.key === this.plateKey(scene) && have.own)) continue;
+      if (wanted.some(s => look(s) === look(scene))) continue;
       wanted.push(scene);
-      if (wanted.length >= 2) break;
+      if (wanted.length >= 3) break;
     }
     if (!wanted.length) { this.h.step('plates', 'done', 'Already have them'); return; }
-    this.h.step('plates', 'active', 'Asking for a background…');
-    const deadline = performance.now() + 20000;
+    this.h.step('plates', 'active', 'Painting 3D scenes…');
+    // Runs while the voice records, so waiting here rarely adds time.
+    const deadline = performance.now() + 40000;
+    const fmt = formatOf(p.options);
+    const size = fmt === '16:9' ? { width: 1024, height: 576 } : fmt === '1:1' ? { width: 768, height: 768 } : fmt === '4:5' ? { width: 640, height: 800 } : { width: 576, height: 1024 };
     let got = 0;
     for (const scene of wanted) {
-      if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
-      const remain = deadline - performance.now();
-      if (remain < 1500) { this.log('Stopped waiting on backgrounds (20 second cap).'); break; }
-      const prompt = platePrompt(scene.bg);
-      const bmp = await fetchPlate(prompt, { width: 640, height: 360, seed: scene.seed || 1 }, this.s, {
-        signal: this.signal, timeout: Math.min(12000, remain), log: (m) => this.log(m),
-      });
-      if (!bmp) continue;
-      got++;
-      const key = this.plateKey(scene);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+        const remain = deadline - performance.now();
+        if (remain < 4000) break;
+        const bmp = await fetchPlate(scenePrompt(scene.bg, scene.set), { ...size, seed: scene.seed || 1 }, this.s, {
+          signal: this.signal, timeout: Math.min(20000, remain), log: (m) => this.log(m),
+        });
+        if (bmp) {
+          got++;
+          for (const s of scenes) {
+            if (look(s) !== look(scene) || p.plates.get(s.id)?.custom) continue;
+            p.plates.set(s.id, { key: this.plateKey(s), bitmap: bmp, scene: true, own: true });
+          }
+          this.h.scene?.(scenes.indexOf(scene));
+          this.h.step('plates', 'active', `${got} 3D scene${got > 1 ? 's' : ''}`);
+          break;
+        }
+        // The free service allows a burst, then asks for a pause: wait a little and try again.
+        if (deadline - performance.now() > 12000) await new Promise(r => setTimeout(r, 7000));
+      }
+    }
+    // Scenes still without a picture borrow the nearest earlier one, mirrored, so the look stays
+    // consistent. With no pictures at all, every scene uses its drawn set.
+    if (got) {
+      let last = null, flip = false;
       for (const s of scenes) {
-        if (s.bg !== scene.bg) continue;
         const cur = p.plates.get(s.id);
         if (cur?.custom) continue;
-        p.plates.set(s.id, { key: this.plateKey(s), bitmap: bmp });
+        if (cur?.own && cur.key === this.plateKey(s)) { last = cur; flip = false; continue; }
+        if (!last) last = [...p.plates.values()].find(v => v.own);
+        if (!last) continue;
+        flip = !flip;
+        p.plates.set(s.id, { key: this.plateKey(s), bitmap: last.bitmap, scene: true, flip });
       }
-      this.h.scene?.(scenes.indexOf(scene));
-      this.h.step('plates', 'active', `${got} background${got > 1 ? 's' : ''}`);
     }
-    this.h.step('plates', got ? 'done' : 'warn', got ? `${got} painted background${got > 1 ? 's' : ''}` : 'Drawn backgrounds — the image service was busy');
+    this.h.step('plates', got ? 'done' : 'warn', got ? `${got} painted 3D scene${got > 1 ? 's' : ''}` : 'Drawn sets: the image service was busy');
   }
 
   async ensureVoice() {

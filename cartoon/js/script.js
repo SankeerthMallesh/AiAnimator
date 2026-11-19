@@ -330,7 +330,7 @@ export class Script {
           const GENERIC = ['question', 'exclaim', 'drop', 'bolt', 'star', 'bulb', 'clock', 'gear', 'fire'];
           props = props.filter(p => !GENERIC.includes(p.kind));
           const toon = props.find(p => PropKit.TOONS.includes(p.kind));
-          props = [...props, toon ? { id: 'icon', kind: 'icon', emoji, x: 0.82, y: 11.6, small: true } : { id: 'icon', kind: 'icon', emoji, x: 0.5, y: null }].slice(-4);
+          props = [...props, toon ? { id: 'icon', kind: 'icon', emoji, x: 0.84, y: 9.2, small: true } : { id: 'icon', kind: 'icon', emoji, x: 0.5, y: null }].slice(-4);
         }
       }
       const actsIn = Array.isArray(s.acts) ? s.acts : Array.isArray(s.actions) ? s.actions : [];

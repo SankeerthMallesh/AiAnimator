@@ -70,7 +70,7 @@ export class Stage {
     stage.setView({
       script,
       timeline: { scenes: [fake], total: dur },
-      plates: new Map(plate ? [[scene.id, { bitmap: plate }]] : []),
+      plates: new Map(plate ? [[scene.id, plate.bitmap ? plate : { bitmap: plate }]] : []),
       settings: { captionStyle: 'word' },
     });
     stage.drawFrame(Math.min(localT, dur - 0.05));
@@ -102,24 +102,51 @@ export class Stage {
     return { cam, z, panX, panY, rot, whip, lt: local };
   }
 
+  // Shot size for a scene, like an animator would cut it: an establishing wide shot first, then
+  // mostly medium shots on whoever is talking (heads about half the frame wide), with a wide
+  // two-shot every third scene and whenever someone rides, pushes or carries something.
+  static framing(scene, actors, W, H, u, ground) {
+    const wide = { z: 1, tx: W / 2, ty: ground, sx: W / 2, sy: ground, medium: false };
+    const sp = actors.find(a => a.id === scene.say) || actors[0];
+    const size = scene.frame || (scene.index === 0 || scene.index % 3 === 2 || scene.use || !sp ? 'wide' : 'medium');
+    if (size !== 'medium' || !sp) return wide;
+    const portrait = H >= W;
+    const z = portrait ? 1.55 : 1.3;
+    const tx = Ink.clamp(Ink.lerp(W / 2, sp.x * W, 0.85), W * 0.3, W * 0.7);
+    return { z, tx, ty: ground - u * 4.2, sx: W / 2, sy: H * (portrait ? 0.5 : 0.52), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
+  }
+
   static world(ctx, W, H, view, scene, local, shot) {
     const u = Cast.unit(H);
     const ground = H * (W < H ? 0.78 : 0.84);
-    ctx.save();
-    ctx.translate(W / 2, ground);
-    ctx.rotate(shot.rot);
-    ctx.scale(shot.z, shot.z);
-    ctx.translate(-W / 2 + shot.panX * W * 0.18, -ground + shot.panY);
-    const plate = view.plates?.get(scene.id)?.bitmap || null;
-    SetKit.draw(ctx, W, H, scene.set, scene.start + local, plate);
     const cast = new Map((view.script?.cast || []).map(c => [c.id, c]));
     const actors = Stage.actors(scene, local, cast);
-    const props = Stage.props(scene, local);
+    let props = Stage.props(scene, local);
+    const fr = Stage.framing(scene, actors, W, H, u, ground);
+    if (fr.medium) {
+      // In a close shot the floating sticker sits above the speaker's head, toward the open side.
+      props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) && (p.y == null || p.small)
+        ? { ...p, x: Ink.clamp(fr.sp.x + fr.dir * 0.17, 0.14, 0.86), y: 8.3, small: true, scale: 0.72 } : p));
+    }
+    ctx.save();
+    ctx.translate(fr.sx, fr.sy);
+    ctx.rotate(shot.rot);
+    ctx.scale(shot.z * fr.z, shot.z * fr.z);
+    ctx.translate(-fr.tx + shot.panX * W * 0.18, -fr.ty + shot.panY);
+    const pe = view.plates?.get(scene.id);
+    SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene });
     // Interaction for this scene: who is using which prop, and how.
     const use = scene.use || null;
     const ua = use ? actors.find(a => a.id === use.who) : null;
     const up = use ? props.find(p => (p.id || p.kind) === use.prop) : null;
     if (ua && up && use.how === 'ride') { ua.pose = 'drive'; up.x = ua.x; }
+    if (ua && up && use.how === 'ride') {
+      // A vehicle shot belongs to its driver, like the references: anyone standing where the
+      // vehicle is drawn leaves the shot instead of poking out from behind it.
+      for (let k = actors.length - 1; k >= 0; k--) {
+        if (actors[k] !== ua && Math.abs(actors[k].x - up.x) < 0.62) actors.splice(k, 1);
+      }
+    }
     if (ua && up && use.how === 'push') { up.x = ua.x + ua.face * 0.21; if (ua.pose === 'walk' || ua.pose === 'idle') ua.pose = 'give'; }
     if (ua && up && use.how === 'carry') ua.pose = 'cheer';
     const vehicle = ua && up && use.how === 'ride' ? up : null;
@@ -131,9 +158,12 @@ export class Stage {
       if (p.kind === 'sun') Stage.sun(ctx, p, W, u, H, local);
       else {
         let x = p.x;
-        if (['tree', 'house', 'car', 'train', 'planet'].includes(p.kind) && !(p.kind === 'car' && driving)) {
-          for (const a of actors) {
-            if (Math.abs(x - a.x) < 0.18) x = Math.max(0.08, Math.min(0.92, a.x + (a.x < 0.5 ? 0.28 : -0.28)));
+        if (['tree', 'house', 'car', 'train', 'planet', 'boat'].includes(p.kind) && !(p.kind === 'car' && driving)) {
+          // Big ground props never stand in front of someone: they move to the open side of the frame.
+          const reach = ['car', 'train', 'boat'].includes(p.kind) ? 0.3 : 0.18;
+          if (actors.some(a => Math.abs(x - a.x) < reach)) {
+            const spots = [0.06, 0.94, 0.5, 0.2, 0.8].filter(v => actors.every(a => Math.abs(v - a.x) >= reach));
+            x = spots.length ? spots[0] : (actors.reduce((n, a) => n + a.x, 0) / actors.length < 0.5 ? 0.97 : 0.03);
           }
         }
         PropKit.draw(ctx, { ...p, x: x * W }, u, ground, local);
@@ -375,7 +405,8 @@ export class Stage {
     const c = chunks.find(w => local >= w.start && local <= w.end + 0.04);
     if (!c) return;
     const portrait = H >= W;
-    let size = Math.round(W * (portrait ? 0.095 : 0.052));
+    // Matched to the reference Shorts: medium-size white words at about 70% height.
+    let size = Math.round(W * (portrait ? 0.074 : 0.046));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
@@ -386,16 +417,16 @@ export class Stage {
     // Pop in from 80% with a small overshoot, never from nothing, so no frame shows a tiny word.
     const k = Math.min(1, Math.max(0, age / 0.16));
     const pop = 0.8 + 0.2 * Ink.back(k);
-    const y = H * (portrait ? 0.9 : 0.86) + (1 - k) * size * 0.12;
-    // Numbers and long key words get the yellow highlight that Shorts captions use.
-    const hot = /\d/.test(c.text) || c.text.split(/\s+/).some(w => w.replace(/[^A-Za-z]/g, '').length >= 7);
+    const y = H * (portrait ? 0.7 : 0.8) + (1 - k) * size * 0.12;
+    // Numbers get a yellow highlight; everything else stays white like the references.
+    const hot = /\d/.test(c.text);
     ctx.save();
     ctx.translate(W / 2, y);
     ctx.scale(pop, pop);
-    ctx.shadowColor = 'rgba(0,0,0,.45)';
-    ctx.shadowBlur = size * 0.18;
-    ctx.shadowOffsetY = size * 0.06;
-    ctx.lineWidth = Math.max(8, size * 0.22);
+    ctx.shadowColor = 'rgba(0,0,0,.5)';
+    ctx.shadowBlur = size * 0.2;
+    ctx.shadowOffsetY = size * 0.05;
+    ctx.lineWidth = Math.max(6, size * 0.2);
     ctx.strokeStyle = '#141414';
     ctx.strokeText(c.text, 0, 0);
     ctx.shadowColor = 'transparent';
