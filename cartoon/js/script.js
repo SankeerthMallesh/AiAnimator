@@ -8,6 +8,32 @@ import { PropKit, SetKit } from './props.js';
 
 const WORDS_PER_SECOND = 2.55;
 
+
+// Backup stickers: common things and their emoji, used when the script writer leaves "icon" out.
+const EMOJI_WORDS = {
+  cat: '🐱', kitten: '🐱', dog: '🐶', puppy: '🐶', bee: '🐝', honey: '🍯', hive: '🍯', ant: '🐜', spider: '🕷️', butterfly: '🦋',
+  bird: '🐦', eagle: '🦅', owl: '🦉', penguin: '🐧', chicken: '🐔', egg: '🥚', fish: '🐟', shark: '🦈', whale: '🐋', dolphin: '🐬',
+  octopus: '🐙', crab: '🦀', turtle: '🐢', snake: '🐍', frog: '🐸', lion: '🦁', tiger: '🐯', bear: '🐻', panda: '🐼', monkey: '🐒',
+  elephant: '🐘', giraffe: '🦒', horse: '🐴', cow: '🐄', pig: '🐷', sheep: '🐑', mouse: '🐭', rat: '🐀', rabbit: '🐰', fox: '🦊',
+  wolf: '🐺', dinosaur: '🦖', dino: '🦖', bat: '🦇', camel: '🐫', zebra: '🦓', bacteria: '🦠', germ: '🦠', virus: '🦠', cell: '🦠',
+  tree: '🌳', forest: '🌲', flower: '🌸', plant: '🌱', seed: '🌱', leaf: '🍃', cactus: '🌵', mushroom: '🍄', apple: '🍎', banana: '🍌',
+  orange: '🍊', lemon: '🍋', grape: '🍇', strawberry: '🍓', pizza: '🍕', burger: '🍔', bread: '🍞', cheese: '🧀', chocolate: '🍫',
+  candy: '🍬', cake: '🍰', cookie: '🍪', coffee: '☕', tea: '🍵', milk: '🥛', salt: '🧂', sugar: '🍬', ice: '🧊', water: '💧',
+  rain: '🌧️', snow: '❄️', storm: '⛈️', lightning: '⚡', tornado: '🌪️', volcano: '🌋', mountain: '⛰️', ocean: '🌊', sea: '🌊', wave: '🌊',
+  island: '🏝️', desert: '🏜️', sun: '☀️', moon: '🌙', star: '⭐', planet: '🪐', earth: '🌍', world: '🌍', globe: '🌍', rocket: '🚀',
+  satellite: '🛰️', astronaut: '🚀', telescope: '🔭', microscope: '🔬', magnet: '🧲', battery: '🔋', bulb: '💡', electricity: '⚡',
+  fire: '🔥', heat: '🔥', thermometer: '🌡️', clock: '⏰', time: '⏰', money: '💰', coin: '🪙', dollar: '💵', bank: '🏦', gold: '🥇',
+  diamond: '💎', car: '🚗', truck: '🚚', bus: '🚌', train: '🚂', rail: '🛤️', track: '🛤️', plane: '✈️', airplane: '✈️', ship: '🚢',
+  boat: '⛵', submarine: '🚢', bike: '🚲', bicycle: '🚲', road: '🛣️', bridge: '🌉', house: '🏠', home: '🏠', castle: '🏰', city: '🏙️',
+  school: '🏫', hospital: '🏥', factory: '🏭', phone: '📱', computer: '💻', robot: '🤖', game: '🎮', camera: '📷', book: '📚',
+  pencil: '✏️', paper: '📄', letter: '✉️', map: '🗺️', key: '🔑', lock: '🔒', bell: '🔔', music: '🎵', guitar: '🎸', piano: '🎹',
+  ball: '⚽', football: '🏈', soccer: '⚽', basketball: '🏀', trophy: '🏆', medal: '🏅', crown: '👑', hat: '🎩', shoe: '👟',
+  heart: '❤️', brain: '🧠', bone: '🦴', tooth: '🦷', teeth: '🦷', eye: '👁️', medicine: '💊', pill: '💊', vaccine: '💉', dna: '🧬',
+  atom: '⚛️', science: '🧪', chemistry: '⚗️', gear: '⚙️', engine: '⚙️', tool: '🔧', hammer: '🔨', ruler: '📏', scale: '⚖️',
+  pyramid: '🔺', greek: '🏛️', temple: '🏛️', egypt: '🔺', pirate: '🏴‍☠️', sword: '🗡️', shield: '🛡️', gift: '🎁', party: '🎉',
+  lottery: '🎟️', ticket: '🎟️', oil: '🛢️', plastic: '♻️', trash: '🗑️', recycle: '♻️', wind: '💨', cloud: '☁️', rainbow: '🌈',
+};
+
 export class Script {
   static CAMS = ['hold', 'push', 'pull', 'pan', 'tilt', 'punch'];
   static CUTS = ['cut', 'whip', 'zoom'];
@@ -325,12 +351,14 @@ export class Script {
       // An emoji sticker shows the line's key thing for any topic. It replaces the generic floating
       // props (question mark, drop, bolt...) but sits beside the specific ones (globe, eclipse, ship...).
       {
-        const emoji = Script.emoji(s.icon || s.emoji);
+        const emoji = Script.emoji(s.icon || s.emoji) || Script.guessEmoji(narration) || Script.guessEmoji(`${options.topic || ''} ${raw.title || ''}`);
         if (emoji) {
           const GENERIC = ['question', 'exclaim', 'drop', 'bolt', 'star', 'bulb', 'clock', 'gear', 'fire'];
           props = props.filter(p => !GENERIC.includes(p.kind));
+          // A specific animated prop (globe, eclipse, ship, thermometer...) already shows the idea,
+          // so the sticker is only added when no such prop is in the scene.
           const toon = props.find(p => PropKit.TOONS.includes(p.kind));
-          props = [...props, toon ? { id: 'icon', kind: 'icon', emoji, x: 0.84, y: 9.2, small: true } : { id: 'icon', kind: 'icon', emoji, x: 0.5, y: null }].slice(-4);
+          if (!toon) props = [...props, { id: 'icon', kind: 'icon', emoji, x: 0.5, y: null }].slice(-4);
         }
       }
       const actsIn = Array.isArray(s.acts) ? s.acts : Array.isArray(s.actions) ? s.actions : [];
@@ -519,6 +547,16 @@ export class Script {
     if (/room|house|home|kitchen/.test(t)) return 'room';
     if (/tree|field|park|forest/.test(t)) return 'field';
     return 'sky';
+  }
+
+  // An emoji for the first common thing named in the text, or ''.
+  static guessEmoji(text) {
+    for (const raw of String(text || '').toLowerCase().match(/[a-z]+/g) || []) {
+      for (const w of [raw, raw.replace(/ies$/, 'y'), raw.replace(/es$/, ''), raw.replace(/s$/, '')]) {
+        if (Object.prototype.hasOwnProperty.call(EMOJI_WORDS, w)) return EMOJI_WORDS[w];
+      }
+    }
+    return '';
   }
 
   // First emoji picture in the text, or '' (faces, people, hands and flags are skipped).

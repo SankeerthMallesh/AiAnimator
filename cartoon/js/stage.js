@@ -108,9 +108,16 @@ export class Stage {
   static framing(scene, actors, W, H, u, ground) {
     const wide = { z: 1, tx: W / 2, ty: ground, sx: W / 2, sy: ground, medium: false };
     const sp = actors.find(a => a.id === scene.say) || actors[0];
-    const size = scene.frame || (scene.index === 0 || scene.index % 3 === 2 || scene.use || !sp ? 'wide' : 'medium');
-    if (size !== 'medium' || !sp) return wide;
+    // Questions and exclamations get a close-up on the speaker's face, like a punchline.
+    const punch = /[!?]["')]?\s*$/.test(String(scene.narration || '').trim());
+    const size = scene.frame || (scene.index === 0 || scene.use || !sp ? 'wide' : punch ? 'close' : scene.index % 3 === 2 ? 'wide' : 'medium');
+    if ((size !== 'medium' && size !== 'close') || !sp) return wide;
     const portrait = H >= W;
+    if (size === 'close') {
+      const z = portrait ? 2.05 : 1.7;
+      const tx = Ink.clamp(sp.x * W, W * 0.25, W * 0.75);
+      return { z, tx, ty: ground - u * 5.1, sx: W / 2, sy: H * (portrait ? 0.46 : 0.5), medium: true, close: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
+    }
     const z = portrait ? 1.55 : 1.3;
     const tx = Ink.clamp(Ink.lerp(W / 2, sp.x * W, 0.85), W * 0.3, W * 0.7);
     return { z, tx, ty: ground - u * 4.2, sx: W / 2, sy: H * (portrait ? 0.5 : 0.52), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
@@ -126,7 +133,9 @@ export class Stage {
     if (fr.medium) {
       // In a close shot the floating sticker sits above the speaker's head, toward the open side.
       props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) && (p.y == null || p.small)
-        ? { ...p, x: Ink.clamp(fr.sp.x + fr.dir * 0.17, 0.14, 0.86), y: 8.3, small: true, scale: 0.72 } : p));
+        ? (fr.close
+          ? { ...p, x: fr.sp.x, y: 7.6, small: true, scale: 0.42 }
+          : { ...p, x: Ink.clamp(fr.sp.x + fr.dir * 0.17, 0.14, 0.86), y: 8.3, small: true, scale: 0.72 }) : p));
     }
     ctx.save();
     ctx.translate(fr.sx, fr.sy);
