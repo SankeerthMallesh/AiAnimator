@@ -141,7 +141,7 @@ export class Stage {
       props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) && (p.y == null || p.small)
         ? (fr.close
           ? { ...p, x: fr.sp.x, y: 7.6, small: true, scale: 0.42 }
-          : { ...p, x: Ink.clamp(fr.sp.x + fr.dir * 0.17, 0.14, 0.86), y: 8.3, small: true, scale: 0.72 }) : p));
+          : { ...p, x: Ink.clamp(fr.sp.x + fr.dir * 0.17, 0.14, 0.86), y: 7.7, small: true, scale: 0.68 }) : p));
     }
     ctx.save();
     ctx.translate(fr.sx, fr.sy);

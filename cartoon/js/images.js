@@ -216,7 +216,7 @@ const SET_WORDS = {
   mountains: 'a mountain valley', snow: 'a snowy landscape', forest: 'a forest clearing', underwater: 'the sea floor underwater',
   night: 'a quiet town street at night',
 };
-export function scenePrompt(bg, set) {
+export function scenePrompt(bg, set, topic = '') {
   const place = SET_WORDS[set] || 'an open outdoor scene';
   const indoor = ['shop', 'lab', 'office', 'room'].includes(set);
   const clean = String(bg || '')
@@ -224,7 +224,9 @@ export function scenePrompt(bg, set) {
     .replace(/\s{2,}/g, ' ').trim().slice(0, 120);
   // This wording was tested against the free image model: it gives bright 3D-cartoon sets
   // like the reference Shorts instead of dim, realistic photos.
-  return `Background art from a 3D animated cartoon movie, Pixar Dreamworks style, bright cheerful daylight, vivid candy colors, ${place}${clean ? `, ${clean}` : ''}, smooth rounded toy-like shapes, ${indoor ? 'warm sunny window light' : 'big blue sky with puffy clouds'}, wide shot, empty, no people, no text`;
+  // The topic leads, so the place matches the video (the Great Wall, a railway yard, a hive...).
+  const about = String(topic || '').replace(/^(why|how|what|when|who|the story of)\s+(do|does|did|is|are|was|were)?\s*/i, '').replace(/[?!.]+$/, '').trim().slice(0, 90);
+  return `Background art from a 3D animated cartoon movie, Pixar Dreamworks style, bright cheerful daylight, vivid candy colors, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, smooth rounded toy-like shapes, ${indoor ? 'warm sunny window light' : 'big blue sky with puffy clouds'}, wide shot, empty, no people, no text`;
 }
 
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {

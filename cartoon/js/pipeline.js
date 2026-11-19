@@ -237,7 +237,7 @@ export class Pipeline {
         if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
         const remain = deadline - performance.now();
         if (remain < 4000) break;
-        const bmp = await fetchPlate(scenePrompt(scene.bg, scene.set), { ...size, seed: scene.seed || 1 }, this.s, {
+        const bmp = await fetchPlate(scenePrompt(scene.bg, scene.set, p.topic), { ...size, seed: scene.seed || 1 }, this.s, {
           signal: this.signal, timeout: Math.min(20000, remain), log: (m) => this.log(m),
         });
         if (bmp) {
