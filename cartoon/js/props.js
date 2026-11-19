@@ -21,6 +21,7 @@ export class PropKit {
 
   static draw(ctx, prop, u, ground, t) {
     const kind = prop.kind;
+    if (prop.delay) { t -= prop.delay; if (t < 0) return; }
     ctx.save();
     ctx.translate(prop.x, ground);
     const s = u;

@@ -56,6 +56,7 @@ export class Stage {
     ctx.drawImage(this._finish, 0, 0);
     if (shot.whip > 0) Stage.speedLines(ctx, W, H, shot.whip);
     if (view.settings?.captionStyle !== 'off') Stage.caption(ctx, W, H, scene, local);
+    if (scene.index === 0 && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
   }
 
   static still(canvas, script, scene, plate, localT = 0.8) {
@@ -138,6 +139,10 @@ export class Stage {
     // With a real picture on screen, the picture is the visual: wide shot, no floating props.
     const fr = photo ? Stage.framing({ ...scene, frame: 'wide' }, actors, W, H, u, ground) : Stage.framing(scene, actors, W, H, u, ground);
     if (photo) props = props.filter(p => !(p.kind === 'icon' || PropKit.TOONS.includes(p.kind)));
+    // In the opening shot the hook title owns the top of the frame; floating props pop in after it.
+    if (scene.index === 0 && view.settings?.hookTitle !== false && (view.script?.youtubeTitle || view.script?.title)) {
+      props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) ? { ...p, delay: 2.6 } : p));
+    }
     if (fr.medium) {
       // In a close shot the floating sticker sits above the speaker's head, toward the open side.
       props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) && (p.y == null || p.small)
@@ -646,6 +651,51 @@ export class Stage {
       }
     }
     return out;
+  }
+
+  // The hook: the video's title, big at the top for the first seconds, like popular Shorts.
+  static hook(ctx, W, H, script, local) {
+    const text = String(script?.youtubeTitle || script?.title || '').replace(/\s+/g, ' ').trim();
+    if (!text || local > 2.7) return;
+    const portrait = H >= W;
+    const k = Math.min(1, local / 0.22);
+    const out = Math.min(1, Math.max(0, (2.7 - local) / 0.3));
+    let size = Math.round(W * (portrait ? 0.082 : 0.05));
+    const maxW = W * 0.86;
+    const font = () => `900 ${size}px Montserrat, Arial, "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+    // Wrap into at most three lines, shrinking if needed.
+    let lines = [];
+    for (let tries = 0; tries < 6; tries++) {
+      ctx.font = font();
+      lines = [];
+      let cur = '';
+      for (const w of text.split(' ')) {
+        const next = cur ? `${cur} ${w}` : w;
+        if (ctx.measureText(next).width > maxW && cur) { lines.push(cur); cur = w; } else cur = next;
+      }
+      if (cur) lines.push(cur);
+      if (lines.length <= 3 && lines.every(l => ctx.measureText(l).width <= maxW)) break;
+      size = Math.round(size * 0.86);
+    }
+    const lh = size * 1.12;
+    const top = H * (portrait ? 0.1 : 0.09);
+    ctx.save();
+    ctx.globalAlpha = out;
+    ctx.translate(W / 2, top + (lines.length * lh) / 2);
+    const pop = 0.7 + 0.3 * Ink.back(k);
+    ctx.scale(pop, pop);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.font = font();
+    lines.forEach((l, i) => {
+      const y = (i - (lines.length - 1) / 2) * lh;
+      ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = size * 0.25; ctx.shadowOffsetY = size * 0.06;
+      ctx.lineWidth = size * 0.22; ctx.strokeStyle = '#111';
+      ctx.strokeText(l, 0, y);
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = i === lines.length - 1 ? '#FFD43B' : '#FFFFFF';
+      ctx.fillText(l, 0, y);
+    });
+    ctx.restore();
   }
 
   static caption(ctx, W, H, scene, local) {
