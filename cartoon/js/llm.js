@@ -248,7 +248,56 @@ const SYSTEM_CHECKER = `You fact-check every spoken line of a short. Check each 
 Fix myths stated as fact, wrong dates, wrong numbers, wrong units, and a famous story that drops the half that makes it true.
 Keep each replacement line short. Do not add nudity or gore. Output only JSON.`;
 
-export async function writeScript(topic, options, settings, { signal, log } = {}) {
+const PART_SCENES = 8;
+
+export async function writeScript(topic, options, settings, extra = {}) {
+  const plan = Script.plan(options);
+  if (plan.scenes <= PART_SCENES + 2) return writeScriptOnce(topic, options, settings, extra);
+  return writeScriptInParts(topic, options, settings, extra, plan);
+}
+
+// Long videos: the free writer can't return 20+ scenes in one answer, so the script is written in
+// parts of up to 8 scenes that continue the same story, then merged into one storyboard.
+async function writeScriptInParts(topic, options, settings, { signal, log } = {}, plan) {
+  const count = Math.ceil(plan.scenes / PART_SCENES);
+  const sizes = Array.from({ length: count }, (_, i) => Math.round(plan.scenes * (i + 1) / count) - Math.round(plan.scenes * i / count));
+  const ask = async (content, check) => {
+    let lastErr;
+    for (let round = 0; round < 3; round++) {
+      try {
+        const { value, provider } = await chat([{ role: 'system', content: SYSTEM_WRITER }, { role: 'user', content }], settings, {
+          signal, log, temperature: 0.6, validate: (text) => { const raw = Script.parse(text); check(raw); return raw; },
+        });
+        return { raw: value, provider };
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        lastErr = e;
+        log?.(`Script part not ready yet. Trying again in ${5 * (round + 1)} seconds…`);
+        await new Promise(r => setTimeout(r, 5000 * (round + 1)));
+      }
+    }
+    throw lastErr;
+  };
+  const hasScenes = (min) => (raw) => { if (!Array.isArray(raw?.scenes) || raw.scenes.length < min) throw new Error('Too few scenes came back'); };
+  log?.(`Long video: writing the script in ${count} parts.`);
+  const first = await ask(Script.prompt(topic, options, { index: 1, count, scenes: sizes[0] }), hasScenes(2));
+  const merged = { ...first.raw, scenes: [...first.raw.scenes] };
+  for (let k = 2; k <= count; k++) {
+    const lines = merged.scenes.map(x => String(x.line || x.narration || '').trim()).filter(Boolean);
+    try {
+      const part = await ask(Script.continuePrompt(topic, options, first.raw, lines, { index: k, count, scenes: sizes[k - 1] }), hasScenes(1));
+      merged.scenes.push(...part.raw.scenes);
+      log?.(`Script part ${k} of ${count}: ${part.raw.scenes.length} scenes.`);
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      log?.(`Script part ${k} could not be written (${e.message}). The video will be shorter.`);
+      break;
+    }
+  }
+  return { script: Script.normalize(merged, { ...options, topic }), provider: first.provider };
+}
+
+async function writeScriptOnce(topic, options, settings, { signal, log } = {}) {
   const messages = [
     { role: 'system', content: SYSTEM_WRITER },
     { role: 'user', content: Script.prompt(topic, options) },

@@ -5,6 +5,8 @@ import { writeScript, factCheck, waitForFreeText } from './llm.js';
 import { Script } from './script.js';
 import { Demo } from './demo.js';
 import { fetchPlate, platePrompt, scenePrompt, mapLimit } from './images.js';
+import { topicPictures } from './wiki.js';
+import { isSafeImage } from './safety.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
@@ -186,6 +188,34 @@ export class Pipeline {
       return;
     }
     const scenes = p.script.scenes;
+    // Real photos, maps and paintings of the topic from Wikipedia come first.
+    if (p.options.photos !== false && !this.demo) {
+      const missing = scenes.filter(sc => { const h = p.plates.get(sc.id); return !(h?.custom || (h?.photo && h.key === this.plateKey(sc))); });
+      if (!missing.length && p.credits) { this.h.step('plates', 'done', 'Already have them'); return; }
+      this.h.step('plates', 'active', 'Finding real pictures…');
+      try {
+        const r = await topicPictures(p.topic, scenes, {
+          signal: this.signal, log: (m) => this.log(m), timeout: 25000,
+          isSafe: (bmp, name) => isSafeImage(bmp, name, (m) => this.log(m)),
+        });
+        p.sources = r.sources;
+        p.credits = r.credits;
+        if (r.byScene.size) {
+          for (const sc of scenes) {
+            const v = r.byScene.get(sc.id);
+            if (!v || p.plates.get(sc.id)?.custom) continue;
+            p.plates.set(sc.id, { key: this.plateKey(sc), bitmap: v.bitmap, photo: true, own: true });
+            this.h.scene?.(scenes.indexOf(sc));
+          }
+          this.h.step('plates', 'done', `${r.credits.length} real picture${r.credits.length === 1 ? '' : 's'} from Wikipedia`);
+          return;
+        }
+        this.log('Wikipedia had no usable pictures for this topic. Painting 3D scenes instead.');
+      } catch (e) {
+        if (this.signal.aborted) throw e;
+        this.log(`Real pictures unavailable (${e.message}). Painting 3D scenes instead.`);
+      }
+    }
     const look = (s) => `${s.bg}|${s.set}`;
     const wanted = [];
     for (const scene of scenes) {

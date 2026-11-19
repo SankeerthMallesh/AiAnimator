@@ -336,7 +336,7 @@ export class SetKit {
   }
 
   static draw(ctx, W, H, id, t, plate, opts = {}) {
-    if (plate && opts.scene) { SetKit.scenePlate(ctx, W, H, plate, t, !!opts.flip); return; }
+    if (plate && opts.scene) { SetKit.scenePlate(ctx, W, H, opts.blur ? SetKit.blurred(plate) : plate, t, !!opts.flip); return; }
     if (RICH_SETS.includes(id)) {
       // Overscan in the set's own colours so a pan or whip never shows an empty edge.
       const m = Math.max(W, H) * 0.55;
@@ -422,6 +422,51 @@ export class SetKit {
     x.drawImage(plate, 0, 0);
     SetKit._graded.set(plate, c);
     return c;
+  }
+
+  // A soft, darkened copy of a photo to fill the frame behind the photo card.
+  static blurred(plate) {
+    SetKit._blur ||= new WeakMap();
+    let c = SetKit._blur.get(plate);
+    if (c) return c;
+    const small = document.createElement('canvas');
+    small.width = 48; small.height = Math.max(24, Math.round(48 * plate.height / plate.width));
+    small.getContext('2d').drawImage(plate, 0, 0, small.width, small.height);
+    c = document.createElement('canvas');
+    c.width = 384; c.height = Math.round(384 * plate.height / plate.width);
+    const x = c.getContext('2d');
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(small, 0, 0, c.width, c.height);
+    x.fillStyle = 'rgba(12,14,24,0.38)';
+    x.fillRect(0, 0, c.width, c.height);
+    SetKit._blur.set(plate, c);
+    return c;
+  }
+
+  // The real picture as a framed card near the top of the frame, slightly tilted, with a slow push-in.
+  static photoCard(ctx, W, H, img, t, dur) {
+    const portrait = H >= W;
+    const maxW = W * (portrait ? 0.9 : 0.56), maxH = H * (portrait ? 0.36 : 0.5);
+    const sc = Math.min(maxW / img.width, maxH / img.height);
+    const w = img.width * sc, h = img.height * sc;
+    const cx = W / 2, cy = H * (portrait ? 0.06 : 0.06) + h / 2;
+    const pop = Math.min(1, t / 0.35);
+    const ease = 1 - Math.pow(1 - pop, 3);
+    const zoom = 1 + 0.06 * Math.min(1, t / Math.max(1, dur || 4));
+    const b = Math.max(6, W * 0.012);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.012);
+    ctx.scale(0.9 + 0.1 * ease, 0.9 + 0.1 * ease);
+    ctx.globalAlpha = ease;
+    ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = W * 0.03; ctx.shadowOffsetY = W * 0.012;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-w / 2 - b, -h / 2 - b, w + b * 2, h + b * 2);
+    ctx.shadowColor = 'transparent';
+    ctx.beginPath(); ctx.rect(-w / 2, -h / 2, w, h); ctx.clip();
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, -w * zoom / 2, -h * zoom / 2, w * zoom, h * zoom);
+    ctx.restore();
   }
 
   static stars(ctx, W, H, t) {

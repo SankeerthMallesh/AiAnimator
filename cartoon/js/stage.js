@@ -129,7 +129,11 @@ export class Stage {
     const cast = new Map((view.script?.cast || []).map(c => [c.id, c]));
     const actors = Stage.actors(scene, local, cast);
     let props = Stage.props(scene, local);
-    const fr = Stage.framing(scene, actors, W, H, u, ground);
+    const pe = view.plates?.get(scene.id);
+    const photo = !!pe?.photo;
+    // With a real picture on screen, the picture is the visual: wide shot, no floating props.
+    const fr = photo ? Stage.framing({ ...scene, frame: 'wide' }, actors, W, H, u, ground) : Stage.framing(scene, actors, W, H, u, ground);
+    if (photo) props = props.filter(p => !(p.kind === 'icon' || PropKit.TOONS.includes(p.kind)));
     if (fr.medium) {
       // In a close shot the floating sticker sits above the speaker's head, toward the open side.
       props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) && (p.y == null || p.small)
@@ -142,8 +146,14 @@ export class Stage {
     ctx.rotate(shot.rot);
     ctx.scale(shot.z * fr.z, shot.z * fr.z);
     ctx.translate(-fr.tx + shot.panX * W * 0.18, -fr.ty + shot.panY);
-    const pe = view.plates?.get(scene.id);
-    SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene });
+    SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene || photo, blur: photo });
+    if (photo) {
+      // The picture itself as a framed card at the top, steady on screen while the camera moves.
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      SetKit.photoCard(ctx, W, H, pe.bitmap, local, scene.dur);
+      ctx.restore();
+    }
     // Interaction for this scene: who is using which prop, and how.
     const use = scene.use || null;
     const ua = use ? actors.find(a => a.id === use.who) : null;
@@ -202,6 +212,7 @@ export class Stage {
         }
       }
     }
+    Stage.gagSetup(actors, talkId, scene, local);
     for (const a of actors) {
       const look = cast.get(a.id) || {};
       Cast.draw(ctx, {
@@ -222,6 +233,7 @@ export class Stage {
         hold: a.hold,
       }, a.pose === 'drive' ? 'body' : 'all');
     }
+    for (const a of actors) if (a.gag) Stage.gagDraw(ctx, a, W, u, ground, local);
     if (driving) {
       for (const p of props) {
         // A ridden vehicle is drawn big enough to sit in.
@@ -257,6 +269,164 @@ export class Stage {
         ctx.scale(1.3, 1.3);
         PropMiniDraw(ctx, fly.kind);
         ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  // Background gags: while one character talks, the others do quirky things, like the side jokes
+  // in the reference Shorts. Each listener gets one gag per scene, picked by scene and character.
+  static GAGS = ['zzz', 'coffee', 'fly', 'juggle', 'phone', 'popcorn', 'sneeze', 'balloon'];
+  static gagSetup(actors, talkId, scene, local) {
+    if (actors.length < 2) return;
+    actors.forEach((a, i) => {
+      if (a.id === talkId || a.hold || ['walk', 'enter', 'exit', 'drive', 'sit', 'give', 'jump'].includes(a.pose)) return;
+      a.pose = 'idle';
+      const k = ((scene.index || 0) * 3 + i * 5 + (scene.id || '').length) % (Stage.GAGS.length + 1);
+      if (k === Stage.GAGS.length) return; // now and then, no gag, so it never feels like a loop
+      const gag = Stage.GAGS[k];
+      a.gag = gag;
+      const cyc = (local + i * 0.9) % 3.2;
+      if (gag === 'zzz') a.feel = 'happy';
+      else if (gag === 'juggle') a.pose = 'cheer';
+      else if (gag === 'fly' && cyc > 2.4 && cyc < 2.9) { a.pose = 'wave'; a.poseT = cyc - 2.4; }
+      else if (gag === 'sneeze') {
+        if (cyc > 1.6 && cyc < 2.3) { a.pose = 'think'; a.feel = 'shocked'; }
+        else if (cyc >= 2.3 && cyc < 2.9) { a.pose = 'shock'; a.poseT = cyc - 2.3; }
+      } else if (gag === 'balloon' || gag === 'phone' || gag === 'coffee' || gag === 'popcorn') a.pose = 'idle';
+      a.gagT = local + i * 0.9;
+    });
+  }
+
+  static gagDraw(ctx, a, W, u, ground, t) {
+    const x = a.x * W, f = a.face === -1 ? -1 : 1;
+    const hx = x, hy = ground - 4.72 * u;      // head centre
+    const handX = x + f * 1.45 * u, handY = ground - 3.0 * u;
+    const T = a.gagT ?? t;
+    const cyc = T % 3.2;
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const ink = (w = 0.12) => { ctx.strokeStyle = Ink.INK; ctx.lineWidth = w * u; };
+    switch (a.gag) {
+      case 'zzz': {
+        ctx.font = `900 ${u * 0.9}px Montserrat, Arial, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        for (let k = 0; k < 3; k++) {
+          const p = ((T * 0.45 + k / 3) % 1);
+          const zx = hx + f * (0.9 + p * 1.6) * u + Math.sin(p * 6) * 0.2 * u;
+          const zy = hy - (1.2 + p * 2.4) * u;
+          ctx.globalAlpha = Math.sin(p * Math.PI);
+          ctx.lineWidth = u * 0.16; ctx.strokeStyle = '#FFFFFF';
+          ctx.save(); ctx.translate(zx, zy); ctx.scale(0.6 + p * 0.7, 0.6 + p * 0.7);
+          ctx.strokeText('Z', 0, 0); ctx.fillStyle = '#3E6FE0'; ctx.fillText('Z', 0, 0); ctx.restore();
+        }
+        break;
+      }
+      case 'coffee': {
+        const sip = cyc > 2.2 && cyc < 3.0 ? Math.sin(((cyc - 2.2) / 0.8) * Math.PI) : 0;
+        const mx = Ink.lerp(handX, hx + f * 0.95 * u, sip), my = Ink.lerp(handY, hy + 0.35 * u, sip);
+        ctx.translate(mx, my);
+        ink(0.11);
+        ctx.fillStyle = '#E85D4C';
+        ctx.beginPath(); ctx.roundRect(-0.42 * u, -0.5 * u, 0.84 * u, 0.95 * u, 0.12 * u); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(f * 0.52 * u, 0, 0.22 * u, -Math.PI / 2, Math.PI / 2, f < 0); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 0.09 * u;
+        for (let k = 0; k < 2; k++) {
+          ctx.beginPath();
+          for (let q = 0; q <= 10; q++) {
+            const yy = -0.7 * u - q * 0.09 * u, xx = (k - 0.5) * 0.3 * u + Math.sin(q * 0.8 + T * 4 + k) * 0.1 * u;
+            q ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+          }
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'fly': {
+        const fx = hx + Math.sin(T * 5.3) * 1.5 * u, fy = hy - 0.6 * u + Math.sin(T * 8.1) * 0.9 * u;
+        ctx.strokeStyle = 'rgba(30,30,30,0.35)'; ctx.lineWidth = 0.05 * u; ctx.setLineDash([0.12 * u, 0.12 * u]);
+        ctx.beginPath();
+        for (let q = 0; q < 14; q++) { const tt = T - q * 0.03; const xx = hx + Math.sin(tt * 5.3) * 1.5 * u, yy = hy - 0.6 * u + Math.sin(tt * 8.1) * 0.9 * u; q ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+        ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(210,235,255,0.9)';
+        const wing = Math.abs(Math.sin(T * 60)) * 0.22 * u + 0.08 * u;
+        ctx.beginPath(); ctx.ellipse(fx - 0.12 * u, fy - 0.16 * u, wing, 0.12 * u, -0.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(fx + 0.12 * u, fy - 0.16 * u, wing, 0.12 * u, 0.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = Ink.INK; ctx.beginPath(); ctx.arc(fx, fy, 0.14 * u, 0, Math.PI * 2); ctx.fill();
+        break;
+      }
+      case 'juggle': {
+        const cols = ['#E85D4C', '#F2C230', '#3E8FE0'];
+        for (let k = 0; k < 3; k++) {
+          const p = (T * 1.1 + k / 3) % 1;
+          const side = Math.floor((T * 1.1 + k / 3) % 2) ? 1 : -1;
+          const bx = x + side * (1 - 2 * p) * 1.1 * u, by = hy - 1.6 * u - Math.sin(p * Math.PI) * 2.0 * u;
+          ink(0.08); ctx.fillStyle = cols[k];
+          ctx.beginPath(); ctx.arc(bx, by, 0.3 * u, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+        break;
+      }
+      case 'phone': {
+        ctx.translate(x + f * 0.95 * u, hy + 1.35 * u);
+        ctx.rotate(f * -0.25);
+        ink(0.09); ctx.fillStyle = '#26262B';
+        ctx.beginPath(); ctx.roundRect(-0.3 * u, -0.55 * u, 0.6 * u, 1.05 * u, 0.1 * u); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = `hsl(${(T * 80) % 360}, 80%, 65%)`;
+        ctx.fillRect(-0.22 * u, -0.45 * u, 0.44 * u, 0.82 * u);
+        ctx.font = `${u * 0.6}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+        ctx.textAlign = 'center';
+        for (let k = 0; k < 2; k++) {
+          const p = (T * 0.7 + k / 2) % 1;
+          ctx.globalAlpha = Math.sin(p * Math.PI);
+          ctx.fillText(k ? '❤️' : '😂', f * 0.4 * u, -0.9 * u - p * 1.8 * u);
+        }
+        break;
+      }
+      case 'popcorn': {
+        ctx.translate(handX, handY);
+        ink(0.1);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath(); ctx.moveTo(-0.5 * u, -0.6 * u); ctx.lineTo(0.5 * u, -0.6 * u); ctx.lineTo(0.38 * u, 0.55 * u); ctx.lineTo(-0.38 * u, 0.55 * u); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = '#E85D4C'; ctx.lineWidth = 0.12 * u;
+        for (const sx of [-0.25, 0, 0.25]) { ctx.beginPath(); ctx.moveTo(sx * u, -0.5 * u); ctx.lineTo(sx * 0.8 * u, 0.45 * u); ctx.stroke(); }
+        ctx.fillStyle = '#FFF4C4'; ink(0.05);
+        for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc((k - 2) * 0.2 * u, -0.7 * u - (k % 2) * 0.12 * u, 0.16 * u, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+        const p = (T * 0.9) % 1;
+        if (p < 0.6) {
+          const kx = Math.sin(p * 5) * 0.4 * u, ky = -0.8 * u - Math.sin((p / 0.6) * Math.PI) * 1.4 * u;
+          ctx.beginPath(); ctx.arc(kx, ky, 0.15 * u, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+        break;
+      }
+      case 'sneeze': {
+        if (cyc >= 2.3 && cyc < 3.1) {
+          const p = (cyc - 2.3) / 0.8;
+          ctx.translate(hx + f * 2.1 * u, hy - 1.0 * u);
+          ctx.rotate(f * -0.12);
+          ctx.scale(0.7 + p * 0.5, 0.7 + p * 0.5);
+          ctx.globalAlpha = 1 - Math.max(0, p - 0.7) / 0.3;
+          ctx.font = `900 ${u * 0.95}px Montserrat, Arial, sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.lineWidth = u * 0.22; ctx.strokeStyle = '#FFFFFF';
+          ctx.strokeText('ACHOO!', 0, 0); ctx.fillStyle = '#E85D4C'; ctx.fillText('ACHOO!', 0, 0);
+          ctx.fillStyle = 'rgba(190,230,255,0.9)';
+          for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(-f * (1.2 + k * 0.25) * u, (k - 2) * 0.25 * u + p * 0.3 * u, 0.1 * u, 0, Math.PI * 2); ctx.fill(); }
+        } else if (cyc > 1.6 && cyc < 2.3) {
+          ctx.font = `900 ${u * 0.6}px Montserrat, Arial, sans-serif`;
+          ctx.textAlign = 'center'; ctx.lineWidth = u * 0.14; ctx.strokeStyle = '#FFFFFF';
+          const txt = cyc < 1.95 ? 'ah…' : 'ah-ah…';
+          ctx.strokeText(txt, hx + f * 1.7 * u, hy - 1.4 * u); ctx.fillStyle = Ink.INK; ctx.fillText(txt, hx + f * 1.7 * u, hy - 1.4 * u);
+        }
+        break;
+      }
+      case 'balloon': {
+        const bx = handX + f * 0.6 * u + Math.sin(T * 1.3) * 0.35 * u, by = hy - 2.8 * u + Math.sin(T * 1.9) * 0.25 * u;
+        ctx.strokeStyle = Ink.INK; ctx.lineWidth = 0.05 * u;
+        ctx.beginPath(); ctx.moveTo(handX, handY); ctx.quadraticCurveTo(handX + f * 0.8 * u, (handY + by) / 2, bx, by + 1.05 * u); ctx.stroke();
+        ink(0.1); ctx.fillStyle = '#E85D4C';
+        ctx.beginPath(); ctx.ellipse(bx, by, 0.85 * u, 1.05 * u, Math.sin(T * 1.3) * 0.1, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.beginPath(); ctx.ellipse(bx - 0.3 * u, by - 0.4 * u, 0.16 * u, 0.28 * u, -0.4, 0, Math.PI * 2); ctx.fill();
+        break;
       }
     }
     ctx.restore();

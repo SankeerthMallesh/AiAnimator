@@ -2,6 +2,7 @@
 import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
+import { creditText } from './wiki.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
@@ -176,6 +177,7 @@ $('#voice').addEventListener('change', (e) => {
       fps: Number($('#fps').value),
       extra: $('#extra').value.trim(),
       plates: $('#patient').checked,
+      photos: $('#photos').checked,
     });
   });
   $('#btnDemo').addEventListener('click', () => {
@@ -438,7 +440,13 @@ function onScriptReady() {
   const s = project.script;
   $('#projTitle').textContent = s.title;
   $('#ytTitle').value = s.youtubeTitle || s.title;
-  $('#ytDesc').value = s.description || '';
+  {
+    // The writer's description, then the Wikipedia articles and a credit for every picture shown.
+    let desc = String(s.description || '').trim();
+    const extra = creditText(project.sources || [], project.credits || []);
+    if (extra) desc += (/sources\s*:/i.test(desc) ? '\n' : '\n\nSources:\n') + extra;
+    $('#ytDesc').value = desc;
+  }
   $('#ytTags').value = (s.hashtags || []).join(' ');
   $('#metaCard').classList.remove('hidden');
   showFacts();

@@ -42,9 +42,11 @@ export class Script {
   static plan(options) {
     const seconds = Math.max(15, Math.min(180, Number(options?.duration) || 30));
     const pace = PACES[options?.pace] || PACES.normal;
-    const want = Math.round(seconds / pace.secPerScene);
+    // Longer videos hold each scene a little longer, like the references, so they need fewer parts.
+    const want = Math.round(seconds / (pace.secPerScene * (seconds > 60 ? 1.5 : 1)));
     // The free model stops around 1,500 tokens, so the ask stays inside that.
-    const scenes = Math.max(4, Math.min(12, want));
+    // Long videos are written in parts of up to 8 scenes (see writeScript), so no low cap here.
+    const scenes = Math.max(4, Math.min(56, want));
     const words = Math.round(seconds * pace.wps);
     return {
       seconds, scenes, words,
@@ -496,8 +498,7 @@ export class Script {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
       youtubeTitle: Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90),
       description: String(raw.description || '').trim().slice(0, 1500),
-      hashtags: (Array.isArray(raw.hashtags) ? raw.hashtags : []).map(h => Script.clean(h, 32)).filter(Boolean)
-        .map(h => (h.startsWith('#') ? h : '#' + h.replace(/\s+/g, ''))).slice(0, 8),
+      hashtags: Script.hashtags(raw.hashtags, `${raw.title || ''} ${options.topic || ''}`),
       cast,
       scenes,
     };
@@ -547,6 +548,26 @@ export class Script {
     if (/room|house|home|kitchen/.test(t)) return 'room';
     if (/tree|field|park|forest/.test(t)) return 'field';
     return 'sky';
+  }
+
+  // #shorts plus real topic tags. If the writer gave too few, build them from the title and topic.
+  static hashtags(list, text) {
+    const clean = (h) => '#' + String(h || '').replace(/^#+/, '').replace(/[^\p{L}\p{N}]+/gu, '');
+    const out = [];
+    const add = (h) => { const t = clean(h); if (t.length > 2 && !out.some(x => x.toLowerCase() === t.toLowerCase())) out.push(t); };
+    add('shorts');
+    for (const h of Array.isArray(list) ? list : String(list || '').split(/[\s,]+/)) add(h);
+    if (out.length < 6) {
+      const stop = new Set('the and for with that this from what why how does into your about were was are is its their they them when who will have has had than then also just only very much many more most some topic'.split(' '));
+      const words = String(text).toLowerCase().match(/[a-z0-9]+/g) || [];
+      const keep = [...new Set(words.filter(w => w.length > 3 && !stop.has(w)))];
+      const cap = (w) => w[0].toUpperCase() + w.slice(1);
+      const named = keep.filter(w => !/^\d+$/.test(w));
+      if (named.length >= 2) add(named.slice(0, 3).map(cap).join(''));
+      for (const w of keep) { if (out.length >= 8) break; add(cap(w)); }
+      for (const t of ['DidYouKnow', 'Facts', 'Explained', 'LearnOnShorts']) { if (out.length >= 8) break; add(t); }
+    }
+    return out.filter(t => t.toLowerCase() !== '#topic').slice(0, 10);
   }
 
   // An emoji for the first common thing named in the text, or ''.
@@ -631,14 +652,15 @@ export class Script {
     }, { ...options, topic });
   }
 
-  static prompt(topic, options) {
-    const plan = Script.plan(options);
+  static prompt(topic, options, part = null) {
+    const plan = { ...Script.plan(options) };
+    if (part) { plan.scenes = part.scenes; plan.words = part.scenes * plan.wordsPerScene; }
     const where = { '9:16': 'vertical 9:16 YouTube Short', '16:9': 'horizontal 16:9 video', '1:1': 'square video', '4:5': '4:5 video' }[plan.fmt];
     const pace = { chill: 'calm', normal: 'brisk', fast: 'very fast' }[options.pace || 'normal'];
     return `Write a ${where}, ${plan.seconds}s, ${pace} comedy-explainer.
 TOPIC (follow it, keep real facts accurate): """${topic}"""
 ${options.extra ? `NOTES: ${options.extra}\n` : ''}About ${plan.words} spoken words across exactly ${plan.scenes} scenes (about ${plan.wordsPerScene} words each).
-Hook in scene 1, a small story with the cast, a payoff in the last scene.
+${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the setup). Later parts continue the story.\n` : 'Hook in scene 1, a small story with the cast, a payoff in the last scene.\n'}Upload kit: "youtubeTitle" is a viral, curiosity-gap title under 70 characters with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"). "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 tags: #shorts plus specific ones for this topic.
 Facts: dates, names and numbers must be right. If a popular belief is a myth, say so and give the real version. Never state a myth as fact. Uncertain claims use "about" or "historians think".
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 Cast of 2, 3 or 4. hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
@@ -653,8 +675,23 @@ Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, po
 bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
 Stay compact so the answer is never cut off: write "bg" only on the first scene, at most 2 acts per scene, short names, no extra keys.
-Output ONLY compact JSON on one line, under 700 words:
-{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+Output ONLY compact JSON on one line:
+{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+  }
+
+  // Parts 2..n of a long video: more scenes with the same cast, continuing the story.
+  static continuePrompt(topic, options, firstRaw, linesSoFar, part) {
+    const plan = Script.plan(options);
+    const ids = (firstRaw.cast || []).map(c => c.id).filter(Boolean).join(', ') || 'a, b';
+    const last = part.index === part.count;
+    return `Continue the same ${plan.seconds}s comedy-explainer about: """${topic}"""
+This is part ${part.index} of ${part.count}. The lines so far:
+${linesSoFar.map((l, i) => `${i + 1}. ${l}`).join('\n')}
+Write the next ${part.scenes} scenes (about ${plan.wordsPerScene} words each). Do not repeat earlier lines; add new facts, twists and jokes. ${last ? 'The last scene is a satisfying payoff that ends the video.' : 'Do not end the video yet.'}
+Facts must be right. No nudity, no gore. Use only these cast ids: ${ids}.
+sets: ${SetKit.IDS.join(' ')}. Change the set when the story moves. Every scene gets "icon": one emoji of its main thing (never a face, person, hand or flag).
+Output ONLY compact JSON on one line:
+{"scenes":[{"line":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   static checkPrompt(script, topic) {
