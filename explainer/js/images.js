@@ -111,8 +111,11 @@ const providers = {
       keyRejected = true;
       log?.(`Pollinations key did not work (${why}). Using free no-key images instead. Image keys must be secret keys starting with sk_.`);
     }
+    // The no-key painter now asks for payment: after one refusal, or on a site with its own AI
+    // (today's allowance used up), stop asking so the console stays clean.
+    if (anonRefused || cfSite) { const e = new Error('The free painter is not available'); e.status = 402; throw e; }
     const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), { signal }, IMAGE_TIMEOUT_MS, 'blob');
-    if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
+    if (!res.ok) { if ([401, 402, 403].includes(res.status)) anonRefused = true; const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
     return blobToBitmap(data, true);
   },
   async huggingface(prompt, { width, height, seed }, s, signal) {
@@ -218,11 +221,14 @@ export function isFreeImageTier(settings) {
 // no AI connection, or the daily allowance is used up, everything falls back to the free services.
 let cfState = null; // null: not checked yet, true: available, false: not available this visit
 let cfFails = 0;
+let cfSite = false;   // the site has its own Cloudflare AI (even if today's allowance is used up)
+let anonRefused = false; // the no-key painter refused this visit
 export async function cloudflareReady() {
   if (cfState !== null) return cfState;
   try {
     const r = await fetch('/api/config', { credentials: 'same-origin' });
     cfState = r.ok ? !!(await r.json()).ai : false;
+    cfSite = cfState;
   } catch { cfState = false; }
   return cfState;
 }

@@ -109,8 +109,19 @@ async function write(request, env) {
   const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
   try {
-    const out = await env.AI.run('@cf/openai/gpt-oss-120b', { messages, max_tokens, temperature });
-    const text = pickText(out).trim();
+    // Short thinking makes scripts come back in about half the time. If this model version
+    // rejects the setting (or answers empty), ask again the plain way.
+    let out = null, text = '';
+    try {
+      out = await env.AI.run('@cf/openai/gpt-oss-120b', { messages, max_tokens, temperature, reasoning: { effort: 'low' } });
+      text = pickText(out).trim();
+    } catch (e) {
+      if (/quota|limit|neuron|exceed|4006|capacity|daily/i.test(String(e?.message || e))) throw e;
+    }
+    if (!text) {
+      out = await env.AI.run('@cf/openai/gpt-oss-120b', { messages, max_tokens, temperature });
+      text = pickText(out).trim();
+    }
     if (!text) return json({ ok: false, error: `Empty answer (${Object.keys(out || {}).join(', ') || 'nothing'})` });
     return json({ ok: true, text });
   } catch (e) {

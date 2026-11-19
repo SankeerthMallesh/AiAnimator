@@ -9,6 +9,13 @@ import { PropKit, SetKit } from './props.js';
 const WORDS_PER_SECOND = 2.55;
 
 
+const VAGUE_EMOJI = new Set(['❓', '❔', '❗', '❕', '✨', '💧', '⚙', '📦', '⏱', '⏰', '💡', '⭐', '🌟', '💥', '🎉', '👍', '✅', '❌', '🔍', '🔎', '📈', '📉', '💭', '💬', '🗯', '❤', '🔥', '⚡', '🌀', '💫', '🎯', '🏆', '📌', '📝', '📚', '📖', '🧩', '🔑']);
+const TOON_WORDS = {
+  stick: /stick|shadow|pole/, atom: /atom|molecule|particle|electron|proton|chemi/, book: /book|read|librar|writ|stud/,
+  earth: /earth|globe|planet|world|round/, moon: /moon|lunar/, eclipse: /eclipse/, ship: /ship|boat|sail|horizon|sea|ocean/,
+  thermometer: /temperat|hot|cold|heat|degree|thermo|warm|freez/,
+};
+
 // Backup stickers: common things and their emoji, used when the script writer leaves "icon" out.
 const EMOJI_WORDS = {
   cat: '🐱', kitten: '🐱', dog: '🐶', puppy: '🐶', bee: '🐝', honey: '🍯', hive: '🍯', ant: '🐜', spider: '🕷️', butterfly: '🦋',
@@ -375,10 +382,18 @@ export class Script {
       // An emoji sticker shows the line's key thing for any topic. It replaces the generic floating
       // props (question mark, drop, bolt...) but sits beside the specific ones (globe, eclipse, ship...).
       {
-        const emoji = Script.emoji(s.icon || s.emoji) || Script.guessEmoji(narration) || Script.guessEmoji(`${options.topic || ''} ${raw.title || ''}`);
+        // Vague symbols (❓ ✨ 📦 ⚙️) say nothing: the thing the line or the video is about goes first,
+        // so a video about cats shows a cat, not a coffee cup.
+        let emoji = Script.emoji(s.icon || s.emoji);
+        const lineEmoji = Script.guessEmoji(narration);
+        const topicEmoji = Script.guessEmoji(`${options.topic || ''} ${raw.title || ''}`);
+        if (!emoji || VAGUE_EMOJI.has(emoji.replace(/\uFE0F/g, ''))) emoji = lineEmoji || topicEmoji || emoji;
+        else if (topicEmoji && lineEmoji === topicEmoji) emoji = topicEmoji; // the line is about the subject
         if (emoji) {
           const GENERIC = ['question', 'exclaim', 'drop', 'bolt', 'star', 'bulb', 'clock', 'gear', 'fire'];
-          props = props.filter(p => !GENERIC.includes(p.kind));
+          // A specific prop the line never mentions (a stick, an atom for a line about cat spines) goes too.
+          const low = narration.toLowerCase();
+          props = props.filter(p => !GENERIC.includes(p.kind) && !(TOON_WORDS[p.kind] && !TOON_WORDS[p.kind].test(low)));
           // A specific animated prop (globe, eclipse, ship, thermometer...) already shows the idea,
           // so the sticker is only added when no such prop is in the scene.
           const toon = props.find(p => PropKit.TOONS.includes(p.kind));
@@ -412,7 +427,9 @@ export class Script {
       scenes.push({
         id: Script.clean(s.id, 16) || `s${i}_${Math.random().toString(36).slice(2, 6)}`,
         narration,
-        bg: Script.scenery(s.bg || s.background || s.visual || narration),
+        // Scenery only. Never the spoken line: picture models paint the words of a sentence as text.
+        bg: (s.bg || s.background || s.visual) ? Script.scenery(s.bg || s.background || s.visual)
+          : (scenes.length && scenes[scenes.length - 1].set === set ? scenes[scenes.length - 1].bg : ''),
         set,
         cam: Script.cam(s.cam || s.camera, i),
         cut: Script.oneOf(Script.CUTS, s.cut || s.transition, i === 0 ? 'cut' : (i % 3 === 0 ? 'zoom' : 'whip')),
@@ -692,11 +709,11 @@ props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shru
 ${options.crew?.length ? '' : `Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.`}
 Lines are narration read by one narrator. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, sea = ships and coasts, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Move to a new set that fits the line every 1 or 2 scenes, as if the cast walks and talks through different places on the journey; use at least 4 different sets in a video.
-Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠), never a face, person, hand or flag.
+Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠). When the video is about an animal or a thing, use that animal or thing in most scenes (a video about cats: 🐱 🐈). Never a face, person, hand or flag, and never vague symbols like ❓ ✨ 💧 ⚙️ 📦.
 Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, point, jump, shrug, cheer, facepalm, turn).
 bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
-Stay compact so the answer is never cut off: write "bg" only on the first scene, at most 2 acts per scene, short names, no extra keys.
+Stay compact so the answer is never cut off: "bg" is 3 to 8 words of scenery for that scene (things and places only, no people, no words or numbers), at most 2 acts per scene, short names, no extra keys.
 Output ONLY compact JSON on one line:
 {"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
@@ -711,9 +728,9 @@ This is part ${part.index} of ${part.count}. The lines so far:
 ${linesSoFar.map((l, i) => `${i + 1}. ${l}`).join('\n')}
 Write the next ${part.scenes} scenes (about ${plan.wordsPerScene} words each). Do not repeat earlier lines; add new facts, twists and jokes. ${last ? 'The last scene is a satisfying payoff that ends the video.' : 'Do not end the video yet.'}
 Facts must be right. No nudity, no gore. Use only these cast ids: ${ids}.
-sets: ${SetKit.IDS.join(' ')}. Change the set when the story moves. Every scene gets "icon": one emoji of its main thing (never a face, person, hand or flag).
+sets: ${SetKit.IDS.join(' ')}. Change the set when the story moves. Every scene gets "bg": 3 to 8 words of scenery (no people, no words), and "icon": one emoji of its main thing; when the video is about an animal or a thing, use it (never a face, person, hand, flag, or vague symbols like ❓ ✨ 📦).
 Output ONLY compact JSON on one line:
-{"scenes":[{"line":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   static checkPrompt(script, topic) {
