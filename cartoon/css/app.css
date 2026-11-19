@@ -853,3 +853,6 @@ button, .btn, .nav-btn, select, input, textarea { transition: background-color .
 html.viewonly .go, html.viewonly #btnRender, html.viewonly #btnDemo { opacity: .45; cursor: not-allowed; }
 .access-box[hidden] { display: none; }
 .access-box .copyrow input { flex: 1; font-family: var(--mono); text-transform: uppercase; }
+
+.runway-btn { grid-column: 1 / -1; background: linear-gradient(135deg, #7C5CFF, #3D8BFF); border: 0; color: #fff; font-weight: 600; }
+.runway-btn:hover { filter: brightness(1.1); }

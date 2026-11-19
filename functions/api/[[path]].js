@@ -32,6 +32,8 @@ export async function onRequest({ request, env, params }) {
     }
     if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (path === 'write' && request.method === 'POST') return await write(request, env);
+    if (path === 'speak' && request.method === 'POST') return await speak(request, env);
+    if (path === 'runway' && request.method === 'POST') return await runway(request);
     if (!env.DB || !env.GOOGLE_CLIENT_ID) return json({ error: 'Sign-in is not set up on this site.' }, 503);
     await ensureSchema(env.DB);
 
@@ -110,6 +112,74 @@ async function write(request, env) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
     return json({ ok: false, used, error: used ? 'The free daily AI allowance is used up.' : msg.slice(0, 200) });
+  }
+}
+
+// ---------- voice (Cloudflare Workers AI, Deepgram Aura-2) ----------
+// A natural, context-aware narrator voice on the site's free daily allowance ($0.03 per 1,000
+// characters of it). When the allowance is used up, the page falls back to the in-browser voice.
+const AURA_SPEAKERS = new Set('amalthea andromeda apollo arcas aries asteria athena atlas aurora callista cora cordelia delia draco electra harmonia helena hera hermes hyperion iris janus juno jupiter luna mars minerva neptune odysseus ophelia orion orpheus pandora phoebe pluto saturn thalia theia vesta zeus'.split(' '));
+async function speak(request, env) {
+  if (!env.AI) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
+  const body = await readJson(request, 8000);
+  const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 1800);
+  if (!text) return json({ ok: false, error: 'No text' });
+  const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
+  try {
+    const out = await env.AI.run('@cf/deepgram/aura-2-en', { text, speaker, encoding: 'mp3' });
+    const headers = { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' };
+    if (out instanceof ReadableStream || out instanceof ArrayBuffer || ArrayBuffer.isView(out)) return new Response(out, { headers });
+    if (out?.audio) return new Response(Uint8Array.from(atob(out.audio), c => c.charCodeAt(0)), { headers });
+    return json({ ok: false, error: 'No audio came back' });
+  } catch (e) {
+    const msg = String(e?.message || e);
+    const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
+    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200) });
+  }
+}
+
+// ---------- Runway (optional, the visitor's own paid key) ----------
+// Turns a finished cartoon frame into a real animated clip. The key comes from the page with each
+// request and is passed straight to Runway; it is never stored here.
+const RUNWAY = 'https://api.dev.runwayml.com/v1';
+async function runway(request) {
+  const body = await readJson(request, 7_000_000);
+  const key = String(body.key || '').trim();
+  if (!/^key_[A-Za-z0-9]{20,}$/.test(key) && key.length < 20) return json({ ok: false, error: 'Add your Runway API key in Settings.' });
+  const headers = { Authorization: `Bearer ${key}`, 'X-Runway-Version': '2024-11-06', 'Content-Type': 'application/json' };
+  try {
+    if (body.action === 'start') {
+      const res = await fetch(`${RUNWAY}/image_to_video`, {
+        method: 'POST', headers,
+        body: JSON.stringify({
+          model: body.model || 'gen4_turbo',
+          promptImage: String(body.image || ''),
+          promptText: String(body.prompt || '').slice(0, 900),
+          ratio: body.ratio || '720:1280',
+          duration: body.duration === 10 ? 10 : 5,
+        }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.id) return json({ ok: false, error: j.error || j.message || `Runway said ${res.status}` });
+      return json({ ok: true, id: j.id });
+    }
+    if (body.action === 'poll') {
+      const res = await fetch(`${RUNWAY}/tasks/${encodeURIComponent(String(body.id || ''))}`, { headers });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) return json({ ok: false, error: j.error || `Runway said ${res.status}` });
+      return json({ ok: true, status: j.status, progress: j.progress ?? null, output: Array.isArray(j.output) ? j.output : [], failure: j.failure || j.failureCode || null });
+    }
+    if (body.action === 'fetch') {
+      // Download the finished clip for the page (Runway's file host may not allow browsers).
+      const u = new URL(String(body.url || ''));
+      if (u.protocol !== 'https:') return json({ ok: false, error: 'Bad clip address' });
+      const res = await fetch(u.toString());
+      if (!res.ok) return json({ ok: false, error: `Clip download said ${res.status}` });
+      return new Response(res.body, { headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Cache-Control': 'no-store' } });
+    }
+    return json({ ok: false, error: 'Unknown action' });
+  } catch (e) {
+    return json({ ok: false, error: String(e?.message || e).slice(0, 200) });
   }
 }
 

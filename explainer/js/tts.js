@@ -43,6 +43,11 @@ export class Narrator {
   async speak(text, speedMul = 1) {
     const s = this.settings;
     if (this.engine === 'none' || !text.trim()) return null;
+    // The site's own Cloudflare voice (Deepgram Aura-2) first, unless an ElevenLabs key is saved.
+    if (this.engine !== 'elevenlabs' && await auraReady()) {
+      const r = await auraSpeak(text, s, this.log).catch(() => null);
+      if (r) return r;
+    }
     if (this.engine === 'elevenlabs') {
       try {
         return await elevenSpeak(text, s, speedMul);
@@ -200,3 +205,71 @@ export function wordTimings(text, t0, t1) {
 
 // Carry this file's ?v= stamp to the worker so browsers never mix old and new code.
 function withVersion(u) { u.search = new URL(import.meta.url).search; return u; }
+
+// ---------- Deepgram Aura-2 through the site's Cloudflare AI ----------
+let auraState = null; // null unknown, true usable, false not this visit
+let auraHits = 0;
+export const auraUsed = () => auraHits > 0;
+async function auraReady() {
+  if (auraState !== null) return auraState;
+  try {
+    const r = await fetch('/api/config', { credentials: 'same-origin' });
+    auraState = r.ok ? !!(await r.json()).ai : false;
+  } catch { auraState = false; }
+  return auraState;
+}
+// Kokoro voice -> a matching Aura-2 narrator.
+const AURA_FOR = { af_heart: 'thalia', af_bella: 'aurora', af_nicole: 'luna', bf_emma: 'helena', am_michael: 'arcas', am_fenrir: 'orion', am_puck: 'apollo', bm_george: 'draco', bm_fable: 'hermes' };
+function auraSpeaker(v) { return AURA_FOR[v] || (/^[ab]f_/.test(v || '') ? 'thalia' : 'arcas'); }
+
+async function auraLine(text, speaker) {
+  const res = await fetch('/api/speak', {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, speaker }),
+  });
+  if (!/^audio\//.test(res.headers.get('Content-Type') || '')) {
+    const why = await res.json().catch(() => ({}));
+    const e = new Error(why.error || 'No voice');
+    e.used = !!why.used;
+    throw e;
+  }
+  const buf = await res.arrayBuffer();
+  const ctx = new OfflineAudioContext(1, 1, 24000);
+  const audio = await ctx.decodeAudioData(buf);
+  return { samples: audio.getChannelData(0).slice(), sampleRate: audio.sampleRate };
+}
+
+async function auraSpeak(text, s, log) {
+  const speaker = auraSpeaker(s.voice);
+  const sentences = speakable(text).match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g)?.map(x => x.trim()).filter(Boolean) || [speakable(text)];
+  const pieces = [];
+  let sampleRate = 24000;
+  try {
+    for (const sent of sentences) {
+      const d = await auraLine(sent, speaker);
+      sampleRate = d.sampleRate;
+      const b = speechBounds(d.samples, d.sampleRate);
+      const pad = Math.round(d.sampleRate * 0.04);
+      const a0 = Math.max(0, Math.round(b.start * d.sampleRate) - pad);
+      const a1 = Math.min(d.samples.length, Math.round(b.end * d.sampleRate) + pad);
+      pieces.push({ text: sent, samples: d.samples.slice(a0, a1) });
+    }
+  } catch (e) {
+    if (e.used) { auraState = false; log?.('The free daily Cloudflare voice allowance is used up: using the built-in voice.'); }
+    throw e;
+  }
+  const gap = Math.round(sampleRate * 0.2);
+  const total = pieces.reduce((n, p) => n + p.samples.length, 0) + gap * Math.max(0, pieces.length - 1);
+  const samples = new Float32Array(total);
+  const sentencesOut = [];
+  let o = 0;
+  for (const p of pieces) {
+    samples.set(p.samples, o);
+    const b = speechBounds(p.samples, sampleRate);
+    sentencesOut.push({ text: p.text, start: o / sampleRate + b.start, end: o / sampleRate + b.end });
+    o += p.samples.length + gap;
+  }
+  auraHits++;
+  return { samples, sampleRate, sentences: sentencesOut, engine: 'aura' };
+}

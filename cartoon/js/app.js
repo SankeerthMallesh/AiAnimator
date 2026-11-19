@@ -451,6 +451,7 @@ function onScriptReady() {
   }
   $('#ytTags').value = (s.hashtags || []).join(' ');
   $('#metaCard').classList.remove('hidden');
+  showRunwayButton();
   showFacts();
   renderBoard();
 }
@@ -901,6 +902,7 @@ $('#settingsDlg').addEventListener('close', () => {
   }
   saveSettings(settings);
   refreshVoiceSelect();
+  showRunwayButton();
   toast('Settings saved.');
 });
 $('#btnCheckKeys').addEventListener('click', async () => {
@@ -996,4 +998,74 @@ document.getElementById('btnUnlock')?.addEventListener('click', async () => {
     toast(j.role === 'full' ? 'Unlocked. Full access on this device.' : 'View-only code accepted.');
     setTimeout(() => window.top.location.reload(), 700);
   } catch { toast('Could not check the code. Try again.', true); }
+});
+
+// ---------- Runway: turn each shot into a real animated clip (the visitor's own paid key) ----------
+const RUNWAY_RATIO = { '9:16': ['720:1280', 720, 1280], '16:9': ['1280:720', 1280, 720], '1:1': ['960:960', 960, 960], '4:5': ['832:1104', 832, 1104] };
+function showRunwayButton() {
+  const b = document.getElementById('btnRunway');
+  if (b) b.classList.toggle('hidden', !(project?.timeline && settings.runwayKey));
+}
+async function runwayCall(body) {
+  const res = await fetch('/api/runway', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: settings.runwayKey, ...body }) });
+  return res;
+}
+async function runwayShot(sc, i, ratio) {
+  const [r, w, h] = ratio;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  // Loomy's own drawing of the shot, without captions, is the first frame Runway animates.
+  Stage.still(c, project.script, sc, project.plates.get(sc.id) || null, 1.2, { captions: false });
+  const image = c.toDataURL('image/jpeg', 0.88);
+  const prompt = `Animate this 2D cartoon. The stick-figure characters move naturally: they talk, gesture and react with lively, bouncy cartoon motion. Keep the exact art style, colors, outlines and characters. Gentle camera push-in. No new text. Story beat: ${sc.narration}`;
+  const start = await (await runwayCall({ action: 'start', image, prompt, ratio: r, duration: 5 })).json();
+  if (!start.ok) throw new Error(start.error || 'Runway refused the shot');
+  const until = Date.now() + 8 * 60 * 1000;
+  while (Date.now() < until) {
+    await new Promise(res => setTimeout(res, 5000));
+    const st = await (await runwayCall({ action: 'poll', id: start.id })).json();
+    if (!st.ok) throw new Error(st.error || 'Runway status failed');
+    log(`Runway shot ${i + 1}: ${st.status}${st.progress != null ? ` ${Math.round(st.progress * 100)}%` : ''}`);
+    if (st.status === 'SUCCEEDED' && st.output?.[0]) {
+      const res = await runwayCall({ action: 'fetch', url: st.output[0] });
+      if (!/^video\//.test(res.headers.get('Content-Type') || '')) throw new Error('Could not download the clip');
+      return readClip(await res.blob());
+    }
+    if (st.status === 'FAILED' || st.status === 'CANCELLED') throw new Error(st.failure || `Runway ${st.status.toLowerCase()}`);
+  }
+  throw new Error('Runway took too long');
+}
+document.getElementById('btnRunway')?.addEventListener('click', async () => {
+  if (blockedForViewer()) return;
+  if (!settings.runwayKey) { toast('Add your Runway API key in Settings first.', true); return; }
+  if (running || !project?.timeline) return;
+  const scenes = project.script.scenes;
+  if (!confirm(`Runway will animate ${scenes.length} shots, 5 seconds each. That uses about $${(scenes.length * 0.25).toFixed(2)} of your Runway credit and takes a few minutes. Continue?`)) return;
+  const ratio = RUNWAY_RATIO[formatOf(project.options)] || RUNWAY_RATIO['9:16'];
+  const btn = document.getElementById('btnRunway');
+  btn.disabled = true;
+  running = true;
+  let done = 0, failed = 0;
+  const queue = scenes.map((sc, i) => [sc, i]);
+  const worker = async () => {
+    while (queue.length) {
+      const [sc, i] = queue.shift();
+      try {
+        btn.textContent = `✨ Animating… ${done}/${scenes.length}`;
+        const clip = await runwayShot(sc, i, ratio);
+        project.plates.get(sc.id)?.clip?.frames.forEach(b => b.close?.());
+        project.plates.set(sc.id, { key: 'custom', bitmap: clip.frames[0], clip, custom: true, scene: true });
+        updateThumb(i);
+        done++;
+      } catch (e) {
+        failed++;
+        log(`Runway shot ${i + 1} failed: ${e.message}`);
+      }
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  running = false;
+  btn.disabled = false;
+  btn.textContent = '✨ Animate shots with Runway';
+  toast(failed ? `${done} shots animated, ${failed} failed (see the activity log). Press Export MP4.` : `All ${done} shots animated. Press Export MP4 to render the video.`, !!failed && !done, 9000);
+  $('#btnRender').disabled = false;
 });

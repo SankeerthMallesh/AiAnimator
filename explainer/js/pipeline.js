@@ -4,6 +4,7 @@
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
 import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
+import { auraUsed } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
 import { exportVideo } from './encoder.js';
@@ -320,6 +321,7 @@ export class Pipeline {
 
   voiceSummary() {
     const e = this.narrator?.engine || this.s.ttsEngine;
+    if (e !== 'elevenlabs' && auraUsed()) return 'Aura-2 voice (Cloudflare)';
     return e === 'kokoro' ? `Kokoro · ${this.s.voice}` : e === 'elevenlabs' ? 'ElevenLabs' : e === 'pollinations' ? 'Cloud voice' : 'Captions only';
   }
 

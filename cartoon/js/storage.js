@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS = {
   depth3d: 'off',
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
+  runwayKey: '',
   fps: 60,
   captionStyle: 'word',           // word | classic | bold | box | minimal | off
   showTitle: false,

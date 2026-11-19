@@ -59,7 +59,7 @@ export class Stage {
     if (scene.index === 0 && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
   }
 
-  static still(canvas, script, scene, plate, localT = 0.8) {
+  static still(canvas, script, scene, plate, localT = 0.8, opts = {}) {
     const stage = new Stage(canvas);
     const dur = Math.max(2.4, Number(scene.hold) || 3.2);
     const fake = {
@@ -74,7 +74,7 @@ export class Stage {
       script,
       timeline: { scenes: [fake], total: dur },
       plates: new Map(plate ? [[scene.id, plate.bitmap ? plate : { bitmap: plate }]] : []),
-      settings: { captionStyle: 'word' },
+      settings: { captionStyle: opts.captions === false ? 'off' : 'word', hookTitle: false },
     });
     stage.drawFrame(Math.min(localT, dur - 0.05));
   }
