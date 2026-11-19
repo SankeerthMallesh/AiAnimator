@@ -286,6 +286,9 @@ export class Renderer {
       const mx = Math.max(0, (zoom - 1) / 2 - 0.02) * W, my = Math.max(0, (zoom - 1) / 2 - 0.02) * H;
       x = clamp(x, -mx, mx); y = clamp(y, -my, my);
     }
+    // Gentler 3D: strong depth moves bend straight edges and make parts of the picture melt
+    // into each other. About half the parallax keeps the depth without the warping.
+    px *= 0.5; py *= 0.5; dolly *= 0.5;
     return { zoom, x, y, rot, px, py, dolly, focus, three };
   }
 
@@ -535,8 +538,8 @@ export class Renderer {
     const n = 3;
     for (let k = 1; k <= n; k++) {
       const f = k / n;
-      this._drawScene(ctx, scene, lt, { dx: dx + blurX * f, dy: dy + blurY * f, alpha: alpha * 0.28 });
-      this._drawScene(ctx, scene, lt, { dx: dx - blurX * f, dy: dy - blurY * f, alpha: alpha * 0.28 });
+      this._drawScene(ctx, scene, lt, { dx: dx + blurX * f, dy: dy + blurY * f, alpha: alpha * 0.14 });
+      this._drawScene(ctx, scene, lt, { dx: dx - blurX * f, dy: dy - blurY * f, alpha: alpha * 0.14 });
     }
   }
 
@@ -546,8 +549,9 @@ export class Renderer {
     const la = t - a.start, lb = t - b.start;
     switch (b.transition) {
       case 'fade': {
-        this._drawScene(ctx, a, la);
-        this._drawScene(ctx, b, lb, { alpha: easeInOut(q) });
+        // A clean cut with a small settle, never two pictures blended on top of each other.
+        if (q < 0.5) this._drawScene(ctx, a, la);
+        else this._drawScene(ctx, b, lb, { scale: 1 + (1 - q) * 0.1 });
         break;
       }
       case 'flash': {
@@ -601,7 +605,8 @@ export class Renderer {
       default: {
         const e = easeInOut(q);
         const dir = (b.index % 2 === 0) ? 1 : -1;
-        const blur = Math.sin(Math.PI * q) * W * 0.06;
+        // Light motion blur only: heavy see-through copies looked like the pictures were merging.
+        const blur = Math.sin(Math.PI * q) * W * 0.025;
         this._smear(ctx, a, la, -e * W * dir, 0, blur, 0);
         this._smear(ctx, b, lb, (1 - e) * W * dir, 0, blur, 0);
       }

@@ -371,7 +371,7 @@ function handleError(e) {
     toast('Stopped.');
     return;
   }
-  console.error(e);
+  // Shown in the activity log and as a message on screen, not as a console error.
   log(`Error: ${e.message || e}`);
   if (active) setStep(active.dataset.step, 'error', e.message || 'Failed');
   toast(`${friendly(e)} Press "Try again".`, true, 9000);

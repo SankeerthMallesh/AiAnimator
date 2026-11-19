@@ -55,9 +55,32 @@ function noiseBuffer(ctx, seconds) {
   return buf;
 }
 
-export async function synthMusic(moodKey, seconds) {
+export async function synthMusic(moodKey, seconds, seed = Math.floor(Math.random() * 1e9)) {
   const mood = MOODS[moodKey];
   if (!mood || !mood.scale) return null;
+  // Every video gets its own track: the mood sets the feel, the seed picks the key, tempo, chords,
+  // instruments, melody pattern and groove, so two videos never share the same music.
+  let rs = (Math.abs(Math.floor(seed)) % 2147483646) + 1;
+  const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647;
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  const minor = mood.scale === 'minor';
+  const PROGS = minor
+    ? [[0, 5, 2, 6], [0, 3, 4, 0], [0, 5, 3, 4], [0, 6, 5, 6], [0, 1, 5, 4], [0, 3, 6, 4], [5, 3, 0, 4], [0, 4, 5, 3]]
+    : [[0, 4, 5, 3], [0, 5, 3, 4], [0, 3, 4, 4], [5, 3, 0, 4], [0, 2, 3, 4], [0, 4, 3, 4], [3, 4, 0, 5], [0, 5, 1, 4]];
+  const ARPS = [[0, 2, 4, 7, 4, 2, 4, 9], [0, 4, 7, 4, 9, 7, 4, 2], [0, 2, 0, 4, 2, 7, 4, 9], [7, 4, 2, 0, 2, 4, 7, 9], [0, 7, 4, 7, 2, 7, 4, 7], [4, 2, 0, 2, 4, 4, 4, 7], [0, 4, 2, 7, 4, 9, 7, 11]];
+  const KICKS = [[1, 0, 0, 0, 1, 0, 0, 0], [1, 0, 0, 1, 0, 0, 1, 0], [1, 0, 1, 0, 0, 1, 0, 0], [1, 0, 0, 0, 1, 0, 1, 0], [1, 1, 0, 0, 1, 0, 0, 0]];
+  const prog = pick(PROGS);
+  const arp = pick(ARPS);
+  const kicks = pick(KICKS);
+  const root = mood.root + pick([-3, -2, 0, 0, 2, 3, 5]);
+  const bpm = Math.round(mood.bpm * (0.88 + rnd() * 0.27));
+  const padWave = pick(['sawtooth', 'sawtooth', 'triangle', 'square']);
+  const leadWave = pick(['triangle', 'sine', 'square', 'triangle']);
+  const bellOn = rnd() < 0.6;
+  const clapOn = mood.pulse && rnd() < 0.7;
+  const steps = mood.pulse ? pick([8, 8, 12]) : pick([6, 8]);
+  const brightness = 900 + rnd() * 900;
+
   const ctx = new OfflineAudioContext(2, Math.ceil(SAMPLE_RATE * (seconds + 1)), SAMPLE_RATE);
   const master = ctx.createGain();
   master.gain.value = 0.9;
@@ -65,22 +88,22 @@ export async function synthMusic(moodKey, seconds) {
   const reverb = ctx.createConvolver();
   reverb.buffer = makeImpulse(ctx);
   const wet = ctx.createGain();
-  wet.gain.value = 0.55;
+  wet.gain.value = 0.45 + rnd() * 0.2;
   reverb.connect(wet).connect(master);
+  const panL = ctx.createStereoPanner(); panL.pan.value = -0.35; panL.connect(master);
+  const panR = ctx.createStereoPanner(); panR.pan.value = 0.35; panR.connect(master);
 
   const scale = SCALES[mood.scale];
-  const beat = 60 / mood.bpm;
+  const beat = 60 / bpm;
   const barLen = beat * 4 * (mood.pulse ? 1 : 2);
   const bars = Math.ceil(seconds / barLen) + 1;
   const noise = noiseBuffer(ctx, 0.5);
-
   const note = (degree, octave = 0) => {
     const o = Math.floor(degree / 7);
     const d = ((degree % 7) + 7) % 7;
-    return mood.root + scale[d] + 12 * (o + octave);
+    return root + scale[d] + 12 * (o + octave);
   };
 
-  // Fade the whole bed in and out.
   master.gain.setValueAtTime(0.0001, 0);
   master.gain.exponentialRampToValueAtTime(0.9, 2.5);
   master.gain.setValueAtTime(0.9, Math.max(2.6, seconds - 1.5));
@@ -89,19 +112,22 @@ export async function synthMusic(moodKey, seconds) {
   for (let bar = 0; bar < bars; bar++) {
     const t0 = bar * barLen;
     if (t0 > seconds + 1) break;
-    const deg = mood.prog[bar % mood.prog.length];
+    const deg = prog[bar % prog.length];
+    const section = Math.floor(bar / 4) % 3; // 0 calm, 1 full, 2 lifted
+    const lift = section === 2 ? 1 : 0;
 
-    // Pad chord: detuned saws through a soft low-pass.
+    // Pad chord.
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(500, t0);
-    lp.frequency.linearRampToValueAtTime(mood.pulse ? 1400 : 1000, t0 + barLen * 0.6);
+    lp.frequency.setValueAtTime(450, t0);
+    lp.frequency.linearRampToValueAtTime(brightness + lift * 400, t0 + barLen * 0.6);
     lp.frequency.linearRampToValueAtTime(600, t0 + barLen + 0.6);
     lp.Q.value = 0.4;
     const padGain = ctx.createGain();
+    const padLevel = padWave === 'square' ? 0.025 : 0.045;
     padGain.gain.setValueAtTime(0.0001, t0);
-    padGain.gain.linearRampToValueAtTime(0.05, t0 + Math.min(0.9, barLen * 0.3));
-    padGain.gain.setValueAtTime(0.05, t0 + barLen - 0.1);
+    padGain.gain.linearRampToValueAtTime(padLevel, t0 + Math.min(0.9, barLen * 0.3));
+    padGain.gain.setValueAtTime(padLevel, t0 + barLen - 0.1);
     padGain.gain.linearRampToValueAtTime(0.0001, t0 + barLen + 0.7);
     lp.connect(padGain);
     padGain.connect(master);
@@ -109,7 +135,7 @@ export async function synthMusic(moodKey, seconds) {
     for (const step of [0, 2, 4]) {
       for (const det of [-7, 7]) {
         const o = ctx.createOscillator();
-        o.type = 'sawtooth';
+        o.type = padWave;
         o.frequency.value = mtof(note(deg + step));
         o.detune.value = det;
         o.connect(lp);
@@ -118,63 +144,97 @@ export async function synthMusic(moodKey, seconds) {
       }
     }
 
-    // Sub bass.
-    const b = ctx.createOscillator();
-    b.type = 'triangle';
-    b.frequency.value = mtof(note(deg, -2));
-    const bg = ctx.createGain();
-    bg.gain.setValueAtTime(0.0001, t0);
-    bg.gain.linearRampToValueAtTime(0.16, t0 + 0.08);
-    bg.gain.setTargetAtTime(0.07, t0 + 0.2, 0.6);
-    bg.gain.linearRampToValueAtTime(0.0001, t0 + barLen);
-    b.connect(bg).connect(master);
-    b.start(t0); b.stop(t0 + barLen + 0.05);
+    // Bass, following the groove.
+    const bassHits = mood.pulse ? kicks.map((k, i) => (k ? i : -1)).filter(i => i >= 0) : [0];
+    for (const hi of bassHits) {
+      const tb = t0 + hi * (barLen / 8);
+      const b = ctx.createOscillator();
+      b.type = 'triangle';
+      b.frequency.value = mtof(note(deg, -2));
+      const bg = ctx.createGain();
+      bg.gain.setValueAtTime(0.0001, tb);
+      bg.gain.linearRampToValueAtTime(0.15, tb + 0.02);
+      bg.gain.setTargetAtTime(0.06, tb + 0.12, 0.4);
+      bg.gain.linearRampToValueAtTime(0.0001, tb + (mood.pulse ? barLen / 4 : barLen));
+      b.connect(bg).connect(master);
+      b.start(tb); b.stop(tb + (mood.pulse ? barLen / 4 : barLen) + 0.05);
+    }
 
-    // Plucked arpeggio (sparse for calm moods).
-    const steps = mood.pulse ? 8 : 6;
+    // Plucked arpeggio, alternating left and right.
     const stepLen = barLen / steps;
-    const pattern = [0, 2, 4, 7, 4, 2, 4, 9];
     for (let s = 0; s < steps; s++) {
-      if (!mood.pulse && s % 2 === 1 && Math.random() < 0.5) continue;
+      if (section === 0 && s % 2 === 1 && rnd() < 0.5) continue;
       const tt = t0 + s * stepLen;
       const o = ctx.createOscillator();
-      o.type = 'triangle';
-      o.frequency.value = mtof(note(deg + pattern[s % pattern.length], 1));
+      o.type = leadWave;
+      o.frequency.value = mtof(note(deg + arp[s % arp.length], 1));
       const g = ctx.createGain();
+      const lvl = (leadWave === 'square' ? 0.018 : 0.035) * (mood.pulse ? 1 : 1.2);
       g.gain.setValueAtTime(0.0001, tt);
-      g.gain.linearRampToValueAtTime(mood.pulse ? 0.035 : 0.045, tt + 0.008);
+      g.gain.linearRampToValueAtTime(lvl, tt + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0001, tt + stepLen * 1.8);
       o.connect(g);
-      g.connect(master);
+      g.connect(s % 2 ? panR : panL);
       g.connect(reverb);
       o.start(tt); o.stop(tt + stepLen * 2);
     }
 
-    // Soft kick + hats for driving moods.
-    if (mood.pulse && bar > 0) {
-      for (let k = 0; k < 4; k++) {
-        const tt = t0 + k * beat;
+    // A bell melody on top in the full sections.
+    if (bellOn && section > 0) {
+      for (let k = 0; k < 2; k++) {
+        const tt = t0 + k * (barLen / 2) + barLen / 8;
         const o = ctx.createOscillator();
-        o.frequency.setValueAtTime(110, tt);
-        o.frequency.exponentialRampToValueAtTime(42, tt + 0.18);
+        o.type = 'sine';
+        o.frequency.value = mtof(note(deg + pick([4, 7, 9, 11]), 2));
         const g = ctx.createGain();
         g.gain.setValueAtTime(0.0001, tt);
-        g.gain.linearRampToValueAtTime(k % 2 === 0 ? 0.22 : 0.12, tt + 0.005);
-        g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.32);
-        o.connect(g).connect(master);
-        o.start(tt); o.stop(tt + 0.35);
+        g.gain.linearRampToValueAtTime(0.03, tt + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, tt + barLen / 2);
+        o.connect(g); g.connect(master); g.connect(reverb);
+        o.start(tt); o.stop(tt + barLen / 2 + 0.05);
+      }
+    }
 
-        const h = ctx.createBufferSource();
-        h.buffer = noise;
-        const hp = ctx.createBiquadFilter();
-        hp.type = 'highpass'; hp.frequency.value = 7000;
-        const hg = ctx.createGain();
-        const th = tt + beat / 2;
-        hg.gain.setValueAtTime(0.0001, th);
-        hg.gain.linearRampToValueAtTime(0.025, th + 0.003);
-        hg.gain.exponentialRampToValueAtTime(0.0001, th + 0.06);
-        h.connect(hp).connect(hg).connect(master);
-        h.start(th); h.stop(th + 0.08);
+    // Drums for driving moods: the picked kick groove, off-beat hats, and sometimes a clap.
+    if (mood.pulse && bar > 0) {
+      const eighth = barLen / 8;
+      for (let k = 0; k < 8; k++) {
+        const tt = t0 + k * eighth;
+        if (kicks[k]) {
+          const o = ctx.createOscillator();
+          o.frequency.setValueAtTime(115, tt);
+          o.frequency.exponentialRampToValueAtTime(42, tt + 0.18);
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, tt);
+          g.gain.linearRampToValueAtTime(0.22, tt + 0.005);
+          g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.32);
+          o.connect(g).connect(master);
+          o.start(tt); o.stop(tt + 0.35);
+        }
+        if (k % 2 === 1 || (section > 0 && steps === 12)) {
+          const h = ctx.createBufferSource();
+          h.buffer = noise;
+          const hp = ctx.createBiquadFilter();
+          hp.type = 'highpass'; hp.frequency.value = 7000;
+          const hg = ctx.createGain();
+          hg.gain.setValueAtTime(0.0001, tt);
+          hg.gain.linearRampToValueAtTime(k % 2 ? 0.025 : 0.012, tt + 0.003);
+          hg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.06);
+          h.connect(hp).connect(hg).connect(k % 4 === 1 ? panL : panR);
+          h.start(tt); h.stop(tt + 0.08);
+        }
+        if (clapOn && section > 0 && (k === 2 || k === 6)) {
+          const c = ctx.createBufferSource();
+          c.buffer = noise;
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.8;
+          const cg = ctx.createGain();
+          cg.gain.setValueAtTime(0.0001, tt);
+          cg.gain.linearRampToValueAtTime(0.06, tt + 0.004);
+          cg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.16);
+          c.connect(bp).connect(cg); cg.connect(master); cg.connect(reverb);
+          c.start(tt); c.stop(tt + 0.2);
+        }
       }
     }
   }
@@ -264,13 +324,35 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
   comp.attack.value = 0.005; comp.release.value = 0.2;
   comp.connect(ctx.destination);
 
+  // Studio voice chain: clean the low end, add warmth and presence, tame the "s" sounds, add air,
+  // even the level like a broadcast narrator, and place the voice in a small, warm room.
   const voiceBus = ctx.createGain();
   voiceBus.gain.value = 1;
-  const hp = ctx.createBiquadFilter();
-  hp.type = 'highpass'; hp.frequency.value = 70;
-  const presence = ctx.createBiquadFilter();
-  presence.type = 'peaking'; presence.frequency.value = 3200; presence.gain.value = 2.5; presence.Q.value = 0.8;
-  voiceBus.connect(hp).connect(presence).connect(comp);
+  const eq = (type, f, g, q = 0.8) => { const n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; n.gain.value = g; n.Q.value = q; return n; };
+  const hp = eq('highpass', 85, 0, 0.7);
+  const warm = eq('lowshelf', 190, 2.5);
+  const mud = eq('peaking', 450, -2, 1.1);
+  const presence = eq('peaking', 3400, 3, 0.9);
+  const deess = eq('peaking', 7200, -3.5, 2.2);
+  const air = eq('highshelf', 11000, 2.5);
+  const vcomp = ctx.createDynamicsCompressor();
+  vcomp.threshold.value = -24; vcomp.knee.value = 6; vcomp.ratio.value = 3; vcomp.attack.value = 0.004; vcomp.release.value = 0.14;
+  const makeup = ctx.createGain(); makeup.gain.value = 1.1;
+  voiceBus.connect(hp).connect(warm).connect(mud).connect(presence).connect(deess).connect(air).connect(vcomp).connect(makeup);
+  makeup.connect(comp);
+  // A short room: decaying noise as an impulse, mixed in quietly.
+  const room = ctx.createConvolver();
+  const irLen = Math.round(SAMPLE_RATE * 0.32);
+  const ir = ctx.createBuffer(2, irLen, SAMPLE_RATE);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let seed = 17 + ch * 31;
+    for (let i = 0; i < irLen; i++) { seed = (seed * 16807) % 2147483647; d[i] = ((seed / 2147483647) * 2 - 1) * Math.pow(1 - i / irLen, 3.2); }
+  }
+  room.buffer = ir;
+  const roomLp = eq('lowpass', 5200, 0, 0.7);
+  const wet = ctx.createGain(); wet.gain.value = 0.11;
+  makeup.connect(room).connect(roomLp).connect(wet).connect(comp);
 
   for (const s of timeline.scenes) {
     if (!s.voice) continue;

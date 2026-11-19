@@ -61,22 +61,29 @@ export const MOODS = {
 
 // Kokoro voices that sound good for narration. (a = American, b = British; f/m = female/male)
 export const VOICES = [
-  ['am_michael', 'Michael — deep US narrator'],
-  ['am_fenrir', 'Fenrir — bold US male'],
-  ['am_puck', 'Puck — energetic US male'],
+  // Ordered by how natural each voice sounds (Kokoro's own quality grades).
+  ['af_heart', 'Heart — warm, most natural ★★★'],
+  ['af_bella', 'Bella — bright, very natural ★★★'],
+  ['af_nicole', 'Nicole — soft, natural ★★'],
+  ['bf_emma', 'Emma — British, natural ★★'],
+  ['am_michael', 'Michael — deep US narrator ★★'],
+  ['am_fenrir', 'Fenrir — bold US male ★★'],
+  ['am_puck', 'Puck — energetic US male ★★'],
+  ['bm_george', 'George — British storyteller ★'],
+  ['bm_fable', 'Fable — British male ★'],
+  ['af_jessica', 'Jessica — upbeat US female ★'],
+  ['af_river', 'River — relaxed US female ★'],
+  ['af_sarah', 'Sarah — US female ★'],
+  ['af_nova', 'Nova — US female ★'],
+  ['bf_isabella', 'Isabella — British female ★'],
+  ['bf_lily', 'Lily — young British female ★'],
   ['am_adam', 'Adam — US male'],
   ['am_eric', 'Eric — US male'],
   ['am_onyx', 'Onyx — low US male'],
-  ['bm_george', 'George — British storyteller'],
-  ['bm_fable', 'Fable — British male'],
+  ['am_echo', 'Echo — clear US male'],
+  ['am_liam', 'Liam — young US male'],
   ['bm_lewis', 'Lewis — British male'],
-  ['af_heart', 'Heart — warm US female'],
-  ['af_bella', 'Bella — bright US female'],
-  ['af_nicole', 'Nicole — soft US female'],
-  ['af_sarah', 'Sarah — US female'],
-  ['af_nova', 'Nova — US female'],
-  ['bf_emma', 'Emma — British female'],
-  ['bf_isabella', 'Isabella — British female'],
+  ['bm_daniel', 'Daniel — calm British male'],
 ];
 
 // Voices for the cloud fallback (Pollinations / OpenAI-style names).

@@ -332,9 +332,10 @@ export class Pipeline {
     const scenes = p.script.scenes;
     p.timeline = buildTimeline(scenes, scenes.map(s => p.voices.get(s.id)?.data || null), { wps: this.pace.wps });
     const mood = p.options.mood;
-    const musicKey = `${mood}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}`;
+    p.musicSeed ||= Math.floor(Math.random() * 1e9);
+    const musicKey = `${mood}|${p.musicSeed}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}`;
     if (p.musicKey !== musicKey) {
-      p.music = p.userMusic || (mood === 'none' ? null : await synthMusic(mood, p.timeline.total));
+      p.music = p.userMusic || (mood === 'none' ? null : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
       p.musicKey = musicKey;
     }
     p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume) });
