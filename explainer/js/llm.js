@@ -35,7 +35,33 @@ async function openAICompat(url, key, model, messages, signal, extra = {}, tempe
 
 let pollinationsKeyRejected = false;
 
+// The site's own Cloudflare AI (gpt-oss-120b on the free daily allowance), when the server has it.
+let serverAI = null;
+async function serverReady() {
+  if (serverAI !== null) return serverAI;
+  try {
+    const r = await fetch('/api/config', { credentials: 'same-origin' });
+    serverAI = r.ok ? !!(await r.json()).ai : false;
+  } catch { serverAI = false; }
+  return serverAI;
+}
+
 const PROVIDERS = {
+  async cloudflare(messages, s, signal, temperature = 0.8) {
+    const res = await fetch('/api/write', {
+      method: 'POST', credentials: 'same-origin', signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, temperature: Math.min(1, temperature), max_tokens: 6000 }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!data.text) {
+      if (data.used) serverAI = false;
+      const e = new Error(data.error || 'The Cloudflare writer did not answer');
+      e.status = 502;
+      throw e;
+    }
+    return data.text;
+  },
   async gemini(messages, s, signal, temperature = 0.8) {
     if (!s.geminiKey) throw new Error('No Gemini key');
     const sys = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
@@ -112,12 +138,16 @@ const PROVIDERS = {
 
 export function providerOrder(s, avoid = null) {
   // A chosen provider goes first, but the free no-key writer is always the last resort.
-  if (s.llmProvider && s.llmProvider !== 'auto') return s.llmProvider === 'pollinations' ? ['pollinations'] : [s.llmProvider, 'pollinations'];
+  const last = serverAI ? 'cloudflare' : 'pollinations';
+  if (s.llmProvider && s.llmProvider !== 'auto') return s.llmProvider === 'pollinations' ? [last] : [s.llmProvider, last];
   const order = [];
   if (s.geminiKey) order.push('gemini');
   if (s.groqKey) order.push('groq');
   if (s.openrouterKey) order.push('openrouter');
-  order.push('pollinations');
+  // With the site's own Cloudflare AI, the free no-key service is not used: it is slow, refuses
+  // often, and every refusal is a red error in the console.
+  if (serverAI) order.push('cloudflare');
+  else order.push('pollinations');
   // `avoid` = the provider that wrote the script. A fact-check by a *different* model catches
   // errors the writer is blind to (a model re-reading its own work tends to agree with itself).
   if (avoid && order.length > 1 && order[0] === avoid) order.push(order.shift());
@@ -128,7 +158,12 @@ export function providerOrder(s, avoid = null) {
 // The first valid answer wins and the others are cancelled, so one slow free service never stalls a video.
 const HEDGE_MS = 10000;
 
-export function chat(messages, settings, { signal, log, temperature, avoid, validate } = {}) {
+export async function chat(messages, settings, opts = {}) {
+  await serverReady();
+  return chatNow(messages, settings, opts);
+}
+
+function chatNow(messages, settings, { signal, log, temperature, avoid, validate } = {}) {
   const order = providerOrder(settings, avoid);
   const errors = [];
   const ctrl = new AbortController();

@@ -75,7 +75,7 @@ self.onmessage = async (e) => {
       const scale = Math.min(1, 640 / Math.max(bmp.width, bmp.height));
       const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
       const c = new OffscreenCanvas(w, h);
-      const x = c.getContext('2d');
+      const x = c.getContext('2d', { willReadFrequently: true });
       x.drawImage(bmp, 0, 0, w, h);
       bmp.close?.();
       const img = new RawImage(x.getImageData(0, 0, w, h).data, w, h, 4);

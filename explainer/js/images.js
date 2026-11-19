@@ -141,8 +141,12 @@ export async function generateImage(prompt, opts, settings, extra = {}) {
 async function generateImageRaw(prompt, opts, settings, { signal, log, quick = false } = {}) {
   const order = [];
   if (settings.imageProvider === 'none') return null;
-  const cf = await cloudflareImage(prompt, opts, signal);
-  if (cf) return cf;
+  for (let k = 0; k < 2; k++) {
+    const cf = await cloudflareImage(prompt, opts, signal);
+    if (cf) return cf;
+    if (!cloudflareOn()) break;
+  }
+  if (cloudflareOn()) return null; // the free service is only used when Cloudflare is not available
   if (settings.imageProvider === 'huggingface' && settings.hfToken) order.push('huggingface');
   order.push('pollinations');
   if (settings.hfToken && !order.includes('huggingface')) order.push('huggingface');
@@ -213,6 +217,7 @@ export function isFreeImageTier(settings) {
 // The Loomy server paints with FLUX.1 schnell on the owner's Cloudflare account. If the server has
 // no AI connection, or the daily allowance is used up, everything falls back to the free services.
 let cfState = null; // null: not checked yet, true: available, false: not available this visit
+let cfFails = 0;
 export async function cloudflareReady() {
   if (cfState !== null) return cfState;
   try {
@@ -227,10 +232,16 @@ export async function cloudflareImage(prompt, opts = {}, signal) {
     const res = await fetch('/api/image', {
       method: 'POST', credentials: 'same-origin', signal,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, seed: opts.seed || 0 }),
+      body: JSON.stringify({ prompt }),
     });
-    if (res.status === 429 || res.status === 503) { cfState = false; return null; }
-    if (!res.ok) return null;
+    // The server always answers 200: a picture, or JSON explaining why not.
+    if (!res.ok || !/^image\//.test(res.headers.get('Content-Type') || '')) {
+      const why = await res.json().catch(() => ({}));
+      cfFails++;
+      if (why.used || cfFails >= 3) cfState = false; // allowance used up, or not working today
+      return null;
+    }
+    cfFails = 0;
     const blob = await res.blob();
     if (blob.size < 2000) return null;
     return await createImageBitmap(blob);

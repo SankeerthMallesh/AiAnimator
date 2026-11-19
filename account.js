@@ -168,10 +168,10 @@
       const a = e.target.closest('button')?.dataset.a; if (!a) return;
       try {
         if (a === 'sync') { const changed = await syncNow(); if (changed) reloadSections(); toast('Synced.'); }
-        if (a === 'out') { await push(); await api('logout', { method: 'POST' }); user = null; window.google?.accounts?.id?.disableAutoSelect?.(); render(); toast('Signed out. Your work stays in this browser.'); }
+        if (a === 'out') { await push(); await api('logout', { method: 'POST' }); user = null; window.google?.accounts?.id?.disableAutoSelect?.(); render(); loadGis().then(() => { if (!user) render(); }); toast('Signed out. Your work stays in this browser.'); }
         if (a === 'del') {
           if (!confirm('Delete everything Loomy saved to your account? Work saved in this browser is kept.')) return;
-          await api('account', { method: 'DELETE' }); user = null; render(); toast('Your synced data was deleted.');
+          await api('account', { method: 'DELETE' }); user = null; render(); loadGis().then(() => { if (!user) render(); }); toast('Your synced data was deleted.');
         }
       } catch (err) { toast(err.message); }
     };
@@ -204,8 +204,10 @@
     } catch (e) { toast(`Sign-in failed: ${e.message}`); }
   }
 
+  let gisLoading = null;
   function loadGis() {
-    return new Promise((resolve) => {
+    if (gisLoading) return gisLoading;
+    return (gisLoading = new Promise((resolve) => {
       const s = document.createElement('script');
       s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
       s.onload = () => {
@@ -215,7 +217,7 @@
       s.onerror = () => resolve();
       document.head.append(s);
       setTimeout(resolve, 4000);
-    });
+    }));
   }
 
   // Before the sections load: find out who is signed in and bring their latest work into this browser.
@@ -227,7 +229,8 @@
     if (!clientId) { render(); return; }
     try { user = (await api('me')).user; } catch { user = null; }
     render();
-    loadGis().then(() => { if (!user) render(); });
+    // Google's sign-in script is only needed to sign in, so a signed-in visit never loads it.
+    if (!user) loadGis().then(() => { if (!user) render(); });
     if (user) { try { await syncNow(); } catch { setStatus('Offline: will sync later'); } }
   }
 

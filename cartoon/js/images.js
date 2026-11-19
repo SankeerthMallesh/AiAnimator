@@ -222,11 +222,10 @@ export function scenePrompt(bg, set, topic = '') {
   const clean = String(bg || '')
     .replace(/\b(naked|nude|gore|gory|blood|bloody|person|people|man|woman|human|child|boy|girl|body|bodies|skin|face|character|crowd|dark|dim|gloomy|grim|realistic|photo\w*)\b/gi, '')
     .replace(/\s{2,}/g, ' ').trim().slice(0, 120);
-  // This wording was tested against the free image model: it gives bright 3D-cartoon sets
-  // like the reference Shorts instead of dim, realistic photos.
+  // Simple flat cartoon drawings that match the stick-figure cast, not detailed renders.
   // The topic leads, so the place matches the video (the Great Wall, a railway yard, a hive...).
   const about = String(topic || '').replace(/^(why|how|what|when|who|the story of)\s+(do|does|did|is|are|was|were)?\s*/i, '').replace(/[?!.]+$/, '').trim().slice(0, 90);
-  return `Background art from a 3D animated cartoon movie, Pixar Dreamworks style, bright cheerful daylight, vivid candy colors, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, smooth rounded toy-like shapes, ${indoor ? 'warm sunny window light' : 'big blue sky with puffy clouds'}, wide shot, empty, no people, no text`;
+  return `Simple flat 2D cartoon drawing for a kids TV show background, thick clean black outlines, flat bright colors, very few details, simple shapes, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, ${indoor ? 'plain walls and floor' : 'plain blue sky with a few simple clouds'}, wide shot, empty, no people, no text, not realistic, not 3D`;
 }
 
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {
@@ -237,6 +236,9 @@ export async function fetchPlate(prompt, opts, settings, { signal, timeout = 120
     if (!(await isSafeImage(bmp, prompt, log))) { bmp.close?.(); return null; }
     return bmp;
   }
+  // While the site's own Cloudflare allowance works, the free service is not called at all: it
+  // refuses most requests and every refusal is a red error in the console.
+  if (cloudflareOn()) return null;
   try {
     if (settings.imageProvider === 'huggingface' && settings.hfToken) {
       bmp = await providers.huggingface(prompt, opts, settings, signal);
@@ -275,6 +277,7 @@ export function isFreeImageTier(settings) {
 // The Loomy server paints with FLUX.1 schnell on the owner's Cloudflare account. If the server has
 // no AI connection, or the daily allowance is used up, everything falls back to the free services.
 let cfState = null; // null: not checked yet, true: available, false: not available this visit
+let cfFails = 0;
 export async function cloudflareReady() {
   if (cfState !== null) return cfState;
   try {
@@ -289,10 +292,16 @@ export async function cloudflareImage(prompt, opts = {}, signal) {
     const res = await fetch('/api/image', {
       method: 'POST', credentials: 'same-origin', signal,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, seed: opts.seed || 0 }),
+      body: JSON.stringify({ prompt }),
     });
-    if (res.status === 429 || res.status === 503) { cfState = false; return null; }
-    if (!res.ok) return null;
+    // The server always answers 200: a picture, or JSON explaining why not.
+    if (!res.ok || !/^image\//.test(res.headers.get('Content-Type') || '')) {
+      const why = await res.json().catch(() => ({}));
+      cfFails++;
+      if (why.used || cfFails >= 3) cfState = false; // allowance used up, or not working today
+      return null;
+    }
+    cfFails = 0;
     const blob = await res.blob();
     if (blob.size < 2000) return null;
     return await createImageBitmap(blob);

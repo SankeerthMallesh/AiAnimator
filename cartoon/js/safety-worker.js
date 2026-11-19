@@ -24,7 +24,7 @@ self.onmessage = async (e) => {
     const bmp = e.data.bitmap;
     const size = 384;
     const c = new OffscreenCanvas(size, size);
-    const x = c.getContext('2d');
+    const x = c.getContext('2d', { willReadFrequently: true });
     // Check the whole frame and a centre crop: a figure can fill only part of a tall image.
     const views = [[0, 0, bmp.width, bmp.height], [bmp.width * 0.1, bmp.height * 0.15, bmp.width * 0.8, bmp.height * 0.6]];
     let worst = 0;

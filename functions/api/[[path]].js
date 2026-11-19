@@ -31,6 +31,7 @@ export async function onRequest({ request, env, params }) {
       return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!env.AI });
     }
     if (path === 'image' && request.method === 'POST') return await image(request, env);
+    if (path === 'write' && request.method === 'POST') return await write(request, env);
     if (!env.DB || !env.GOOGLE_CLIENT_ID) return json({ error: 'Sign-in is not set up on this site.' }, 503);
     await ensureSchema(env.DB);
 
@@ -38,7 +39,8 @@ export async function onRequest({ request, env, params }) {
     if (path === 'logout' && request.method === 'POST') return await logout(request, env, url);
 
     const user = await currentUser(request, env);
-    if (path === 'me' && request.method === 'GET') return user ? json({ user: publicUser(user) }) : json({ user: null }, 401);
+    // Signed out is a normal answer, not an error, so the browser console stays clean.
+    if (path === 'me' && request.method === 'GET') return json({ user: user ? publicUser(user) : null });
     if (!user) return json({ error: 'Not signed in' }, 401);
 
     if (path === 'data' && request.method === 'GET') return await getData(env, user);
@@ -54,21 +56,60 @@ export async function onRequest({ request, env, params }) {
 // FLUX.1 schnell on the account's own free allowance: about 200 backgrounds a day. When the
 // allowance is used up Cloudflare refuses (no charge on the free plan) and the page falls back.
 async function image(request, env) {
-  if (!env.AI) return json({ error: 'Cloudflare AI is not connected.' }, 503);
+  // Every outcome is a 200: a picture, or JSON saying why not. A failed request would show up as a
+  // red error in the browser console even though the page handles it.
+  if (!env.AI) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
   const body = await readJson(request, 6000);
-  const prompt = String(body.prompt || '').replace(/\s+/g, ' ').trim().slice(0, 1200);
-  if (!prompt) return json({ error: 'No prompt' }, 400);
-  const seed = Math.abs(Math.floor(Number(body.seed) || 0)) % 2147483647;
+  const prompt = String(body.prompt || '').replace(/\s+/g, ' ').trim().slice(0, 2000);
+  if (!prompt) return json({ ok: false, error: 'No prompt' });
   try {
-    const out = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt, steps: 4, ...(seed ? { seed } : {}) });
+    // FLUX.1 schnell accepts only prompt and steps (a "seed" is refused).
+    const out = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt, steps: 4 });
     const b64 = out?.image;
-    if (!b64) return json({ error: 'No picture came back' }, 502);
+    if (!b64) return json({ ok: false, error: 'No picture came back' });
     const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     return new Response(bytes, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' } });
   } catch (e) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ error: used ? 'The free daily picture allowance is used up.' : msg.slice(0, 200) }, used ? 429 : 502);
+    return json({ ok: false, used, error: used ? 'The free daily picture allowance is used up.' : msg.slice(0, 200) });
+  }
+}
+
+// ---------- script writing (Cloudflare Workers AI, gpt-oss-120b) ----------
+function pickText(out) {
+  if (!out) return '';
+  if (typeof out === 'string') return out;
+  if (typeof out.response === 'string') return out.response;
+  if (out.response && typeof out.response === 'object') return JSON.stringify(out.response);
+  const c = out.choices?.[0]?.message?.content;
+  if (typeof c === 'string') return c;
+  if (Array.isArray(out.output)) {
+    return out.output.filter(o => o?.type === 'message').flatMap(o => o.content || []).map(x => x?.text || '').join('');
+  }
+  if (typeof out.output_text === 'string') return out.output_text;
+  return '';
+}
+
+async function write(request, env) {
+  if (!env.AI) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
+  const body = await readJson(request, 300000);
+  const messages = (Array.isArray(body.messages) ? body.messages : [])
+    .filter(m => m && typeof m.content === 'string' && m.content.trim())
+    .slice(0, 16)
+    .map(m => ({ role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user', content: m.content.slice(0, 60000) }));
+  if (!messages.length) return json({ ok: false, error: 'No messages' });
+  const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
+  const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
+  try {
+    const out = await env.AI.run('@cf/openai/gpt-oss-120b', { messages, max_tokens, temperature });
+    const text = pickText(out).trim();
+    if (!text) return json({ ok: false, error: `Empty answer (${Object.keys(out || {}).join(', ') || 'nothing'})` });
+    return json({ ok: true, text });
+  } catch (e) {
+    const msg = String(e?.message || e);
+    const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
+    return json({ ok: false, used, error: used ? 'The free daily AI allowance is used up.' : msg.slice(0, 200) });
   }
 }
 
