@@ -19,8 +19,8 @@ export const DEFAULT_SETTINGS = {
   hfToken: '',
   // Voice
   ttsEngine: 'kokoro',            // kokoro | pollinations | none
-  voice: 'am_puck',
-  voiceSpeed: 1.12,
+  voice: 'af_heart',
+  voiceSpeed: 1.04,
   cloudVoice: 'onyx',
   // Output
   // The picture is drawn in code, so 1080p / 30 fps renders in seconds even on ordinary laptops.
@@ -37,7 +37,7 @@ export const DEFAULT_SETTINGS = {
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 8,
+  settingsVersion: 9,
 };
 
 function safeGet(key) {

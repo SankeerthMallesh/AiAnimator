@@ -324,13 +324,35 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
   comp.attack.value = 0.005; comp.release.value = 0.2;
   comp.connect(ctx.destination);
 
+  // Studio voice chain: clean the low end, add warmth and presence, tame the "s" sounds, add air,
+  // even the level like a broadcast narrator, and place the voice in a small, warm room.
   const voiceBus = ctx.createGain();
   voiceBus.gain.value = 1;
-  const hp = ctx.createBiquadFilter();
-  hp.type = 'highpass'; hp.frequency.value = 70;
-  const presence = ctx.createBiquadFilter();
-  presence.type = 'peaking'; presence.frequency.value = 3200; presence.gain.value = 2.5; presence.Q.value = 0.8;
-  voiceBus.connect(hp).connect(presence).connect(comp);
+  const eq = (type, f, g, q = 0.8) => { const n = ctx.createBiquadFilter(); n.type = type; n.frequency.value = f; n.gain.value = g; n.Q.value = q; return n; };
+  const hp = eq('highpass', 85, 0, 0.7);
+  const warm = eq('lowshelf', 190, 2.5);
+  const mud = eq('peaking', 450, -2, 1.1);
+  const presence = eq('peaking', 3400, 3, 0.9);
+  const deess = eq('peaking', 7200, -3.5, 2.2);
+  const air = eq('highshelf', 11000, 2.5);
+  const vcomp = ctx.createDynamicsCompressor();
+  vcomp.threshold.value = -24; vcomp.knee.value = 6; vcomp.ratio.value = 3; vcomp.attack.value = 0.004; vcomp.release.value = 0.14;
+  const makeup = ctx.createGain(); makeup.gain.value = 1.1;
+  voiceBus.connect(hp).connect(warm).connect(mud).connect(presence).connect(deess).connect(air).connect(vcomp).connect(makeup);
+  makeup.connect(comp);
+  // A short room: decaying noise as an impulse, mixed in quietly.
+  const room = ctx.createConvolver();
+  const irLen = Math.round(SAMPLE_RATE * 0.32);
+  const ir = ctx.createBuffer(2, irLen, SAMPLE_RATE);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let seed = 17 + ch * 31;
+    for (let i = 0; i < irLen; i++) { seed = (seed * 16807) % 2147483647; d[i] = ((seed / 2147483647) * 2 - 1) * Math.pow(1 - i / irLen, 3.2); }
+  }
+  room.buffer = ir;
+  const roomLp = eq('lowpass', 5200, 0, 0.7);
+  const wet = ctx.createGain(); wet.gain.value = 0.11;
+  makeup.connect(room).connect(roomLp).connect(wet).connect(comp);
 
   for (const s of timeline.scenes) {
     if (!s.voice) continue;

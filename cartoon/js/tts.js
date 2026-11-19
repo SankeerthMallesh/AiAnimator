@@ -121,7 +121,9 @@ export class Narrator {
 // One shared narrator per engine, so the voice model loads once (in the background) and stays warm.
 let shared = null;
 export function getNarrator(settings, log) {
-  const engine = settings.ttsEngine === 'elevenlabs' && !settings.elevenKey ? 'kokoro' : settings.ttsEngine;
+  // A saved ElevenLabs key means a human-sounding voice: use it unless the voice is turned off.
+  const engine = settings.elevenKey && settings.ttsEngine !== 'none' ? 'elevenlabs'
+    : settings.ttsEngine === 'elevenlabs' && !settings.elevenKey ? 'kokoro' : settings.ttsEngine;
   if (!shared || shared.wantEngine !== engine) {
     shared?.dispose();
     shared = new Narrator({ ...settings, ttsEngine: engine }, log);

@@ -17,6 +17,8 @@ export async function loadFonts() {
   } catch { /* a fallback font still draws the captions */ }
 }
 
+function talkIdFor(scene, actors) { return scene.say || actors[0]?.id; }
+
 export class Stage {
   constructor(canvas) {
     this.canvas = canvas;
@@ -146,7 +148,27 @@ export class Stage {
     ctx.rotate(shot.rot);
     ctx.scale(shot.z * fr.z, shot.z * fr.z);
     ctx.translate(-fr.tx + shot.panX * W * 0.18, -fr.ty + shot.panY);
+    // Orbit and walk-and-talk: the background moves on its own layer behind the cast.
+    const mv = photo || fr.close ? null : Stage.motion(scene);
+    let bgX = 0;
+    if (mv) {
+      const dur = Math.max(0.6, scene.dur || 3);
+      const p = Ink.clamp(local / dur, 0, 1);
+      const rich = SetKit.RICH?.includes(scene.set);
+      const reach = W * (pe?.scene || rich ? 0.13 : 0.3);
+      const dir = (scene.index || 0) % 4 < 2 ? 1 : -1;
+      if (mv === 'walk') bgX = dir * reach * (0.5 - p) * 2;
+      else bgX = dir * reach * Math.cos(Ink.smooth(p) * Math.PI);
+    }
+    ctx.save();
+    ctx.translate(bgX, 0);
+    if (mv && !pe?.scene && SetKit.RICH?.includes(scene.set)) {
+      // Detailed sets end at the frame edge: enlarge them a little while they move.
+      ctx.translate(W / 2, ground); ctx.scale(1.3, 1.3); ctx.translate(-W / 2, -ground);
+    }
     SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene || photo, blur: photo });
+    ctx.restore();
+    if (mv) Stage.applyMotion(mv, actors, scene, local, talkIdFor(scene, actors), bgX, W);
     if (photo) {
       // The picture itself as a framed card at the top, steady on screen while the camera moves.
       ctx.save();
@@ -272,6 +294,39 @@ export class Stage {
       }
     }
     ctx.restore();
+  }
+
+  // Which scenes move: every third scene the cast walks and talks through the place, and every
+  // third scene the camera swings around the speaker. Vehicle and prop scenes stay put.
+  static motion(scene) {
+    if (scene.use || scene.motion === 'none') return null;
+    if (scene.motion) return scene.motion;
+    const k = (scene.index || 0) % 3;
+    return k === 1 ? 'walk' : k === 2 ? 'orbit' : null;
+  }
+
+  static applyMotion(mv, actors, scene, local, talkId, bgX, W) {
+    const dur = Math.max(0.6, scene.dur || 3);
+    const p = Ink.clamp(local / dur, 0, 1);
+    if (mv === 'walk') {
+      // Everyone walks together in the direction the scenery suggests, without leaving the frame.
+      const face = bgX >= 0 ? -1 : 1;
+      for (const a of actors) {
+        if (['sit', 'drive', 'give', 'jump'].includes(a.pose)) continue;
+        a.pose = 'walk';
+        a.face = face;
+        a.walkInPlace = true;
+      }
+    } else {
+      // Orbit: the speaker turns to the other side as the camera swings past, with a little
+      // counter-motion on the cast for depth.
+      const sp = actors.find(a => a.id === talkId) || actors[0];
+      for (const a of actors) a.x += -bgX / W * 0.18;
+      if (sp) {
+        sp.face = p < 0.5 ? 1 : -1;
+        if (Math.abs(p - 0.5) < 0.07) { sp.pose = 'turn'; sp.poseT = (p - 0.43) * dur; }
+      }
+    }
   }
 
   // Background gags: while one character talks, the others do quirky things, like the side jokes
