@@ -451,8 +451,10 @@ export class Script {
           }
         }
         // Never the same sticker two shots in a row: pick another thing from the line, or none.
-        if (emoji && emoji === lastIcon) {
-          emoji = Script.guessEmojis(narration).find(e => e !== lastIcon) || (topicEmoji && topicEmoji !== lastIcon ? topicEmoji : '');
+        const same = (a, b) => !!a && !!b && a.replace(/\uFE0F/g, '') === b.replace(/\uFE0F/g, '');
+        if (emoji && /^(📅|📆)$/u.test(emoji)) emoji = '🗓️'; // Apple's 📅 shows "July 17"
+        if (same(emoji, lastIcon)) {
+          emoji = Script.guessEmojis(narration).find(e => !same(e, lastIcon)) || (topicEmoji && !same(topicEmoji, lastIcon) ? topicEmoji : '');
         }
         lastIcon = emoji || '';
         if (emoji) {
