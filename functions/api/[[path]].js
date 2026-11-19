@@ -35,7 +35,11 @@ export async function onRequest({ request, env, params }) {
     if (path === 'speak' && request.method === 'POST') return await speak(request, env);
     if (path === 'runway' && request.method === 'POST') return await runway(request);
     if (path === 'fal' && request.method === 'POST') return await fal(request);
-    if (!env.DB || !env.GOOGLE_CLIENT_ID) return json({ error: 'Sign-in is not set up on this site.' }, 503);
+    if (!env.DB || !env.GOOGLE_CLIENT_ID) {
+      // Signed-out is the normal state on a site without sign-in: answer it without an error status.
+      if (path === 'me') return json({ user: null });
+      return json({ error: 'Sign-in is not set up on this site.' }, 503);
+    }
     await ensureSchema(env.DB);
 
     if (path === 'login' && request.method === 'POST') return await login(request, env, url);
@@ -172,8 +176,9 @@ async function runway(request) {
     }
     if (body.action === 'fetch') {
       // Download the finished clip for the page (Runway's file host may not allow browsers).
-      const u = new URL(String(body.url || ''));
-      if (u.protocol !== 'https:') return json({ ok: false, error: 'Bad clip address' });
+      let u = null;
+      try { u = new URL(String(body.url || '')); } catch { /* bad address */ }
+      if (!u || u.protocol !== 'https:') return json({ ok: false, error: 'Bad clip address' });
       const res = await fetch(u.toString());
       if (!res.ok) return json({ ok: false, error: `Clip download said ${res.status}` });
       return new Response(res.body, { headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Cache-Control': 'no-store' } });
@@ -217,8 +222,10 @@ async function fal(request) {
       return json({ ok: !!url, url, error: url ? null : (j.detail ? JSON.stringify(j.detail).slice(0, 200) : 'No clip in the answer') });
     }
     if (body.action === 'fetch') {
-      const u = new URL(String(body.url || ''));
-      if (u.protocol !== 'https:') return json({ ok: false, error: 'Bad clip address' });
+      // Only fal's own file hosts: this is not a general download relay.
+      let u = null;
+      try { u = new URL(String(body.url || '')); } catch { /* bad address */ }
+      if (!u || u.protocol !== 'https:' || !/(^|\.)(fal\.media|fal\.run|fal\.ai)$/.test(u.hostname)) return json({ ok: false, error: 'Bad clip address' });
       const res = await fetch(u.toString());
       if (!res.ok) return json({ ok: false, error: `Clip download said ${res.status}` });
       return new Response(res.body, { headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Cache-Control': 'no-store' } });
