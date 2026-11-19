@@ -1,5 +1,20 @@
 {
   "version": 1,
-  "include": ["/*"],
-  "exclude": ["/vendor/*", "/cartoon/js/*", "/cartoon/css/*", "/explainer/js/*", "/explainer/css/*", "/board/js/*", "/board/css/*", "/account.js", "/_headers", "/_redirects"]
+  "include": [
+    "/*"
+  ],
+  "exclude": [
+    "/vendor/*",
+    "/cartoon/js/*",
+    "/cartoon/css/*",
+    "/explainer/js/*",
+    "/explainer/css/*",
+    "/board/js/*",
+    "/board/css/*",
+    "/account.js",
+    "/_headers",
+    "/_redirects",
+    "/manifest.webmanifest",
+    "/icons/*"
+  ]
 }
