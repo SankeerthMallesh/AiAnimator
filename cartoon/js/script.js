@@ -9,6 +9,23 @@ import { PropKit, SetKit } from './props.js';
 const WORDS_PER_SECOND = 2.55;
 
 
+// Words with two meanings: [context that means the other sense, the sticker for that sense ('' = skip)].
+// "The sky turns orange at sunset" is a colour, not the fruit.
+const WORD_SENSES = {
+  orange: [/sky|sunset|sunrise|dusk|dawn|colou?r|light|glow|hue|shade|red|yellow|pink|purple|paint|turns? orange|bright orange|orange (sky|light|glow|colou?r)/, '🎨'],
+  lemon: [/colou?r|yellow|paint|\blemon (car|law)/, ''],
+  gold: [/medal|prize|winner|first place|olympic/, '🥇'],
+  mouse: [/computer|click|cursor|keyboard|screen/, '🖱️'],
+  bat: [/baseball|cricket|swing|hit|batter|pitch/, '⚾'],
+  wave: [/light|sound|radio|micro|wavelength|electromagnetic|signal|frequenc|hand|wav(e|ing) (hello|goodbye)/, '〰️'],
+  cell: [/phone|battery|solar|prison|jail|spreadsheet/, ''],
+  plant: [/power|factory|nuclear|manufactur/, '🏭'],
+  apple: [/iphone|mac\b|steve jobs|company|tech|stock/, '📱'],
+  bank: [/river|stream|shore/, '🏞️'],
+  key: [/keyboard|piano|key (idea|point|fact|part|reason)|the key (is|to)/, ''],
+  star: [/celebrit|famous|movie star|pop star|rock star|rating|review/, ''],
+  ruler: [/king|queen|emperor|empire|kingdom|reign|throne/, '👑'],
+};
 const VAGUE_EMOJI = new Set(['❓', '❔', '❗', '❕', '✨', '💧', '⚙', '📦', '⏱', '⏰', '💡', '⭐', '🌟', '💥', '🎉', '👍', '✅', '❌', '🔍', '🔎', '📈', '📉', '💭', '💬', '🗯', '❤', '🔥', '⚡', '🌀', '💫', '🎯', '🏆', '📌', '📝', '📚', '📖', '🧩', '🔑']);
 const TOON_WORDS = {
   stick: /stick|shadow|pole/, atom: /atom|molecule|particle|electron|proton|chemi/, book: /book|read|librar|writ|stud/,
@@ -18,6 +35,7 @@ const TOON_WORDS = {
 
 // Backup stickers: common things and their emoji, used when the script writer leaves "icon" out.
 const EMOJI_WORDS = {
+  sunset: '🌅', sunsets: '🌅', sunrise: '🌅', dusk: '🌅', rainbow: '🌈', prism: '🌈', colour: '🎨', color: '🎨', paint: '🎨',
   cat: '🐱', kitten: '🐱', dog: '🐶', puppy: '🐶', bee: '🐝', honey: '🍯', hive: '🍯', ant: '🐜', spider: '🕷️', butterfly: '🦋',
   bird: '🐦', eagle: '🦅', owl: '🦉', penguin: '🐧', chicken: '🐔', egg: '🥚', fish: '🐟', shark: '🦈', whale: '🐋', dolphin: '🐬',
   octopus: '🐙', crab: '🦀', turtle: '🐢', snake: '🐍', frog: '🐸', lion: '🦁', tiger: '🐯', bear: '🐻', panda: '🐼', monkey: '🐒',
@@ -389,6 +407,17 @@ export class Script {
         const topicEmoji = Script.guessEmoji(`${options.topic || ''} ${raw.title || ''}`);
         if (!emoji || VAGUE_EMOJI.has(emoji.replace(/\uFE0F/g, ''))) emoji = lineEmoji || topicEmoji || emoji;
         else if (topicEmoji && lineEmoji === topicEmoji) emoji = topicEmoji; // the line is about the subject
+        // The writer picked the wrong meaning of a word (🍊 for an orange sky): use the right one.
+        if (emoji) {
+          const low = narration.toLowerCase();
+          const bare = emoji.replace(/\uFE0F/g, '');
+          for (const [w, [ctx, alt]] of Object.entries(WORD_SENSES)) {
+            if (EMOJI_WORDS[w]?.replace(/\uFE0F/g, '') === bare && new RegExp(`\\b${w}`).test(low) && ctx.test(low)) {
+              emoji = Script.guessEmoji(narration) || alt || (topicEmoji !== emoji ? topicEmoji : '') || '';
+              break;
+            }
+          }
+        }
         if (emoji) {
           const GENERIC = ['question', 'exclaim', 'drop', 'bolt', 'star', 'bulb', 'clock', 'gear', 'fire'];
           // A specific prop the line never mentions (a stick, an atom for a line about cat spines) goes too.
@@ -611,12 +640,17 @@ export class Script {
 
   // An emoji for the first common thing named in the text, or ''.
   static guessEmoji(text) {
-    for (const raw of String(text || '').toLowerCase().match(/[a-z]+/g) || []) {
+    const low = String(text || '').toLowerCase();
+    let other = ''; // the other meaning of a two-meaning word, used if nothing clearer comes up
+    for (const raw of low.match(/[a-z]+/g) || []) {
       for (const w of [raw, raw.replace(/ies$/, 'y'), raw.replace(/es$/, ''), raw.replace(/s$/, '')]) {
-        if (Object.prototype.hasOwnProperty.call(EMOJI_WORDS, w)) return EMOJI_WORDS[w];
+        if (!Object.prototype.hasOwnProperty.call(EMOJI_WORDS, w)) continue;
+        const sense = WORD_SENSES[w];
+        if (sense && sense[0].test(low)) { other ||= sense[1]; break; }
+        return EMOJI_WORDS[w];
       }
     }
-    return '';
+    return other;
   }
 
   // First emoji picture in the text, or '' (faces, people, hands and flags are skipped).
