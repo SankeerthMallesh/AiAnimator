@@ -4,6 +4,7 @@ import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
 import { creditText } from './wiki.js';
 import { hubRows, capabilities } from './router.js';
+import { loadCrew, saveCrew, addToCrew } from './storage.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
@@ -180,6 +181,7 @@ $('#voice').addEventListener('change', (e) => {
       extra: $('#extra').value.trim(),
       plates: $('#patient').checked,
       photos: $('#photos').checked,
+      crew: $('#useCrew')?.checked && !$('#crewBox').classList.contains('hidden') ? loadCrew().filter(c => c.on !== false).slice(0, 4) : null,
     });
   });
   $('#btnDemo').addEventListener('click', () => {
@@ -1087,3 +1089,27 @@ async function renderHub() {
 }
 document.getElementById('settingsForm')?.addEventListener('input', () => renderHub());
 document.getElementById('btnSettings')?.addEventListener('click', () => setTimeout(renderHub, 50));
+
+// ---------- My characters ----------
+function renderCrew() {
+  const box = $('#crewBox'), chips = $('#crewChips');
+  if (!box || !chips) return;
+  const crew = loadCrew();
+  box.classList.toggle('hidden', !crew.length);
+  chips.replaceChildren(...crew.map((c, i) => {
+    const chip = el('button', { type: 'button', class: `crew-chip${c.on === false ? ' off' : ''}`, title: c.on === false ? 'Tap to use in the next video' : 'Tap to leave out of the next video', 'aria-pressed': String(c.on !== false) },
+      el('i', { style: `background:${c.color || '#888'}` }), `${c.name}`, el('small', {}, [c.hat, c.costume].filter(x => x && x !== 'none').join(' · ')));
+    chip.addEventListener('click', () => { const all = loadCrew(); all[i].on = all[i].on === false; saveCrew(all); renderCrew(); });
+    const x = el('button', { type: 'button', class: 'crew-x', 'aria-label': `Delete ${c.name}`, title: `Delete ${c.name}` }, '×');
+    x.addEventListener('click', () => { if (!confirm(`Delete ${c.name} from My characters?`)) return; const all = loadCrew(); all.splice(i, 1); saveCrew(all); renderCrew(); });
+    return el('span', { class: 'crew-item' }, chip, x);
+  }));
+}
+renderCrew();
+document.getElementById('btnSaveCast')?.addEventListener('click', () => {
+  const cast = project?.script?.cast;
+  if (!cast?.length) { toast('Make a video first, then save its characters.', true); return; }
+  const names = addToCrew(cast);
+  renderCrew();
+  toast(names.length ? `Saved ${names.join(', ')} to My characters. They star in your next videos (Create → More).` : 'My characters is full (8). Delete one on the Create page first.', !names.length);
+});

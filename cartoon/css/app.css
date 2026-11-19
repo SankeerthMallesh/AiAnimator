@@ -877,3 +877,14 @@ html.viewonly .go, html.viewonly #btnRender, html.viewonly #btnDemo { opacity: .
 .model-hub .cost { font: 600 11.5px var(--sans); padding: 3px 8px; border-radius: 99px; background: rgba(76, 195, 138, .15); color: #4CC38A; white-space: nowrap; }
 .model-hub .cost.paid { background: rgba(229, 168, 75, .15); color: #E5A84B; }
 @media (max-width: 560px) { .model-hub .hub-row { grid-template-columns: minmax(0, 1fr) auto; } .model-hub .hub-row > span:first-child { grid-column: 1 / -1; } }
+
+/* My characters */
+.crew-box { display: grid; gap: 8px; margin: 4px 0 6px; }
+.crew-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crew-item { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 99px; background: var(--panel); }
+.crew-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 4px 5px 8px; border: 0; background: none; color: var(--ink); font: 500 13px var(--sans); cursor: pointer; }
+.crew-chip i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.45); }
+.crew-chip small { color: var(--faint); font-size: 11px; }
+.crew-chip.off { opacity: .45; text-decoration: line-through; }
+.crew-x { border: 0; background: none; color: var(--faint); padding: 4px 9px 4px 2px; cursor: pointer; font-size: 15px; line-height: 1; }
+.crew-x:hover { color: var(--ink); }

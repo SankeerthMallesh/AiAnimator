@@ -49,6 +49,34 @@ function safeSet(key, value) {
   try { localStorage.setItem(key, value); return true; } catch { return false; }
 }
 
+// ---------- My characters: a saved cast that comes back in every video ----------
+const CREW_KEY = 'loomy.crew.v1';
+export function loadCrew() {
+  try { const a = JSON.parse(safeGet(CREW_KEY) || '[]'); return Array.isArray(a) ? a.filter(c => c && c.name).slice(0, 8) : []; }
+  catch { return []; }
+}
+export function saveCrew(list) { return safeSet(CREW_KEY, JSON.stringify(list.slice(0, 8))); }
+// Adds (or updates, by name) characters from a video's cast. Returns the names saved.
+export function addToCrew(cast) {
+  const crew = loadCrew();
+  const saved = [];
+  for (const c of cast || []) {
+    if (!c?.name) continue;
+    const look = { name: c.name, color: c.color, hat: c.hat, hair: c.hair, costume: c.costume };
+    const old = crew.find(k => k.name.toLowerCase() === c.name.toLowerCase());
+    if (old) Object.assign(old, look);
+    else {
+      if (crew.length >= 8) break;
+      let id = c.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6) || 'pal';
+      for (let n = 2; crew.some(k => k.id === id); n++) id = id.slice(0, 5) + n;
+      crew.push({ id, ...look, on: true });
+    }
+    saved.push(c.name);
+  }
+  saveCrew(crew);
+  return saved;
+}
+
 export function loadSettings() {
   const raw = safeGet(SETTINGS_KEY);
   let saved = {};

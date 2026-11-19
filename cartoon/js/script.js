@@ -233,6 +233,14 @@ export class Script {
     return String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
   }
 
+  // Recurring characters from "My characters": the writer must use exactly these.
+  static crewRule(options = {}) {
+    const crew = Array.isArray(options.crew) ? options.crew.slice(0, 4) : [];
+    if (!crew.length) return 'Cast of 2, 3 or 4. ';
+    const list = crew.map(c => JSON.stringify({ id: c.id, name: c.name, color: c.color, hat: c.hat, hair: c.hair, costume: c.costume })).join(',');
+    return `Cast: these are the channel's recurring characters. Use exactly them, with these ids and looks, and no one else: [${list}]. `;
+  }
+
   static normalize(raw, options = {}) {
     raw = Script.find(raw) || raw;
     if (!raw || typeof raw !== 'object') throw new Error('The script came back without scenes.');
@@ -265,6 +273,20 @@ export class Script {
         { id: 'b', name: 'Bo', color: '#E8B931', hat: 'hardhat', hair: 'black', costume: 'vest' },
       ];
       for (const e of extras) if (!cast.some(c => c.id === e.id) && cast.length < 2) cast.push(e);
+    }
+    // Saved characters keep their exact look in every video (matched by id, then name, then order).
+    const crew = Array.isArray(options.crew) ? options.crew.filter(c => c?.name).slice(0, 4) : [];
+    if (crew.length) {
+      const used = new Set();
+      const pick = (c, i) => {
+        const k = crew.find(x => !used.has(x) && x.id === c.id) || crew.find(x => !used.has(x) && x.name.toLowerCase() === String(c.name).toLowerCase()) || crew.find(x => !used.has(x));
+        if (k) used.add(k);
+        return k;
+      };
+      cast = cast.map((c, i) => {
+        const k = pick(c, i);
+        return k ? { ...c, name: Script.clean(k.name, 24), color: Script.color(k.color, i), hat: Script.oneOf(Cast.HATS, k.hat, c.hat), hair: Script.oneOf(Cast.HAIR, k.hair, c.hair), costume: Script.oneOf(Cast.COSTUMES, k.costume, c.costume) } : c;
+      });
     }
     const ids = new Set();
     cast = cast.map((c, i) => {
@@ -663,11 +685,11 @@ ${options.extra ? `NOTES: ${options.extra}\n` : ''}About ${plan.words} spoken wo
 ${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the setup). Later parts continue the story.\n` : 'Hook in scene 1, a small story with the cast, a payoff in the last scene.\n'}Upload kit: "youtubeTitle" is a viral, curiosity-gap title under 70 characters with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"). "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 tags: #shorts plus specific ones for this topic.
 Facts: dates, names and numbers must be right. If a popular belief is a myth, say so and give the real version. Never state a myth as fact. Uncertain claims use "about" or "historians think".
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
-Cast of 2, 3 or 4. hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
+${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
-Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.
+${options.crew?.length ? '' : `Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.`}
 Lines are narration read by one narrator. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, sea = ships and coasts, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Move to a new set that fits the line every 1 or 2 scenes, as if the cast walks and talks through different places on the journey; use at least 4 different sets in a video.
 Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠), never a face, person, hand or flag.
