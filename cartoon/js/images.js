@@ -232,7 +232,11 @@ export function scenePrompt(bg, set, topic = '') {
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {
   if (!settings || settings.imageProvider === 'none') return null;
   const ms = Math.max(2000, Math.min(20000, timeout));
-  let bmp = null;
+  let bmp = await cloudflareImage(prompt, opts, signal);
+  if (bmp) {
+    if (!(await isSafeImage(bmp, prompt, log))) { bmp.close?.(); return null; }
+    return bmp;
+  }
   try {
     if (settings.imageProvider === 'huggingface' && settings.hfToken) {
       bmp = await providers.huggingface(prompt, opts, settings, signal);
@@ -266,3 +270,35 @@ export function imageConcurrency(settings) {
 export function isFreeImageTier(settings) {
   return settings.imageProvider !== 'none' && (!settings.pollinationsKey || keyRejected) && !settings.hfToken && !(settings.geminiKey && geminiImages !== false);
 }
+
+// ---------- Cloudflare Workers AI (the site's own free daily allowance) ----------
+// The Loomy server paints with FLUX.1 schnell on the owner's Cloudflare account. If the server has
+// no AI connection, or the daily allowance is used up, everything falls back to the free services.
+let cfState = null; // null: not checked yet, true: available, false: not available this visit
+export async function cloudflareReady() {
+  if (cfState !== null) return cfState;
+  try {
+    const r = await fetch('/api/config', { credentials: 'same-origin' });
+    cfState = r.ok ? !!(await r.json()).ai : false;
+  } catch { cfState = false; }
+  return cfState;
+}
+export async function cloudflareImage(prompt, opts = {}, signal) {
+  if (!(await cloudflareReady())) return null;
+  try {
+    const res = await fetch('/api/image', {
+      method: 'POST', credentials: 'same-origin', signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, seed: opts.seed || 0 }),
+    });
+    if (res.status === 429 || res.status === 503) { cfState = false; return null; }
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size < 2000) return null;
+    return await createImageBitmap(blob);
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    return null;
+  }
+}
+export const cloudflareOn = () => cfState === true;

@@ -28,8 +28,9 @@ export async function onRequest({ request, env, params }) {
       if (origin && new URL(origin).host !== url.host) return json({ error: 'Wrong origin' }, 403);
     }
     if (path === 'config' && request.method === 'GET') {
-      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB });
+      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!env.AI });
     }
+    if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (!env.DB || !env.GOOGLE_CLIENT_ID) return json({ error: 'Sign-in is not set up on this site.' }, 503);
     await ensureSchema(env.DB);
 
@@ -46,6 +47,28 @@ export async function onRequest({ request, env, params }) {
     return json({ error: 'Not found' }, 404);
   } catch (e) {
     return json({ error: e.status ? e.message : 'Server error' }, e.status || 500);
+  }
+}
+
+// ---------- images (Cloudflare Workers AI, free daily allowance) ----------
+// FLUX.1 schnell on the account's own free allowance: about 200 backgrounds a day. When the
+// allowance is used up Cloudflare refuses (no charge on the free plan) and the page falls back.
+async function image(request, env) {
+  if (!env.AI) return json({ error: 'Cloudflare AI is not connected.' }, 503);
+  const body = await readJson(request, 6000);
+  const prompt = String(body.prompt || '').replace(/\s+/g, ' ').trim().slice(0, 1200);
+  if (!prompt) return json({ error: 'No prompt' }, 400);
+  const seed = Math.abs(Math.floor(Number(body.seed) || 0)) % 2147483647;
+  try {
+    const out = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt, steps: 4, ...(seed ? { seed } : {}) });
+    const b64 = out?.image;
+    if (!b64) return json({ error: 'No picture came back' }, 502);
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    return new Response(bytes, { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' } });
+  } catch (e) {
+    const msg = String(e?.message || e);
+    const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
+    return json({ error: used ? 'The free daily picture allowance is used up.' : msg.slice(0, 200) }, used ? 429 : 502);
   }
 }
 

@@ -600,9 +600,24 @@ function renderBoard() {
     const card = el('div', { class: `scene${scene.dirty ? ' dirty' : ''}`, 'data-id': scene.id });
     const thumb = el('div', { class: 'thumb', style: `aspect-ratio:${Math.max(ratio, 0.56)}` }, el('span', { class: 'num' }, String(i + 1)));
     thumb.addEventListener('click', () => scrubTo(t ? t.start + 0.25 : 0));
-    const fileIn = el('input', { type: 'file', accept: 'image/*', onchange: async (e) => {
+    const fileIn = el('input', { type: 'file', accept: 'image/*,video/*', onchange: async (e) => {
       const f = e.target.files[0];
       if (!f) return;
+      if (/^video\//.test(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)) {
+        // A clip from Kling, Vidu or anywhere else plays as this whole shot, under the voice and captions.
+        try {
+          toast('Reading the clip…');
+          const clip = await readClip(f);
+          const ok = await isSafeImage(clip.frames[Math.floor(clip.frames.length / 2)], scene.narration, (m) => log(m));
+          if (!ok) { clip.frames.forEach(b => b.close?.()); toast('That clip was blocked by the safety check.', true); return; }
+          project.plates.get(scene.id)?.clip?.frames.forEach(b => b.close?.());
+          project.plates.set(scene.id, { key: 'custom', bitmap: clip.frames[0], clip, custom: true, scene: true });
+          updateThumb(i);
+          markDirty(scene, card);
+          toast(`Clip added to shot ${i + 1} (${clip.seconds.toFixed(1)}s). It loops if the line is longer.`);
+        } catch (err) { toast(err.message || 'Could not read that video.', true); }
+        return;
+      }
       try {
         const bmp = await createImageBitmap(f);
         const ok = await isSafeImage(bmp, scene.bg || scene.narration, (m) => log(m));
@@ -621,7 +636,7 @@ function renderBoard() {
         markDirty(scene, card);
         if (!running) run({ render: false });
       } }, '↻'),
-      el('label', { title: 'Use your own background' }, '⤒', fileIn)));
+      el('label', { title: 'Use your own picture or video clip for this shot' }, '⤒', fileIn)));
 
     const narr = el('textarea', { class: 'narr', rows: '3', 'aria-label': `Scene ${i + 1} line` });
     narr.value = scene.narration;
@@ -710,6 +725,34 @@ $('#btnAddScene').addEventListener('click', () => {
   cards[cards.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   $('textarea', cards[cards.length - 1])?.select();
 });
+
+// Turn a video file into frames the renderer can draw at any moment of the shot.
+// 12 frames a second, up to 8 seconds, 720 pixels wide: smooth enough, and light on memory.
+async function readClip(file, fps = 12, maxSeconds = 8) {
+  const url = URL.createObjectURL(file);
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+  try {
+    await new Promise((resolve, reject) => {
+      v.onloadeddata = resolve;
+      v.onerror = () => reject(new Error('This browser cannot read that video. Try an MP4.'));
+      setTimeout(() => reject(new Error('The video took too long to open.')), 20000);
+    });
+    if (!v.videoWidth) throw new Error('That file has no video picture.');
+    const seconds = Math.min(maxSeconds, v.duration || 0);
+    if (!(seconds > 0.2)) throw new Error('That clip is too short.');
+    const w = Math.min(720, v.videoWidth);
+    const h = Math.round(w * v.videoHeight / v.videoWidth);
+    const frames = [];
+    for (let t = 0; t < seconds - 0.01; t += 1 / fps) {
+      await new Promise((resolve) => { v.onseeked = resolve; v.currentTime = t; });
+      frames.push(await createImageBitmap(v, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' }));
+    }
+    return { frames, fps, seconds };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 function updateThumb(i) {
   const scene = project?.script?.scenes[i];

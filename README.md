@@ -43,6 +43,14 @@ bash tools/deploy-cloudflare.sh
 
 The first run signs you in to Cloudflare, picks a free `*.pages.dev` name, asks for an optional Google Client ID, and creates the `loomy-db` database. Later runs upload the latest version. Short links: `/3d` opens the 3D section and `/plan` opens the Board.
 
+## Free high-quality backgrounds (Cloudflare Workers AI)
+
+The deploy script connects the site to Cloudflare Workers AI. `/api/image` paints with FLUX.1 schnell on the account's free daily allowance (10,000 neurons, roughly 200 backgrounds a day), so every scene can get its own picture. When the allowance is used up, Cloudflare refuses without charging on the free plan and Loomy falls back to the free painting service.
+
+## Clips from Kling, Vidu and others
+
+In the storyboard, the upload button on a shot accepts a video clip (MP4, MOV or WebM, up to 8 seconds are used). The clip plays as that shot under the voice, captions and music, and loops if the line is longer.
+
 ## Access codes (optional lock)
 
 Make Loomy private: every browser needs a code once, then stays unlocked until the code expires. Codes are made only on your computer from a secret in `~/.loomy-access-secret`; Cloudflare checks them without a list.

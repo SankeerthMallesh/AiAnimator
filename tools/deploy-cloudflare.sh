@@ -62,6 +62,7 @@ rm -rf "$BUILD/.git"
   echo "name = \"$NAME\""
   echo 'pages_build_output_dir = "."'
   echo 'compatibility_date = "2026-11-01"'
+  printf '\n[ai]\nbinding = "AI"\n'
   if [ -n "$CID" ] && [ -n "$DBID" ]; then
     printf '\n[vars]\nGOOGLE_CLIENT_ID = "%s"\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "loomy-db"\ndatabase_id = "%s"\n' "$CID" "$DBID"
   fi

@@ -126,6 +126,8 @@ export class Stage {
   }
 
   static world(ctx, W, H, view, scene, local, shot) {
+    const clipEntry = view.plates?.get(scene.id);
+    if (clipEntry?.clip) { Stage.clip(ctx, W, H, clipEntry.clip, local, shot); return; }
     const u = Cast.unit(H);
     const ground = H * (W < H ? 0.78 : 0.84);
     const cast = new Map((view.script?.cast || []).map(c => [c.id, c]));
@@ -298,6 +300,18 @@ export class Stage {
 
   // Which scenes move: every third scene the cast walks and talks through the place, and every
   // third scene the camera swings around the speaker. Vehicle and prop scenes stay put.
+  // An imported clip fills the frame for its shot; it already has its own characters and motion.
+  static clip(ctx, W, H, clip, local, shot) {
+    const n = clip.frames.length;
+    if (!n) return;
+    const img = clip.frames[Math.floor(local * clip.fps) % n];
+    const sc = Math.max(W / img.width, H / img.height) * (shot?.z ? Math.min(1.08, shot.z) : 1);
+    ctx.save();
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, (W - img.width * sc) / 2, (H - img.height * sc) / 2, img.width * sc, img.height * sc);
+    ctx.restore();
+  }
+
   static motion(scene) {
     if (scene.use || scene.motion === 'none') return null;
     if (scene.motion) return scene.motion;

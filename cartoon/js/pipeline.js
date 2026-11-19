@@ -4,7 +4,7 @@
 import { writeScript, factCheck, waitForFreeText } from './llm.js';
 import { Script } from './script.js';
 import { Demo } from './demo.js';
-import { fetchPlate, platePrompt, scenePrompt, mapLimit } from './images.js';
+import { fetchPlate, platePrompt, scenePrompt, mapLimit, cloudflareReady, cloudflareOn } from './images.js';
 import { topicPictures } from './wiki.js';
 import { isSafeImage } from './safety.js';
 import { getNarrator, warmNarrator } from './tts.js';
@@ -196,6 +196,11 @@ export class Pipeline {
     const size = fmt === '16:9' ? { width: 1024, height: 576 } : fmt === '1:1' ? { width: 768, height: 768 } : fmt === '4:5' ? { width: 640, height: 800 } : { width: 576, height: 1024 };
     const next = () => {
       const sc = p.script?.scenes || [];
+      // With the site's own allowance there is no wait, so every scene gets a picture of its own line.
+      if (cloudflareOn() && sc.length) {
+        const scene = sc.find(x => !done.has(`scene:${x.id}`));
+        if (scene) { done.add(`scene:${scene.id}`); return { prompt: scenePrompt(`${scene.bg || ''} ${scene.narration.slice(0, 120)}`, scene.set, p.topic), set: scene.set, scene: scene.id }; }
+      }
       const set = sc.map(x => x.set).find(x => x && !done.has(`set:${x}`));
       if (set) { done.add(`set:${set}`); return { prompt: scenePrompt(sc.find(x => x.set === set)?.bg || '', set, p.topic), set }; }
       const v = views.find(([w]) => !done.has(w));
@@ -204,13 +209,14 @@ export class Pipeline {
     };
     this.paint.running = (async () => {
       let misses = 0;
-      while (!this.paint.stop && pool.length < 6 && misses < 12) {
+      await cloudflareReady();
+      while (!this.paint.stop && pool.length < (cloudflareOn() ? 24 : 6) && misses < 12) {
         if (this.signal.aborted) return;
         const job = next();
         if (!job) { await new Promise(r => setTimeout(r, 2000)); misses++; continue; }
         const bmp = await fetchPlate(job.prompt, { ...size, seed: (Math.random() * 1e9) | 0 }, this.s, { signal: this.signal, timeout: 20000, log: (m) => this.log(m) }).catch(() => null);
-        if (bmp) { pool.push({ bitmap: bmp, set: job.set }); misses = 0; this.log(`Painted background ${pool.length}.`); }
-        else { misses++; await new Promise(r => setTimeout(r, 9000)); }
+        if (bmp) { pool.push({ bitmap: bmp, set: job.set, scene: job.scene || null }); misses = 0; this.log(`Painted background ${pool.length}.`); }
+        else { misses++; await new Promise(r => setTimeout(r, cloudflareOn() ? 1500 : 9000)); }
       }
     })();
   }
@@ -271,10 +277,10 @@ export class Pipeline {
     if (!this.paint) { this.h.step('plates', 'skip', 'Drawn in code'); return; }
     const pool = this.paint.pool;
     const sets = [...new Set(scenes.map(x => x.set))];
-    const want = Math.min(4, Math.max(2, sets.length));
+    const want = cloudflareOn() ? Math.min(24, scenes.length) : Math.min(4, Math.max(2, sets.length));
     this.h.step('plates', 'active', pool.length ? `${pool.length} painted so far…` : 'Painting 3D scenes…');
     // Keep painting while the voice records, up to 40 seconds, or until there are enough.
-    const deadline = performance.now() + 40000;
+    const deadline = performance.now() + (cloudflareOn() ? 90000 : 40000);
     while (pool.length < want && performance.now() < deadline && !this.signal.aborted) {
       await new Promise(r => setTimeout(r, 1000));
       this.h.step('plates', 'active', `${pool.length} painted 3D scene${pool.length === 1 ? '' : 's'}…`);
@@ -294,7 +300,7 @@ export class Pipeline {
     scenes.forEach((sc, i) => {
       if (p.plates.get(sc.id)?.custom) return;
       if (this.paintOnly && !this.paintOnly.has(sc.id)) return;
-      const pic = bySet.get(sc.set) || pool[i % pool.length];
+      const pic = pool.find(x => x.scene === sc.id) || bySet.get(sc.set) || pool[i % pool.length];
       p.plates.set(sc.id, {
         key: this.plateKey(sc), bitmap: pic.bitmap, scene: true, own: true,
         flip: i % 2 === 1, vx: [0, -0.09, 0.08, -0.05, 0.1][i % 5], vz: [1, 1.12, 1.05, 1.2, 1.08][i % 5], tint: tints[i % tints.length],

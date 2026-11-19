@@ -2,7 +2,7 @@
 // Every step is incremental: editing one scene only regenerates what changed.
 
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
-import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED } from './images.js';
+import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
@@ -154,6 +154,7 @@ export class Pipeline {
       this.h.step('visuals', 'active', `0 / ${todo.length}`);
       let done = 0, failed = 0, blocked = 0;
       const blockedScenes = [];
+      await cloudflareReady(); // the site's own Cloudflare allowance removes the free-tier pacing
       const isFree = () => isFreeImageTier(this.s); // can flip mid-run if a saved key is refused
       const free = isFree();
       // Free tier: ask for shots spread across the video first (start, middle, end…), so if the

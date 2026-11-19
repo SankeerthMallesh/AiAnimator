@@ -141,6 +141,8 @@ export async function generateImage(prompt, opts, settings, extra = {}) {
 async function generateImageRaw(prompt, opts, settings, { signal, log, quick = false } = {}) {
   const order = [];
   if (settings.imageProvider === 'none') return null;
+  const cf = await cloudflareImage(prompt, opts, signal);
+  if (cf) return cf;
   if (settings.imageProvider === 'huggingface' && settings.hfToken) order.push('huggingface');
   order.push('pollinations');
   if (settings.hfToken && !order.includes('huggingface')) order.push('huggingface');
@@ -196,11 +198,45 @@ export async function mapLimit(items, limit, fn) {
 }
 
 export function imageConcurrency(settings) {
+  if (cloudflareOn()) return 3;
   if ((settings.pollinationsKey && !keyRejected) || (settings.imageProvider === 'huggingface' && settings.hfToken)) return 4;
   return 3;
 }
 
 // With no key the free image service allows a short burst, then about one image every 45 seconds.
 export function isFreeImageTier(settings) {
+  if (cloudflareOn()) return false; // the site's own allowance has no 45-second pacing
   return settings.imageProvider !== 'none' && (!settings.pollinationsKey || keyRejected) && !settings.hfToken && !(settings.geminiKey && geminiImages !== false);
 }
+
+// ---------- Cloudflare Workers AI (the site's own free daily allowance) ----------
+// The Loomy server paints with FLUX.1 schnell on the owner's Cloudflare account. If the server has
+// no AI connection, or the daily allowance is used up, everything falls back to the free services.
+let cfState = null; // null: not checked yet, true: available, false: not available this visit
+export async function cloudflareReady() {
+  if (cfState !== null) return cfState;
+  try {
+    const r = await fetch('/api/config', { credentials: 'same-origin' });
+    cfState = r.ok ? !!(await r.json()).ai : false;
+  } catch { cfState = false; }
+  return cfState;
+}
+export async function cloudflareImage(prompt, opts = {}, signal) {
+  if (!(await cloudflareReady())) return null;
+  try {
+    const res = await fetch('/api/image', {
+      method: 'POST', credentials: 'same-origin', signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, seed: opts.seed || 0 }),
+    });
+    if (res.status === 429 || res.status === 503) { cfState = false; return null; }
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size < 2000) return null;
+    return await createImageBitmap(blob);
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    return null;
+  }
+}
+export const cloudflareOn = () => cfState === true;
