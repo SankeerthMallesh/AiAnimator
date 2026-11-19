@@ -114,6 +114,7 @@ function render() {
 
 // ---------- editing ----------
 function addNote(at, opts = {}) {
+  if (typeof boardViewOnly !== 'undefined' && boardViewOnly) return null;
   const n = { id: uid(), x: Math.round(at.x - 110), y: Math.round(at.y - 30), w: 220, title: '', body: '', color, tilt: Math.round((Math.random() * 4 - 2) * 10) / 10, ...opts };
   board.notes.push(n);
   selNote = n.id; selLink = null;
@@ -122,6 +123,7 @@ function addNote(at, opts = {}) {
   return n;
 }
 function startEdit(id, part) {
+  if (typeof boardViewOnly !== 'undefined' && boardViewOnly) return;
   const el = cardEl(id); if (!el) return;
   const f = el.querySelector(`.${part}`);
   f.contentEditable = 'true'; f.focus();
@@ -173,6 +175,12 @@ stage.addEventListener('pointerdown', (e) => {
   if (touches.size === 2) {
     const [a, b] = [...touches.values()];
     gesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+    return;
+  }
+  // Viewers can pan and zoom, nothing else.
+  if (typeof boardViewOnly !== 'undefined' && boardViewOnly && (e.target.closest('.card') || e.target.closest('path.hit'))) {
+    stage.setPointerCapture(e.pointerId);
+    gesture = { kind: 'pan', x: e.clientX, y: e.clientY, vx: board.view.x, vy: board.view.y };
     return;
   }
   const hitLink = e.target.closest('path.hit');
@@ -271,6 +279,7 @@ stage.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 function deleteSelected() {
+  if (typeof boardViewOnly !== 'undefined' && boardViewOnly) return false;
   if (selLink != null) { board.links.splice(selLink, 1); selLink = null; render(); save(); return true; }
   if (selNote) { removeNote(selNote); return true; }
   return false;
@@ -384,4 +393,19 @@ function toast(msg, ms = 3000) {
   if (!board.view) board.view = { x: 0, y: 60, z: 1 };
   render(); applyView();
   if (!load()) { fit(); save(); }
+})();
+
+// View-only visitors can look at the board but not change it.
+let boardViewOnly = false;
+(async () => {
+  try {
+    const r = await fetch('/__access/status', { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok || !(r.headers.get('Content-Type') || '').includes('json')) return;
+    boardViewOnly = (await r.json()).role === 'view';
+    if (boardViewOnly) {
+      document.documentElement.classList.add('viewonly');
+      for (const id of ['addNote', 'shareBtn', 'moreBtn']) { const b = document.getElementById(id); if (b) b.disabled = true; }
+      toast('View only: the board can be looked at but not changed.', 4000);
+    }
+  } catch { /* no lock on this site */ }
 })();

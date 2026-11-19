@@ -7,28 +7,54 @@
 // "forever" codes use the expiry 99991231.
 
 const COOKIE = 'loomy_pass';
+// A shared "just looking" code: it opens the pages but not the tools. Change it with a VIEW_CODE
+// secret; set VIEW_CODE to "off" to turn view-only codes off.
+const DEFAULT_VIEW_CODE = '1111';
+// What a view-only pass may not use on the server (the AI that makes videos).
+const VIEW_BLOCKED = /^\/api\/(image|write)\b/;
 const MAX_AGE = 400 * 86400; // browsers cap cookies at 400 days; the pass is renewed on every visit
 
 export async function onRequest(context) {
   const { request, env, next } = context;
   const secret = env.ACCESS_SECRET;
-  if (!secret) return next();
+  if (!secret) {
+    // No lock on this site: everyone has full access.
+    if (new URL(request.url).pathname === '/__access/status') return Response.json({ role: 'full', locked: false }, { headers: { 'Cache-Control': 'no-store' } });
+    return next();
+  }
   const url = new URL(request.url);
 
+  const viewCode = String(env.VIEW_CODE || DEFAULT_VIEW_CODE).trim().toUpperCase();
   if (url.pathname === '/__access' && request.method === 'POST') {
     const form = await request.formData().catch(() => null);
     const code = String(form?.get('code') || '').trim().toUpperCase().replace(/\s+/g, '');
     const back = safePath(String(form?.get('back') || '/'));
+    const wantsJson = (request.headers.get('Accept') || '').includes('application/json');
+    let pass = null;
     const exp = await checkCode(code, secret);
-    if (!exp) return gate(back, 'That code is not valid or has expired.', 401);
-    return new Response(null, { status: 303, headers: { Location: back, 'Set-Cookie': await passCookie(exp, secret, url) } });
+    if (exp) pass = { exp, role: 'full' };
+    else if (viewCode !== 'OFF' && code && code === viewCode) pass = { exp: '99991231', role: 'view' };
+    if (!pass) {
+      if (wantsJson) return Response.json({ ok: false, error: 'That code is not valid or has expired.' }, { headers: { 'Cache-Control': 'no-store' } });
+      return gate(back, 'That code is not valid or has expired.', 200);
+    }
+    const cookie = await passCookie(pass, secret, url);
+    if (wantsJson) return Response.json({ ok: true, role: pass.role }, { headers: { 'Set-Cookie': cookie, 'Cache-Control': 'no-store' } });
+    return new Response(null, { status: 303, headers: { Location: back, 'Set-Cookie': cookie } });
   }
 
   const pass = await checkPass(request, secret);
+  if (url.pathname === '/__access/status') {
+    return Response.json({ role: pass ? pass.role : 'none', locked: true }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+  // View-only visitors can look around, but the server will not make anything for them.
+  if (pass?.role === 'view' && VIEW_BLOCKED.test(url.pathname)) {
+    return Response.json({ ok: false, viewOnly: true, error: 'View-only access: enter a full access code in Settings to make videos.' }, { headers: { 'Cache-Control': 'no-store' } });
+  }
   if (!pass) {
     // Pages get the code screen; files and the API just get a refusal.
     const wantsPage = request.method === 'GET' && (request.headers.get('Accept') || '').includes('text/html');
-    if (wantsPage) return gate(url.pathname + url.search + url.hash, '', 401);
+    if (wantsPage) return gate(url.pathname + url.search + url.hash, '', 200);
     return new Response('Locked: enter an access code on the Loomy home page first.', { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
   const res = await next();
@@ -69,15 +95,19 @@ async function checkCode(code, secret) {
   return same(want, m[2]) ? m[1] : null;
 }
 
-async function passCookie(exp, secret, url) {
-  const sig = await hmacHex(secret, `pass:${exp}`);
-  return `${COOKIE}=${exp}.${sig}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}${url.protocol === 'https:' ? '; Secure' : ''}`;
+// Pass cookie: "<exp>.<sig>" for full access, "v<exp>.<sig>" for view-only.
+async function passCookie(pass, secret, url) {
+  const view = pass.role === 'view';
+  const sig = await hmacHex(secret, `${view ? 'view' : 'pass'}:${pass.exp}`);
+  return `${COOKIE}=${view ? 'v' : ''}${pass.exp}.${sig}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}${url.protocol === 'https:' ? '; Secure' : ''}`;
 }
 
 async function checkPass(request, secret) {
-  const m = (request.headers.get('Cookie') || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=(\\d{8})\\.([0-9a-f]{64})`));
-  if (!m || expired(m[1])) return null;
-  return same(await hmacHex(secret, `pass:${m[1]}`), m[2]) ? m[1] : null;
+  const m = (request.headers.get('Cookie') || '').match(new RegExp(`(?:^|;\\s*)${COOKIE}=(v?)(\\d{8})\\.([0-9a-f]{64})`));
+  if (!m || expired(m[2])) return null;
+  const view = m[1] === 'v';
+  const ok = same(await hmacHex(secret, `${view ? 'view' : 'pass'}:${m[2]}`), m[3]);
+  return ok ? { exp: m[2], role: view ? 'view' : 'full' } : null;
 }
 
 function safePath(p) {
@@ -91,6 +121,7 @@ function esc(s) {
 function gate(back, error, status) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loomy</title><meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%233D8BFF%27/%3E%3C/svg%3E">
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:radial-gradient(800px 380px at 50% -80px,rgba(61,139,255,.28),transparent 70%),#121212;color:#ECECEC;font:15px/1.5 Inter,ui-sans-serif,-apple-system,"Segoe UI",sans-serif}

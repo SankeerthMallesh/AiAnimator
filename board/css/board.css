@@ -109,3 +109,6 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round
 
 /* Loomy pro theme: dark bar. */
 :root:not([data-theme="light"]) { --bar: #141414; --ink: #ECECEC; --muted: #A1A1A1; --line: #2A2A2A; --hover: rgba(255,255,255,.07); }
+
+html.viewonly .card .tools, html.viewonly .card .pin { display: none; }
+html.viewonly .tb:disabled { opacity: .4; cursor: not-allowed; }

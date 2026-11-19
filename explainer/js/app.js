@@ -290,6 +290,7 @@ function setBusy(b) {
 }
 
 async function run({ render }) {
+  if (blockedForViewer()) return;
   pipeline?.cancel();
   pipeline = new Pipeline(project, settings, hooks());
   const mine = pipeline;
@@ -371,6 +372,7 @@ async function doRender(pl = pipeline) {
 }
 
 $('#btnRender').addEventListener('click', async () => {
+  if (blockedForViewer()) return;
   if (running || !project) return;
   const pl = pipeline && !pipeline.signal.aborted ? pipeline : new Pipeline(project, settings, hooks());
   pipeline = pl;
@@ -804,3 +806,46 @@ window.addEventListener('message', (e) => {
 
 // Loomy's top bar asks this before reloading a section after a sync.
 window.loomyBusy = () => running;
+
+// ---------- access: view-only visitors can look around but not make videos ----------
+let viewOnly = false;
+function setViewOnly(on) {
+  viewOnly = on;
+  document.documentElement.classList.toggle('viewonly', on);
+  for (const id of ['btnGo', 'btnDemo', 'btnRender', 'btnRetry', 'btnApply', 'btnAddScene']) {
+    const b = document.getElementById(id);
+    if (b) { b.disabled = on; b.title = on ? 'View-only: enter your access code in Settings' : ''; }
+  }
+  const banner = document.getElementById('viewBanner');
+  if (banner) banner.hidden = !on;
+  const st = document.getElementById('accessState');
+  if (st) st.textContent = on ? 'View only. Enter an access code to make videos.' : 'Full access.';
+}
+function blockedForViewer() {
+  if (!viewOnly) return false;
+  toast('View-only: open Settings and enter your access code to make videos.', true, 6000);
+  return true;
+}
+(async () => {
+  try {
+    const r = await fetch('/__access/status', { credentials: 'same-origin', cache: 'no-store' });
+    if (!r.ok || !(r.headers.get('Content-Type') || '').includes('json')) return;
+    const j = await r.json();
+    const box = document.getElementById('accessBox');
+    if (box) box.hidden = false;
+    setViewOnly(j.role === 'view');
+  } catch { /* no lock on this site */ }
+})();
+document.getElementById('btnUnlock')?.addEventListener('click', async () => {
+  const input = document.getElementById('accessCode');
+  const code = (input?.value || '').trim();
+  if (!code) { input?.focus(); return; }
+  const fd = new FormData(); fd.set('code', code); fd.set('back', '/');
+  try {
+    const r = await fetch('/__access', { method: 'POST', body: fd, credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    const j = await r.json();
+    if (!j.ok) { toast(j.error || 'That code did not work.', true); return; }
+    toast(j.role === 'full' ? 'Unlocked. Full access on this device.' : 'View-only code accepted.');
+    setTimeout(() => window.top.location.reload(), 700);
+  } catch { toast('Could not check the code. Try again.', true); }
+});
