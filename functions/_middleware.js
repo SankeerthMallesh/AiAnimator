@@ -11,7 +11,7 @@ const COOKIE = 'loomy_pass';
 // secret; set VIEW_CODE to "off" to turn view-only codes off.
 const DEFAULT_VIEW_CODE = '1111';
 // What a view-only pass may not use on the server (the AI that makes videos).
-const VIEW_BLOCKED = /^\/api\/(image|write|speak|runway)\b/;
+const VIEW_BLOCKED = /^\/api\/(image|write|speak|runway|fal)\b/;
 const MAX_AGE = 400 * 86400; // browsers cap cookies at 400 days; the pass is renewed on every visit
 
 export async function onRequest(context) {

@@ -7,6 +7,7 @@ import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFr
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
+import { animateImage, videoProvider, videoProviderLabel, motionPrompt, openShotPack } from './videoai.js';
 import { Script } from './script.js';
 import { SetKit } from './props.js';
 import { Cast } from './cast.js';
@@ -1003,43 +1004,37 @@ document.getElementById('btnUnlock')?.addEventListener('click', async () => {
 // ---------- Runway: turn each shot into a real animated clip (the visitor's own paid key) ----------
 const RUNWAY_RATIO = { '9:16': ['720:1280', 720, 1280], '16:9': ['1280:720', 1280, 720], '1:1': ['960:960', 960, 960], '4:5': ['832:1104', 832, 1104] };
 function showRunwayButton() {
+  const ready = !!project?.timeline;
   const b = document.getElementById('btnRunway');
-  if (b) b.classList.toggle('hidden', !(project?.timeline && settings.runwayKey));
+  if (b) {
+    b.classList.toggle('hidden', !(ready && videoProvider(settings)));
+    if (!b.disabled) b.textContent = `✨ Animate shots with ${videoProviderLabel(settings) || 'AI video'}`;
+  }
+  document.getElementById('btnShotPack')?.classList.toggle('hidden', !ready);
 }
-async function runwayCall(body) {
-  const res = await fetch('/api/runway', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: settings.runwayKey, ...body }) });
-  return res;
+// Loomy's own drawing of a shot, without captions: the first frame a video model animates.
+function shotFrame(sc, ratio) {
+  const [, w, h] = ratio;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  Stage.still(c, project.script, sc, project.plates.get(sc.id) || null, 1.2, { captions: false });
+  return c.toDataURL('image/jpeg', 0.88);
 }
 async function runwayShot(sc, i, ratio) {
-  const [r, w, h] = ratio;
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  // Loomy's own drawing of the shot, without captions, is the first frame Runway animates.
-  Stage.still(c, project.script, sc, project.plates.get(sc.id) || null, 1.2, { captions: false });
-  const image = c.toDataURL('image/jpeg', 0.88);
-  const prompt = `Animate this 2D cartoon. The stick-figure characters move naturally: they talk, gesture and react with lively, bouncy cartoon motion. Keep the exact art style, colors, outlines and characters. Gentle camera push-in. No new text. Story beat: ${sc.narration}`;
-  const start = await (await runwayCall({ action: 'start', image, prompt, ratio: r, duration: 5 })).json();
-  if (!start.ok) throw new Error(start.error || 'Runway refused the shot');
-  const until = Date.now() + 8 * 60 * 1000;
-  while (Date.now() < until) {
-    await new Promise(res => setTimeout(res, 5000));
-    const st = await (await runwayCall({ action: 'poll', id: start.id })).json();
-    if (!st.ok) throw new Error(st.error || 'Runway status failed');
-    log(`Runway shot ${i + 1}: ${st.status}${st.progress != null ? ` ${Math.round(st.progress * 100)}%` : ''}`);
-    if (st.status === 'SUCCEEDED' && st.output?.[0]) {
-      const res = await runwayCall({ action: 'fetch', url: st.output[0] });
-      if (!/^video\//.test(res.headers.get('Content-Type') || '')) throw new Error('Could not download the clip');
-      return readClip(await res.blob());
-    }
-    if (st.status === 'FAILED' || st.status === 'CANCELLED') throw new Error(st.failure || `Runway ${st.status.toLowerCase()}`);
-  }
-  throw new Error('Runway took too long');
+  const blob = await animateImage({ image: shotFrame(sc, ratio), prompt: motionPrompt(sc.narration, 'cartoon'), format: formatOf(project.options), duration: 5 }, settings, { log: (m) => log(`Shot ${i + 1}: ${m}`) });
+  return readClip(blob);
 }
+document.getElementById('btnShotPack')?.addEventListener('click', () => {
+  if (blockedForViewer()) return;
+  if (!project?.script) return;
+  const ratio = RUNWAY_RATIO[formatOf(project.options)] || RUNWAY_RATIO['9:16'];
+  openShotPack(project.script.scenes.map((sc, i) => ({ n: i + 1, line: sc.narration, image: shotFrame(sc, ratio), prompt: motionPrompt(sc.narration, 'cartoon') })), (m) => toast(m));
+});
 document.getElementById('btnRunway')?.addEventListener('click', async () => {
   if (blockedForViewer()) return;
-  if (!settings.runwayKey) { toast('Add your Runway API key in Settings first.', true); return; }
+  if (!videoProvider(settings)) { toast('Add a fal.ai or Runway key in Settings first, or use the Shot pack for free credits.', true); return; }
   if (running || !project?.timeline) return;
   const scenes = project.script.scenes;
-  if (!confirm(`Runway will animate ${scenes.length} shots, 5 seconds each. That uses about $${(scenes.length * 0.25).toFixed(2)} of your Runway credit and takes a few minutes. Continue?`)) return;
+  if (!confirm(`${videoProviderLabel(settings)} will animate ${scenes.length} shots, about 5 seconds each. This uses paid credit on your account (roughly $0.15–$0.50 a shot, more for Veo) and takes a few minutes. Continue?`)) return;
   const ratio = RUNWAY_RATIO[formatOf(project.options)] || RUNWAY_RATIO['9:16'];
   const btn = document.getElementById('btnRunway');
   btn.disabled = true;
@@ -1058,14 +1053,14 @@ document.getElementById('btnRunway')?.addEventListener('click', async () => {
         done++;
       } catch (e) {
         failed++;
-        log(`Runway shot ${i + 1} failed: ${e.message}`);
+        log(`Shot ${i + 1}: animation failed (${e.message})`);
       }
     }
   };
   await Promise.all([worker(), worker()]);
   running = false;
   btn.disabled = false;
-  btn.textContent = '✨ Animate shots with Runway';
+  btn.textContent = `✨ Animate shots with ${videoProviderLabel(settings) || 'AI video'}`;
   toast(failed ? `${done} shots animated, ${failed} failed (see the activity log). Press Export MP4.` : `All ${done} shots animated. Press Export MP4 to render the video.`, !!failed && !done, 9000);
   $('#btnRender').disabled = false;
 });

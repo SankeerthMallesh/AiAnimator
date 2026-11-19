@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611192103">
+<link rel="stylesheet" href="css/app.css?v=202611192108">
 </head>
 <body>
 <div class="app" id="app">
@@ -166,7 +166,8 @@
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Export MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
-              <button class="btn wide hidden runway-btn" id="btnRunway" type="button">✨ Animate shots with Runway</button>
+              <button class="btn wide hidden runway-btn" id="btnRunway" type="button">✨ Animate shots</button>
+              <button class="btn wide hidden" id="btnShotPack" type="button">📤 Shot pack: animate free in Flow, Kling, Magic Hour…</button>
             </div>
           </div>
         </section>
@@ -255,6 +256,9 @@
           <option value="elevenlabs">ElevenLabs (your own key)</option>
           <option value="none">No voice — captions + music</option>
         </select></label>
+            <label class="field"><span>Animated shots with</span><select name="videoProvider"><option value="auto">Whichever key is saved</option><option value="fal">fal.ai (Kling, Veo, Hailuo, Wan)</option><option value="runway">Runway</option></select></label>
+      <label class="field"><span>fal.ai API key, optional (one key for Kling, Google Veo, Hailuo, Wan; paid per clip) <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">get key ↗</a></span><input name="falKey" type="password" placeholder="fal key" autocomplete="off"></label>
+      <label class="field"><span>fal.ai video model</span><select name="falModel"><option value="fal-ai/kling-video/v2.1/standard/image-to-video">Kling 2.1 (people and faces stay stable)</option><option value="fal-ai/veo3/fast/image-to-video">Google Veo 3 Fast (most realistic, costs more)</option><option value="fal-ai/minimax/hailuo-02/standard/image-to-video">Hailuo 02 by MiniMax (lively motion)</option><option value="fal-ai/wan/v2.2-a14b/image-to-video">Wan 2.2 (open model, cheapest)</option></select></label>
       <label class="field"><span>Runway API key, optional (real animated shots, paid by Runway) <a href="https://dev.runwayml.com/" target="_blank" rel="noopener">get key ↗</a></span><input name="runwayKey" type="password" placeholder="key_…" autocomplete="off"></label>
       <label class="field"><span>ElevenLabs key, optional <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener">get key ↗</a></span><input name="elevenKey" type="password" placeholder="only if you pick ElevenLabs"></label>
       <label class="field"><span>ElevenLabs voice ID</span><input name="elevenVoice" placeholder="JBFqnCBsd6RMkjVDRZzb"></label>
@@ -286,28 +290,29 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611192103",
-  "./js/audio.js": "./js/audio.js?v=202611192103",
-  "./js/cast.js": "./js/cast.js?v=202611192103",
-  "./js/demo.js": "./js/demo.js?v=202611192103",
-  "./js/encoder.js": "./js/encoder.js?v=202611192103",
-  "./js/images.js": "./js/images.js?v=202611192103",
-  "./js/llm.js": "./js/llm.js?v=202611192103",
-  "./js/net.js": "./js/net.js?v=202611192103",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611192103",
-  "./js/presets.js": "./js/presets.js?v=202611192103",
-  "./js/props.js": "./js/props.js?v=202611192103",
-  "./js/safety.js": "./js/safety.js?v=202611192103",
-  "./js/script.js": "./js/script.js?v=202611192103",
-  "./js/sets.js": "./js/sets.js?v=202611192103",
-  "./js/stage.js": "./js/stage.js?v=202611192103",
-  "./js/storage.js": "./js/storage.js?v=202611192103",
-  "./js/toons.js": "./js/toons.js?v=202611192103",
-  "./js/tts.js": "./js/tts.js?v=202611192103",
-  "./js/wiki.js": "./js/wiki.js?v=202611192103",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611192103"
+  "./js/app.js": "./js/app.js?v=202611192108",
+  "./js/audio.js": "./js/audio.js?v=202611192108",
+  "./js/cast.js": "./js/cast.js?v=202611192108",
+  "./js/demo.js": "./js/demo.js?v=202611192108",
+  "./js/encoder.js": "./js/encoder.js?v=202611192108",
+  "./js/images.js": "./js/images.js?v=202611192108",
+  "./js/llm.js": "./js/llm.js?v=202611192108",
+  "./js/net.js": "./js/net.js?v=202611192108",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611192108",
+  "./js/presets.js": "./js/presets.js?v=202611192108",
+  "./js/props.js": "./js/props.js?v=202611192108",
+  "./js/safety.js": "./js/safety.js?v=202611192108",
+  "./js/script.js": "./js/script.js?v=202611192108",
+  "./js/sets.js": "./js/sets.js?v=202611192108",
+  "./js/stage.js": "./js/stage.js?v=202611192108",
+  "./js/storage.js": "./js/storage.js?v=202611192108",
+  "./js/toons.js": "./js/toons.js?v=202611192108",
+  "./js/tts.js": "./js/tts.js?v=202611192108",
+  "./js/videoai.js": "./js/videoai.js?v=202611192108",
+  "./js/wiki.js": "./js/wiki.js?v=202611192108",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611192108"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611192103"></script>
+<script type="module" src="./js/app.js?v=202611192108"></script>
 </body>
 </html>

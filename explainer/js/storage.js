@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   pollinationsImageModel: 'flux',
   videoClips: 'off',              // off | on  (paid: real AI video clips per shot)
   videoModel: 'wan-fast',
+  runwayKey: '', falKey: '', falModel: 'fal-ai/kling-video/v2.1/standard/image-to-video', videoProvider: 'auto',
   hfToken: '',
   // Voice
   ttsEngine: 'kokoro',            // kokoro | pollinations | none

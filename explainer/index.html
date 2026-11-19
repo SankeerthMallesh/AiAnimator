@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611192103">
+<link rel="stylesheet" href="css/app.css?v=202611192108">
 </head>
 <body>
 <div class="app" id="app">
@@ -164,6 +164,7 @@
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Export MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
+              <button class="btn wide hidden" id="btnShotPack" type="button">📤 Shot pack: animate free in Flow, Kling, Magic Hour…</button>
             </div>
           </div>
         </section>
@@ -236,13 +237,17 @@
           <option value="huggingface">Hugging Face FLUX (free token)</option>
           <option value="none">None — abstract backgrounds</option>
         </select></label>
+      <label class="field"><span>Animated shots with</span><select name="videoProvider"><option value="auto">Whichever key is saved</option><option value="fal">fal.ai (Kling, Veo, Hailuo, Wan)</option><option value="runway">Runway</option></select></label>
+      <label class="field"><span>fal.ai API key, optional (one key for Kling, Google Veo, Hailuo, Wan; paid per clip) <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">get key ↗</a></span><input name="falKey" type="password" placeholder="fal key" autocomplete="off"></label>
+      <label class="field"><span>fal.ai video model</span><select name="falModel"><option value="fal-ai/kling-video/v2.1/standard/image-to-video">Kling 2.1 (people and faces stay stable)</option><option value="fal-ai/veo3/fast/image-to-video">Google Veo 3 Fast (most realistic, costs more)</option><option value="fal-ai/minimax/hailuo-02/standard/image-to-video">Hailuo 02 by MiniMax (lively motion)</option><option value="fal-ai/wan/v2.2-a14b/image-to-video">Wan 2.2 (open model, cheapest)</option></select></label>
+      <label class="field"><span>Runway API key, optional (real animated shots, paid by Runway) <a href="https://dev.runwayml.com/" target="_blank" rel="noopener">get key ↗</a></span><input name="runwayKey" type="password" placeholder="key_…" autocomplete="off"></label>
       <label class="field"><span>Pollinations key, optional <a href="https://enter.pollinations.ai" target="_blank" rel="noopener">get one ↗</a></span><input name="pollinationsKey" type="password" placeholder="faster, fewer limits"></label>
       <label class="field"><span>Pollinations image model</span><input name="pollinationsImageModel"></label>
       <label class="field"><span>Animate shots with AI video (paid)</span>
         <select name="videoClips"><option value="off">Off — pictures with a moving camera (free)</option><option value="on">On — a real moving clip for every shot (costs Pollinations credit)</option></select></label>
       <label class="field"><span>Video model</span>
         <select name="videoModel"><option value="wan-fast">Wan 2.2 Fast — 480p, cheapest</option><option value="p-video">Pruna P-Video — 720p</option><option value="seedance-pro">Seedance Pro Fast — 720p</option><option value="veo">Veo 3.1 Fast — best, most expensive</option></select></label>
-      <p class="fine">Animation needs a secret Pollinations key (starts with sk_) with paid credit. There is no free video model. Expect a few minutes per video.</p>
+      <p class="fine">Animation needs a fal.ai or Runway key, or a paid Pollinations key (sk_). For free daily credits, use the Shot pack in the editor instead. Expect a few minutes per video.</p>
       <label class="field"><span>Hugging Face token <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">get free token ↗</a></span><input name="hfToken" type="password" placeholder="hf_…"></label>
     </fieldset>
 
@@ -288,26 +293,27 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611192103",
-  "./js/audio.js": "./js/audio.js?v=202611192103",
-  "./js/clips.js": "./js/clips.js?v=202611192103",
-  "./js/depth.js": "./js/depth.js?v=202611192103",
-  "./js/encoder.js": "./js/encoder.js?v=202611192103",
-  "./js/gl3d.js": "./js/gl3d.js?v=202611192103",
-  "./js/images.js": "./js/images.js?v=202611192103",
-  "./js/llm.js": "./js/llm.js?v=202611192103",
-  "./js/mascot.js": "./js/mascot.js?v=202611192103",
-  "./js/net.js": "./js/net.js?v=202611192103",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611192103",
-  "./js/presets.js": "./js/presets.js?v=202611192103",
-  "./js/props.js": "./js/props.js?v=202611192103",
-  "./js/renderer.js": "./js/renderer.js?v=202611192103",
-  "./js/safety.js": "./js/safety.js?v=202611192103",
-  "./js/storage.js": "./js/storage.js?v=202611192103",
-  "./js/tts.js": "./js/tts.js?v=202611192103",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611192103"
+  "./js/app.js": "./js/app.js?v=202611192108",
+  "./js/audio.js": "./js/audio.js?v=202611192108",
+  "./js/clips.js": "./js/clips.js?v=202611192108",
+  "./js/depth.js": "./js/depth.js?v=202611192108",
+  "./js/encoder.js": "./js/encoder.js?v=202611192108",
+  "./js/gl3d.js": "./js/gl3d.js?v=202611192108",
+  "./js/images.js": "./js/images.js?v=202611192108",
+  "./js/llm.js": "./js/llm.js?v=202611192108",
+  "./js/mascot.js": "./js/mascot.js?v=202611192108",
+  "./js/net.js": "./js/net.js?v=202611192108",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611192108",
+  "./js/presets.js": "./js/presets.js?v=202611192108",
+  "./js/props.js": "./js/props.js?v=202611192108",
+  "./js/renderer.js": "./js/renderer.js?v=202611192108",
+  "./js/safety.js": "./js/safety.js?v=202611192108",
+  "./js/storage.js": "./js/storage.js?v=202611192108",
+  "./js/tts.js": "./js/tts.js?v=202611192108",
+  "./js/videoai.js": "./js/videoai.js?v=202611192108",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611192108"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611192103"></script>
+<script type="module" src="./js/app.js?v=202611192108"></script>
 </body>
 </html>

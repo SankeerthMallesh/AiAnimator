@@ -28,7 +28,7 @@ export const DEFAULT_SETTINGS = {
   depth3d: 'off',
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
-  runwayKey: '',
+  runwayKey: '', falKey: '', falModel: 'fal-ai/kling-video/v2.1/standard/image-to-video', videoProvider: 'auto',
   fps: 60,
   captionStyle: 'word',           // word | classic | bold | box | minimal | off
   showTitle: false,

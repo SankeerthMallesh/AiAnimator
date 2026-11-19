@@ -9,6 +9,8 @@ import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFr
 import { Pipeline, STEPS, newProject } from './pipeline.js';
 import { decodeUserMusic } from './audio.js';
 import { loadFonts } from './renderer.js';
+import { clipFromBlob } from './clips.js';
+import { motionPrompt, openShotPack } from './videoai.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -395,6 +397,7 @@ function onScriptReady() {
   $('#ytDesc').value = s.description || '';
   $('#ytTags').value = (s.hashtags || []).join(' ');
   $('#metaCard').classList.remove('hidden');
+  document.getElementById('btnShotPack')?.classList.remove('hidden');
   const notes = project.factCheckNotes || [];
   $('#factNotes').classList.toggle('hidden', !notes.length);
   $('#factList').innerHTML = '';
@@ -518,9 +521,22 @@ function renderBoard() {
     const t = tl?.scenes.find(x => x.id === scene.id);
     const card = el('div', { class: `scene${landscape ? ' landscape' : ''}${scene.dirty ? ' dirty' : ''}`, 'data-id': scene.id });
     const thumb = el('div', { class: 'thumb', style: `aspect-ratio:${Math.max(ratio, 0.8)}` }, el('div', { class: 'shimmer' }), el('span', { class: 'num' }, String(i + 1)));
-    const fileIn = el('input', { type: 'file', accept: 'image/*', onchange: async (e) => {
+    const fileIn = el('input', { type: 'file', accept: 'image/*,video/*', onchange: async (e) => {
       const f = e.target.files[0];
       if (!f) return;
+      if (/^video\//.test(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)) {
+        // A clip from Google Flow, Kling, Magic Hour or anywhere else plays as this shot.
+        try {
+          const clip = await clipFromBlob(f);
+          project.clips = project.clips || new Map();
+          const old = project.clips.get(scene.id);
+          if (old?.clip?.url) URL.revokeObjectURL(old.clip.url);
+          project.clips.set(scene.id, { key: 'custom', clip, custom: true });
+          markDirty(scene, card);
+          toast(`Clip added to shot ${i + 1}. Press Apply edits, then Export.`);
+        } catch (err) { toast(err.message || 'Could not read that video.', true); }
+        return;
+      }
       try {
         const bmp = await createImageBitmap(f);
         project.images.set(scene.id, { key: 'custom', bitmap: bmp, custom: true });
@@ -848,4 +864,23 @@ document.getElementById('btnUnlock')?.addEventListener('click', async () => {
     toast(j.role === 'full' ? 'Unlocked. Full access on this device.' : 'View-only code accepted.');
     setTimeout(() => window.top.location.reload(), 700);
   } catch { toast('Could not check the code. Try again.', true); }
+});
+
+// Shot pack: each shot's picture and an animation prompt, for the free credits of video apps.
+document.getElementById('btnShotPack')?.addEventListener('click', () => {
+  if (typeof blockedForViewer === 'function' && blockedForViewer()) return;
+  if (!project?.script) return;
+  const shots = project.script.scenes.map((sc, i) => {
+    const bmp = project.images?.get(sc.id)?.bitmap;
+    let image = '';
+    if (bmp) {
+      const c = document.createElement('canvas');
+      const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      image = c.toDataURL('image/jpeg', 0.88);
+    }
+    return { n: i + 1, line: sc.narration, image, prompt: motionPrompt(sc.visual || sc.narration, '3d') };
+  });
+  openShotPack(shots, (m) => toast(m));
 });

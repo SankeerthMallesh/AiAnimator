@@ -34,6 +34,7 @@ export async function onRequest({ request, env, params }) {
     if (path === 'write' && request.method === 'POST') return await write(request, env);
     if (path === 'speak' && request.method === 'POST') return await speak(request, env);
     if (path === 'runway' && request.method === 'POST') return await runway(request);
+    if (path === 'fal' && request.method === 'POST') return await fal(request);
     if (!env.DB || !env.GOOGLE_CLIENT_ID) return json({ error: 'Sign-in is not set up on this site.' }, 503);
     await ensureSchema(env.DB);
 
@@ -171,6 +172,51 @@ async function runway(request) {
     }
     if (body.action === 'fetch') {
       // Download the finished clip for the page (Runway's file host may not allow browsers).
+      const u = new URL(String(body.url || ''));
+      if (u.protocol !== 'https:') return json({ ok: false, error: 'Bad clip address' });
+      const res = await fetch(u.toString());
+      if (!res.ok) return json({ ok: false, error: `Clip download said ${res.status}` });
+      return new Response(res.body, { headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp4', 'Cache-Control': 'no-store' } });
+    }
+    return json({ ok: false, error: 'Unknown action' });
+  } catch (e) {
+    return json({ ok: false, error: String(e?.message || e).slice(0, 200) });
+  }
+}
+
+// ---------- fal.ai (optional, the visitor's own paid key): Kling, Veo, Hailuo, Wan ----------
+// One key, many image-to-video models. The key is passed through to fal and never stored.
+async function fal(request) {
+  const body = await readJson(request, 7_000_000);
+  const key = String(body.key || '').trim();
+  if (key.length < 20) return json({ ok: false, error: 'Add your fal.ai API key in Settings.' });
+  const headers = { Authorization: `Key ${key}`, 'Content-Type': 'application/json' };
+  const onFal = (u) => { try { const x = new URL(String(u)); return x.protocol === 'https:' && /(^|\.)fal\.run$/.test(x.hostname) ? x.toString() : null; } catch { return null; } };
+  try {
+    if (body.action === 'start') {
+      const model = String(body.model || '').trim();
+      if (!/^[a-z0-9-]+\/[a-z0-9._\/-]+$/i.test(model)) return json({ ok: false, error: 'Pick a fal.ai model in Settings.' });
+      const res = await fetch(`https://queue.fal.run/${model}`, { method: 'POST', headers, body: JSON.stringify(body.input || {}) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.request_id) return json({ ok: false, error: j.detail ? JSON.stringify(j.detail).slice(0, 200) : (j.error || `fal said ${res.status}`) });
+      return json({ ok: true, status_url: j.status_url, response_url: j.response_url });
+    }
+    if (body.action === 'poll') {
+      const u = onFal(body.status_url);
+      if (!u) return json({ ok: false, error: 'Bad status address' });
+      const res = await fetch(u, { headers });
+      const j = await res.json().catch(() => ({}));
+      return json({ ok: res.ok, status: j.status || null, error: res.ok ? null : `fal said ${res.status}` });
+    }
+    if (body.action === 'result') {
+      const u = onFal(body.response_url);
+      if (!u) return json({ ok: false, error: 'Bad result address' });
+      const res = await fetch(u, { headers });
+      const j = await res.json().catch(() => ({}));
+      const url = j?.video?.url || j?.videos?.[0]?.url || j?.output?.video?.url || null;
+      return json({ ok: !!url, url, error: url ? null : (j.detail ? JSON.stringify(j.detail).slice(0, 200) : 'No clip in the answer') });
+    }
+    if (body.action === 'fetch') {
       const u = new URL(String(body.url || ''));
       if (u.protocol !== 'https:') return json({ ok: false, error: 'Bad clip address' });
       const res = await fetch(u.toString());

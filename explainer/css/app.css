@@ -636,3 +636,15 @@ button, .btn, .nav-btn, select, input, textarea { transition: background-color .
 html.viewonly .go, html.viewonly #btnRender, html.viewonly #btnDemo { opacity: .45; cursor: not-allowed; }
 .access-box[hidden] { display: none; }
 .access-box .copyrow input { flex: 1; font-family: var(--mono); text-transform: uppercase; }
+
+/* Shot pack */
+
+.shot-pack { width: min(760px, calc(100vw - 24px)); }
+.shot-pack .tool-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 14px; }
+.shot-pack .shot-list { display: grid; gap: 10px; max-height: 60vh; overflow: auto; }
+.shot-pack .shot-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.shot-pack .shot-row img { width: 96px; border-radius: 8px; display: block; }
+.shot-pack .shot-row p { margin: 4px 0 8px; color: var(--muted); font-size: 13px; }
+.shot-pack .shot-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+#btnShotPack { grid-column: 1 / -1; }

@@ -2,14 +2,35 @@
 // Every video model there needs paid credit ("Pollen"), so this is off unless the user turns it on
 // in Settings and has a secret (sk_) key with credit.
 import { fetchTimeout } from './net.js';
+import { animateImage, videoProvider } from './videoai.js';
 
 const CLIP_TIMEOUT_MS = 6 * 60 * 1000; // video generation routinely takes minutes
 
 export function clipsEnabled(settings) {
-  return settings.videoClips === 'on' && !!settings.pollinationsKey;
+  return settings.videoClips === 'on' && (!!settings.pollinationsKey || !!videoProvider(settings));
 }
 
-export async function generateClip(prompt, { aspectRatio, duration = 5 }, settings, { signal } = {}) {
+// Turn a video Blob into the clip object the renderer plays.
+export async function clipFromBlob(data, duration = 5) {
+  const objectUrl = URL.createObjectURL(data);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.src = objectUrl;
+  await new Promise((resolve, reject) => {
+    video.addEventListener('loadeddata', resolve, { once: true });
+    video.addEventListener('error', () => reject(new Error('The clip could not be decoded')), { once: true });
+  });
+  return { video, url: objectUrl, duration: video.duration || duration };
+}
+
+export async function generateClip(prompt, { aspectRatio, duration = 5, image = null }, settings, { signal } = {}) {
+  // With a fal.ai or Runway key, the shot's own picture is animated (image to video).
+  if (image && videoProvider(settings)) {
+    const blob = await animateImage({ image, prompt, format: aspectRatio, duration }, settings, { signal });
+    return clipFromBlob(blob, duration);
+  }
   const q = new URLSearchParams({
     model: settings.videoModel || 'wan-fast',
     duration: String(duration),
