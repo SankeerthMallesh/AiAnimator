@@ -274,7 +274,10 @@ async function elevenVoice(env, text, speaker) {
     method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({ text, model_id: env.ELEVEN_MODEL || 'eleven_multilingual_v2', voice_settings: { stability: 0.38, similarity_boost: 0.8, style: 0.4 } }),
   });
-  if (!res.ok || !/audio/.test(res.headers.get('Content-Type') || '')) throw new Error(`ElevenLabs said ${res.status}`);
+  if (!res.ok || !/audio/.test(res.headers.get('Content-Type') || '')) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(`ElevenLabs said ${res.status}: ${String(j.detail?.status || j.detail?.message || j.detail || '').slice(0, 120)}`);
+  }
   return res;
 }
 async function speak(request, env) {
@@ -293,7 +296,7 @@ async function speak(request, env) {
   if (!env.AI) return json({ ok: false, error: elevenNote || 'No voice available' });
   try {
     const out = await env.AI.run('@cf/deepgram/aura-2-en', { text, speaker, encoding: 'mp3' });
-    const headers = { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'aura' };
+    const headers = { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'aura', ...(elevenNote ? { 'X-Loomy-Note': elevenNote.replace(/[^\x20-\x7E]/g, ' ').slice(0, 160) } : {}) };
     if (out instanceof ReadableStream || out instanceof ArrayBuffer || ArrayBuffer.isView(out)) return new Response(out, { headers });
     if (out?.audio) return new Response(Uint8Array.from(atob(out.audio), c => c.charCodeAt(0)), { headers });
     return json({ ok: false, error: 'No audio came back' });
