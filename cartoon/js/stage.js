@@ -117,16 +117,17 @@ export class Stage {
     if ((size !== 'medium' && size !== 'close') || !sp) return wide;
     const portrait = H >= W;
     if (size === 'close') {
-      const z = portrait ? 2.05 : 1.7;
+      const z = portrait ? 1.5 : 1.35;
       const tx = Ink.clamp(sp.x * W, W * 0.25, W * 0.75);
       return { z, tx, ty: ground - u * 5.1, sx: W / 2, sy: H * (portrait ? 0.46 : 0.5), medium: true, close: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
     }
-    const z = portrait ? 1.55 : 1.3;
+    const z = portrait ? 1.22 : 1.14;
     const tx = Ink.clamp(Ink.lerp(W / 2, sp.x * W, 0.85), W * 0.3, W * 0.7);
     return { z, tx, ty: ground - u * 4.2, sx: W / 2, sy: H * (portrait ? 0.5 : 0.52), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
   }
 
   static world(ctx, W, H, view, scene, local, shot) {
+    const screen = ctx.getTransform();
     const clipEntry = view.plates?.get(scene.id);
     if (clipEntry?.clip) { Stage.clip(ctx, W, H, clipEntry.clip, local, shot); return; }
     const u = Cast.unit(H);
@@ -139,6 +140,9 @@ export class Stage {
     // With a real picture on screen, the picture is the visual: wide shot, no floating props.
     const fr = photo ? Stage.framing({ ...scene, frame: 'wide' }, actors, W, H, u, ground) : Stage.framing(scene, actors, W, H, u, ground);
     if (photo) props = props.filter(p => !(p.kind === 'icon' || PropKit.TOONS.includes(p.kind)));
+    // An AI picture already shows the place and its objects: no toy props on top of it, just the
+    // one sticker for the line (and none on a close-up, where the face is the point).
+    else if (pe?.bitmap && pe?.scene) props = fr.close ? [] : props.filter(p => p.kind === 'icon').slice(0, 1);
     // In the opening shot the hook title owns the top of the frame; floating props pop in after it.
     if (scene.index === 0 && view.settings?.hookTitle !== false && (view.script?.youtubeTitle || view.script?.title)) {
       props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) ? { ...p, delay: 2.6 } : p));
@@ -168,6 +172,16 @@ export class Stage {
       else bgX = dir * reach * Math.cos(Ink.smooth(p) * Math.PI);
     }
     ctx.save();
+    // The background zooms much less than the cast: a close-up stays sharp instead of blowing the
+    // picture up 2x, and the difference reads as depth.
+    {
+      const Z = shot.z * fr.z, Zb = 1 + (Z - 1) * 0.35;
+      ctx.setTransform(screen);
+      ctx.translate(fr.sx, fr.sy);
+      ctx.rotate(shot.rot);
+      ctx.scale(Zb, Zb);
+      ctx.translate(-W / 2 + shot.panX * W * 0.18 * (Zb / Z), -fr.sy + (shot.panY || 0) * (Zb / Z));
+    }
     ctx.translate(bgX, 0);
     if (mv && !pe?.scene && SetKit.RICH?.includes(scene.set)) {
       // Detailed sets end at the frame edge: enlarge them a little while they move.
@@ -350,9 +364,10 @@ export class Stage {
 
   // Background gags: while one character talks, the others do quirky things, like the side jokes
   // in the reference Shorts. Each listener gets one gag per scene, picked by scene and character.
-  static GAGS = ['zzz', 'coffee', 'fly', 'juggle', 'phone', 'popcorn', 'balloon'];
+  static GAGS = [];
   static gagSetup(actors, talkId, scene, local) {
-    if (actors.length < 2) return;
+    // Background gags (popcorn, phone, coffee...) read as clutter, so they are off.
+    if (!Stage.GAGS.length || actors.length < 2) return;
     actors.forEach((a, i) => {
       if (a.id === talkId || a.hold || ['walk', 'enter', 'exit', 'drive', 'sit', 'give', 'jump'].includes(a.pose)) return;
       a.pose = 'idle';
