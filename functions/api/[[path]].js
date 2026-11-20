@@ -216,6 +216,13 @@ async function write(request, env) {
   const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
   const notes = [];
+  // Diagnostics: which models the stored keys can use (names only).
+  if (body.only === 'models') {
+    const out = {};
+    if (env.GROQ_KEY) { const r = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: `Bearer ${env.GROQ_KEY}` } }).then(x => x.json()).catch(() => ({})); out.groq = (r.data || []).map(m => m.id); }
+    if (env.GEMINI_KEY) { const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': env.GEMINI_KEY } }).then(x => x.json()).catch(() => ({})); out.gemini = (r.models || []).map(m => `${m.name.replace('models/', '')}[${(m.supportedGenerationMethods || []).join('/')}]`); }
+    return json({ ok: true, ...out });
+  }
   // Diagnostics: {only: "gemini:<model>" | "groq:<model>"} runs one writer once and reports its time.
   if (typeof body.only === 'string' && /^(gemini|groq):[a-z0-9.\-\/]{2,60}$/.test(body.only)) {
     const [who, model] = body.only.split(':');
