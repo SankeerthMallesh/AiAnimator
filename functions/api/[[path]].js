@@ -216,6 +216,28 @@ async function write(request, env) {
   const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
   const notes = [];
+  // Diagnostics: try one voice or picture model once ({only: "tts:groq:<model>:<voice>", "tts:gemini:<model>:<voice>",
+  // "img:gemini:<model>"}) and report the status, the time and a short sample of what came back.
+  if (typeof body.only === 'string' && /^(tts|img):(groq|gemini):/.test(body.only)) {
+    const [kind, who, model, voice] = body.only.split(':');
+    const t0 = Date.now();
+    const text = String(body.text || 'Okay, so here is the crazy part. The ship was called unsinkable, and it sank in under three hours!').slice(0, 400);
+    let res;
+    if (kind === 'tts' && who === 'groq') {
+      res = await fetch('https://api.groq.com/openai/v1/audio/speech', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_KEY}` }, body: JSON.stringify({ model, input: text, voice: voice || 'troy', response_format: 'wav' }) });
+      const ct = res.headers.get('Content-Type') || '';
+      if (res.ok && /audio|octet/.test(ct)) { const buf = new Uint8Array(await res.arrayBuffer()); return json({ ok: true, ms: Date.now() - t0, type: ct, bytes: buf.length, b64: btoa(String.fromCharCode(...buf.slice(0, 600000).reduce((a, b) => (a.push(b), a), []).slice(0, 0))) }); }
+      return json({ ok: false, ms: Date.now() - t0, status: res.status, body: (await res.text()).slice(0, 400) });
+    }
+    const gen = (kind === 'tts')
+      ? { contents: [{ parts: [{ text: `Say this like an excited, fast-talking YouTube Shorts narrator: ${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Puck' } } } } }
+      : { contents: [{ parts: [{ text: body.text || 'Stylized 3D cartoon game environment: the wooden deck of an old ocean liner at sea, vivid colors, wide angle, no people, no text' }] }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '9:16' } } };
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, body: JSON.stringify(gen) });
+    const j = await res.json().catch(() => ({}));
+    const part = (j.candidates?.[0]?.content?.parts || []).find(x => x.inlineData);
+    if (res.ok && part) return json({ ok: true, ms: Date.now() - t0, type: part.inlineData.mimeType, bytes: Math.round(part.inlineData.data.length * 0.75), data: body.full ? part.inlineData.data : undefined });
+    return json({ ok: false, ms: Date.now() - t0, status: res.status, body: JSON.stringify(j.error || j).slice(0, 400) });
+  }
   // Diagnostics: which models the stored keys can use (names only).
   if (body.only === 'models') {
     const out = {};
