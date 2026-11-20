@@ -28,7 +28,7 @@ const WORD_SENSES = {
   spring: [/like a spring|coil|twist|bounc|metal|stretch|compress|squeez|jump/, '🌀'],
   fall: [/\b(falls?|falling|fell|drop)\b/, ''],
 };
-const VAGUE_EMOJI = new Set(['❓', '❔', '❗', '❕', '✨', '💧', '⚙', '📦', '⏱', '⏰', '💡', '⭐', '🌟', '💥', '🎉', '👍', '✅', '❌', '🔍', '🔎', '📈', '📉', '💭', '💬', '🗯', '❤', '🔥', '⚡', '🌀', '💫', '🎯', '🏆', '📌', '📝', '📚', '📖', '🧩', '🔑']);
+const VAGUE_EMOJI = new Set(['⚠', '🚪', '❓', '❔', '❗', '❕', '✨', '💧', '⚙', '📦', '⏱', '⏰', '💡', '⭐', '🌟', '💥', '🎉', '👍', '✅', '❌', '🔍', '🔎', '📈', '📉', '💭', '💬', '🗯', '❤', '🔥', '⚡', '🌀', '💫', '🎯', '🏆', '📌', '📝', '📚', '📖', '🧩', '🔑']);
 const TOON_WORDS = {
   stick: /\b(sticks?|shadows?|poles?)\b/, atom: /\b(atoms?|molecules?|particles?|electrons?|protons?|chemi\w*)\b/, book: /\b(books?|read\w*|librar\w*|wr[io]te?\w*|stud\w*)\b/,
   earth: /\b(earth|globe|planets?|world|round)\b/, moon: /\b(moons?|lunar)\b/, eclipse: /\beclipse/, ship: /\b(ships?|boats?|sail\w*|horizon|seas?|oceans?)\b/,
@@ -47,6 +47,7 @@ const EMOJI_WORDS = {
   car: '🚗', wheel: '🛞', fuel: '⛽', gas: '⛽', oil: '🛢️', metal: '🔩', iron: '🔩', steel: '🔩', wood: '🪵', rock: '🪨', stone: '🪨', gem: '💎', crystal: '💎',
   bread: '🍞', pasta: '🍝', sushi: '🍣', taco: '🌮', soup: '🍲', ice: '🧊', cream: '🍦', icecream: '🍦', popcorn: '🍿', donut: '🍩', salt: '🧂', pepper: '🌶️', spicy: '🌶️',
   bird: '🐦', duck: '🦆', parrot: '🦜', bat: '🦇', bug: '🐛', insect: '🐛', worm: '🪱', snail: '🐌', jellyfish: '🪼', squid: '🦑', bear: '🐻', deer: '🦌', kangaroo: '🦘', sloth: '🦥', gorilla: '🦍',
+  iceberg: '🧊', glacier: '🧊', titanic: '🚢', lifeboat: '🛟', anchor: '⚓', captain: '👨‍✈️',
   sunset: '🌅', sunsets: '🌅', sunrise: '🌅', dusk: '🌅', rainbow: '🌈', prism: '🌈', colour: '🎨', color: '🎨', paint: '🎨',
   cat: '🐱', kitten: '🐱', dog: '🐶', puppy: '🐶', bee: '🐝', honey: '🍯', hive: '🍯', ant: '🐜', spider: '🕷️', butterfly: '🦋',
   bird: '🐦', eagle: '🦅', owl: '🦉', penguin: '🐧', chicken: '🐔', egg: '🥚', fish: '🐟', shark: '🦈', whale: '🐋', dolphin: '🐬',
