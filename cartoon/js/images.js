@@ -217,6 +217,7 @@ const SET_WORDS = {
   water: 'a wooden dock on a lake', bridge: 'a big bridge over a river', space: 'the grey surface of the Moon under a starry sky',
   desert: 'a sandy desert with dunes', field: 'green fields under a blue sky', sky: 'green hills under a big blue sky',
   temple: 'ancient Greek temple ruins on a sunny hill', sea: 'a seaside harbor', city: 'a city street',
+  deck: 'the wooden deck of a big old ocean liner at sea, white railings and lifeboats',
   mountains: 'a mountain valley', snow: 'a snowy landscape', forest: 'a forest clearing', underwater: 'the sea floor underwater',
   night: 'a quiet town street at night',
 };

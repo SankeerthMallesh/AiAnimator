@@ -408,6 +408,42 @@ P.temple = (g, W, H, r) => {
   tree(g, W * 0.07, hz + H * 0.36, H * 0.12, '#7E9E57', '#6A5238'); tree(g, W * 0.92, hz + H * 0.3, H * 0.1, '#86A55E', '#6A5238');
 };
 
+P.deck = (g, W, H, r) => {
+  // On board an old ocean liner: planks running to the bow, railings, lifeboats, a funnel, the sea.
+  const hz = H * 0.44, vx = W * 0.5;
+  skyBand(g, W, H, hz, '#4FA6E8', '#DDF1FB', true, 0.8, 0.12);
+  vGrad(g, -W, hz, W * 3, H * 1.2, [[0, '#7CC3E8'], [0.25, '#2F86C2'], [1, '#1D5F93']]);
+  // Funnel and mast at the far end.
+  box(g, W * 0.56, hz - H * 0.2, W * 0.09, H * 0.17, '#C8432E');
+  g.fillStyle = '#23262E'; g.fillRect(W * 0.56, hz - H * 0.2, W * 0.09, H * 0.04);
+  g.strokeStyle = '#4A3A2C'; g.lineWidth = W * 0.008; g.beginPath(); g.moveTo(W * 0.42, hz + H * 0.03); g.lineTo(W * 0.42, hz - H * 0.22); g.stroke();
+  g.lineWidth = W * 0.002; g.beginPath(); g.moveTo(W * 0.42, hz - H * 0.22); g.lineTo(W * 0.05, hz + H * 0.02); g.moveTo(W * 0.42, hz - H * 0.22); g.lineTo(W * 0.9, hz + H * 0.02); g.stroke();
+  // Deck planks to the vanishing point.
+  g.fillStyle = '#C9965E'; g.beginPath(); g.moveTo(vx - W * 0.12, hz + H * 0.04); g.lineTo(vx + W * 0.12, hz + H * 0.04); g.lineTo(W * 1.3, H * 1.1); g.lineTo(-W * 0.3, H * 1.1); g.closePath(); g.fill();
+  g.save(); g.strokeStyle = 'rgba(90,55,30,0.35)'; g.lineWidth = Math.max(1, W * 0.002);
+  for (let k = -14; k <= 14; k++) { g.beginPath(); g.moveTo(vx + k * W * 0.0085, hz + H * 0.04); g.lineTo(vx + k * W * 0.11, H * 1.1); g.stroke(); }
+  g.restore();
+  vGrad(g, -W, hz + H * 0.04, W * 3, H, [[0, 'rgba(255,240,210,0.25)'], [1, 'rgba(60,35,20,0.25)']]);
+  // White railings and a line of lifeboats on both sides.
+  for (const s of [-1, 1]) {
+    const far = vx + s * W * 0.12, near = vx + s * W * 0.82;
+    const top = (d) => hz + H * 0.04 + (H * 1.1 - hz) * d * 0.62 - H * (0.012 + d * 0.13);
+    const xAt = (d) => far + (near - far) * d;
+    g.strokeStyle = '#F5F2EA'; g.lineCap = 'round';
+    g.lineWidth = W * 0.008; g.beginPath(); g.moveTo(xAt(0), top(0)); g.lineTo(xAt(1), top(1)); g.stroke();
+    for (let k = 0; k <= 12; k++) { const d = Math.pow(k / 12, 1.7); g.lineWidth = W * (0.002 + d * 0.006); g.beginPath(); g.moveTo(xAt(d), top(d)); g.lineTo(xAt(d), hz + H * 0.04 + (H * 1.1 - hz) * d * 0.62); g.stroke(); }
+    for (let k = 1; k <= 3; k++) {
+      // Lifeboats hang from davits just above the railing: white hull, dark keel line, a cover.
+      const d = Math.pow(k / 4, 1.6), x = xAt(d) - s * W * 0.01, w = W * (0.06 + d * 0.2), h = w * 0.32, y = top(d) - h * 1.2;
+      g.strokeStyle = '#6E737D'; g.lineWidth = W * (0.002 + d * 0.004);
+      g.beginPath(); g.moveTo(x - w * 0.38, top(d)); g.quadraticCurveTo(x - w * 0.45, y - h * 0.9, x - w * 0.3, y - h * 0.4); g.moveTo(x + w * 0.38, top(d)); g.quadraticCurveTo(x + w * 0.45, y - h * 0.9, x + w * 0.3, y - h * 0.4); g.stroke();
+      g.fillStyle = '#F7F4EC'; g.beginPath(); g.moveTo(x - w / 2, y - h * 0.2); g.quadraticCurveTo(x, y + h * 0.9, x + w / 2, y - h * 0.2); g.closePath(); g.fill();
+      g.fillStyle = '#B8562F'; g.fillRect(x - w * 0.42, y - h * 0.38, w * 0.84, h * 0.22);
+      g.strokeStyle = 'rgba(30,30,40,0.5)'; g.lineWidth = W * 0.002; g.beginPath(); g.moveTo(x - w * 0.45, y + h * 0.05); g.quadraticCurveTo(x, y + h * 0.55, x + w * 0.45, y + h * 0.05); g.stroke();
+    }
+  }
+};
+
 // Indoor rooms share a shell: back wall, floor in perspective, light from a window.
 function roomShell(g, W, H, wall, floor, hz) {
   vGrad(g, -W, -H, W * 3, hz + H, [[0, shade(wall, -0.08)], [1, shade(wall, 0.06)]]);
@@ -565,8 +601,8 @@ function animate(ctx, W, H, id, t) {
     const bt = (t * 0.05 + r()) % 1;
     if (bt < 0.5) { const bx = W * (bt * 2.4 - 0.2), by = H * 0.12; ctx.strokeStyle = 'rgba(40,40,50,0.7)'; ctx.lineWidth = W * 0.003; for (const o of [0, 1]) { const x = bx + o * W * 0.05, y = by + o * H * 0.01, f = Math.sin(t * 9 + o) * W * 0.008; ctx.beginPath(); ctx.moveTo(x - W * 0.015, y - f); ctx.quadraticCurveTo(x - W * 0.005, y - W * 0.008, x, y); ctx.quadraticCurveTo(x + W * 0.005, y - W * 0.008, x + W * 0.015, y - f); ctx.stroke(); } }
   }
-  if (id === 'sea' || id === 'water' || id === 'bridge') {
-    const hz = H * (id === 'bridge' ? 0.48 : 0.46);
+  if (id === 'sea' || id === 'water' || id === 'bridge' || id === 'deck') {
+    const hz = H * (id === 'bridge' ? 0.48 : id === 'deck' ? 0.44 : 0.46);
     ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = Math.max(1.5, W * 0.003); ctx.lineCap = 'round';
     for (let k = 0; k < 26; k++) { const d = r(), y = hz + H * (0.01 + d * d * 0.22), x = ((r() + t * 0.01 * (0.5 + d)) % 1.2) * W - W * 0.1, w = W * (0.01 + d * 0.05); ctx.globalAlpha = 0.3 + 0.5 * Math.abs(Math.sin(t * 2 + k)); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke(); }
     ctx.restore();

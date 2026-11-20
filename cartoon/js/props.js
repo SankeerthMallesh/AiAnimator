@@ -257,7 +257,7 @@ export class PropKit {
 }
 
 export class SetKit {
-  static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'space', 'water', 'field', 'night', 'desert', 'lab', ...RICH_SETS];
+  static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'deck', 'space', 'water', 'field', 'night', 'desert', 'lab', ...RICH_SETS];
   static RICH = RICH_SETS;
 
   // Lighten (amt > 0) or darken (amt < 0) a #RRGGBB colour.
