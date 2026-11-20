@@ -175,7 +175,7 @@ export class Renderer {
 
   // A pop-up icon for a measurable thing (weight, time, speed...), like the 3D icons in story Shorts.
   _icon(scene, lt) {
-    if (!scene.icon) return;
+    if (!scene.icon || this.settings.stickers !== true) return;
     const a = 0.35, b = Math.min(scene.dur - 0.2, 2.6);
     if (lt < a || lt > b + 0.3) return;
     const { ctx, W, H } = this;
@@ -680,7 +680,7 @@ export class Renderer {
   }
 
   _title(t) {
-    const title = (this.script.title || '').toUpperCase();
+    const title = (this.script.title || '').replace(/\p{Extended_Pictographic}\uFE0F?|\u200D/gu, '').trim().toUpperCase();
     if (!title) return;
     const first = this.timeline.scenes[0];
     const end = Math.min(2.8, first.dur - 0.1);

@@ -135,6 +135,8 @@ export class Stage {
     const cast = new Map((view.script?.cast || []).map(c => [c.id, c]));
     const actors = Stage.actors(scene, local, cast);
     let props = Stage.props(scene, local);
+    // Floating stickers and symbol props only when switched on in Settings (off by default).
+    if (view.settings?.stickers !== true) props = props.filter(p => p.kind !== 'icon' && !PropKit.TOONS.includes(p.kind));
     const pe = view.plates?.get(scene.id);
     const photo = !!pe?.photo;
     // With a real picture on screen, the picture is the visual: wide shot, no floating props.
@@ -670,7 +672,8 @@ export class Stage {
 
   // The hook: the video's title, big at the top for the first seconds, like popular Shorts.
   static hook(ctx, W, H, script, local) {
-    const text = String(script?.youtubeTitle || script?.title || '').replace(/\s+/g, ' ').trim();
+    // No emoji on screen: the title's emoji (kept for the YouTube title itself) is dropped here.
+    const text = String(script?.youtubeTitle || script?.title || '').replace(/\p{Extended_Pictographic}\uFE0F?|\u200D/gu, '').replace(/\s+/g, ' ').trim();
     if (!text || local > 2.7) return;
     const portrait = H >= W;
     const k = Math.min(1, local / 0.22);

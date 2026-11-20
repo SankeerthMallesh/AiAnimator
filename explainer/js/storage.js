@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   fps: 30,
   captionStyle: 'classic',        // word | classic | bold | box | minimal | off
   showTitle: false,
+  stickers: false,                // floating stickers/icons for things the narrator mentions (off: they read as clutter)
   showProgress: false,
   handle: '',
   factCheck: true,
