@@ -316,7 +316,6 @@ async function elevenVoice(env, text, speaker) {
 // the delivery, so they read like an energetic Shorts narrator. Each model has its own daily
 // allowance, so a used-up one falls through to the next.
 const GEMINI_TTS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-2.5-flash-preview-tts'];
-const DIRECTION = 'Read this aloud like a top YouTube Shorts storyteller: energetic, fast-paced and punchy, curious and amused, with natural rises and falls, like telling a friend something amazing. Never robotic. Read only the words after the colon:';
 function wavFromPcm(pcm, rate = 24000) {
   const h = new DataView(new ArrayBuffer(44));
   const w = (o, t) => [...t].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
@@ -331,7 +330,9 @@ async function geminiVoice(env, text, speaker) {
   for (const model of GEMINI_TTS) for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, signal: AbortSignal.timeout(40000),
-      body: JSON.stringify({ contents: [{ parts: [{ text: `${DIRECTION} ${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } }),
+      // Only the words (plus an [excited] delivery tag, which is not read aloud): these models read
+      // any spoken instruction out loud.
+      body: JSON.stringify({ contents: [{ parts: [{ text: /^\[/.test(text) ? text : `[excited] ${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } }),
     }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e?.message || e) } }) }));
     const j = await res.json().catch(() => ({}));
     const part = (j.candidates?.[0]?.content?.parts || []).find(x => x.inlineData?.data);
