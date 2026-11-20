@@ -28,7 +28,7 @@ export async function onRequest({ request, env, params }) {
       if (origin && new URL(origin).host !== url.host) return json({ error: 'Wrong origin' }, 403);
     }
     if (path === 'config' && request.method === 'GET') {
-      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : env.GROQ_KEY ? 'groq' : null, voice: env.ELEVEN_KEY ? 'elevenlabs' : env.AI ? 'aura' : null });
+      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GROQ_KEY ? 'groq' : env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : null, voice: env.ELEVEN_KEY ? 'elevenlabs' : env.AI ? 'aura' : null });
     }
     if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (path === 'write' && request.method === 'POST') return await write(request, env);
@@ -130,37 +130,38 @@ async function geminiWrite(env, messages, temperature, max_tokens) {
   geminiTrace = [];
   // Short thinking keeps answers fast. Newer models take thinkingLevel; if one refuses a setting
   // (400), the next attempt asks without it.
-  const tries = [
-    ['gemini-flash-latest', { thinkingLevel: 'low' }], ['gemini-flash-latest', { thinkingBudget: 256 }],
-    ['gemini-flash-lite-latest', null], ['gemini-2.5-flash', { thinkingBudget: 256 }], ['gemini-flash-latest', null],
-  ];
+  const tries = [['gemini-flash-lite-latest', null], ['gemini-flash-latest', { thinkingLevel: 'low' }]];
   for (const [model, think] of tries) {
     const t0 = Date.now();
+    // A busy model can queue a request for over a minute: give up after 25 seconds and move on.
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
+      signal: AbortSignal.timeout(25000),
       body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents, generationConfig: { temperature, maxOutputTokens: Math.max(max_tokens, 8192), ...(think ? { thinkingConfig: think } : {}) } }),
-    });
+    }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e?.message || e) } }) }));
     const j = await res.json().catch(() => ({}));
     const text = (j.candidates?.[0]?.content?.parts || []).filter(x => !x.thought).map(x => x.text || '').join('').trim();
     geminiTrace.push(`${model}${think ? '+' + Object.keys(think)[0] : ''}:${res.status}:${Date.now() - t0}ms`);
     if (res.ok && text) return text;
     last = j.error?.message || `Gemini said ${res.status}`;
-    if (res.status !== 404 && res.status !== 400) break;
+    if (![0, 400, 404, 429, 500, 503].includes(res.status)) break;
   }
   throw new Error(last);
 }
 async function groqWrite(env, messages, temperature, max_tokens) {
   let last = '';
-  for (const model of ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b']) {
+  // gpt-oss-120b answers in well under a second on Groq; short thinking keeps it that way.
+  for (const [model, extra] of [['openai/gpt-oss-120b', { reasoning_effort: 'low' }], ['openai/gpt-oss-120b', {}], ['openai/gpt-oss-20b', {}]]) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_KEY}` },
-      body: JSON.stringify({ model, messages, temperature, max_tokens: Math.min(max_tokens, 8000) }),
-    });
+      signal: AbortSignal.timeout(45000),
+      body: JSON.stringify({ model, messages, temperature, max_tokens: Math.min(Math.max(max_tokens, 4000), 8000), ...extra }),
+    }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e?.message || e) } }) }));
     const j = await res.json().catch(() => ({}));
     const text = String(j.choices?.[0]?.message?.content || '').trim();
     if (res.ok && text) return text;
     last = j.error?.message || `Groq said ${res.status}`;
-    if (res.status !== 404 && res.status !== 400) break;
+    if (![0, 400, 404, 413, 429].includes(res.status)) break;
   }
   throw new Error(last);
 }
@@ -185,16 +186,17 @@ async function write(request, env) {
       return json({ ok: true, text, by: who, model, ms: Date.now() - t0 });
     } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 300), ms: Date.now() - t0 }); }
   }
+  // Fastest first: Groq (well under a second), then Gemini, then the Cloudflare allowance.
+  if (env.GROQ_KEY) {
+    try { const t0 = Date.now(); const text = await groqWrite(env, messages, temperature, max_tokens); return json({ ok: true, text, by: 'groq', ms: Date.now() - t0 }); }
+    catch (e) { notes.push(`Groq: ${String(e?.message || e).slice(0, 120)}`); }
+  }
   if (env.GEMINI_KEY) {
     try { const t0 = Date.now(); const text = await geminiWrite(env, messages, temperature, max_tokens); return json({ ok: true, text, by: 'gemini', ms: Date.now() - t0, trace: geminiTrace }); }
     catch (e) { notes.push(`Gemini: ${String(e?.message || e).slice(0, 120)}`); }
   }
-  const groq = async (why) => {
-    if (!env.GROQ_KEY) return null;
-    try { return json({ ok: true, text: await groqWrite(env, messages, temperature, max_tokens), by: 'groq' }); }
-    catch (e) { notes.push(`Groq: ${String(e?.message || e).slice(0, 120)}`); return null; }
-  };
-  if (!env.AI) return (await groq()) || json({ ok: false, error: notes.join(' · ') || 'No writer available' });
+  const groq = async () => null;
+  if (!env.AI) return json({ ok: false, error: notes.join(' · ') || 'No writer available' });
   try {
     // Short thinking makes scripts come back in about half the time. If this model version
     // rejects the setting (or answers empty), ask again the plain way.

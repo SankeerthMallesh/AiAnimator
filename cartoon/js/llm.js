@@ -130,7 +130,7 @@ const PROVIDERS = {
   async groq(messages, s, signal, temperature = 0.8) {
     if (!s.groqKey) throw new Error('No Groq key');
     return openAICompat('https://api.groq.com/openai/v1/chat/completions', s.groqKey,
-      s.groqModel || 'llama-3.3-70b-versatile', messages, signal, { response_format: { type: 'json_object' } }, temperature);
+      (s.groqModel && !/llama-3\.3/.test(s.groqModel) ? s.groqModel : 'openai/gpt-oss-120b'), messages, signal, { response_format: { type: 'json_object' } }, temperature);
   },
   async openrouter(messages, s, signal, temperature = 0.8) {
     if (!s.openrouterKey) throw new Error('No OpenRouter key');

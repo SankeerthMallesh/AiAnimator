@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS = {
   routeMode: 'auto',              // auto | best | free | cheap | fast | manual (the AI Model Router)
   llmProvider: 'auto',            // auto | pollinations | gemini | groq | openrouter
   geminiKey: '', geminiModel: 'gemini-flash-lite-latest',
-  groqKey: '', groqModel: 'llama-3.3-70b-versatile',
+  groqKey: '', groqModel: 'openai/gpt-oss-120b',
   openrouterKey: '', openrouterModel: 'meta-llama/llama-3.3-70b-instruct:free',
   pollinationsKey: '', pollinationsTextModel: 'openai',
   // Visuals
