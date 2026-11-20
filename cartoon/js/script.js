@@ -425,6 +425,9 @@ export class Script {
       // An emoji sticker shows the line's key thing for any topic. It replaces the generic floating
       // props (question mark, drop, bolt...) but sits beside the specific ones (globe, eclipse, ship...).
       {
+        // The sinking-ship animation and the toy boat look wrong over real scenes (and a boat ends up
+        // drawn across a character), so ships and boats are shown with a 🚢 sticker instead.
+        props = props.filter(p => p.kind !== 'ship' && p.kind !== 'boat');
         // Vague symbols (❓ ✨ 📦 ⚙️) say nothing: the thing the line or the video is about goes first,
         // so a video about cats shows a cat, not a coffee cup.
         let emoji = Script.emoji(s.icon || s.emoji);
@@ -729,7 +732,6 @@ export class Script {
     // Animated floating props first: they show what the line is about.
     if (/eclipse|earth'?s shadow|shadow on the moon/.test(t)) add('eclipse', 0.5);
     else if (/\bmoon\b|lunar/.test(t)) add('moon', 0.5);
-    if (/\b(ships?|hulls?|sail\w*|horizon)\b/.test(t)) add('ship', 0.5);
     if (/\b(sticks?|shadows?|syene|alexandria|eratosthenes|angles?|measur\w*)\b/.test(t)) add('stick', 0.5);
     if (/\b(earth|globe|sphere|round|planets?|world|circumference)\b/.test(t)) add('earth', 0.5);
     if (/\b(ideas?|realiz\w*|figured|discover\w*|proved|proof|clever|genius|solution|answer)\b/.test(t)) add('bulb', 0.5);
@@ -755,7 +757,6 @@ export class Script {
     if (/\b(money|cash|dollars?|coins?|jackpots?|lotter(y|ies))\b/.test(t)) add('money', 0.55);
     if (/\btickets?\b/.test(t)) add('ticket', 0.48);
     if (/\bphones?\b/.test(t)) add('phone', 0.5);
-    if (/\b(boats?|ships?)\b/.test(t)) add('boat', 0.62);
     if (/\btrees?\b/.test(t) || set === 'field') add('tree', 0.8);
     if (/\b(sun|sunny|heat|summer)\b/.test(t)) add('sun', 0.5);
     if (set === 'shop') add('counter', 0.72);
@@ -802,7 +803,7 @@ props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shru
 ${options.crew?.length ? '' : `Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.`}
 Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"; "one and a half", not "1 1/2"; "five kilometers", not "5 km"). Sound like an upbeat Shorts narrator, never flat: a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, sea = ships and coasts, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Move to a new set that fits the line every 1 or 2 scenes, as if the cast walks and talks through different places on the journey; use at least 4 different sets in a video.
-Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), ship (a ship sinking below the horizon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠). When the video is about an animal or a thing, use that animal or thing in most scenes (a video about cats: 🐱 🐈). Never a face, person, hand or flag, and never vague symbols like ❓ ✨ 💧 ⚙️ 📦.
+Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠). When the video is about an animal or a thing, use that animal or thing in most scenes (a video about cats: 🐱 🐈). Never a face, person, hand or flag, and never vague symbols like ❓ ✨ 💧 ⚙️ 📦.
 Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, point, jump, shrug, cheer, facepalm, turn).
 bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
