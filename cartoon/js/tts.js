@@ -363,6 +363,8 @@ async function auraSpeak(text, s, log) {
     for (const part of parts) {
       const d = await auraLine(speakable(part), speaker);
       sampleRate = d.sampleRate;
+      // A line re-recorded alone (after a fact-check fix) matches the pace of the whole read.
+      if (serverVoice === 'gemini' && lastStretch > 1) d.samples = timeStretch(d.samples, d.sampleRate, lastStretch);
       pieces.push({ text: part, samples: trimmed(d) });
     }
   } catch (e) {
@@ -480,7 +482,10 @@ export async function speakAllLines(lines, voice) {
     const audio = await new OfflineAudioContext(1, 1, 24000).decodeAudioData(await res.arrayBuffer());
     const sr = audio.sampleRate;
     // Faster, Shorts-style pace without a pitch change; the cut times scale with it.
-    const all = timeStretch(audio.getChannelData(0), sr, PACE);
+    // Bring this read to the target pace, whatever model read it (each talks at its own speed).
+    const wpm = Number(res.headers.get('X-Loomy-Wpm')) || 165;
+    lastStretch = Math.max(1, Math.min(1.35, TARGET_WPM / wpm));
+    const all = timeStretch(audio.getChannelData(0), sr, lastStretch);
     const k = all.length / audio.length;
     const bounds = [0, ...cuts.map(c => Math.round(c * sr * k)), all.length];
     const out = new Map();
@@ -532,4 +537,5 @@ export function timeStretch(x, sr, rate) {
   for (let i = 0; i < out.length; i++) if (norm[i] > 1e-3) out[i] /= norm[i];
   return out;
 }
-const PACE = 1.15;
+let lastStretch = 1; // the speed-up of the last whole-script read, reused for lines re-recorded alone
+const TARGET_WPM = 195; // the pace of popular narrated Shorts (the reference videos measure 196)

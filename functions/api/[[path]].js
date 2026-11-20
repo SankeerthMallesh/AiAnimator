@@ -399,7 +399,11 @@ async function speakAll(request, env) {
     cuts.push(Math.max(cuts[cuts.length - 1] || 0, Math.min(dur, t)));
   }
   const matched = at.filter(x => x >= 0).length / script.length;
-  return new Response(v.bytes, { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini', 'X-Loomy-Cuts': JSON.stringify(cuts.map(c => Math.round(c * 1000) / 1000)), 'X-Loomy-Match': String(Math.round(matched * 100)) } });
+  // How fast this read is, in words a minute while talking (pauses over 0.35 s left out), so the page
+  // can bring every model to the same Shorts pace.
+  const talk = words[words.length - 1].e - words[0].s - words.slice(1).reduce((n, w, i) => n + Math.max(0, w.s - words[i].e - 0.35), 0);
+  const wpm = Math.round(words.length / Math.max(1, talk) * 60);
+  return new Response(v.bytes, { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini', 'X-Loomy-Cuts': JSON.stringify(cuts.map(c => Math.round(c * 1000) / 1000)), 'X-Loomy-Match': String(Math.round(matched * 100)), 'X-Loomy-Wpm': String(wpm) } });
 }
 
 async function speak(request, env) {
