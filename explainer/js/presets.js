@@ -1,6 +1,14 @@
 // Visual styles, music moods, voices and example prompts shared by the UI and the pipeline.
 
 export const STYLES = {
+  'story-3d': {
+    label: '3D story short',
+    hint: 'Bright 3D renders with one recurring character, like popular 3D story Shorts',
+    lead: '3D animated CGI render in Unreal Engine 5 style, not a photograph',
+    prompt: 'high quality stylized realistic 3D animation still, bright clean daylight, saturated sky blue and warm tones, smooth soft materials, cinematic camera angle, sharp focus, highly detailed, everyone fully clothed',
+    direction: 'Tell it as a story about ONE main character, described once in "characters" with a detailed, specific look (age, build, hair, face, clothing colours) that never changes. Show that character in most scenes and say what they are doing. Vary the camera like a 3D story Short: extreme close-up of the face, top-down view, low angle, through-the-water or through-an-object view, wide establishing shot. Mark 2 to 4 scenes with "highlight": true where the narration points at one specific object or body part, and name that object first in the visual. Give scenes about a measurable thing (weight, time, speed, temperature, money, distance) an "icon": one emoji for it (⚖️ ⏱️ 💨 🌡️ 💰 📏).',
+    character: true,
+  },
   'cgi-short': {
     label: '3D render short',
     hint: 'Clean, realistic 3D animation renders, like popular 3D explainer Shorts',

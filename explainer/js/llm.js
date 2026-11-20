@@ -297,6 +297,8 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
       "keywords": ["one or two words from the narration to highlight in captions"],
       "camera": one of ${JSON.stringify(CAMERAS)},
       "transition": one of ${JSON.stringify(TRANSITIONS)},
+      "highlight": true or false (true only when the narration points at one specific object or body part),
+      "icon": "one emoji for a measurable thing in this scene (weight, time, speed, money...) or '' for none",
       "effect": one of ${JSON.stringify(EFFECTS)}${style.mascot ? `,
       "prop": one of ${JSON.stringify(PROPS)},
       "shot": "wide" or "close",
@@ -374,6 +376,8 @@ export function normalizeScript(raw, options) {
       pose: POSES.includes(s.pose) ? s.pose : ['present', 'point', 'think', 'shrug', 'walk', 'shock', 'wave'][i % 7],
       emotion: EMOTIONS.includes(s.emotion) ? s.emotion : ['neutral', 'skeptical', 'happy', 'shocked'][i % 4],
       side: SIDES.includes(s.side) ? s.side : ['center', 'left', 'right'][i % 3],
+      highlight: s.highlight === true || s.highlight === 'true',
+      icon: (() => { const m = /\p{Extended_Pictographic}\uFE0F?/u.exec(String(s.icon || '')); return m ? m[0] : ''; })(),
       seed: Math.floor(Math.random() * 1e9),
     }))
     .filter(s => s.narration);
@@ -458,7 +462,7 @@ export async function factCheck(script, settings, { signal, log, avoid } = {}) {
 const BARE = /\b(naked|nude|nudity|bare|shirtless|topless|undressed|unclothed|exposed|sensual|seductive)\b/gi;
 const BODY = /\b(?:(?:human|person'?s?|man'?s?|woman'?s?|patient'?s?|male|female|their|his|her|your|the|a)\s+)?(?:body|bodies|torso|chest|abdomen|belly|midsection|waist|hips|figure|silhouette|physique|mannequin|anatomy|skin|flesh)\b/gi;
 const PERSON = /\b(person|people|man|men|woman|women|human|humans|patient|child|kid|boy|girl|guy|teen|teenager|adult|athlete|swimmer|diver|he|she)\b/i;
-export function safeVisual(text, noPeople = false) {
+export function safeVisual(text, noPeople = false, closeUps = false) {
   let t = String(text || '').replace(BARE, ' ');
   if (noPeople) {
     // Cartoon-host style: the picture is only the set. Remove anyone the writer put in it.
@@ -469,18 +473,27 @@ export function safeVisual(text, noPeople = false) {
   if (hadBody) t = t.replace(BODY, ' 3D medical organ model ');
   t = t.replace(/\s{2,}/g, ' ').trim();
   if (hadBody) t += '. Isolated internal organs only, floating as a clean 3D medical model on a plain dark studio background';
-  if (PERSON.test(t)) t += '. Every person is fully dressed in a thick winter jacket, long trousers and shoes, small in the frame, seen from behind at a distance';
+  if (PERSON.test(t)) {
+    // Story styles show their character up close; everyone stays fully clothed either way.
+    t += closeUps ? '. Every person is fully clothed in a t-shirt and long shorts or trousers' : '. Every person is fully dressed in a thick winter jacket, long trousers and shoes, small in the frame, seen from behind at a distance';
+  }
   return t;
 }
 
 export function imagePromptFor(scene, script, styleKey) {
   const style = STYLES[styleKey] || STYLES['cinematic-3d'];
-  let prompt = safeVisual(scene.visual, !!style.mascot);
-  for (const c of script.characters || []) {
+  let prompt = safeVisual(scene.visual, !!style.mascot, !!style.character);
+  const chars = script.characters || [];
+  for (const c of chars) {
     const first = c.name.split(' ')[0];
     if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(c.look.slice(0, 30))) {
       prompt += `. ${c.name}: ${c.look}`;
     }
+  }
+  // Story styles: the main character keeps the same look in every shot they are in, even when the
+  // visual only says "he" or "the man".
+  if (style.character && chars[0] && !prompt.includes(chars[0].look.slice(0, 30)) && /\b(he|she|him|her|his|they|man|woman|guy|girl|boy|kid|person|character|swimmer|driver|player)\b/i.test(scene.visual)) {
+    prompt += `. The main character: ${chars[0].look}`;
   }
   // Image models weight the start of a prompt most, so the look goes first.
   return `${style.lead ? style.lead + '. ' : ''}${prompt}. ${style.prompt}, clear foreground subject with deep background, no text, no letters, no watermark`;

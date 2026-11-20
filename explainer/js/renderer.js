@@ -5,6 +5,7 @@
 import { DepthStage, isSoftwareGL } from './gl3d.js';
 import { seekClip } from './clips.js';
 import { drawMascot } from './mascot.js';
+import { glowImage } from './glow.js';
 import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
 
@@ -46,6 +47,11 @@ export class Renderer {
     this.tall = this.H / this.W > 1.5;
     this.images = timeline.scenes.map((s, i) => images[i] || this._poster(s));
     this.depths = timeline.scenes.map((s, i) => depths[i] || null);
+    // Scenes that point at something get a glowing outline around it, baked into the picture.
+    this.images = this.images.map((img, i) => {
+      if (!timeline.scenes[i].highlight || !this.depths[i]) return img;
+      try { return glowImage(img, this.depths[i]) || img; } catch { return img; }
+    });
     this.gl = null;
     if (this.depths.some(Boolean)) {
       // AI images are ~864px on their short side, so rendering the 3D layer above that adds cost, not detail.
@@ -167,6 +173,27 @@ export class Renderer {
 
   // ---------- frame ----------
 
+  // A pop-up icon for a measurable thing (weight, time, speed...), like the 3D icons in story Shorts.
+  _icon(scene, lt) {
+    if (!scene.icon) return;
+    const a = 0.35, b = Math.min(scene.dur - 0.2, 2.6);
+    if (lt < a || lt > b + 0.3) return;
+    const { ctx, W, H } = this;
+    const k = (lt - a) / 0.28;
+    const pop = k < 1 ? 1 - Math.pow(1 - k, 3) * 1.0 + Math.sin(k * Math.PI) * 0.18 : 1 + Math.sin((lt - a) * 3) * 0.03;
+    const fade = lt > b ? 1 - (lt - b) / 0.3 : 1;
+    const size = Math.round(Math.min(W, H) * 0.24);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, fade));
+    ctx.translate(W / 2, H * (this.vertical ? 0.24 : 0.22));
+    ctx.scale(pop, pop);
+    ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = size * 0.18; ctx.shadowOffsetY = size * 0.05;
+    ctx.font = `${size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(scene.icon, 0, 0);
+    ctx.restore();
+  }
+
   drawFrame(t) {
     const { ctx, W, H, timeline } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -201,6 +228,7 @@ export class Renderer {
     this._atmosphere(cur, t - cur.start);
     this._effect(cur, t - cur.start);
     if (this.hostOn) this._host(cur, t - cur.start);
+    this._icon(cur, t - cur.start);
 
     // Grade: vignette + grain.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
