@@ -330,9 +330,8 @@ async function geminiVoice(env, text, speaker) {
   for (const model of GEMINI_TTS) for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, signal: AbortSignal.timeout(40000),
-      // Only the words (plus an [excited] delivery tag, which is not read aloud): these models read
-      // any spoken instruction out loud.
-      body: JSON.stringify({ contents: [{ parts: [{ text: /^\[/.test(text) ? text : `[excited] ${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } }),
+      // Only the words: some of these models read any instruction or tag out loud.
+      body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } }),
     }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e?.message || e) } }) }));
     const j = await res.json().catch(() => ({}));
     const part = (j.candidates?.[0]?.content?.parts || []).find(x => x.inlineData?.data);
@@ -365,7 +364,7 @@ async function speakAll(request, env) {
   if (text.length > 6000) return json({ ok: false, error: 'Script too long for one read' });
   const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
   let v;
-  try { v = await geminiVoice(env, `[excited] ${text}`, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
+  try { v = await geminiVoice(env, text, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
   const form = new FormData();
   form.append('file', new Blob([v.bytes], { type: 'audio/wav' }), 'script.wav');
   form.append('model', 'whisper-large-v3-turbo');

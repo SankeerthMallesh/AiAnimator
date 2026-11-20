@@ -373,8 +373,11 @@ export async function speakAllLines(lines, voice) {
     const cuts = JSON.parse(res.headers.get('X-Loomy-Cuts') || '[]');
     if (cuts.length !== lines.length - 1) return null;
     const audio = await new OfflineAudioContext(1, 1, 24000).decodeAudioData(await res.arrayBuffer());
-    const all = audio.getChannelData(0), sr = audio.sampleRate;
-    const bounds = [0, ...cuts.map(c => Math.round(c * sr)), all.length];
+    const sr = audio.sampleRate;
+    // Faster, Shorts-style pace without a pitch change; the cut times scale with it.
+    const all = timeStretch(audio.getChannelData(0), sr, PACE);
+    const k = all.length / audio.length;
+    const bounds = [0, ...cuts.map(c => Math.round(c * sr * k)), all.length];
     const out = new Map();
     lines.forEach((line, i) => {
       const slice = all.slice(bounds[i], bounds[i + 1]);
@@ -389,3 +392,39 @@ export async function speakAllLines(lines, voice) {
     return out;
   } catch { return null; }
 }
+
+// ---------- Pace ----------
+// Gemini's narrators read about 160 words a minute; popular Shorts run near 190. WSOLA time
+// stretching speeds speech up without raising its pitch (no chipmunk): short overlapping frames
+// are re-spaced, each nudged to the spot that best continues the previous one.
+export function timeStretch(x, sr, rate) {
+  if (!(rate > 1.01) || x.length < sr) return x;
+  const N = Math.round(sr * 0.032), Hs = N >> 1, Ha = Math.round(Hs * rate), tol = Math.round(sr * 0.009);
+  const win = new Float32Array(N);
+  for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+  const frames = Math.floor((x.length - N - tol * 2) / Ha);
+  const out = new Float32Array(frames * Hs + N);
+  const norm = new Float32Array(out.length);
+  let prev = 0;
+  for (let k = 0; k < frames; k++) {
+    const nominal = k * Ha;
+    let best = nominal;
+    if (k > 0) {
+      const target = prev + Hs;
+      let bestC = -Infinity;
+      for (let d = -tol; d <= tol; d += 2) {
+        const c0 = nominal + d;
+        if (c0 < 0 || c0 + N > x.length) continue;
+        let c = 0;
+        for (let i = 0; i < N; i += 4) c += x[target + i] * x[c0 + i];
+        if (c > bestC) { bestC = c; best = c0; }
+      }
+    }
+    const o = k * Hs;
+    for (let i = 0; i < N; i++) { out[o + i] += x[best + i] * win[i]; norm[o + i] += win[i]; }
+    prev = best;
+  }
+  for (let i = 0; i < out.length; i++) if (norm[i] > 1e-3) out[i] /= norm[i];
+  return out;
+}
+const PACE = 1.15;
