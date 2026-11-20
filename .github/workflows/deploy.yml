@@ -34,7 +34,7 @@ jobs:
           DBID: ${{ vars.LOOMY_D1_ID }}
         run: |
           mkdir -p "$RUNNER_TEMP/site"
-          rsync -a --exclude .git --exclude .github ./ "$RUNNER_TEMP/site/"
+          rsync -a --exclude .git --exclude .github --exclude tools ./ "$RUNNER_TEMP/site/"
           {
             echo "name = \"$NAME\""
             echo 'pages_build_output_dir = "."'

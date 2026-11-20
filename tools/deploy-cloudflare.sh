@@ -57,7 +57,7 @@ fi
 # 4. Upload a clean copy with this site's settings.
 BUILD="$(mktemp -d)"
 cp -R "$DIR"/. "$BUILD"/
-rm -rf "$BUILD/.git"
+rm -rf "$BUILD/.git" "$BUILD/tools" "$BUILD/.github"
 {
   echo "name = \"$NAME\""
   echo 'pages_build_output_dir = "."'

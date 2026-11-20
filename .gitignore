@@ -1,2 +1,11 @@
 .wrangler/
 node_modules/
+tools/tests/live.txt
+tools/tests/out/*
+!tools/tests/out/.gitkeep
+tools/tests/frames/*
+!tools/tests/frames/.gitkeep
+tools/tests/cliptest/out_*
+tools/tests/cliptest/page_*
+tools/tests/*.png
+tools/tests/*.mp4
