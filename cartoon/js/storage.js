@@ -6,6 +6,7 @@ const HISTORY_KEY = 'storyforge.history.v1';
 
 export const DEFAULT_SETTINGS = {
   // Script writer (LLM)
+  bgLook: '3d',                   // 3d (stylized 3D worlds) | flat (simple flat drawings)
   routeMode: 'auto',              // auto | best | free | cheap | fast | manual (the AI Model Router)
   llmProvider: 'auto',            // auto | pollinations | gemini | groq | openrouter
   geminiKey: '', geminiModel: 'gemini-flash-lite-latest',

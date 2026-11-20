@@ -245,12 +245,14 @@ export class Cast {
       // Hand is redrawn over the forehead after the face.
     }
     Cast.hairBack(ctx, st, u, hy);
-    Ink.oval(ctx, 0, hy, 1.34, 1.26, '#FFFFFF', u, 0.18);
+    // Angry goes purple, like a cartoon about to blow its top.
+    Ink.oval(ctx, 0, hy, 1.34, 1.26, st.feel === 'angry' ? '#9C6BDB' : '#FFFFFF', u, 0.18);
     ctx.beginPath(); ctx.ellipse(0, hy * u, 1.34 * u, 1.26 * u, 0, 0, Math.PI * 2);
     Ink.shade(ctx, 0, hy, 1.34, 1.26, u, 0.09, () => ctx.ellipse(0, hy * u, 1.34 * u, 1.26 * u, 0, 0, Math.PI * 2));
     ctx.lineWidth = 0.18 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
     Cast.face(ctx, st, u, hy);
     Cast.hat(ctx, st, u, hy);
+    if (st.feel === 'angry') Cast.steam(ctx, st, u, hy);
     if (st.pose === 'facepalm') {
       Ink.oval(ctx, 0.15, hy - 0.15, 0.55, 0.38, '#fff', u, 0.12);
     }
@@ -323,6 +325,17 @@ export class Cast {
         ctx.ellipse(0, (my + 0.08) * u, 0.18 * u, 0.08 * u, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+    } else if (feel === 'angry' && talk < 0.3) {
+      // Gritted teeth.
+      const w = 0.66, h = 0.27;
+      ctx.beginPath(); ctx.roundRect((-w / 2) * u, (my - h / 2) * u, w * u, h * u, 0.06 * u);
+      ctx.fillStyle = '#FFFFFF'; ctx.fill();
+      ctx.lineWidth = 0.07 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo((-w / 2) * u, my * u); ctx.lineTo((w / 2) * u, my * u);
+      for (const fx of [-0.165, 0, 0.165]) { ctx.moveTo(fx * u, (my - h / 2) * u); ctx.lineTo(fx * u, (my + h / 2) * u); }
+      ctx.lineWidth = 0.045 * u; ctx.stroke();
+      ctx.fillStyle = Ink.INK;
     } else if ((feel === 'sad' || st.pose === 'cry') && talk < 0.2) {
       ctx.beginPath();
       ctx.arc(0, (my + 0.28) * u, 0.32 * u, 1.15 * Math.PI, 1.85 * Math.PI);
@@ -332,6 +345,24 @@ export class Cast {
       ctx.beginPath();
       ctx.ellipse(0, my * u, (0.13 + talk * 0.06) * u, open * u, 0, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  // Steam puffs rising from both sides of an angry head.
+  static steam(ctx, st, u, hy) {
+    for (const side of [-1, 1]) {
+      for (const lag of [0, 0.5]) {
+        const k = (((st.t || 0) * 0.95 + (side > 0 ? 0.25 : 0) + lag) % 1);
+        const x = side * (1.55 + k * 0.6), y = hy - 0.3 - k * 1.35, r = 0.3 + k * 0.32;
+        ctx.save();
+        ctx.globalAlpha *= Math.max(0, 1 - k * 1.1);
+        for (const [dx, dy, rr] of [[0, 0, 1], [side * 0.55, 0.12, 0.8], [side * 0.2, -0.45, 0.75]]) {
+          ctx.beginPath(); ctx.arc((x + dx * r) * u, (y + dy * r) * u, r * rr * u, 0, Math.PI * 2);
+          ctx.fillStyle = '#FFFFFF'; ctx.fill();
+          ctx.lineWidth = 0.07 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
   }
 

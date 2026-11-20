@@ -199,12 +199,12 @@ export class Pipeline {
       // With the site's own allowance there is no wait, so every scene gets a picture of its own line.
       if (cloudflareOn() && sc.length) {
         const scene = sc.find(x => !done.has(`scene:${x.id}`));
-        if (scene) { done.add(`scene:${scene.id}`); return { prompt: scenePrompt(scene.bg || '', scene.set, p.topic), set: scene.set, scene: scene.id }; }
+        if (scene) { done.add(`scene:${scene.id}`); return { prompt: scenePrompt(scene.bg || '', scene.set, p.topic, this.s.bgLook), set: scene.set, scene: scene.id }; }
       }
       const set = sc.map(x => x.set).find(x => x && !done.has(`set:${x}`));
-      if (set) { done.add(`set:${set}`); return { prompt: scenePrompt(sc.find(x => x.set === set)?.bg || '', set, p.topic), set }; }
+      if (set) { done.add(`set:${set}`); return { prompt: scenePrompt(sc.find(x => x.set === set)?.bg || '', set, p.topic, this.s.bgLook), set }; }
       const v = views.find(([w]) => !done.has(w));
-      if (v && !sc.length) { done.add(v[0]); return { prompt: scenePrompt(v[0], v[1], p.topic), set: null }; }
+      if (v && !sc.length) { done.add(v[0]); return { prompt: scenePrompt(v[0], v[1], p.topic, this.s.bgLook), set: null }; }
       return null;
     };
     this.paint.running = (async () => {

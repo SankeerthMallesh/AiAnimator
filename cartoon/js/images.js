@@ -219,7 +219,7 @@ const SET_WORDS = {
   mountains: 'a mountain valley', snow: 'a snowy landscape', forest: 'a forest clearing', underwater: 'the sea floor underwater',
   night: 'a quiet town street at night',
 };
-export function scenePrompt(bg, set, topic = '') {
+export function scenePrompt(bg, set, topic = '', look = '3d') {
   const place = SET_WORDS[set] || (set ? `${set} scene` : 'an open outdoor scene');
   const indoor = ['shop', 'lab', 'office', 'room', 'inside'].includes(set);
   const clean = String(bg || '')
@@ -228,7 +228,13 @@ export function scenePrompt(bg, set, topic = '') {
   // Simple flat cartoon drawings that match the stick-figure cast, not detailed renders.
   // The topic leads, so the place matches the video (the Great Wall, a railway yard, a hive...).
   const about = String(topic || '').replace(/^(why|how|what|when|who|the story of)\s+(do|does|did|is|are|was|were)?\s*/i, '').replace(/[?!.]+$/, '').trim().slice(0, 90);
-  return `Simple flat 2D cartoon drawing for a kids TV show background, thick clean black outlines, flat bright colors, very few details, simple shapes, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, ${indoor ? 'plain walls and floor' : 'plain blue sky with a few simple clouds'}, wide shot, empty, no people, no text, not realistic, not 3D`;
+  if (look === 'flat') {
+    return `Simple flat 2D cartoon drawing for a kids TV show background, thick clean black outlines, flat bright colors, very few details, simple shapes, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, ${indoor ? 'plain walls and floor' : 'plain blue sky with a few simple clouds'}, wide shot, empty, no people, no text, not realistic, not 3D`;
+  }
+  // The look of popular animated explainer Shorts: a bright, stylized 3D world with real depth
+  // (tracks running into the distance, canyon walls, a station hall), clean ground in the lower
+  // half where the drawn cast stands.
+  return `Stylized 3D cartoon game environment, vivid saturated colors, warm sunny lighting, soft shadows, clean simple shapes with painted textures, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, ${indoor ? 'cozy detailed interior' : 'bright blue sky with puffy white clouds'}, wide-angle view from a low camera with strong perspective and depth, open flat ground in the foreground, empty scene, no people, no characters, no animals, no text, no letters`;
 }
 
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {
