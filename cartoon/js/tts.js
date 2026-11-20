@@ -320,7 +320,7 @@ let auraState = null; // null unknown, true usable, false not this visit
 let auraHits = 0;
 export const auraUsed = () => auraHits > 0;
 let serverVoice = 'aura'; // which voice the server used last: aura or elevenlabs
-export const serverVoiceName = () => (serverVoice === 'elevenlabs' ? 'ElevenLabs voice (your site)' : 'Aura-2 voice (Cloudflare)');
+export const serverVoiceName = () => (serverVoice === 'gemini' ? 'Gemini narrator voice' : serverVoice === 'elevenlabs' ? 'ElevenLabs voice (your site)' : 'Aura-2 voice (Cloudflare)');
 async function auraReady() {
   if (auraState !== null) return auraState;
   try {

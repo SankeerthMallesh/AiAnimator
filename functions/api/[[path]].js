@@ -28,7 +28,7 @@ export async function onRequest({ request, env, params }) {
       if (origin && new URL(origin).host !== url.host) return json({ error: 'Wrong origin' }, 403);
     }
     if (path === 'config' && request.method === 'GET') {
-      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GROQ_KEY ? 'groq' : env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : null, voice: env.ELEVEN_KEY ? 'elevenlabs' : env.AI ? 'aura' : null });
+      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GROQ_KEY ? 'groq' : env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : null, voice: env.GEMINI_KEY ? 'gemini' : env.ELEVEN_KEY ? 'elevenlabs' : env.AI ? 'aura' : null });
     }
     if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (path === 'write' && request.method === 'POST') return await write(request, env);
@@ -309,18 +309,64 @@ async function elevenVoice(env, text, speaker) {
   }
   return res;
 }
+// Gemini voices (free on the stored Gemini key): very natural, and they follow a direction for
+// the delivery, so they read like an energetic Shorts narrator. Each model has its own daily
+// allowance, so a used-up one falls through to the next.
+const GEMINI_TTS = ['gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts', 'gemini-2.5-flash-preview-tts'];
+const DIRECTION = 'Read this aloud like a top YouTube Shorts storyteller: energetic, fast-paced and punchy, curious and amused, with natural rises and falls, like telling a friend something amazing. Never robotic. Read only the words after the colon:';
+function wavFromPcm(pcm, rate = 24000) {
+  const h = new DataView(new ArrayBuffer(44));
+  const w = (o, t) => [...t].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length, true); w(8, 'WAVE'); w(12, 'fmt ');
+  h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true); h.setUint32(24, rate, true);
+  h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length, true);
+  const out = new Uint8Array(44 + pcm.length); out.set(new Uint8Array(h.buffer), 0); out.set(pcm, 44); return out;
+}
+async function geminiVoice(env, text, speaker) {
+  const voice = AURA_FEMALE.has(speaker) ? (env.GEMINI_VOICE_F || 'Zephyr') : (env.GEMINI_VOICE_M || 'Puck');
+  let last = '';
+  for (const model of GEMINI_TTS) for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, signal: AbortSignal.timeout(40000),
+      body: JSON.stringify({ contents: [{ parts: [{ text: `${DIRECTION} ${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } }),
+    }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e?.message || e) } }) }));
+    const j = await res.json().catch(() => ({}));
+    const part = (j.candidates?.[0]?.content?.parts || []).find(x => x.inlineData?.data);
+    if (res.ok && part) {
+      const raw = Uint8Array.from(atob(part.inlineData.data), c => c.charCodeAt(0));
+      const mime = part.inlineData.mimeType || '';
+      if (/wav/i.test(mime)) return { bytes: raw, type: 'audio/wav' };
+      const rate = Number(/rate=(\d+)/.exec(mime)?.[1]) || 24000;
+      return { bytes: wavFromPcm(raw, rate), type: 'audio/wav' };
+    }
+    last = `${model} ${res.status}`;
+    // A per-minute limit: wait as asked (up to 25 s) and keep the same voice, rather than switching
+    // voices halfway through a video. A daily limit (long wait) moves on to the next model.
+    const wait = Number(/(\d+(?:\.\d+)?)s/.exec(JSON.stringify(j.error?.details || '').match(/retryDelay[^,}]*/)?.[0] || '')?.[1]);
+    if (res.status === 429 && wait && wait <= 25 && attempt < 2) { await new Promise(r => setTimeout(r, (wait + 1) * 1000)); continue; }
+    break;
+  }
+  throw new Error(`Gemini voice: ${last}`);
+}
+
 async function speak(request, env) {
-  if (!env.AI && !env.ELEVEN_KEY) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
+  if (!env.AI && !env.ELEVEN_KEY && !env.GEMINI_KEY) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
   const body = await readJson(request, 8000);
   const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 1800);
   if (!text) return json({ ok: false, error: 'No text' });
   const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
   let elevenNote = '';
+  if (env.GEMINI_KEY) {
+    try {
+      const v = await geminiVoice(env, text, speaker);
+      return new Response(v.bytes, { headers: { 'Content-Type': v.type, 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini' } });
+    } catch (e) { elevenNote = String(e?.message || e).slice(0, 80) + ' / '; }
+  }
   if (env.ELEVEN_KEY) {
     try {
       const res = await elevenVoice(env, text, speaker);
       return new Response(res.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'elevenlabs' } });
-    } catch (e) { elevenNote = String(e?.message || e).slice(0, 120); }
+    } catch (e) { elevenNote += String(e?.message || e).slice(0, 120); }
   }
   if (!env.AI) return json({ ok: false, error: elevenNote || 'No voice available' });
   try {

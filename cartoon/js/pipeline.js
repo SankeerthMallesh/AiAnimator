@@ -210,7 +210,8 @@ export class Pipeline {
     this.paint.running = (async () => {
       let misses = 0;
       await cloudflareReady();
-      while (!this.paint.stop && pool.length < (cloudflareOn() ? 24 : 6) && misses < 12) {
+      // One picture per scene (plus one spare) is all a video uses: painting more just burns the daily allowance.
+      while (!this.paint.stop && pool.length < (cloudflareOn() ? Math.min(24, Math.max(6, (p.script?.scenes?.length || 9) + 1)) : 6) && misses < 12) {
         if (this.signal.aborted) return;
         const job = next();
         if (!job) { await new Promise(r => setTimeout(r, 2000)); misses++; continue; }

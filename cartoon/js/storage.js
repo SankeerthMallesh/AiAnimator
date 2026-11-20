@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS = {
   hfToken: '',
   // Voice
   ttsEngine: 'kokoro',            // kokoro | pollinations | none
-  voice: 'af_heart',
+  voice: 'am_michael',
   voiceSpeed: 1.04,
   cloudVoice: 'onyx',
   // Output
@@ -41,7 +41,7 @@ export const DEFAULT_SETTINGS = {
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 9,
+  settingsVersion: 10,
 };
 
 function safeGet(key) {
