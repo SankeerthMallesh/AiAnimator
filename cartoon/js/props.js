@@ -5,6 +5,7 @@ import { Ink, PropMini } from './cast.js';
 
 import { drawProp, drawSticker } from './toons.js';
 import { drawSet } from './sets.js';
+import { drawWorld } from './worlds.js';
 
 // Animated floating props (spinning Earth, eclipse shadow, ship sinking below the horizon…).
 const TOONS = ['earth', 'moon', 'eclipse', 'ship', 'stick', 'bulb', 'question', 'exclaim', 'clock', 'book', 'thermometer', 'gear', 'atom', 'star', 'fire', 'drop', 'bolt'];
@@ -338,6 +339,8 @@ export class SetKit {
 
   static draw(ctx, W, H, id, t, plate, opts = {}) {
     if (plate && opts.scene) { SetKit.scenePlate(ctx, W, H, opts.blur ? SetKit.blurred(plate) : plate, t, !!opts.flip, opts); return; }
+    // No AI picture: a painted 3D-style world, drawn in code.
+    if (!plate && drawWorld(ctx, W, H, id, t)) return;
     if (RICH_SETS.includes(id)) {
       // Overscan in the set's own colours so a pan or whip never shows an empty edge.
       const m = Math.max(W, H) * 0.55;
