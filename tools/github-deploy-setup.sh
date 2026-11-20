@@ -2,7 +2,7 @@
 # Run on your Mac:  bash ~/aianimator/tools/github-deploy-setup.sh
 # It asks for your Cloudflare API token (hidden as you paste) and stores it as an encrypted GitHub secret.
 set -e
-REPO="SankeerthMallesh/aianimator"
+REPO="SankeerthMallesh/AiAnimator"
 
 # 1. GitHub's command-line tool.
 if ! command -v gh >/dev/null; then
@@ -14,7 +14,18 @@ if ! command -v gh >/dev/null; then
     exit 1
   fi
 fi
-gh auth status >/dev/null 2>&1 || { echo "Sign in to GitHub (a browser window opens):"; gh auth login --hostname github.com --git-protocol https --web; }
+# A GH_TOKEN / GITHUB_TOKEN in the shell would override the sign-in, often without access to this repo.
+unset GH_TOKEN GITHUB_TOKEN
+login() { echo "Sign in to GitHub as the owner of $REPO (a browser window opens):"; gh auth login --hostname github.com --git-protocol https --web --scopes repo,workflow; }
+gh auth status >/dev/null 2>&1 || login
+# Must be signed in as someone who can manage this repo's secrets (its owner).
+if [ "$(gh api "repos/$REPO" --jq .permissions.admin 2>/dev/null)" != "true" ]; then
+  echo "GitHub is signed in as '$(gh api user --jq .login 2>/dev/null || echo unknown)', which can't manage $REPO."
+  gh auth logout --hostname github.com >/dev/null 2>&1 || true
+  login
+  [ "$(gh api "repos/$REPO" --jq .permissions.admin 2>/dev/null)" = "true" ] || { echo "Still no access. Sign in as SankeerthMallesh (the repo owner) and run this again."; exit 1; }
+fi
+echo "GitHub: signed in as $(gh api user --jq .login)."
 
 # 2. The Cloudflare token, hidden while you paste.
 echo ""
