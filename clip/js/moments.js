@@ -11,7 +11,8 @@ A great clip:
 - has a payoff: a punchline, reveal, twist, strong reaction or satisfying ending, and ends right after it.
 - has no dead air or slow setup.
 Score honestly from 1 to 10 for how likely it is to go viral. Most moments are 4-6; give 8+ only to genuinely great ones.
-The heading is the text on screen above the video: 3 to 7 words, curiosity or emotion, true to the clip (no lying clickbait), no hashtags, no quotes, at most one emoji.`;
+The heading is the text on screen above the video, and it decides whether people stop scrolling: 3 to 7 words that create curiosity, tension or emotion about THIS clip, true to it (no lying clickbait), no hashtags, no quotes, at most one emoji.
+Strong headings: "He Tried To Break It With Fire", "Chat Did NOT Expect This", "The Worst Advice I've Ever Heard", "Why He Quit At 25". Weak headings (never write these): "First test", "Funny moment", "Stream highlight", "Part 1".`;
 
 function fmt(t) { return t.toFixed(1); }
 
@@ -58,6 +59,16 @@ function snap(c, words, minLen, maxLen, duration) {
     last = enders.length && enders[enders.length - 1].e > s + minLen ? enders[enders.length - 1] : cut[cut.length - 1];
     if (!last) return null;
     e = last.e + 0.35;
+  }
+  // Too short: carry on through the next whole sentences until the clip reaches the minimum length.
+  if (e - s < minLen) {
+    const after = words.filter(w => w.s >= e - 0.3 && w.e <= s + maxLen);
+    let best = null;
+    for (const w of after) {
+      if (w.e - s >= minLen && (/[.!?]["')]?$/.test(w.w) || w.e - s >= minLen + 8)) { best = w; break; }
+    }
+    if (!best && after.length) best = after[after.length - 1];
+    if (best && best.e > e) e = best.e + 0.35;
   }
   if (e - s < Math.min(minLen, 10)) return null;
   e = Math.min(e, duration || e);
