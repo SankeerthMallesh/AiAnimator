@@ -100,17 +100,21 @@ function pickText(out) {
 
 // Optional writers stored as Pages secrets (GEMINI_KEY, GROQ_KEY): free tiers, used before the
 // Cloudflare allowance (Gemini) or after it (Groq). Keys stay on the server.
+let geminiTrace = [];
 async function geminiWrite(env, messages, temperature, max_tokens) {
   const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
   const contents = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
   let last = '';
+  geminiTrace = [];
   for (const model of ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']) {
+    const t0 = Date.now();
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
       body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents, generationConfig: { temperature, maxOutputTokens: Math.max(max_tokens, 8192), thinkingConfig: model.startsWith('gemini-2.5') ? { thinkingBudget: 512 } : undefined } }),
     });
     const j = await res.json().catch(() => ({}));
     const text = (j.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
+    geminiTrace.push(`${model}:${res.status}:${Date.now() - t0}ms`);
     if (res.ok && text) return text;
     last = j.error?.message || `Gemini said ${res.status}`;
     if (res.status !== 404 && res.status !== 400) break;
@@ -145,7 +149,7 @@ async function write(request, env) {
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
   const notes = [];
   if (env.GEMINI_KEY) {
-    try { return json({ ok: true, text: await geminiWrite(env, messages, temperature, max_tokens), by: 'gemini' }); }
+    try { const t0 = Date.now(); const text = await geminiWrite(env, messages, temperature, max_tokens); return json({ ok: true, text, by: 'gemini', ms: Date.now() - t0, trace: geminiTrace }); }
     catch (e) { notes.push(`Gemini: ${String(e?.message || e).slice(0, 120)}`); }
   }
   const groq = async (why) => {
