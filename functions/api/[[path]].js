@@ -101,6 +101,28 @@ function pickText(out) {
 // Optional writers stored as Pages secrets (GEMINI_KEY, GROQ_KEY): free tiers, used before the
 // Cloudflare allowance (Gemini) or after it (Groq). Keys stay on the server.
 let geminiTrace = [];
+async function geminiOne(env, messages, temperature, max_tokens, model, think) {
+  const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+  const contents = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
+    body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents, generationConfig: { temperature, maxOutputTokens: Math.max(max_tokens, 1024), ...(think ? { thinkingConfig: think } : {}) } }),
+  });
+  const j = await res.json().catch(() => ({}));
+  const text = (j.candidates?.[0]?.content?.parts || []).filter(x => !x.thought).map(x => x.text || '').join('').trim();
+  if (res.ok && text) return text;
+  throw new Error(`${res.status} ${j.error?.message || 'no text'}`);
+}
+async function groqOne(env, messages, temperature, max_tokens, model) {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_KEY}` },
+    body: JSON.stringify({ model, messages, temperature, max_tokens: Math.min(max_tokens, 8000) }),
+  });
+  const j = await res.json().catch(() => ({}));
+  const text = String(j.choices?.[0]?.message?.content || '').trim();
+  if (res.ok && text) return text;
+  throw new Error(`${res.status} ${j.error?.message || 'no text'}`);
+}
 async function geminiWrite(env, messages, temperature, max_tokens) {
   const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
   const contents = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
@@ -154,6 +176,15 @@ async function write(request, env) {
   const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
   const notes = [];
+  // Diagnostics: {only: "gemini:<model>" | "groq:<model>"} runs one writer once and reports its time.
+  if (typeof body.only === 'string' && /^(gemini|groq):[a-z0-9.\-\/]{2,60}$/.test(body.only)) {
+    const [who, model] = body.only.split(':');
+    const t0 = Date.now();
+    try {
+      const text = who === 'gemini' ? await geminiOne(env, messages, temperature, max_tokens, model, body.think || null) : await groqOne(env, messages, temperature, max_tokens, model);
+      return json({ ok: true, text, by: who, model, ms: Date.now() - t0 });
+    } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 300), ms: Date.now() - t0 }); }
+  }
   if (env.GEMINI_KEY) {
     try { const t0 = Date.now(); const text = await geminiWrite(env, messages, temperature, max_tokens); return json({ ok: true, text, by: 'gemini', ms: Date.now() - t0, trace: geminiTrace }); }
     catch (e) { notes.push(`Gemini: ${String(e?.message || e).slice(0, 120)}`); }
