@@ -47,6 +47,7 @@ fetch('/__access/status', { credentials: 'same-origin' }).then(r => (r.ok ? r.js
 function updateGo() {
   $('#btnGo').disabled = !state.file || state.running || viewOnly;
   $('#btnAgain').hidden = !state.transcript || state.running;
+  $('#btnStop').hidden = !state.running;
 }
 
 async function pickFile(file) {

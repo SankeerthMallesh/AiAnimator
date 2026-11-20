@@ -9,6 +9,14 @@ export const STYLES = {
     direction: 'Tell it as a story about ONE main character, described once in "characters" with a detailed, specific look (age, build, hair, face, clothing colours) that never changes. Show that character in most scenes and say what they are doing. Vary the camera like a 3D story Short: extreme close-up of the face, top-down view, low angle, through-the-water or through-an-object view, wide establishing shot. Mark 2 to 4 scenes with "highlight": true where the narration points at one specific object or body part, and name that object first in the visual. Give scenes about a measurable thing (weight, time, speed, temperature, money, distance) an "icon": one emoji for it (⚖️ ⏱️ 💨 🌡️ 💰 📏).',
     character: true,
   },
+  'blocky': {
+    label: 'Blocky game world',
+    hint: 'Chunky block-built characters in a bright toy-like game town, story-time style',
+    lead: '3D render of a blocky toy-like video game world, not a photograph',
+    prompt: 'low-poly blocky game world, characters built from simple blocks with cube heads, rectangular bodies and blocky arms and legs, smooth flat-shaded plastic look, simple painted faces, bright saturated colors, green grass baseplate, simple houses and round trees, clean soft daylight, everyone fully clothed, no logos, no text',
+    direction: 'Make it a story-time video like popular blocky game story Shorts: first person ("I", "my best friend Milo"), dramatic and funny, short punchy lines, a cliffhanger in the middle and a twist at the end. Describe the main character once in "characters" as a blocky game avatar with specific clothing colours, and keep them in most scenes. Vary the camera: close-ups on blocky faces with big emotions, over-the-shoulder shots, wide shots of the town, snow or forest when the story moves. Mark 2 to 3 scenes with "highlight": true where the narration points at one object.',
+    character: true,
+  },
   'cgi-short': {
     label: '3D render short',
     hint: 'Clean, realistic 3D animation renders, like popular 3D explainer Shorts',
