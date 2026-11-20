@@ -28,7 +28,7 @@ export async function onRequest({ request, env, params }) {
       if (origin && new URL(origin).host !== url.host) return json({ error: 'Wrong origin' }, 403);
     }
     if (path === 'config' && request.method === 'GET') {
-      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!env.AI });
+      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : env.GROQ_KEY ? 'groq' : null, voice: env.ELEVEN_KEY ? 'elevenlabs' : env.AI ? 'aura' : null });
     }
     if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (path === 'write' && request.method === 'POST') return await write(request, env);
@@ -98,8 +98,43 @@ function pickText(out) {
   return '';
 }
 
+// Optional writers stored as Pages secrets (GEMINI_KEY, GROQ_KEY): free tiers, used before the
+// Cloudflare allowance (Gemini) or after it (Groq). Keys stay on the server.
+async function geminiWrite(env, messages, temperature, max_tokens) {
+  const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+  const contents = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+  let last = '';
+  for (const model of ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
+      body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents, generationConfig: { temperature, maxOutputTokens: Math.max(max_tokens, 8192), thinkingConfig: model.startsWith('gemini-2.5') ? { thinkingBudget: 512 } : undefined } }),
+    });
+    const j = await res.json().catch(() => ({}));
+    const text = (j.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
+    if (res.ok && text) return text;
+    last = j.error?.message || `Gemini said ${res.status}`;
+    if (res.status !== 404 && res.status !== 400) break;
+  }
+  throw new Error(last);
+}
+async function groqWrite(env, messages, temperature, max_tokens) {
+  let last = '';
+  for (const model of ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b']) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_KEY}` },
+      body: JSON.stringify({ model, messages, temperature, max_tokens: Math.min(max_tokens, 8000) }),
+    });
+    const j = await res.json().catch(() => ({}));
+    const text = String(j.choices?.[0]?.message?.content || '').trim();
+    if (res.ok && text) return text;
+    last = j.error?.message || `Groq said ${res.status}`;
+    if (res.status !== 404 && res.status !== 400) break;
+  }
+  throw new Error(last);
+}
+
 async function write(request, env) {
-  if (!env.AI) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
+  if (!env.AI && !env.GEMINI_KEY && !env.GROQ_KEY) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
   const body = await readJson(request, 300000);
   const messages = (Array.isArray(body.messages) ? body.messages : [])
     .filter(m => m && typeof m.content === 'string' && m.content.trim())
@@ -108,6 +143,17 @@ async function write(request, env) {
   if (!messages.length) return json({ ok: false, error: 'No messages' });
   const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));
+  const notes = [];
+  if (env.GEMINI_KEY) {
+    try { return json({ ok: true, text: await geminiWrite(env, messages, temperature, max_tokens), by: 'gemini' }); }
+    catch (e) { notes.push(`Gemini: ${String(e?.message || e).slice(0, 120)}`); }
+  }
+  const groq = async (why) => {
+    if (!env.GROQ_KEY) return null;
+    try { return json({ ok: true, text: await groqWrite(env, messages, temperature, max_tokens), by: 'groq' }); }
+    catch (e) { notes.push(`Groq: ${String(e?.message || e).slice(0, 120)}`); return null; }
+  };
+  if (!env.AI) return (await groq()) || json({ ok: false, error: notes.join(' · ') || 'No writer available' });
   try {
     // Short thinking makes scripts come back in about half the time. If this model version
     // rejects the setting (or answers empty), ask again the plain way.
@@ -122,12 +168,14 @@ async function write(request, env) {
       out = await env.AI.run('@cf/openai/gpt-oss-120b', { messages, max_tokens, temperature });
       text = pickText(out).trim();
     }
-    if (!text) return json({ ok: false, error: `Empty answer (${Object.keys(out || {}).join(', ') || 'nothing'})` });
-    return json({ ok: true, text });
+    if (!text) return (await groq()) || json({ ok: false, error: `Empty answer (${Object.keys(out || {}).join(', ') || 'nothing'})` });
+    return json({ ok: true, text, by: 'cloudflare' });
   } catch (e) {
+    const fallback = await groq();
+    if (fallback) return fallback;
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ ok: false, used, error: used ? 'The free daily AI allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300) });
+    return json({ ok: false, used, error: used ? 'The free daily AI allowance is used up.' : msg.slice(0, 200), detail: [msg.slice(0, 300), ...notes].join(' · ') });
   }
 }
 
@@ -135,15 +183,35 @@ async function write(request, env) {
 // A natural, context-aware narrator voice on the site's free daily allowance ($0.03 per 1,000
 // characters of it). When the allowance is used up, the page falls back to the in-browser voice.
 const AURA_SPEAKERS = new Set('amalthea andromeda apollo arcas aries asteria athena atlas aurora callista cora cordelia delia draco electra harmonia helena hera hermes hyperion iris janus juno jupiter luna mars minerva neptune odysseus ophelia orion orpheus pandora phoebe pluto saturn thalia theia vesta zeus'.split(' '));
+// With an ElevenLabs key stored as a Pages secret (ELEVEN_KEY), its voices come first: the most
+// human-sounding. When its monthly allowance runs out, Aura-2 takes over.
+const AURA_FEMALE = new Set('amalthea andromeda asteria athena aurora callista cora cordelia delia electra harmonia helena hera iris juno luna minerva ophelia pandora phoebe thalia theia vesta'.split(' '));
+async function elevenVoice(env, text, speaker) {
+  const voice = AURA_FEMALE.has(speaker) ? (env.ELEVEN_VOICE_F || 'EXAVITQu4vr4xnSDxMaL') : (env.ELEVEN_VOICE_M || 'JBFqnCBsd6RMkjVDRZzb');
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
+    method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+    body: JSON.stringify({ text, model_id: env.ELEVEN_MODEL || 'eleven_multilingual_v2', voice_settings: { stability: 0.38, similarity_boost: 0.8, style: 0.4 } }),
+  });
+  if (!res.ok || !/audio/.test(res.headers.get('Content-Type') || '')) throw new Error(`ElevenLabs said ${res.status}`);
+  return res;
+}
 async function speak(request, env) {
-  if (!env.AI) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
+  if (!env.AI && !env.ELEVEN_KEY) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
   const body = await readJson(request, 8000);
   const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 1800);
   if (!text) return json({ ok: false, error: 'No text' });
   const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
+  let elevenNote = '';
+  if (env.ELEVEN_KEY) {
+    try {
+      const res = await elevenVoice(env, text, speaker);
+      return new Response(res.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'elevenlabs' } });
+    } catch (e) { elevenNote = String(e?.message || e).slice(0, 120); }
+  }
+  if (!env.AI) return json({ ok: false, error: elevenNote || 'No voice available' });
   try {
     const out = await env.AI.run('@cf/deepgram/aura-2-en', { text, speaker, encoding: 'mp3' });
-    const headers = { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' };
+    const headers = { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'aura' };
     if (out instanceof ReadableStream || out instanceof ArrayBuffer || ArrayBuffer.isView(out)) return new Response(out, { headers });
     if (out?.audio) return new Response(Uint8Array.from(atob(out.audio), c => c.charCodeAt(0)), { headers });
     return json({ ok: false, error: 'No audio came back' });

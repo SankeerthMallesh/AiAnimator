@@ -7,7 +7,7 @@ import { Demo } from './demo.js';
 import { fetchPlate, platePrompt, scenePrompt, mapLimit, cloudflareReady, cloudflareOn } from './images.js';
 import { topicPictures } from './wiki.js';
 import { isSafeImage } from './safety.js';
-import { getNarrator, warmNarrator, auraUsed } from './tts.js';
+import { getNarrator, warmNarrator, auraUsed, serverVoiceName } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
 import { exportVideo } from './encoder.js';
@@ -356,7 +356,7 @@ export class Pipeline {
 
   voiceSummary() {
     const e = this.narrator?.engine || this.s.ttsEngine;
-    if (e !== 'elevenlabs' && auraUsed()) return 'Aura-2 voice (Cloudflare)';
+    if (e !== 'elevenlabs' && auraUsed()) return serverVoiceName();
     return e === 'kokoro' ? `Kokoro · ${this.s.voice}` : e === 'elevenlabs' ? 'ElevenLabs' : e === 'pollinations' ? 'Cloud voice' : 'Captions only';
   }
 

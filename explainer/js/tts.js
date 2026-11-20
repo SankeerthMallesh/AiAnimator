@@ -214,6 +214,8 @@ function withVersion(u) { u.search = new URL(import.meta.url).search; return u; 
 let auraState = null; // null unknown, true usable, false not this visit
 let auraHits = 0;
 export const auraUsed = () => auraHits > 0;
+let serverVoice = 'aura'; // which voice the server used last: aura or elevenlabs
+export const serverVoiceName = () => (serverVoice === 'elevenlabs' ? 'ElevenLabs voice (your site)' : 'Aura-2 voice (Cloudflare)');
 async function auraReady() {
   if (auraState !== null) return auraState;
   try {
@@ -238,6 +240,7 @@ async function auraLine(text, speaker) {
     e.used = !!why.used;
     throw e;
   }
+  serverVoice = res.headers.get('X-Loomy-Voice') || 'aura';
   const buf = await res.arrayBuffer();
   const ctx = new OfflineAudioContext(1, 1, 24000);
   const audio = await ctx.decodeAudioData(buf);
