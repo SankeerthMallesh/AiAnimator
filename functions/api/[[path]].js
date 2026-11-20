@@ -79,7 +79,7 @@ async function image(request, env) {
   } catch (e) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ ok: false, used, error: used ? 'The free daily picture allowance is used up.' : msg.slice(0, 200) });
+    return json({ ok: false, used, error: used ? 'The free daily picture allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300) });
   }
 }
 
@@ -127,7 +127,7 @@ async function write(request, env) {
   } catch (e) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ ok: false, used, error: used ? 'The free daily AI allowance is used up.' : msg.slice(0, 200) });
+    return json({ ok: false, used, error: used ? 'The free daily AI allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300) });
   }
 }
 
@@ -150,7 +150,7 @@ async function speak(request, env) {
   } catch (e) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200) });
+    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300) });
   }
 }
 
