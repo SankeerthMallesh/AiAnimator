@@ -25,6 +25,8 @@ const WORD_SENSES = {
   key: [/keyboard|piano|key (idea|point|fact|part|reason)|the key (is|to)/, ''],
   star: [/celebrit|famous|movie star|pop star|rock star|rating|review/, ''],
   ruler: [/king|queen|emperor|empire|kingdom|reign|throne/, '👑'],
+  spring: [/like a spring|coil|twist|bounc|metal|stretch|compress|squeez|jump/, '🌀'],
+  fall: [/\b(falls?|falling|fell|drop)\b/, ''],
 };
 const VAGUE_EMOJI = new Set(['❓', '❔', '❗', '❕', '✨', '💧', '⚙', '📦', '⏱', '⏰', '💡', '⭐', '🌟', '💥', '🎉', '👍', '✅', '❌', '🔍', '🔎', '📈', '📉', '💭', '💬', '🗯', '❤', '🔥', '⚡', '🌀', '💫', '🎯', '🏆', '📌', '📝', '📚', '📖', '🧩', '🔑']);
 const TOON_WORDS = {

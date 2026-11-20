@@ -1,0 +1,5 @@
+ffmpeg.wasm (@ffmpeg/ffmpeg 0.12.15) - MIT License
+Copyright (c) ffmpeg.wasm contributors
+https://github.com/ffmpegwasm/ffmpeg.wasm
+
+The ffmpeg core (@ffmpeg/core 0.12.10, GPL-2.0-or-later) is not stored here; the page loads it from jsDelivr at run time.

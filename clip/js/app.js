@@ -1,0 +1,236 @@
+// Loomy Clips: a stream or long video in, short vertical clips out.
+// 1. ffmpeg (in the browser) reads only the soundtrack.  2. Groq Whisper (via the Loomy server) times
+// every word.  3. AI picks the strongest moments with a heading each.  4. Each clip is framed to 9:16,
+// captioned and exported as MP4 with the original sound. Nothing is posted anywhere.
+
+import { getFFmpeg, mountFile, run, probeDuration, removeFiles } from './ff.js';
+import { extractAudio, transcribePieces } from './transcribe.js';
+import { findMoments } from './moments.js';
+import { trackSpeaker } from './track.js';
+import { ClipPainter, exportClip, canExport } from './render.js';
+
+const $ = (s, r = document) => r.querySelector(s);
+const state = { file: null, duration: 0, transcript: null, clips: [], video: null, playable: true, running: false, abort: null };
+
+// ---------- small UI helpers ----------
+function log(msg) {
+  const el = $('#log');
+  const line = document.createElement('div');
+  line.textContent = msg;
+  el.append(line);
+  while (el.childElementCount > 60) el.firstElementChild.remove();
+  el.scrollTop = el.scrollHeight;
+}
+function step(name, status, detail = '') {
+  const li = document.querySelector(`#steps li[data-step="${name}"]`);
+  if (!li) return;
+  li.className = status;
+  li.querySelector('.d').textContent = detail;
+}
+function toast(msg, bad = false) {
+  const t = $('#toast');
+  t.textContent = msg; t.classList.toggle('bad', bad); t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 5000);
+}
+const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const pct = (f) => `${Math.round(f * 100)}%`;
+
+// ---------- access (view-only code) ----------
+let viewOnly = false;
+fetch('/__access/status', { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : null)).then((s) => {
+  viewOnly = s?.role === 'view';
+  $('#viewBanner').hidden = !viewOnly;
+  updateGo();
+}).catch(() => {});
+
+// ---------- choosing a video ----------
+function updateGo() {
+  $('#btnGo').disabled = !state.file || state.running || viewOnly;
+  $('#btnAgain').hidden = !state.transcript || state.running;
+}
+
+async function pickFile(file) {
+  if (!file) return;
+  if (!/^video\//.test(file.type) && !/\.(mp4|mov|m4v|webm|mkv|avi)$/i.test(file.name)) { toast('That is not a video file.', true); return; }
+  state.file = file; state.transcript = null; state.clips = [];
+  $('#results').replaceChildren();
+  $('#fileName').textContent = file.name;
+  $('#fileMeta').textContent = `${(file.size / 1e6).toFixed(file.size > 1e9 ? 0 : 1)} MB`;
+  $('#drop').classList.add('has-file');
+  const v = state.video || document.createElement('video');
+  state.video = v;
+  v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+  if (v.src) URL.revokeObjectURL(v.src);
+  v.src = URL.createObjectURL(file);
+  const ok = await new Promise((resolve) => {
+    const done = (r) => { v.onloadeddata = v.onerror = null; resolve(r); };
+    v.onloadeddata = () => done(v.videoWidth > 0);
+    v.onerror = () => done(false);
+    setTimeout(() => done(v.readyState >= 2 && v.videoWidth > 0), 10000);
+  });
+  state.playable = ok;
+  state.duration = ok && Number.isFinite(v.duration) ? v.duration : 0;
+  const prev = $('#preview');
+  prev.src = v.src; prev.hidden = !ok;
+  $('#fileMeta').textContent = `${$('#fileMeta').textContent}${state.duration ? ` · ${mmss(state.duration)}` : ''}${ok ? ` · ${v.videoWidth}×${v.videoHeight}` : ' · will be converted for clips'}`;
+  updateGo();
+}
+
+$('#fileInput').addEventListener('change', (e) => pickFile(e.target.files[0]));
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', (e) => pickFile(e.dataTransfer.files[0]));
+
+function options() {
+  const [minLen, maxLen] = $('#length').value.split('-').map(Number);
+  return {
+    count: Number($('#count').value), minLen, maxLen,
+    framing: $('#framing').value, captions: $('#optCaptions').checked, heading: $('#optHeading').checked, emoji: $('#optEmoji').checked,
+    language: $('#language').value,
+  };
+}
+
+// ---------- the run ----------
+async function go({ reuseTranscript = false } = {}) {
+  if (!state.file || state.running) return;
+  if (!canExport()) { toast('Making clips needs Chrome or Edge on a computer.', true); return; }
+  state.running = true; updateGo();
+  state.abort = new AbortController();
+  const signal = state.abort.signal;
+  const o = options();
+  $('#results').replaceChildren();
+  $('#log').replaceChildren();
+  try {
+    const ff = await getFFmpeg((f) => step('tools', 'active', `Downloading (once) ${pct(f)}`));
+    step('tools', 'done', 'Ready');
+    const path = await mountFile(ff, state.file);
+    if (!state.duration) state.duration = await probeDuration(ff, path);
+
+    if (!reuseTranscript || !state.transcript) {
+      step('audio', 'active', 'Reading the soundtrack…');
+      const pieces = await extractAudio(state.file, state.duration, { log, onProgress: (p) => p.stage === 'audio' && step('audio', 'active', pct(p.fraction)) });
+      step('audio', 'done', `${pieces.length} part${pieces.length > 1 ? 's' : ''}`);
+      step('words', 'active', 'Sending to Groq Whisper…');
+      state.transcript = await transcribePieces(pieces, { language: o.language, log, signal, onProgress: (f) => step('words', 'active', pct(f)) });
+      step('words', 'done', `${state.transcript.words.length.toLocaleString()} words${state.transcript.language ? ` · ${state.transcript.language}` : ''}`);
+    } else {
+      step('audio', 'done', 'Already read'); step('words', 'done', 'Already transcribed');
+    }
+
+    step('moments', 'active', 'Reading the whole video…');
+    state.clips = await findMoments(state.transcript, { ...o, duration: state.duration, log, signal, onProgress: (f) => step('moments', 'active', pct(f)) });
+    step('moments', 'done', `${state.clips.length} clips found`);
+
+    const cards = state.clips.map((c, i) => makeCard(c, i));
+    $('#results').replaceChildren(...cards.map(c => c.el));
+    await document.fonts.load('900 92px Montserrat').catch(() => {});
+    step('clips', 'active', `0 of ${state.clips.length}`);
+    for (let i = 0; i < state.clips.length; i++) {
+      if (signal.aborted) break;
+      await renderCard(cards[i], o, signal);
+      step('clips', 'active', `${i + 1} of ${state.clips.length}`);
+    }
+    step('clips', 'done', `${state.clips.length} ready`);
+    toast('Your clips are ready.');
+  } catch (e) {
+    if (e?.name === 'AbortError') { toast('Stopped.'); }
+    else {
+      log(`Problem: ${e.message}`);
+      toast(e.message, true);
+      for (const li of document.querySelectorAll('#steps li.active')) { li.className = 'fail'; }
+    }
+  } finally {
+    state.running = false; updateGo();
+  }
+}
+
+// A clip's own source: the original file when the browser can play it, or a converted copy.
+async function sourceFor(clip, ff, path) {
+  if (state.playable) return { video: state.video, off: 0 };
+  const off = Math.max(0, clip.s - 0.5), len = clip.e - clip.s + 1;
+  await run(ff, ['-hide_banner', '-ss', String(off), '-i', path, '-t', String(len), '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20', '-vf', "scale='min(1280,iw)':-2", '-an', 'cut.mp4']);
+  const data = await ff.readFile('cut.mp4');
+  await removeFiles(ff, ['cut.mp4']);
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.src = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+  await new Promise((r) => { v.onloadeddata = r; v.onerror = r; });
+  return { video: v, off };
+}
+
+async function clipAudio(ff, path, clip) {
+  await run(ff, ['-hide_banner', '-ss', String(clip.s), '-i', path, '-t', String(clip.e - clip.s), '-vn', '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s16le', 'clip.wav']);
+  const data = await ff.readFile('clip.wav');
+  await removeFiles(ff, ['clip.wav']);
+  const ctx = new OfflineAudioContext(2, 1, 48000);
+  return ctx.decodeAudioData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+}
+
+async function renderCard(card, o, signal) {
+  const clip = card.clip;
+  card.setStatus('Framing…', 0);
+  const ff = await getFFmpeg();
+  const path = await mountFile(ff, state.file);
+  const audio = await clipAudio(ff, path, clip);
+  const { video, off } = await sourceFor(clip, ff, path);
+  const local = { ...clip, s: clip.s - off, e: clip.e - off, emoji: clip.emoji.map(x => ({ ...x, t: x.t - off })) };
+  const words = state.transcript.words.map(w => ({ ...w, s: w.s - off, e: w.e - off }));
+  const track = o.framing === 'auto' ? await trackSpeaker(video, local.s, local.e, { log }) : { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 };
+  const painter = new ClipPainter(video, local, words, track, o);
+  card.setStatus('Making the clip… keep this tab open', 0);
+  const blob = await exportClip(painter, audio, { signal, onProgress: (f) => card.setStatus(`Making the clip… ${pct(f)}`, f) });
+  if (video !== state.video) URL.revokeObjectURL(video.src);
+  card.done(blob);
+}
+
+// ---------- result cards ----------
+function makeCard(clip, i) {
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="frame"><video playsinline controls hidden></video><div class="wait"><div class="bar"><i></i></div><span class="st">Waiting…</span></div></div>
+    <div class="info">
+      <div class="row"><span class="score"></span><span class="when"></span></div>
+      <label class="head-edit"><span>Heading</span><input type="text" maxlength="70"></label>
+      <p class="why"></p>
+      <div class="btns"><a class="btn primary dl" hidden>Download MP4</a><button class="btn ghost redo" type="button" hidden>Re-make with this heading</button><button class="btn ghost copy" type="button">Copy heading</button></div>
+    </div>`;
+  el.querySelector('.score').textContent = `${clip.score}/10`;
+  el.querySelector('.score').dataset.level = clip.score >= 8 ? 'hot' : clip.score >= 6 ? 'good' : 'ok';
+  el.querySelector('.when').textContent = `${mmss(clip.s)}–${mmss(clip.e)} · ${Math.round(clip.e - clip.s)} s`;
+  const input = el.querySelector('input');
+  input.value = clip.heading;
+  input.addEventListener('input', () => { clip.heading = input.value.trim(); el.querySelector('.redo').hidden = state.running || !el.querySelector('video').src; });
+  el.querySelector('.why').textContent = clip.why;
+  el.querySelector('.copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(clip.heading); toast('Heading copied.'); } catch { input.select(); }
+  });
+  const card = {
+    el, clip,
+    setStatus(text, f) { el.querySelector('.st').textContent = text; el.querySelector('.bar i').style.width = pct(f); },
+    done(blob) {
+      const v = el.querySelector('video');
+      if (v.src) URL.revokeObjectURL(v.src);
+      v.src = URL.createObjectURL(blob); v.hidden = false;
+      el.querySelector('.wait').hidden = true;
+      const a = el.querySelector('.dl');
+      a.href = v.src; a.download = `clip-${i + 1}-${clip.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'loomy'}.mp4`; a.hidden = false;
+      el.querySelector('.redo').hidden = true;
+    },
+  };
+  el.querySelector('.redo').addEventListener('click', async () => {
+    if (state.running) return;
+    state.running = true; updateGo();
+    el.querySelector('.wait').hidden = false; el.querySelector('video').hidden = true;
+    try { await renderCard(card, options(), new AbortController().signal); } catch (e) { toast(e.message, true); }
+    state.running = false; updateGo();
+  });
+  return card;
+}
+
+$('#btnGo').addEventListener('click', () => go());
+$('#btnAgain').addEventListener('click', () => go({ reuseTranscript: true }));
+$('#btnStop').addEventListener('click', () => state.abort?.abort());
+window.addEventListener('beforeunload', (e) => { if (state.running) { e.preventDefault(); e.returnValue = ''; } });
+updateGo();

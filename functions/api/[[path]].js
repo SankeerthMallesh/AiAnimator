@@ -35,6 +35,7 @@ export async function onRequest({ request, env, params }) {
     if (path === 'speak' && request.method === 'POST') return await speak(request, env);
     if (path === 'runway' && request.method === 'POST') return await runway(request);
     if (path === 'fal' && request.method === 'POST') return await fal(request);
+    if (path === 'transcribe' && request.method === 'POST') return await transcribe(request, env);
     if (!env.DB || !env.GOOGLE_CLIENT_ID) {
       // Signed-out is the normal state on a site without sign-in: answer it without an error status.
       if (path === 'me') return json({ user: null });
@@ -148,6 +149,44 @@ async function geminiWrite(env, messages, temperature, max_tokens) {
   }
   throw new Error(last);
 }
+// ---------- transcription (Clipping section): Groq Whisper with word timings ----------
+// The page sends small audio pieces (about 10 minutes of 16 kHz mono MP3 each); the key stays here.
+async function transcribe(request, env) {
+  if (!env.GROQ_KEY) return json({ ok: false, error: 'Transcription needs a Groq key on the server (tools/add-ai-keys.sh).' });
+  let form;
+  try { form = await request.formData(); } catch { return json({ ok: false, error: 'Send the audio as a form upload.' }); }
+  const file = form.get('file');
+  if (!file || typeof file === 'string') return json({ ok: false, error: 'No audio' });
+  if (file.size > 24 * 1024 * 1024) return json({ ok: false, error: 'Audio piece too large (24 MB max)' });
+  const lang = String(form.get('language') || '').slice(0, 5);
+  let last = '';
+  for (const model of ['whisper-large-v3-turbo', 'whisper-large-v3']) {
+    const out = new FormData();
+    out.append('file', file, file.name || 'audio.mp3');
+    out.append('model', model);
+    out.append('response_format', 'verbose_json');
+    out.append('timestamp_granularities[]', 'word');
+    out.append('timestamp_granularities[]', 'segment');
+    out.append('temperature', '0');
+    if (/^[a-z]{2}$/.test(lang)) out.append('language', lang);
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST', headers: { Authorization: `Bearer ${env.GROQ_KEY}` }, body: out, signal: AbortSignal.timeout(120000),
+    }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: String(e?.message || e) } }) }));
+    const j = await res.json().catch(() => ({}));
+    if (res.ok && (j.text != null)) {
+      return json({
+        ok: true, model, language: j.language || null, duration: j.duration || null, text: j.text,
+        words: (j.words || []).map(w => ({ w: w.word, s: w.start, e: w.end })),
+        segments: (j.segments || []).map(g => ({ s: g.start, e: g.end, t: g.text })),
+      });
+    }
+    last = j.error?.message || `Groq said ${res.status}`;
+    if (res.status === 429) return json({ ok: false, limited: true, error: last.slice(0, 300) });
+    if (![0, 400, 404].includes(res.status)) break;
+  }
+  return json({ ok: false, error: last.slice(0, 300) });
+}
+
 async function groqWrite(env, messages, temperature, max_tokens) {
   let last = '';
   // gpt-oss-120b answers in well under a second on Groq; short thinking keeps it that way.
@@ -168,11 +207,11 @@ async function groqWrite(env, messages, temperature, max_tokens) {
 
 async function write(request, env) {
   if (!env.AI && !env.GEMINI_KEY && !env.GROQ_KEY) return json({ ok: false, error: 'Cloudflare AI is not connected.' });
-  const body = await readJson(request, 300000);
+  const body = await readJson(request, 1500000);
   const messages = (Array.isArray(body.messages) ? body.messages : [])
     .filter(m => m && typeof m.content === 'string' && m.content.trim())
     .slice(0, 16)
-    .map(m => ({ role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user', content: m.content.slice(0, 60000) }));
+    .map(m => ({ role: ['system', 'user', 'assistant'].includes(m.role) ? m.role : 'user', content: m.content.slice(0, 400000) }));
   if (!messages.length) return json({ ok: false, error: 'No messages' });
   const temperature = Math.max(0.05, Math.min(1, Number(body.temperature) || 0.6));
   const max_tokens = Math.max(256, Math.min(8000, Math.floor(Number(body.max_tokens) || 6000)));

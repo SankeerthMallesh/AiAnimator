@@ -11,6 +11,8 @@
     "/explainer/css/*",
     "/board/js/*",
     "/board/css/*",
+    "/clip/js/*",
+    "/clip/css/*",
     "/account.js",
     "/_headers",
     "/_redirects",
