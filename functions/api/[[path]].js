@@ -106,15 +106,21 @@ async function geminiWrite(env, messages, temperature, max_tokens) {
   const contents = messages.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
   let last = '';
   geminiTrace = [];
-  for (const model of ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']) {
+  // Short thinking keeps answers fast. Newer models take thinkingLevel; if one refuses a setting
+  // (400), the next attempt asks without it.
+  const tries = [
+    ['gemini-flash-latest', { thinkingLevel: 'low' }], ['gemini-flash-latest', { thinkingBudget: 256 }],
+    ['gemini-flash-lite-latest', null], ['gemini-2.5-flash', { thinkingBudget: 256 }], ['gemini-flash-latest', null],
+  ];
+  for (const [model, think] of tries) {
     const t0 = Date.now();
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
-      body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents, generationConfig: { temperature, maxOutputTokens: Math.max(max_tokens, 8192), thinkingConfig: model.startsWith('gemini-2.5') ? { thinkingBudget: 512 } : undefined } }),
+      body: JSON.stringify({ ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}), contents, generationConfig: { temperature, maxOutputTokens: Math.max(max_tokens, 8192), ...(think ? { thinkingConfig: think } : {}) } }),
     });
     const j = await res.json().catch(() => ({}));
-    const text = (j.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('').trim();
-    geminiTrace.push(`${model}:${res.status}:${Date.now() - t0}ms`);
+    const text = (j.candidates?.[0]?.content?.parts || []).filter(x => !x.thought).map(x => x.text || '').join('').trim();
+    geminiTrace.push(`${model}${think ? '+' + Object.keys(think)[0] : ''}:${res.status}:${Date.now() - t0}ms`);
     if (res.ok && text) return text;
     last = j.error?.message || `Gemini said ${res.status}`;
     if (res.status !== 404 && res.status !== 400) break;
