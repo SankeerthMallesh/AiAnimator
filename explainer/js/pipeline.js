@@ -4,7 +4,7 @@
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
 import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
-import { auraUsed, serverVoiceName } from './tts.js';
+import { auraUsed, serverVoiceName, speakAllLines } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
 import { exportVideo } from './encoder.js';
@@ -255,6 +255,11 @@ export class Pipeline {
           this.log(`Built-in voice could not load (${e.message}); using cloud voice.`);
           this.narrator.engine = 'pollinations';
         }
+      }
+      if (this.narrator.engine !== 'elevenlabs' && this.narrator.engine !== 'none' && todo.length > 1) {
+        this.h.step('voice', 'active', 'Reading the whole script…');
+        this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice);
+        if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
       }
       let done = 0;
       // The built-in voice is one worker thread, so it goes line by line; cloud voices are network

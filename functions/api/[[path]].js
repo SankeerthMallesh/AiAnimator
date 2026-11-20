@@ -33,6 +33,7 @@ export async function onRequest({ request, env, params }) {
     if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (path === 'write' && request.method === 'POST') return await write(request, env);
     if (path === 'speak' && request.method === 'POST') return await speak(request, env);
+    if (path === 'speakall' && request.method === 'POST') return await speakAll(request, env);
     if (path === 'runway' && request.method === 'POST') return await runway(request);
     if (path === 'fal' && request.method === 'POST') return await fal(request);
     if (path === 'transcribe' && request.method === 'POST') return await transcribe(request, env);
@@ -349,6 +350,56 @@ async function geminiVoice(env, text, speaker) {
     break;
   }
   throw new Error(`Gemini voice: ${last}`);
+}
+
+// The whole script in one read (one request per video instead of one per line): a continuous,
+// natural delivery with one voice throughout. Groq Whisper then times every word so the page can
+// cut the recording into scene lines. Answers audio/wav with the cut times in X-Loomy-Cuts.
+async function speakAll(request, env) {
+  if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: 'Needs the Gemini and Groq keys' });
+  const body = await readJson(request, 80000);
+  const lines = (Array.isArray(body.lines) ? body.lines : []).map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 80);
+  if (lines.length < 2) return json({ ok: false, error: 'Too few lines' });
+  const text = lines.join('\n\n');
+  if (text.length > 6000) return json({ ok: false, error: 'Script too long for one read' });
+  const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
+  let v;
+  try { v = await geminiVoice(env, `[excited] ${text}`, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
+  const form = new FormData();
+  form.append('file', new Blob([v.bytes], { type: 'audio/wav' }), 'script.wav');
+  form.append('model', 'whisper-large-v3-turbo');
+  form.append('response_format', 'verbose_json');
+  form.append('timestamp_granularities[]', 'word');
+  form.append('language', 'en');
+  const tr = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${env.GROQ_KEY}` }, body: form, signal: AbortSignal.timeout(60000) })
+    .then(r => r.json()).catch(() => ({}));
+  const words = (tr.words || []).map(w => ({ n: String(w.word).toLowerCase().replace(/[^a-z0-9]/g, ''), s: w.start, e: w.end })).filter(w => w.n);
+  const dur = tr.duration || (v.bytes.length - 44) / 48000;
+  if (words.length < 3) return json({ ok: false, error: 'Could not time the read' });
+  // Match the script's words to the heard words in order (small look-ahead for spelled-out numbers).
+  const script = [];
+  lines.forEach((l, li) => l.split(/\s+/).forEach(w => { const n = w.toLowerCase().replace(/[^a-z0-9]/g, ''); if (n) script.push({ n, li }); }));
+  const at = new Array(script.length).fill(-1);
+  let j = 0;
+  for (let i = 0; i < script.length; i++) {
+    for (let k = j; k < Math.min(words.length, j + 7); k++) if (words[k].n === script[i].n) { at[i] = k; j = k + 1; break; }
+  }
+  const cuts = [];
+  for (let li = 0; li < lines.length - 1; li++) {
+    let endW = -1, startW = -1;
+    for (let i = 0; i < script.length; i++) {
+      if (script[i].li === li && at[i] >= 0) endW = at[i];
+      if (script[i].li === li + 1 && at[i] >= 0 && startW < 0) startW = at[i];
+    }
+    const chars = lines.slice(0, li + 1).join(' ').length / text.length;
+    let t = dur * chars;
+    if (endW >= 0 && startW > endW) t = (words[endW].e + words[startW].s) / 2;
+    else if (endW >= 0) t = words[endW].e + 0.12;
+    else if (startW >= 0) t = words[startW].s - 0.12;
+    cuts.push(Math.max(cuts[cuts.length - 1] || 0, Math.min(dur, t)));
+  }
+  const matched = at.filter(x => x >= 0).length / script.length;
+  return new Response(v.bytes, { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini', 'X-Loomy-Cuts': JSON.stringify(cuts.map(c => Math.round(c * 1000) / 1000)), 'X-Loomy-Match': String(Math.round(matched * 100)) } });
 }
 
 async function speak(request, env) {

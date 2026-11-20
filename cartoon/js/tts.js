@@ -44,6 +44,7 @@ export class Narrator {
   async speak(text, speedMul = 1) {
     const s = this.settings;
     if (this.engine === 'none' || !text.trim()) return null;
+    if (this.engine !== 'elevenlabs' && this.batch?.has(text)) return this.batch.get(text);
     // The site's own Cloudflare voice (Deepgram Aura-2) sounds far more human than the in-browser
     // model, so it goes first unless an ElevenLabs key is saved.
     if (this.engine !== 'elevenlabs' && s.ttsEngine !== 'kokoro-only' && await auraReady()) {
@@ -464,4 +465,32 @@ export function sayNumbers(text) {
   t = t.replace(/\b(\d+)x\b/g, '$1 times');
   t = t.replace(/~\s?(?=\d)/g, 'about ').replace(/≈\s?/g, 'about ').replace(/(\d)\s?[x×]\s?(\d)/g, '$1 by $2');
   return t;
+}
+
+// ---------- Whole-script read ----------
+// One request reads every line in one go (one voice, natural flow, far less of the daily
+// allowance); the server sends the cut times, and each scene gets its own slice.
+export async function speakAllLines(lines, voice) {
+  if (!(await auraReady()) || !Array.isArray(lines) || lines.length < 2) return null;
+  try {
+    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines, speaker: auraSpeaker(voice) }) });
+    if (!/^audio\//.test(res.headers.get('Content-Type') || '')) return null;
+    const cuts = JSON.parse(res.headers.get('X-Loomy-Cuts') || '[]');
+    if (cuts.length !== lines.length - 1) return null;
+    const audio = await new OfflineAudioContext(1, 1, 24000).decodeAudioData(await res.arrayBuffer());
+    const all = audio.getChannelData(0), sr = audio.sampleRate;
+    const bounds = [0, ...cuts.map(c => Math.round(c * sr)), all.length];
+    const out = new Map();
+    lines.forEach((line, i) => {
+      const slice = all.slice(bounds[i], bounds[i + 1]);
+      if (slice.length < sr * 0.3) return;
+      const samples = trimmed({ samples: slice, sampleRate: sr });
+      const b = speechBounds(samples, sr);
+      out.set(line, { samples, sampleRate: sr, sentences: [{ text: line, start: b.start, end: b.end }], engine: 'aura' });
+    });
+    if (out.size < lines.length * 0.8) return null;
+    serverVoice = res.headers.get('X-Loomy-Voice') || 'gemini';
+    auraHits++;
+    return out;
+  } catch { return null; }
 }

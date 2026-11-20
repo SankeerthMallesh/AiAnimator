@@ -7,7 +7,7 @@ import { Demo } from './demo.js';
 import { fetchPlate, platePrompt, scenePrompt, mapLimit, cloudflareReady, cloudflareOn } from './images.js';
 import { topicPictures } from './wiki.js';
 import { isSafeImage } from './safety.js';
-import { getNarrator, warmNarrator, auraUsed, serverVoiceName } from './tts.js';
+import { getNarrator, warmNarrator, auraUsed, serverVoiceName, speakAllLines } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
 import { exportVideo } from './encoder.js';
@@ -334,6 +334,13 @@ export class Pipeline {
         this.h.step('voice', 'warn', 'No voice — captions only');
         return;
       }
+    }
+    // The whole script in one read when the site's narrator can do it; the loop below then only
+    // records lines it could not cut out.
+    if (this.narrator.engine !== 'elevenlabs' && this.narrator.engine !== 'none' && todo.length > 1) {
+      this.h.step('voice', 'active', 'Reading the whole script…');
+      this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice);
+      if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
     }
     let done = 0;
     await mapLimit(todo, this.narrator.engine === 'kokoro' ? 1 : 3, async (scene) => {
