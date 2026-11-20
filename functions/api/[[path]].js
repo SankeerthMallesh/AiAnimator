@@ -229,8 +229,10 @@ async function write(request, env) {
       if (res.ok && /audio|octet/.test(ct)) { const buf = new Uint8Array(await res.arrayBuffer()); return json({ ok: true, ms: Date.now() - t0, type: ct, bytes: buf.length, b64: btoa(String.fromCharCode(...buf.slice(0, 600000).reduce((a, b) => (a.push(b), a), []).slice(0, 0))) }); }
       return json({ ok: false, ms: Date.now() - t0, status: res.status, body: (await res.text()).slice(0, 400) });
     }
+    const st = body.style || 'say';
+    const spoken = st === 'say' ? `Say excitedly: ${text}` : text;
     const gen = (kind === 'tts')
-      ? { contents: [{ parts: [{ text: `Say this like an excited, fast-talking YouTube Shorts narrator: ${text}` }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Puck' } } } } }
+      ? { ...(st === 'system' ? { systemInstruction: { parts: [{ text: 'You are an energetic, fast-paced YouTube Shorts narrator. Read the user text exactly, with excitement and natural rises and falls.' }] } } : {}), contents: [{ parts: [{ text: spoken }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Puck' } } } } }
       : { contents: [{ parts: [{ text: body.text || 'Stylized 3D cartoon game environment: the wooden deck of an old ocean liner at sea, vivid colors, wide angle, no people, no text' }] }], generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '9:16' } } };
     res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, body: JSON.stringify(gen) });
     const j = await res.json().catch(() => ({}));
