@@ -1,3 +1,4 @@
+import { sharpenBitmap } from './sharpen.js';
 import { FORMATS, formatOf } from './presets.js';
 import { fetchTimeout } from './net.js';
 import { isSafeImage } from './safety.js';
@@ -37,12 +38,12 @@ async function blobToBitmap(blob, trimLogo = false) {
     throw new Error('Not an image');
   }
   const bmp = await createImageBitmap(blob);
-  if (!trimLogo) return bmp;
+  if (!trimLogo) return sharpenBitmap(bmp);
   // The free no-key service stamps its logo in the bottom-right corner and ignores nologo.
   // Cut that strip off so it never shows up in a video.
   const cut = await createImageBitmap(bmp, 0, 0, bmp.width, Math.round(bmp.height * 0.9));
   bmp.close?.();
-  return cut;
+  return sharpenBitmap(cut);
 }
 
 const IMAGE_TIMEOUT_MS = 50000; // a stalled request is retried instead of holding a slot forever
@@ -250,7 +251,7 @@ export async function cloudflareImage(prompt, opts = {}, signal) {
     cfFails = 0;
     const blob = await res.blob();
     if (blob.size < 2000) return null;
-    return await createImageBitmap(blob);
+    return await sharpenBitmap(await createImageBitmap(blob));
   } catch (e) {
     if (signal?.aborted) throw e;
     return null;
