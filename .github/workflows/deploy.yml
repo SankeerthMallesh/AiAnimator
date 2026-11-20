@@ -1,0 +1,53 @@
+# Deploys Loomy to Cloudflare Pages on every push to main.
+# Needs these in the repo's Settings -> Secrets and variables -> Actions (tools/github-deploy-setup.sh sets them):
+#   secret   CLOUDFLARE_API_TOKEN    (Cloudflare Pages: Edit, D1: Edit, Account Settings: Read, User Details: Read)
+#   secret   CLOUDFLARE_ACCOUNT_ID
+#   variable LOOMY_PROJECT           (the Pages project name, e.g. loomy-app)
+#   variable LOOMY_GOOGLE_CLIENT_ID  (optional, turns on Google sign-in)
+#   variable LOOMY_D1_ID             (optional, the sync database)
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ vars.LOOMY_PROJECT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build a clean copy with this site's settings
+        env:
+          NAME: ${{ vars.LOOMY_PROJECT }}
+          CID: ${{ vars.LOOMY_GOOGLE_CLIENT_ID }}
+          DBID: ${{ vars.LOOMY_D1_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          rsync -a --exclude .git --exclude .github ./ "$RUNNER_TEMP/site/"
+          {
+            echo "name = \"$NAME\""
+            echo 'pages_build_output_dir = "."'
+            echo 'compatibility_date = "2026-11-01"'
+            printf '\n[ai]\nbinding = "AI"\n'
+            if [ -n "$CID" ] && [ -n "$DBID" ]; then
+              printf '\n[vars]\nGOOGLE_CLIENT_ID = "%s"\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "loomy-db"\ndatabase_id = "%s"\n' "$CID" "$DBID"
+            fi
+          } > "$RUNNER_TEMP/site/wrangler.toml"
+
+      - name: Deploy
+        working-directory: ${{ runner.temp }}/site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages deploy . --project-name "${{ vars.LOOMY_PROJECT }}" --branch main --commit-dirty=true
