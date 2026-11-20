@@ -266,8 +266,22 @@ export async function exportClip(painter, audio, { onProgress, signal } = {}) {
     };
     video.requestVideoFrameCallback(step);
     video.addEventListener('ended', finish, { once: true });
-    // Safety net: if playback stalls, stop a little after the clip should have ended.
-    const guard = setInterval(() => { if (stopped) clearInterval(guard); else if (video.currentTime >= clip.e + 0.5) { clearInterval(guard); finish(); } }, 500);
+    // Safety nets: stop once playback passes the end, and never wait forever on a stalled video.
+    // A stall first gets a nudge (play again); if nothing moves for 12 s, the clip ends where it got to.
+    let lastFrames = frames, still = 0;
+    const guard = setInterval(() => {
+      if (stopped) { clearInterval(guard); return; }
+      if (video.currentTime >= clip.e + 0.5 || video.ended) { clearInterval(guard); finish(); return; }
+      if (frames === lastFrames) {
+        still += 0.5;
+        if (still === 3) video.play().catch(() => {});
+        if (still >= 12) {
+          clearInterval(guard);
+          if (frames > fps) finish();
+          else { stopped = true; video.pause(); reject(new Error('This part of the video would not play. Try another clip or a different file.')); }
+        }
+      } else { lastFrames = frames; still = 0; }
+    }, 500);
     video.play().catch(reject);
   });
   await venc.flush(); await aenc.flush();

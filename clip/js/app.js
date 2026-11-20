@@ -10,6 +10,14 @@ import { trackSpeaker } from './track.js';
 import { ClipPainter, exportClip, canExport } from './render.js';
 
 const $ = (s, r = document) => r.querySelector(s);
+// Working videos sit on the page, invisibly: browsers can stop handing out frames for a video
+// that is not on the page, which would stall a clip.
+function attach(v) {
+  v.setAttribute('aria-hidden', 'true');
+  v.style.cssText = 'position:fixed;left:0;top:0;width:4px;height:4px;opacity:0.01;pointer-events:none;z-index:-1';
+  if (!v.isConnected) document.body.append(v);
+  return v;
+}
 const state = { file: null, duration: 0, transcript: null, clips: [], video: null, playable: true, running: false, abort: null };
 
 // ---------- small UI helpers ----------
@@ -58,7 +66,7 @@ async function pickFile(file) {
   $('#fileName').textContent = file.name;
   $('#fileMeta').textContent = `${(file.size / 1e6).toFixed(file.size > 1e9 ? 0 : 1)} MB`;
   $('#drop').classList.add('has-file');
-  const v = state.video || document.createElement('video');
+  const v = attach(state.video || document.createElement('video'));
   state.video = v;
   v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
   if (v.src) URL.revokeObjectURL(v.src);
@@ -69,11 +77,21 @@ async function pickFile(file) {
     v.onerror = () => done(false);
     setTimeout(() => done(v.readyState >= 2 && v.videoWidth > 0), 10000);
   });
-  state.playable = ok;
+  // Knowing the size is not enough: some files report it but the browser cannot decode a frame
+  // (HEVC from phones, some MKV). Play a moment and wait for a real frame.
+  const decodes = ok && await new Promise((resolve) => {
+    let settled = false;
+    const end = (r) => { if (settled) return; settled = true; clearTimeout(t); v.pause(); resolve(r); };
+    const t = setTimeout(() => end(false), 6000);
+    v.requestVideoFrameCallback(() => end(true));
+    v.play().catch(() => end(false));
+  });
+  if (decodes) { v.pause(); v.currentTime = 0; }
+  state.playable = !!decodes;
   state.duration = ok && Number.isFinite(v.duration) ? v.duration : 0;
   const prev = $('#preview');
-  prev.src = v.src; prev.hidden = !ok;
-  $('#fileMeta').textContent = `${$('#fileMeta').textContent}${state.duration ? ` · ${mmss(state.duration)}` : ''}${ok ? ` · ${v.videoWidth}×${v.videoHeight}` : ' · will be converted for clips'}`;
+  prev.src = v.src; prev.hidden = !state.playable;
+  $('#fileMeta').textContent = `${$('#fileMeta').textContent}${state.duration ? ` · ${mmss(state.duration)}` : ''}${state.playable ? ` · ${v.videoWidth}×${v.videoHeight}` : ' · this browser cannot play it directly, so each clip will be converted'}`;
   updateGo();
 }
 
@@ -139,7 +157,7 @@ async function go({ reuseTranscript = false } = {}) {
     else {
       log(`Problem: ${e.message}`);
       toast(e.message, true);
-      for (const li of document.querySelectorAll('#steps li.active')) { li.className = 'fail'; }
+      for (const li of document.querySelectorAll('#steps li.active')) { li.className = 'fail'; li.querySelector('.d').textContent = 'Stopped'; }
     }
   } finally {
     state.running = false; updateGo();
@@ -147,17 +165,34 @@ async function go({ reuseTranscript = false } = {}) {
 }
 
 // A clip's own source: the original file when the browser can play it, or a converted copy.
-async function sourceFor(clip, ff, path) {
-  if (state.playable) return { video: state.video, off: 0 };
-  const off = Math.max(0, clip.s - 0.5), len = clip.e - clip.s + 1;
-  await run(ff, ['-hide_banner', '-ss', String(off), '-i', path, '-t', String(len), '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20', '-vf', "scale='min(1280,iw)':-2", '-an', 'cut.mp4']);
-  const data = await ff.readFile('cut.mp4');
-  await removeFiles(ff, ['cut.mp4']);
-  const v = document.createElement('video');
+// A fresh player on the same source, so tracking and exporting never share (or break) one.
+async function freshPlayer(src) {
+  const v = attach(document.createElement('video'));
   v.muted = true; v.playsInline = true; v.preload = 'auto';
-  v.src = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-  await new Promise((r) => { v.onloadeddata = r; v.onerror = r; });
-  return { video: v, off };
+  v.src = src;
+  await new Promise((r) => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 15000); });
+  return v;
+}
+
+async function sourceFor(clip, ff, path) {
+  if (state.playable) return { src: state.video.src, off: 0, owned: false };
+  const off = Math.max(0, clip.s - 0.5), len = clip.e - clip.s + 1;
+  // Convert just this moment into a format this browser plays: H.264 where possible, else VP9.
+  const h264 = !!document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"');
+  const out = h264 ? 'cut.mp4' : 'cut.webm';
+  log('Converting this moment so the browser can play it…');
+  await run(ff, ['-hide_banner', '-ss', String(off), '-i', path, '-t', String(len), '-vf', "scale='min(1280,iw)':-2", '-an',
+    ...(h264 ? ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20'] : ['-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '2M']), out]);
+  const data = await ff.readFile(out);
+  await removeFiles(ff, [out]);
+  const v = attach(document.createElement('video'));
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.src = URL.createObjectURL(new Blob([data], { type: h264 ? 'video/mp4' : 'video/webm' }));
+  await new Promise((r) => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 15000); });
+  if (v.error) log(`The converted moment would not open (code ${v.error.code}).`);
+  const src = v.src;
+  v.remove();
+  return { src, off, owned: true };
 }
 
 async function clipAudio(ff, path, clip) {
@@ -174,15 +209,24 @@ async function renderCard(card, o, signal) {
   const ff = await getFFmpeg();
   const path = await mountFile(ff, state.file);
   const audio = await clipAudio(ff, path, clip);
-  const { video, off } = await sourceFor(clip, ff, path);
+  const { src, off, owned } = await sourceFor(clip, ff, path);
   const local = { ...clip, s: clip.s - off, e: clip.e - off, emoji: clip.emoji.map(x => ({ ...x, t: x.t - off })) };
   const words = state.transcript.words.map(w => ({ ...w, s: w.s - off, e: w.e - off }));
-  const track = o.framing === 'auto' ? await trackSpeaker(video, local.s, local.e, { log }) : { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 };
-  const painter = new ClipPainter(video, local, words, track, o);
-  card.setStatus('Making the clip… keep this tab open', 0);
-  const blob = await exportClip(painter, audio, { signal, onProgress: (f) => card.setStatus(`Making the clip… ${pct(f)}`, f) });
-  if (video !== state.video) URL.revokeObjectURL(video.src);
-  card.done(blob);
+  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 };
+  if (o.framing === 'auto') {
+    const tv = await freshPlayer(src);
+    try { track = await trackSpeaker(tv, local.s, local.e, { log }); } finally { tv.remove(); }
+  }
+  const video = await freshPlayer(src);
+  try {
+    const painter = new ClipPainter(video, local, words, track, o);
+    card.setStatus('Making the clip… keep this tab open', 0);
+    const blob = await exportClip(painter, audio, { signal, onProgress: (f) => card.setStatus(`Making the clip… ${pct(f)}`, f) });
+    card.done(blob);
+  } finally {
+    video.remove();
+    if (owned) URL.revokeObjectURL(src);
+  }
 }
 
 // ---------- result cards ----------

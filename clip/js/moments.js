@@ -71,7 +71,12 @@ function snap(c, words, minLen, maxLen, duration) {
     if (best && best.e > e) e = best.e + 0.35;
   }
   if (e - s < Math.min(minLen, 10)) return null;
-  e = Math.min(e, duration || e);
+  // Never past the end of the video (a cut-off file can have speech timed beyond it).
+  if (duration) {
+    if (s >= duration - 3) return null;
+    e = Math.min(e, duration - 0.05);
+    if (e - s < Math.min(minLen, 8)) return null;
+  }
   return { s, e };
 }
 

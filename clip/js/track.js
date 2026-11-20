@@ -12,9 +12,10 @@ let detectorP = null;
 // console errors; keep those out of the console while it starts and runs.
 async function quiet(fn) {
   const err = console.error, info = console.info, warn = console.warn;
-  const skip = (orig) => (...a) => { if (/TensorFlow|XNNPACK|delegate|gl_context|OpenGL/i.test(String(a[0]))) return; orig.apply(console, a); };
-  console.error = skip(err); console.info = skip(info); console.warn = skip(warn);
-  try { return await fn(); } finally { setTimeout(() => { console.error = err; console.info = info; console.warn = warn; }, 1500); }
+  const log = console.log;
+  const skip = (orig) => (...a) => { if (/TensorFlow|XNNPACK|delegate|gl_context|OpenGL|GL version|Graph successfully|W\d{4} |I\d{4} /i.test(String(a[0]))) return; orig.apply(console, a); };
+  console.error = skip(err); console.info = skip(info); console.warn = skip(warn); console.log = skip(log);
+  try { return await fn(); } finally { setTimeout(() => { console.error = err; console.info = info; console.warn = warn; console.log = log; }, 1500); }
 }
 
 function getDetector() {
@@ -38,7 +39,10 @@ function seek(video, t) {
 }
 
 // Returns { mode: 'crop' | 'fit', at(t) -> centre x as a share of the frame width }
-export async function trackSpeaker(video, s, e, { log } = {}) {
+export async function trackSpeaker(video, s, e, opts = {}) {
+  return quiet(() => trackInner(video, s, e, opts));
+}
+async function trackInner(video, s, e, { log } = {}) {
   let detector;
   try { detector = await getDetector(); } catch { log?.('Face finder unavailable; using the full frame.'); return { mode: 'fit', at: () => 0.5 }; }
   const W = 320, H = Math.max(2, Math.round(320 * video.videoHeight / video.videoWidth));
@@ -48,6 +52,7 @@ export async function trackSpeaker(video, s, e, { log } = {}) {
   let seen = 0, looked = 0;
   for (let t = s; t <= e; t += 0.5) {
     await seek(video, t);
+    if (video.error) break; // the decoder gave up on this file; use what was seen so far
     g.drawImage(video, 0, 0, W, H);
     looked++;
     let best = null, bestScore = -1;
