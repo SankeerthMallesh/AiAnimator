@@ -257,7 +257,14 @@ export class Pipeline {
         }
       }
       if (this.narrator.engine !== 'elevenlabs' && this.narrator.engine !== 'none' && todo.length > 1) {
-        this.h.step('voice', 'active', 'Reading the whole script…');
+        // One take for the whole script: wait for the fact-check first (a few seconds), so its fixes
+      // are in the take instead of being re-recorded line by line afterwards.
+      if (this.factJob) {
+        this.h.step('voice', 'active', 'Waiting for the fact-check…');
+        await Promise.race([this.factJob.catch(() => null), new Promise(r => setTimeout(r, 45000))]);
+        todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
+      }
+      this.h.step('voice', 'active', 'Reading the whole script…');
         this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice);
         if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
       }

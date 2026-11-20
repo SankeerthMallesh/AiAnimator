@@ -338,7 +338,14 @@ export class Pipeline {
     // The whole script in one read when the site's narrator can do it; the loop below then only
     // records lines it could not cut out.
     if (this.narrator.engine !== 'elevenlabs' && this.narrator.engine !== 'none' && todo.length > 1) {
-      this.h.step('voice', 'active', 'Reading the whole script…');
+      // One take for the whole script: wait for the fact-check first (a few seconds), so its fixes
+    // are in the take instead of being re-recorded line by line afterwards.
+    if (this.factJob) {
+      this.h.step('voice', 'active', 'Waiting for the fact-check…');
+      await Promise.race([this.factJob.catch(() => null), new Promise(r => setTimeout(r, 45000))]);
+      todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
+    }
+    this.h.step('voice', 'active', 'Reading the whole script…');
       this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice);
       if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
     }
@@ -391,8 +398,10 @@ export class Pipeline {
     this.factJob = null;
     if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
     if (check?.changed) {
-      this.log(`Fact-check corrected ${check.changed} line${check.changed > 1 ? 's' : ''}. Re-recording only those lines.`);
-      await this.ensureVoice();
+      // The voice usually waited for the fact-check, so the take already has the fixes.
+      const stale = this.p.script.scenes.filter(s => this.p.voices.get(s.id)?.key !== this.voiceKey(s)).length;
+      this.log(`Fact-check corrected ${check.changed} line${check.changed > 1 ? 's' : ''}.${stale ? ` Re-recording ${stale} line${stale > 1 ? 's' : ''}.` : ' The narration already has the fixes.'}`);
+      if (stale) await this.ensureVoice();
     }
     await this.ensureMix();
   }
