@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>if (window.top !== window) document.documentElement.classList.add("embedded");</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loomy · Edit</title>
+<meta name="description" content="Edit your videos in the browser: trim, split, reorder, text, captions, music, speed, zoom and transitions. Free.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23FAFAFA'/%3E%3Cpath d='M9 7l14 18M23 7L9 25' stroke='%230A0A0A' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/editor.css?v=202611211945">
+<script type="module" src="../shared/topbar.js?v=202611211945"></script>
+<link rel="stylesheet" href="../theme.css?v=202611211945">
+</head>
+<body>
+<div class="ed" id="app">
+  <header class="ed-mast">
+    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.6 7.5L20 18M8.6 16.5L20 6"/></svg><h1>Edit</h1></div>
+    <p class="tag">Trim, split and reorder your videos, then export an MP4. Everything happens in your browser; your files never leave this computer.</p>
+  </header>
+
+  <div class="ed-toolbar" role="toolbar" aria-label="Editing">
+    <label class="btn primary" for="fileInput"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add video
+      <input type="file" id="fileInput" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" multiple hidden></label>
+    <span class="sep" aria-hidden="true"></span>
+    <button class="btn" id="btnUndo" type="button" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span>Undo</span></button>
+    <button class="btn" id="btnRedo" type="button" title="Redo (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg><span>Redo</span></button>
+    <button class="btn" id="btnSplit" type="button" title="Split at the playhead (S)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M5 8l-3 4 3 4M19 8l3 4-3 4"/></svg><span>Split</span></button>
+    <button class="btn" id="btnDelete" type="button" title="Delete the selected part (Delete)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span>Delete</span></button>
+    <span class="grow"></span>
+    <label class="field inline"><span>Size</span><select id="format"><option value="9:16" selected>9:16 Shorts</option><option value="16:9">16:9 Wide</option><option value="1:1">1:1 Square</option></select></label>
+    <button class="btn primary" id="btnExport" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>Export MP4</button>
+  </div>
+
+  <main class="ed-main">
+    <section class="ed-stage" aria-label="Preview">
+      <div class="stage-box" id="stageBox"><canvas id="preview" aria-label="Video preview"></canvas>
+        <div class="stage-empty" id="stageEmpty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Drop videos here</b><span>or use Add video. MP4, MOV or WebM.</span></div>
+      </div>
+      <div class="transport">
+        <button class="icon-btn big" id="btnBack" type="button" aria-label="Back to the start"><svg viewBox="0 0 24 24"><path d="M6 5v14M19 5l-10 7 10 7z"/></svg></button>
+        <button class="icon-btn big play" id="btnPlay" type="button" aria-label="Play (Space)"><svg viewBox="0 0 24 24" class="i-play"><path d="M7 5l12 7-12 7z"/></svg><svg viewBox="0 0 24 24" class="i-pause"><path d="M8 5v14M16 5v14"/></svg></button>
+      </div>
+    </section>
+
+    <aside class="ed-inspector" id="inspector" aria-label="Selected part">
+      <p class="hint">Select a part on the timeline to change it.</p>
+    </aside>
+  </main>
+
+  <section class="ed-timeline" id="timeline" aria-label="Timeline"></section>
+
+  <div class="ed-drop" id="dropCover" hidden><b>Drop to add to the timeline</b></div>
+
+  <div class="ed-modal" id="exportBox" hidden role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="card">
+      <h2 id="exportTitle">Export</h2>
+      <p class="status" id="exportStatus">Getting ready…</p>
+      <div class="bar"><i id="exportBar"></i></div>
+      <video id="exportVideo" controls playsinline hidden></video>
+      <div class="row">
+        <a class="btn primary" id="exportDownload" hidden download="loomy-edit.mp4">Download MP4</a>
+        <button class="btn" id="exportClose" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+</div>
+
+<script type="importmap">
+{"imports": {
+  "./js/app.js": "./js/app.js?v=202611211945",
+  "./js/audio.js": "./js/audio.js?v=202611211945",
+  "./js/draw.js": "./js/draw.js?v=202611211945",
+  "./js/export.js": "./js/export.js?v=202611211945",
+  "./js/media.js": "./js/media.js?v=202611211945",
+  "./js/model.js": "./js/model.js?v=202611211945",
+  "./js/preview.js": "./js/preview.js?v=202611211945",
+  "./js/timeline.js": "./js/timeline.js?v=202611211945",
+  "../shared/encode.js": "../shared/encode.js?v=202611211945",
+  "../shared/level.js": "../shared/level.js?v=202611211945",
+  "../shared/renderlog.js": "../shared/renderlog.js?v=202611211945",
+  "../shared/speech.js": "../shared/speech.js?v=202611211945",
+  "../shared/topbar.js": "../shared/topbar.js?v=202611211945",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611211945"
+}}
+</script>
+<script type="module" src="./js/app.js?v=202611211945"></script>
+</body>
+</html>

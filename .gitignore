@@ -20,3 +20,5 @@ tools/tests/cliptest/loud.webm
 tools/tests/cliptest/burned.webm
 tools/tests/cliptest/burned-mid.webm
 tools/tests/cliptest/dump_*.json
+tools/tests/cliptest/ed_a.webm
+tools/tests/cliptest/ed_b.webm

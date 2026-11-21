@@ -1,4 +1,4 @@
-// S19 front-end check: each page opened directly, at 390 px and 1440 px wide.
+// S19 front-end check (and the Edit page, E1): each page opened directly, at 390 px and 1440 px wide.
 //   node uicheck.cjs [base=http://127.0.0.1:8773]   (screenshots in out/ui-*.png)
 // Checks: the shared pill-tab header with text labels, the page title, no sideways scroll, every
 // visible tab and button at least 44 px tall, every visible text at least 4.5:1 contrast against
@@ -6,7 +6,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const base = process.argv[2] || 'http://127.0.0.1:8773';
-const PAGES = [['Cartoons', '/cartoon/', 'Loomy · Cartoons'], ['3D', '/explainer/', 'Loomy · 3D'], ['Blocky', '/explainer/?style=blocky', 'Loomy · Blocky'], ['Clips', '/clip/', 'Loomy · Clips']];
+const PAGES = [['Cartoons', '/cartoon/', 'Loomy · Cartoons'], ['3D', '/explainer/', 'Loomy · 3D'], ['Blocky', '/explainer/?style=blocky', 'Loomy · Blocky'], ['Clips', '/clip/', 'Loomy · Clips'], ['Edit', '/editor/', 'Loomy · Edit']];
 (async () => {
   const b = await chromium.launch();
   let bad = 0;
@@ -48,7 +48,7 @@ const PAGES = [['Cartoons', '/cartoon/', 'Loomy · Cartoons'], ['3D', '/explaine
       });
       await p.screenshot({ path: `out/ui-${name}-${width}.png` });
       const rows = [
-        ['shared pill-tab header with text labels', ['Cartoons', '3D', 'Blocky', 'Clips', 'Board'].every(t => r.tabs.some(x => x === t)), r.tabs.join(', ') || 'none'],
+        ['shared pill-tab header with text labels', ['Cartoons', '3D', 'Blocky', 'Clips', 'Edit', 'Board'].every(t => r.tabs.some(x => x === t)), r.tabs.join(', ') || 'none'],
         [`title "${title}"`, r.title === title, r.title],
         ['no sideways scroll', r.scroll <= r.vw, `${r.scroll} / ${r.vw}`],
         ['tabs and buttons >= 44 px', !r.small.length, r.small.slice(0, 6).join('; ') || 'all'],
