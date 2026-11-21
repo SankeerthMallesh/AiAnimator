@@ -249,18 +249,30 @@ export async function exportClip(painter, audio, { onProgress, signal } = {}) {
   };
   video.muted = true;
   video.pause();
+  video.playbackRate = 1;
   await seek(video, clip.s);
   put(clip.s);
   await new Promise((resolve, reject) => {
     let stopped = false;
     const finish = () => { if (stopped) return; stopped = true; video.pause(); resolve(); };
+    // Every frame is drawn as the video plays. A busy computer misses frames (the picture would
+    // stutter), so when frames are skipped the video plays slower until each one is caught: the
+    // sound is encoded separately, so the speed of playback never shows in the clip. A 60 fps
+    // source is taken at a smooth 30.
+    let lastT = clip.s, lastPresented = -1, missed = 0, seen = 0, nextT = clip.s + 1 / fps * 0.5;
     const step = (now, meta) => {
       if (stopped) return;
       if (signal?.aborted) { stopped = true; video.pause(); reject(new DOMException('Cancelled', 'AbortError')); return; }
       if (failure) { stopped = true; video.pause(); reject(failure); return; }
       const t = meta.mediaTime;
       if (t >= clip.e) { finish(); return; }
-      if (t > clip.s) put(t);
+      if (lastPresented >= 0 && meta.presentedFrames - lastPresented > 1 && t - lastT > 1.4 / fps) missed += meta.presentedFrames - lastPresented - 1;
+      lastPresented = meta.presentedFrames; lastT = t; seen++;
+      if (seen >= 20) {
+        if (missed > seen * 0.08 && video.playbackRate > 0.26) video.playbackRate = Math.max(0.25, video.playbackRate * 0.6);
+        missed = 0; seen = 0;
+      }
+      if (t > clip.s && t >= nextT) { put(t); nextT = Math.max(nextT + 1 / fps, t + 0.5 / fps); }
       onProgress?.(Math.min(1, (t - clip.s) / dur));
       video.requestVideoFrameCallback(step);
     };

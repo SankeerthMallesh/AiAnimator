@@ -196,7 +196,11 @@ async function sourceFor(clip, ff, path) {
 }
 
 async function clipAudio(ff, path, clip) {
-  await run(ff, ['-hide_banner', '-ss', String(clip.s), '-i', path, '-t', String(clip.e - clip.s), '-vn', '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s16le', 'clip.wav']);
+  // Streams come in at any level (a whisper-quiet mic, a blasting game): level each clip to the
+  // loudness YouTube plays at (-14 LUFS, peaks under -1.5 dB). Plain copy if the filter is missing.
+  const args = (af) => ['-hide_banner', '-ss', String(clip.s), '-i', path, '-t', String(clip.e - clip.s), '-vn', ...af, '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s16le', 'clip.wav'];
+  try { await run(ff, args(['-af', 'loudnorm=I=-14:TP=-1.5:LRA=11'])); }
+  catch { await run(ff, args([])); }
   const data = await ff.readFile('clip.wav');
   await removeFiles(ff, ['clip.wav']);
   const ctx = new OfflineAudioContext(2, 1, 48000);

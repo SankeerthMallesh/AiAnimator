@@ -428,20 +428,57 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
   }
 
   const out = await ctx.startRendering();
-  // Normalize to a healthy peak.
-  let peak = 0;
+  // Level the mix by how loud it sounds (BS.1770 integrated loudness, what YouTube measures),
+  // not by its highest peak: the reference Shorts sit at -10 to -14 LUFS. Peaks stay under -1 dB.
+  levelMix(out);
+  return out;
+}
+
+const TARGET_LUFS = -13, CEILING = 0.89;
+function kWeighted(x, sr) {
+  // The two K-weighting filters: a high shelf (+4 dB above ~1.7 kHz) and a low cut at ~38 Hz.
+  const shelf = (() => { const A = Math.pow(10, 3.99984 / 40), w = 2 * Math.PI * 1681.97445 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * 0.70718), s = 2 * Math.sqrt(A) * al;
+    return [A * ((A + 1) + (A - 1) * c + s), -2 * A * ((A - 1) + (A + 1) * c), A * ((A + 1) + (A - 1) * c - s), (A + 1) - (A - 1) * c + s, 2 * ((A - 1) - (A + 1) * c), (A + 1) - (A - 1) * c - s]; })();
+  const hp = (() => { const w = 2 * Math.PI * 38.13547 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * 0.50033);
+    return [(1 + c) / 2, -(1 + c), (1 + c) / 2, 1 + al, -2 * c, 1 - al]; })();
+  let y = x;
+  for (const [b0, b1, b2, a0, a1, a2] of [shelf, hp]) {
+    const o = new Float32Array(y.length); let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < y.length; i++) { const v = (b0 * y[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0; x2 = x1; x1 = y[i]; y2 = y1; y1 = v; o[i] = v; }
+    y = o;
+  }
+  return y;
+}
+export function integratedLoudness(buffer) {
+  const sr = buffer.sampleRate, ch = [];
+  for (let c = 0; c < buffer.numberOfChannels; c++) ch.push(kWeighted(buffer.getChannelData(c), sr));
+  const block = Math.round(sr * 0.4), hop = Math.round(sr * 0.1), blocks = [];
+  for (let s = 0; s + block <= ch[0].length; s += hop) {
+    let z = 0;
+    for (const d of ch) { let m = 0; for (let i = s; i < s + block; i++) m += d[i] * d[i]; z += m / block; }
+    blocks.push(z);
+  }
+  const lufs = (z) => -0.691 + 10 * Math.log10(z);
+  const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  const abs = blocks.filter(z => lufs(z) > -70);
+  if (!abs.length) return -Infinity;
+  const rel = lufs(mean(abs)) - 10;
+  const gated = abs.filter(z => lufs(z) > rel);
+  return lufs(mean(gated.length ? gated : abs));
+}
+function levelMix(out) {
+  const L = integratedLoudness(out);
+  if (!isFinite(L)) return;
+  let g = Math.pow(10, (TARGET_LUFS - L) / 20);
+  g = Math.min(g, 4); // never lift a near-silent mix into hiss
+  const knee = CEILING * 0.8;
   for (let c = 0; c < out.numberOfChannels; c++) {
     const d = out.getChannelData(c);
-    for (let i = 0; i < d.length; i += 2) peak = Math.max(peak, Math.abs(d[i]));
-  }
-  if (peak > 0.001) {
-    const g = 0.93 / peak;
-    if (g < 1 || g > 1.05) {
-      for (let c = 0; c < out.numberOfChannels; c++) {
-        const d = out.getChannelData(c);
-        for (let i = 0; i < d.length; i++) d[i] = Math.max(-1, Math.min(1, d[i] * g));
-      }
+    for (let i = 0; i < d.length; i++) {
+      // Gain, then a soft limiter: untouched below the knee, smoothly bent toward the ceiling above it.
+      let v = d[i] * g; const a = Math.abs(v);
+      if (a > knee) v = Math.sign(v) * (knee + (CEILING - knee) * Math.tanh((a - knee) / (CEILING - knee)));
+      d[i] = v;
     }
   }
-  return out;
 }
