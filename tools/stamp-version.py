@@ -19,6 +19,8 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
     s = re.sub(r'href="css/(\w+)\.css(\?v=[^"]*)?"', lambda m: f'href="css/{m.group(1)}.css?v={v}"', s)
     mods = sorted(os.path.basename(f) for f in glob.glob('js/*.js') if not f.endswith('worker.js'))
     entries = [f'  "./js/{m}": "./js/{m}?v={v}"' for m in mods]
+    if app == 'explainer':
+        entries.append(f'  "../cartoon/js/worlds.js": "../cartoon/js/worlds.js?v={v}"')
     if vendor:
         entries.append(f'  "{vendor}/mp4-muxer.mjs": "{vendor}/mp4-muxer.mjs?v={v}"')
     imap = '<script type="importmap">\n{"imports": {\n' + ',\n'.join(entries) + '\n}}\n</script>\n'

@@ -137,7 +137,7 @@ async function run(browser, n) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
   const errs = [], calls = {};
   const script = scriptFor(n, section);
-  const picsFail = section !== 'clip' && r() < 0.2;      // one run in five: the picture service is out
+  const picsFail = section !== 'clip' && (!!process.env.NOPICS || r() < 0.2);      // one run in five: the picture service is out
   const voiceMode = pick(['whole', 'whole', 'whole', 'lines']); // whole-script read or one line at a time
   let pi = Math.floor(r() * PICS.length);
   await ctx.route('**/api/**', async (route) => {

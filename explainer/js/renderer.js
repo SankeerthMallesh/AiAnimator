@@ -8,6 +8,7 @@ import { drawMascot } from './mascot.js';
 import { glowImage } from './glow.js';
 import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
+import { drawWorld } from '../../cartoon/js/worlds.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -120,33 +121,30 @@ export class Renderer {
   }
 
   _poster(scene) {
-    // Fallback art when no image could be generated: moody gradient + bokeh + keyword.
+    // No picture could be made (the free daily picture allowance ran out, or the service is down):
+    // paint the place the line is about, like the Cartoons section does. Blocky stories get it
+    // painted at low resolution and enlarged without smoothing, so it reads as a blocky game world.
     const w = this.vertical ? 864 : 1536, h = Math.round(w * this.H / this.W);
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     const x = c.getContext('2d');
-    const r = rand(hash(scene.visual || scene.narration));
-    const hue = Math.floor(r() * 360);
-    const g = x.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, `hsl(${hue},45%,18%)`);
-    g.addColorStop(1, `hsl(${(hue + 50) % 360},55%,8%)`);
-    x.fillStyle = g;
-    x.fillRect(0, 0, w, h);
-    for (let i = 0; i < 26; i++) {
-      const rr = 20 + r() * Math.min(w, h) * 0.18;
-      const gx = x.createRadialGradient(0, 0, 0, 0, 0, rr);
-      gx.addColorStop(0, `hsla(${(hue + r() * 80) % 360},80%,70%,${0.08 + r() * 0.15})`);
-      gx.addColorStop(1, 'hsla(0,0%,100%,0)');
-      x.save(); x.translate(r() * w, r() * h); x.fillStyle = gx;
-      x.beginPath(); x.arc(0, 0, rr, 0, Math.PI * 2); x.fill(); x.restore();
+    const id = worldFor(scene);
+    if (this.options.style === 'blocky') {
+      const k = 9, sw = Math.ceil(w / k), sh = Math.ceil(h / k);
+      const small = document.createElement('canvas'); small.width = sw; small.height = sh;
+      drawWorld(small.getContext('2d'), sw, sh, id, 0);
+      x.imageSmoothingEnabled = false;
+      x.drawImage(small, 0, 0, sw * k, sh * k);
+      // A faint edge on every block, like a voxel game's texture.
+      x.strokeStyle = 'rgba(0,0,0,0.07)'; x.lineWidth = 1;
+      x.beginPath();
+      for (let gx = 0; gx <= w; gx += k) { x.moveTo(gx + 0.5, 0); x.lineTo(gx + 0.5, h); }
+      for (let gy = 0; gy <= h; gy += k) { x.moveTo(0, gy + 0.5); x.lineTo(w, gy + 0.5); }
+      x.stroke();
+    } else if (!drawWorld(x, w, h, id, 0)) {
+      x.fillStyle = '#7EC8F2'; x.fillRect(0, 0, w, h);
     }
-    const word = (scene.onScreenText || scene.keywords?.[0] || '').toUpperCase();
-    if (word) {
-      x.fillStyle = 'rgba(255,255,255,0.12)';
-      x.font = `900 ${Math.round(w * 0.14)}px ${CAPTION_FONT}`;
-      x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.fillText(word.slice(0, 14), w / 2, h * 0.42);
-    }
+    c.painted = true;
     return c;
   }
 
@@ -961,3 +959,36 @@ export async function loadFonts() {
     ]);
   } catch { /* system fallbacks are fine */ }
 }
+
+// ---------- the painted place for a line with no picture ----------
+const WORLD_WORDS = [
+  ['space', /\b(space|rocket|astronaut|orbit|planet|moon|mars|galaxy|star(s|ship)?|satellite|nasa|apollo|saturn)s?\b/],
+  ['underwater', /\b(underwater|reef|coral|shark|whale|dolphin|seabed|deep sea|submarine|fish(es)?)s?\b/],
+  ['deck', /\b(ship|titanic|liner|deck|cruise|sail(ed|ing)?|captain|lifeboats?|voyage)s?\b/],
+  ['sea', /\b(ocean|sea|beach|wave|island|coast|shore|iceberg)s?\b/],
+  ['snow', /\b(snow|ice|frozen|arctic|antarctic|penguins?|winter|blizzard|cold|freez\w*|polar)s?\b/],
+  ['desert', /\b(desert|pyramids?|egypt\w*|sand|camel|sahara|dune)s?\b/],
+  ['mountains', /\b(mountains?|volcano\w*|everest|cliff|peak|hiking|great wall|lava|magma)s?\b/],
+  ['forest', /\b(forest|jungle|trees?|woods|leaves|leaf|camp(ing)?|rainforest|bear|wolf|deer)s?\b/],
+  ['lab', /\b(lab|science|scientists?|experiment|chemical|molecule|atoms?|cells?|bacteria|virus|dna|brain|nerves?|blood|doctor|enzymes?|microscope|gas)s?\b/],
+  ['rails', /\b(train|railway|rails?|station|locomotive)s?\b/],
+  ['bridge', /\b(bridge|river)s?\b/],
+  ['temple', /\b(temple|ancient|rome|roman|greek|empire|king|queen|castle|pharaoh|history)s?\b/],
+  ['night', /\b(night|dark|sleep|dream|midnight|ghost|haunted)s?\b/],
+  ['office', /\b(office|money|billion|million|company|business|bank|cost|price|paid|job|work(ers?)?)s?\b/],
+  ['shop', /\b(shop|store|market|buy|bought|sell|mall)s?\b/],
+  ['room', /\b(home|house|room|bed|kitchen|cook\w*|bake\w*|bread|food|eat\w*|drink\w*|cat|dog|pet|family|mom|dad|school|class)s?\b/],
+  ['city', /\b(city|town|street|cars?|traffic|buildings?|skyscraper|people|crowd)s?\b/],
+  ['field', /\b(sky|clouds?|sun|rain|weather|fly|flight|plane|airplane|birds?|wind|storm)s?\b/],
+  ['field', /\b(farm|field|grass|garden|flowers?|bees?|park|meadow)s?\b/],
+];
+const SET_TO_WORLD = { sky: 'field', water: 'sea', ship: 'deck', ocean: 'sea', beach: 'sea', kitchen: 'room', volcano: 'mountains', mountain: 'mountains', savanna: 'field', garage: 'room' };
+function worldFor(scene) {
+  const set = String(scene.set || '').toLowerCase();
+  if (SET_TO_WORLD[set]) return SET_TO_WORLD[set];
+  if (set && WORLD_WORDS.some(([id]) => id === set)) return set;
+  const text = `${scene.visual || ''} ${scene.narration || ''}`.toLowerCase();
+  for (const [id, re] of WORLD_WORDS) if (re.test(text)) return id;
+  return ['field', 'city', 'road', 'forest', 'mountains'][hash(text) % 5];
+}
+
