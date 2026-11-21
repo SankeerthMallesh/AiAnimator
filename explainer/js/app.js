@@ -74,7 +74,8 @@ function refreshVoiceSelect() {
 }
 
 function initComposer() {
-  fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 30);
+  // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
+  fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
   fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), STYLES[new URLSearchParams(location.search).get('style')] ? new URLSearchParams(location.search).get('style') : 'story-3d');
   // The Blocky tab opens this page with ?style=blocky: give it its own heading.
   if (new URLSearchParams(location.search).get('style') === 'blocky') {

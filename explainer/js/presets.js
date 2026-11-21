@@ -14,7 +14,7 @@ export const STYLES = {
     hint: 'Chunky block-built characters in a bright toy-like game town, story-time style',
     lead: '3D render of a blocky toy-like video game world, not a photograph',
     prompt: 'low-poly blocky game world, characters built from simple blocks with cube heads, rectangular bodies and blocky arms and legs, smooth flat-shaded plastic look, simple painted faces, bright saturated colors, green grass baseplate, simple houses and round trees, clean soft daylight, everyone fully clothed, no logos, no text',
-    direction: 'Make it a story-time video like popular blocky game story Shorts: first person ("I", "my best friend Milo"), dramatic and funny, short punchy lines, a cliffhanger in the middle and a twist at the end. Describe the main character once in "characters" as a blocky game avatar with specific clothing colours (always fully dressed), and keep them in most scenes. Describe actions, never body parts. Vary the camera: close-ups on blocky faces with big emotions, over-the-shoulder shots, wide shots of the town, snow or forest when the story moves. Mark 2 to 3 scenes with "highlight": true where the narration points at one object.',
+    direction: 'Make it a story-time video like popular game story Shorts: told in the first person ("I", "my"), with names you make up yourself, dramatic and funny, short punchy lines, a cliffhanger in the middle, a twist near the end and a real ending (never end on an open question). Never say "blocky", "pixel", "pixelated" or "voxel" in the narration: the pictures show the look. Describe the main character once in "characters" as a blocky game avatar with specific clothing colours (always fully dressed), and keep them in most scenes. Describe actions, never body parts. Vary the camera: close-ups on blocky faces with big emotions, over-the-shoulder shots, wide shots of the town, snow or forest when the story moves. Mark 2 to 3 scenes with "highlight": true where the narration points at one object.',
     character: true,
     composite: true, // the hero is Loomy's own cube avatar drawn over an empty AI-painted place
     placePrompt: 'low-poly blocky game world environment, everything built from simple blocks, bright saturated colors, green grass, simple houses and round trees, clean daylight, no logos',
@@ -108,7 +108,7 @@ export const VOICES = [
 export const CLOUD_VOICES = ['onyx', 'echo', 'fable', 'alloy', 'nova', 'shimmer'];
 
 export const LENGTHS = [
-  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [90, '90 sec'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [600, '10 min'],
+  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [75, '75 sec'], [90, '90 sec'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [600, '10 min'],
 ];
 
 export const EXAMPLES = [
