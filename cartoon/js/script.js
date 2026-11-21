@@ -43,6 +43,29 @@ const DESCRIBING = /^(cool|hot|cold|warm|big|small|huge|tiny|fast|slow|sweet|sou
 const FIGURES = [/\b(orange|red|pink|golden|purple) (sunsets?|skies|sky|glow|light|dawn|dusk)\b/, /\b(felt|feel|feeling|feels|is|was|looked) blue\b/, /\bcool (idea|move|trick|thing)\b/,
   /\bapple of (my|his|her|your|their|our) eyes?\b/, /\bbrain ?freeze\b/, /\btime flies\b/, /\bpiece of cake\b/, /\bbreak the ice\b/, /\bcold feet\b/, /\bunder the weather\b/,
   /\braining cats and dogs\b/, /\bon fire\b/, /\b(on|off|back on) track\b/, /\btrack record\b/, /\bkeep(s|ing)? track\b/, /\bheart of gold\b/, /\bspill the beans\b/, /\bhot potato\b/, /\bin hot water\b/];
+// Small writers sometimes pad a line to its word count, or tack the scene's prop name onto it
+// ("...smooth rides ticket", "...myths, bulb", "...eyes wide today"). Those tails are removed.
+const OBJECT_WORDS = () => new Set([...PropKit.KINDS, ...Cast.HOLDS, 'prop', 'icon', 'emoji']);
+const KEEP_BEFORE = /^(a|an|the|his|her|their|my|your|our|its|this|that|one|giant|tiny|little|old|new|big|small|brass|golden|silver|wooden|steel|paper|train|bus|movie|parking|lottery|gold|magic|secret|first|last)$/i;
+const FILLER_TAIL = /[\s,]+(today|daily|now|really|here|indeed|right now|literally)$/i;
+export function tidyLine(line) {
+  let t = String(line || '').trim();
+  for (let k = 0; k < 2; k++) {
+    const end = /[.!?…]["')\]]*$/.exec(t)?.[0] || '';
+    let body = end ? t.slice(0, -end.length) : t;
+    const m = /^(.*?)([\s,—–-]+)([A-Za-z]+)$/.exec(body);
+    if (m && OBJECT_WORDS().has(m[3].toLowerCase())) {
+      const prev = (/([A-Za-z']+)\W*$/.exec(m[1]) || [])[1] || '';
+      if (/[,—–-]/.test(m[2]) || !KEEP_BEFORE.test(prev)) body = m[1];
+    }
+    if (FILLER_TAIL.test(body) && body.split(/\s+/).length > 5) body = body.replace(FILLER_TAIL, '');
+    const next = (body.replace(/[\s,—–-]+$/, '') + end).trim();
+    if (next === t) break;
+    t = next;
+  }
+  return /[.!?…]["')\]]*$/.test(t) ? t : `${t}.`;
+}
+
 export function literalTrigger(word, narration) {
   const w = String(word || '').toLowerCase().trim(), low = String(narration || '').toLowerCase();
   if (!w || COLOUR_WORDS.test(w) || DESCRIBING.test(w)) return false;
@@ -392,9 +415,9 @@ export class Script {
     let lastIcon = '';
     scenesIn.forEach((s, i) => {
       // Writers sometimes prefix a line with "Scene 3:" or a speaker name; the narrator must not read that.
-      const narration = Script.clean(s.line || s.narration || s.text || s.voiceover, 280)
+      const narration = tidyLine(Script.clean(s.line || s.narration || s.text || s.voiceover, 280)
         .replace(/^\s*(scene|shot)\s*\d+\s*[:.\-–—]?\s*/i, '')
-        .replace(/^\s*[A-Z][a-zA-Z]{1,14}\s*:\s+/, '');
+        .replace(/^\s*[A-Z][a-zA-Z]{1,14}\s*:\s+/, ''));
       if (!narration) return;
       let set = Script.oneOf(SetKit.IDS, s.set || s.place, '');
       // A missing or generic set is replaced by what this line is actually about, then by the topic.
@@ -908,6 +931,7 @@ sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CU
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
 ${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, crown = royalty, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
+Never pad a line to reach a word count (no filler like "today", "now", "really", "daily" at the end), and never tack an object's name onto a line: the "props", "hold" and "icon" fields carry the objects. Every line is a complete, grammatical sentence.
 Story objects: in at least half of the scenes the line names an object the speaker holds or uses (${Cast.HOLDS.join(' ')}), for example "Mabel slaps her wrench on the rail" or "Gus waves the rulebook": set "hold" on that character in "who". Never a thing the line does not name, and never say the word "prop".
 Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"; "one and a half", not "1 1/2"; "five kilometers", not "5 km"). Sound like an upbeat Shorts narrator, never flat: a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits. Do not start a line with a speaker name. The narrator tells the story and names the hero and the rival.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, deck = on board a ship, sea = the sea seen from the shore, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Only use places that belong to this story (no lab or office unless the story is about science or work). Change the set when the story moves to a new place; 2 to 4 different sets that fit the story are plenty.
