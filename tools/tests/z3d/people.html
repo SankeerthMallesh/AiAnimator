@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy 3D people test</title>
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/addons/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; color: #ddd; font: 14px system-ui; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<p id="status">Loading…</p>
+<canvas id="view" width="1080" height="1920"></canvas>
+<script type="module">
+// Test page: a rigged, realistic person (a glTF from Sketchfab, in models/, not committed) in the
+// code-drawn 3D engine's studio. window.still(shot, file) draws shot 0 (close-up), 1 (waist up) or
+// 2 (full body) into #view.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createEngine } from '../../../explainer/js/z3d/engine.js';
+
+const view = document.getElementById('view'), g = view.getContext('2d');
+const engine = createEngine({ width: 1080, height: 1920 });
+const loader = new GLTFLoader();
+const cache = new Map();
+
+async function person(file) {
+  if (!cache.has(file)) cache.set(file, loader.loadAsync(`./models/${file}`));
+  const gltf = await cache.get(file);
+  const root = gltf.scene.clone(true);
+  // Same skeleton for the clone.
+  const src = new Map(); gltf.scene.traverse(o => src.set(o.name, o));
+  root.traverse(o => { if (o.isSkinnedMesh) { o.skeleton = o.skeleton.clone(); o.skeleton.bones = o.skeleton.bones.map(b => root.getObjectByName(b.name)); o.bind(o.skeleton, o.bindMatrix); } });
+  // Stand on the floor at 1.80 m.
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root), h = box.max.y - box.min.y;
+  root.scale.multiplyScalar(1.8 / h);
+  root.updateMatrixWorld(true);
+  const box2 = new THREE.Box3().setFromObject(root);
+  root.position.y -= box2.min.y;
+  root.position.x -= (box2.min.x + box2.max.x) / 2; root.position.z -= (box2.min.z + box2.max.z) / 2;
+  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+  return root;
+}
+
+// Turns `bone` (in world space) so the direction to `child` points along `dir`.
+const bone = (root, re) => { let f = null; root.traverse(o => { if (!f && o.isBone && re.test(o.name)) f = o; }); return f; };
+function aim(b, child, dir) {
+  b.updateMatrixWorld(true);
+  const a = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld), c = new THREE.Vector3().setFromMatrixPosition(child.matrixWorld);
+  const cur = c.sub(a).normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(cur, dir.clone().normalize());
+  const parentQ = new THREE.Quaternion(); b.parent.getWorldQuaternion(parentQ);
+  const worldQ = new THREE.Quaternion(); b.getWorldQuaternion(worldQ);
+  b.quaternion.copy(parentQ.clone().invert().multiply(q.multiply(worldQ)));
+  b.updateMatrixWorld(true);
+}
+function relax(root) {
+  for (const s of ['l', 'r']) {
+    const sign = s === 'l' ? 1 : -1;
+    const up = bone(root, new RegExp(`^upperarm_${s}`)), lo = bone(root, new RegExp(`^lowerarm_${s}`)), hand = bone(root, new RegExp(`^hand_${s}`));
+    if (!up || !lo || !hand) continue;
+    aim(up, lo, new THREE.Vector3(0.18 * sign, -1, 0.04));
+    aim(lo, hand, new THREE.Vector3(0.1 * sign, -1, 0.22));
+  }
+}
+
+const SHOTS = [
+  { pos: [0.25, 1.66, 0.62], look: [0, 1.62, 0], fov: 34, dof: { focus: 0.66, aperture: 0.0025, maxblur: 0.008 } },
+  { pos: [0.5, 1.4, 1.75], look: [0, 1.3, 0], fov: 34, dof: { focus: 1.8, aperture: 0.0012, maxblur: 0.006 } },
+  { pos: [0.9, 1.15, 4.4], look: [0, 0.95, 0], fov: 34 },
+];
+
+window.still = async (n = 0, file = 'eric.glb') => {
+  const p = await person(file);
+  relax(p);
+  const s = SHOTS[n];
+  engine.setEdit({ shots: [{ start: 0, end: 1, build: ({ makeStage }) => {
+    const scene = makeStage({ shadowSize: 3 });
+    scene.add(p);
+    const camera = new THREE.PerspectiveCamera(s.fov, 9 / 16, 0.05, 200);
+    camera.position.set(...s.pos); camera.lookAt(...s.look);
+    return { scene, camera, update: () => ({ dof: s.dof, bloom: 0.25 }) };
+  } }] });
+  const t0 = performance.now();
+  engine.renderAt(0.5);
+  g.drawImage(engine.canvas, 0, 0, 1080, 1920);
+  return Math.round(performance.now() - t0);
+};
+window.ready = true;
+document.getElementById('status').textContent = 'Ready';
+</script>
+</body>
+</html>
