@@ -7,6 +7,7 @@ import { STYLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from 
 import { fetchTimeout } from './net.js';
 import { HATS, POSES, EMOTIONS, SIDES } from './mascot.js';
 import { PROPS } from './props.js';
+import { DELIVERIES } from '../../shared/voicefx.js';
 
 const WORDS_PER_SECOND = 2.55;
 
@@ -293,6 +294,7 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
   "scenes": [
     {
       "narration": "spoken words for this scene",
+      "delivery": how the narrator reads this line, one of ${JSON.stringify(DELIVERIES)} (match the beat: a hook is curious or excited, danger is tense or urgent, a surprise is shocked or dramatic, advice is firm or calm, a punchline is amused or deadpan; vary it between lines),
       "visual": "single-frame image prompt, one sentence of at most 30 words: subject, setting, camera angle, lighting",
       "onScreenText": "optional tiny label (a date, name, number or place that matters to this line) or '' for none",
       "keywords": ["one or two words from the narration to highlight in captions"],
@@ -382,6 +384,7 @@ export function normalizeScript(raw, options) {
     .map((s, i) => ({
       id: `s${i}_${Math.random().toString(36).slice(2, 7)}`,
       narration: plainLine(cleanText(s.narration || s.text || s.voiceover, 900), options?.style),
+      delivery: DELIVERIES.includes(String(s.delivery || '').toLowerCase()) ? String(s.delivery).toLowerCase() : '',
       visual: cleanText(s.visual || s.image || s.imagePrompt || s.narration, 1200),
       onScreenText: cleanText(s.onScreenText || s.label || '', 40),
       keywords: (Array.isArray(s.keywords) ? s.keywords : []).map(k => cleanText(k, 40)).filter(Boolean).slice(0, 3),

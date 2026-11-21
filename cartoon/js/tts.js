@@ -3,6 +3,7 @@ export { sayNumbers, mapToWritten };
 import { voiceChoice } from './router.js';
 // Narration: Kokoro (free, runs in the browser) with a cloud fallback and a silent mode.
 import { fetchTimeout } from './net.js';
+import { voiceText, alignmentWords, pcmFromBase64, V3 } from '../../shared/voicefx.js';
 
 export class Narrator {
   constructor(settings, log) {
@@ -43,19 +44,19 @@ export class Narrator {
     await this._call({ type: 'load', dtype: 'q8' });
   }
 
-  async speak(text, speedMul = 1) {
+  async speak(text, speedMul = 1, delivery = '') {
     const s = this.settings;
     if (this.engine === 'none' || !text.trim()) return null;
     if (this.engine !== 'elevenlabs' && this.batch?.has(text)) return this.batch.get(text);
     // The site's own Cloudflare voice (Deepgram Aura-2) sounds far more human than the in-browser
     // model, so it goes first unless an ElevenLabs key is saved.
     if (this.engine !== 'elevenlabs' && s.ttsEngine !== 'kokoro-only' && await auraReady()) {
-      const r = await auraSpeak(text, s, this.log).catch(() => null);
+      const r = await auraSpeak(text, s, this.log, delivery).catch(() => null);
       if (r) return r;
     }
     if (this.engine === 'elevenlabs') {
       try {
-        const r = await elevenSpeak(text, s, speedMul); noteVoice('elevenlabs', 1, text, text); return r;
+        const r = await elevenSpeak(text, s, speedMul, delivery); noteVoice('elevenlabs', 1, text, text); return r;
       } catch (e) {
         this.log(`ElevenLabs failed (${e.message}); switching to the free built-in voice.`);
         this.engine = 'kokoro';
@@ -144,14 +145,35 @@ export function warmNarrator(n) {
   return n.ready;
 }
 
-async function elevenSpeak(text, s, speedMul) {
+async function elevenSpeak(text, s, speedMul, delivery = '') {
+  const voice = (s.elevenVoice || 'JBFqnCBsd6RMkjVDRZzb').trim();
+  const model = s.elevenModel || V3;
+  if (model !== V3) return elevenSpeakOld(text, s, speedMul, model);
+  // v3 reads with a delivery tag and sends its character timings, so captions follow the real voice.
+  const { res, data } = await fetchTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}/with-timestamps?output_format=pcm_24000`, {
+    method: 'POST',
+    headers: { 'xi-api-key': s.elevenKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: voiceText(speakable(text), delivery, model),
+      model_id: model,
+      voice_settings: { stability: 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: Math.min(1.2, capRate(1.1 * (Number(s.voiceSpeed) || 1) * speedMul)) },
+    }),
+  }, 60000, 'json');
+  if (!res.ok || !data?.audio_base64) throw new Error(`HTTP ${res.status} ${String(data?.detail?.message || data?.detail?.status || '').slice(0, 80)}`);
+  const samples = pcmFromBase64(data.audio_base64), sampleRate = 24000;
+  const heard = alignmentWords(data.alignment);
+  const words = heard.length ? mapToWritten(text, heard).map(x => ({ text: x.w, start: x.s, end: Math.max(x.s + 0.05, x.e) })) : null;
+  return { samples, sampleRate, words, engine: 'elevenlabs' };
+}
+
+async function elevenSpeakOld(text, s, speedMul, model) {
   const voice = (s.elevenVoice || 'JBFqnCBsd6RMkjVDRZzb').trim();
   const { res, data: buf } = await fetchTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'xi-api-key': s.elevenKey, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({
       text: speakable(text),
-      model_id: s.elevenModel || 'eleven_multilingual_v2',
+      model_id: model,
       voice_settings: { stability: 0.38, similarity_boost: 0.8, style: 0.4, speed: capRate((Number(s.voiceSpeed) || 1) * speedMul) },
     }),
   }, 40000, 'arrayBuffer');
@@ -330,11 +352,11 @@ async function auraReady() {
 const AURA_FOR = { af_heart: 'thalia', af_bella: 'aurora', af_nicole: 'luna', bf_emma: 'helena', am_michael: 'arcas', am_fenrir: 'orion', am_puck: 'apollo', bm_george: 'draco', bm_fable: 'hermes' };
 function auraSpeaker(v) { return AURA_FOR[v] || (/^[ab]f_/.test(v || '') ? 'thalia' : 'arcas'); }
 
-async function auraLine(text, speaker) {
+async function auraLine(text, speaker, delivery = '') {
   const res = await fetch('/api/speak', {
     method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, speaker }),
+    body: JSON.stringify({ text, speaker, delivery }),
   });
   if (!/^audio\//.test(res.headers.get('Content-Type') || '')) {
     const why = await res.json().catch(() => ({}));
@@ -349,7 +371,7 @@ async function auraLine(text, speaker) {
   return { samples: audio.getChannelData(0).slice(), sampleRate: audio.sampleRate };
 }
 
-async function auraSpeak(text, s, log) {
+async function auraSpeak(text, s, log, delivery = '') {
   const speaker = auraSpeaker(s.voice);
   // Aura-2 reads a whole line in one go, with its own natural flow between sentences.
   const parts = phrases(text, 900);
@@ -357,7 +379,7 @@ async function auraSpeak(text, s, log) {
   let sampleRate = 24000;
   try {
     for (const part of parts) {
-      const d = await auraLine(speakable(part), speaker);
+      const d = await auraLine(speakable(part), speaker, delivery);
       sampleRate = d.sampleRate;
       // A line re-recorded alone (after a fact-check fix) matches the pace of the whole read.
       if (serverVoice === 'gemini' && lastStretch > 1) d.samples = timeStretch(d.samples, d.sampleRate, lastStretch);
@@ -433,12 +455,12 @@ function trimmedAt(d) {
 // ---------- Whole-script read ----------
 // One request reads every line in one go (one voice, natural flow, far less of the daily
 // allowance); the server sends the cut times, and each scene gets its own slice.
-export async function speakAllLines(lines, voice) {
+export async function speakAllLines(lines, voice, deliveries = []) {
   if (!(await auraReady()) || !Array.isArray(lines) || lines.length < 2) return null;
   try {
     // The narrator reads the spoken form ("1 and a half cups"); captions keep the written lines.
     const spoken = lines.map(speakable);
-    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: spoken, speaker: auraSpeaker(voice) }) });
+    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: spoken, deliveries, speaker: auraSpeaker(voice) }) });
     if (!/^audio\//.test(res.headers.get('Content-Type') || '')) return null;
     const cuts = JSON.parse(res.headers.get('X-Loomy-Cuts') || '[]');
     if (cuts.length !== lines.length - 1) return null;
@@ -447,7 +469,8 @@ export async function speakAllLines(lines, voice) {
     // Faster, Shorts-style pace without a pitch change; the cut times scale with it.
     // Bring this read to the target pace, whatever model read it (each talks at its own speed).
     const wpm = Number(res.headers.get('X-Loomy-Wpm')) || 165;
-    lastStretch = Math.max(1, Math.min(MAX_RATE, TARGET_WPM / wpm));
+    const readBy = res.headers.get('X-Loomy-Voice') || 'gemini';
+    lastStretch = Math.max(1, Math.min(readBy === 'elevenlabs' ? 1.06 : MAX_RATE, TARGET_WPM / wpm));
     const all = timeStretch(audio.getChannelData(0), sr, lastStretch);
     const k = all.length / audio.length;
     const bounds = [0, ...cuts.map(c => Math.round(c * sr * k)), all.length];

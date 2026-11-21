@@ -8,6 +8,7 @@ import { fetchPlate, platePrompt, scenePrompt, mapLimit, cloudflareReady, cloudf
 import { topicPictures } from './wiki.js';
 import { isSafeImage } from './safety.js';
 import { getNarrator, warmNarrator, auraUsed, serverVoiceName, speakAllLines, voiceReport } from './tts.js';
+import { finishLine } from '../../shared/voicefx.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
 import { exportVideo } from './encoder.js';
@@ -347,7 +348,7 @@ export class Pipeline {
       todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
     }
     this.h.step('voice', 'active', 'Reading the whole script…');
-      this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice);
+      this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice, todo.map(s => s.delivery || ''));
       if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
     }
     let done = 0;
@@ -357,7 +358,7 @@ export class Pipeline {
       const key = `${narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${p.options.pace}|${this.s.elevenVoice || ''}`;
       let data = null;
       try {
-        data = await deadline(this.narrator.speak(narration, this.pace.voice), 40000, 'Voice line');
+        data = finishLine(await deadline(this.narrator.speak(narration, this.pace.voice, scene.delivery), 40000, 'Voice line'));
       } catch (e) {
         if (this.signal.aborted) throw e;
         this.log(`Voice line failed (${e.message}). That line stays as captions.`);

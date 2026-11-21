@@ -28,7 +28,7 @@ export async function onRequest({ request, env, params }) {
       if (origin && new URL(origin).host !== url.host) return json({ error: 'Wrong origin' }, 403);
     }
     if (path === 'config' && request.method === 'GET') {
-      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GROQ_KEY ? 'groq' : env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : null, voice: env.GEMINI_KEY ? 'gemini' : env.ELEVEN_KEY ? 'elevenlabs' : env.AI ? 'aura' : null });
+      return json({ googleClientId: env.GOOGLE_CLIENT_ID || null, sync: !!env.DB, ai: !!(env.AI || env.GEMINI_KEY || env.GROQ_KEY || env.ELEVEN_KEY), writer: env.GROQ_KEY ? 'groq' : env.GEMINI_KEY ? 'gemini' : env.AI ? 'cloudflare' : null, voice: env.ELEVEN_KEY ? 'elevenlabs' : env.GEMINI_KEY ? 'gemini' : env.AI ? 'aura' : null });
     }
     if (path === 'image' && request.method === 'POST') return await image(request, env);
     if (path === 'write' && request.method === 'POST') return await write(request, env);
@@ -335,11 +335,22 @@ const AURA_SPEAKERS = new Set('amalthea andromeda apollo arcas aries asteria ath
 // With an ElevenLabs key stored as a Pages secret (ELEVEN_KEY), its voices come first: the most
 // human-sounding. When its monthly allowance runs out, Aura-2 takes over.
 const AURA_FEMALE = new Set('amalthea andromeda asteria athena aurora callista cora cordelia delia electra harmonia helena hera iris juno luna minerva ophelia pandora phoebe thalia theia vesta'.split(' '));
-async function elevenVoice(env, text, speaker) {
-  const voice = AURA_FEMALE.has(speaker) ? (env.ELEVEN_VOICE_F || 'EXAVITQu4vr4xnSDxMaL') : (env.ELEVEN_VOICE_M || 'JBFqnCBsd6RMkjVDRZzb');
+// v3 (the default) reads with a delivery tag such as [tense] or [warm] picked by the writer for each line.
+const DELIVERY_TAG = { serious: 1, excited: 1, calm: 1, tense: 1, urgent: 1, curious: 1, amused: 1, sad: 1, warm: 1, firm: 1, shocked: 1, happy: 1, mysterious: 1, whispering: 'whispers', proud: 1, deadpan: 1, annoyed: 1, relieved: 1, dramatic: 1 };
+const elevenModel = (env) => env.ELEVEN_MODEL || 'eleven_v3';
+function elevenText(env, text, delivery) {
+  const t = DELIVERY_TAG[delivery];
+  return elevenModel(env) === 'eleven_v3' && t ? `[${t === 1 ? delivery : t}] ${text}` : text;
+}
+function elevenSettings(env) {
+  return elevenModel(env) === 'eleven_v3' ? { stability: 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: 1.1 } : { stability: 0.38, similarity_boost: 0.8, style: 0.4 };
+}
+const elevenVoiceId = (env, speaker) => (AURA_FEMALE.has(speaker) ? (env.ELEVEN_VOICE_F || 'EXAVITQu4vr4xnSDxMaL') : (env.ELEVEN_VOICE_M || 'JBFqnCBsd6RMkjVDRZzb'));
+async function elevenVoice(env, text, speaker, delivery = '') {
+  const voice = elevenVoiceId(env, speaker);
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
     method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-    body: JSON.stringify({ text, model_id: env.ELEVEN_MODEL || 'eleven_multilingual_v2', voice_settings: { stability: 0.38, similarity_boost: 0.8, style: 0.4 } }),
+    body: JSON.stringify({ text: elevenText(env, text, delivery), model_id: elevenModel(env), voice_settings: elevenSettings(env) }),
   });
   if (!res.ok || !/audio/.test(res.headers.get('Content-Type') || '')) {
     const j = await res.json().catch(() => ({}));
@@ -387,17 +398,62 @@ async function geminiVoice(env, text, speaker) {
   throw new Error(`Gemini voice: ${last}`);
 }
 
+// The whole script with ElevenLabs: each line read with its delivery tag (two lines at a time), its
+// character timings turned into word timings, the lines joined with short gaps into one WAV. Same
+// answer as the Gemini read below (cut times, words per line, pace), so the page treats both alike.
+async function elevenAll(env, lines, deliveries, speaker) {
+  const voice = elevenVoiceId(env, speaker), SR = 24000, GAP = Math.round(0.36 * SR);
+  const one = async (i) => {
+    const prev = lines[i - 1], next = lines[i + 1];
+    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=pcm_24000`, {
+      method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(50000),
+      body: JSON.stringify({ text: elevenText(env, lines[i], deliveries[i]), model_id: elevenModel(env), voice_settings: elevenSettings(env), ...(elevenModel(env) === 'eleven_v3' ? {} : { previous_text: prev, next_text: next }) }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.audio_base64) throw new Error(`ElevenLabs said ${res.status}: ${String(j.detail?.status || j.detail?.message || '').slice(0, 100)}`);
+    const pcm = Uint8Array.from(atob(j.audio_base64), (c) => c.charCodeAt(0));
+    const a = j.alignment || {}, words = [];
+    let cur = '', ws = 0, we = 0;
+    const push = () => { if (cur && !cur.startsWith('[') && !cur.endsWith(']')) words.push([ws, we, cur.replace(/[^\x20-\x7E]/g, '')]); cur = ''; };
+    (a.characters || []).forEach((ch, k) => { if (/\s/.test(ch)) { push(); return; } if (!cur) ws = a.character_start_times_seconds[k]; cur += ch; we = a.character_end_times_seconds[k]; });
+    push();
+    return { pcm, words };
+  };
+  const got = new Array(lines.length);
+  let next = 0;
+  await Promise.all([0, 1].map(async () => { while (next < lines.length) { const i = next++; got[i] = await one(i); } }));
+  const parts = [], cuts = [], perLine = [];
+  let t = 0, n = 0, talk = 0;
+  got.forEach((g, i) => {
+    perLine.push(g.words.map(([s0, e0, w]) => [Math.round((t + s0) * 100) / 100, Math.round((t + e0) * 100) / 100, w]));
+    n += g.words.length; if (g.words.length) talk += g.words[g.words.length - 1][1] - g.words[0][0];
+    parts.push(g.pcm); t += g.pcm.length / 2 / SR;
+    if (i < got.length - 1) { cuts.push(Math.round((t + GAP / 2 / SR) * 1000) / 1000); parts.push(new Uint8Array(GAP * 2)); t += GAP / SR; }
+  });
+  const pcm = new Uint8Array(parts.reduce((k, p) => k + p.length, 0));
+  let o = 0; for (const p of parts) { pcm.set(p, o); o += p.length; }
+  const wordsHeader = JSON.stringify(perLine);
+  return new Response(wavFromPcm(pcm, SR), { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'elevenlabs', 'X-Loomy-Cuts': JSON.stringify(cuts), 'X-Loomy-Match': '100', 'X-Loomy-Wpm': String(Math.round((n / Math.max(1, talk)) * 60)), ...(wordsHeader.length < 14000 ? { 'X-Loomy-Words': wordsHeader } : {}) } });
+}
+
 // The whole script in one read (one request per video instead of one per line): a continuous,
 // natural delivery with one voice throughout. Groq Whisper then times every word so the page can
 // cut the recording into scene lines. Answers audio/wav with the cut times in X-Loomy-Cuts.
 async function speakAll(request, env) {
-  if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: 'Needs the Gemini and Groq keys' });
+  if (!env.ELEVEN_KEY && (!env.GEMINI_KEY || !env.GROQ_KEY)) return json({ ok: false, error: 'Needs the Gemini and Groq keys' });
   const body = await readJson(request, 80000);
-  const lines = (Array.isArray(body.lines) ? body.lines : []).map(x => String(x || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 80);
+  const raw = (Array.isArray(body.lines) ? body.lines : []).map(x => String(x || '').replace(/\s+/g, ' ').trim());
+  const keepIdx = raw.map((l, i) => (l ? i : -1)).filter(i => i >= 0).slice(0, 80);
+  const lines = keepIdx.map(i => raw[i]);
+  const deliveries = keepIdx.map(i => String((Array.isArray(body.deliveries) ? body.deliveries[i] : '') || '').toLowerCase());
   if (lines.length < 2) return json({ ok: false, error: 'Too few lines' });
   const text = lines.join('\n\n');
   if (text.length > 6000) return json({ ok: false, error: 'Script too long for one read' });
   const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
+  // ElevenLabs first when the site has its key (the most human voice); Gemini if it fails or runs out.
+  if (env.ELEVEN_KEY) {
+    try { return await elevenAll(env, lines, deliveries, speaker); } catch (e) { if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
+  }
   let v;
   try { v = await geminiVoice(env, text, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
   const form = new FormData();
@@ -458,16 +514,16 @@ async function speak(request, env) {
   if (!text) return json({ ok: false, error: 'No text' });
   const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
   let elevenNote = '';
+  if (env.ELEVEN_KEY) {
+    try {
+      const res = await elevenVoice(env, text, speaker, String(body.delivery || '').toLowerCase());
+      return new Response(res.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'elevenlabs' } });
+    } catch (e) { elevenNote = String(e?.message || e).slice(0, 80) + ' / '; }
+  }
   if (env.GEMINI_KEY) {
     try {
       const v = await geminiVoice(env, text, speaker);
       return new Response(v.bytes, { headers: { 'Content-Type': v.type, 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini' } });
-    } catch (e) { elevenNote = String(e?.message || e).slice(0, 80) + ' / '; }
-  }
-  if (env.ELEVEN_KEY) {
-    try {
-      const res = await elevenVoice(env, text, speaker);
-      return new Response(res.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'elevenlabs' } });
     } catch (e) { elevenNote += String(e?.message || e).slice(0, 120); }
   }
   if (!env.AI) return json({ ok: false, error: elevenNote || 'No voice available' });

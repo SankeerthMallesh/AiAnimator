@@ -4,6 +4,7 @@
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
 import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady, cloudflareUsedUp } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
+import { finishLine } from '../../shared/voicefx.js';
 import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
@@ -270,7 +271,7 @@ export class Pipeline {
         todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
       }
       this.h.step('voice', 'active', 'Reading the whole script…');
-        this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice);
+        this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice, todo.map(s => s.delivery || ''));
         if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
       }
       let done = 0;
@@ -283,7 +284,7 @@ export class Pipeline {
         // line while it is being spoken; the key must describe the audio we actually made.
         const narration = scene.narration;
         const key = this.voiceKey(scene);
-        const data = await this.narrator.speak(narration, this.pace.voice);
+        const data = finishLine(await this.narrator.speak(narration, this.pace.voice, scene.delivery));
         p.voices.set(scene.id, { key, data });
         done++;
         this.h.step('voice', 'active', `${done} / ${todo.length} lines`);

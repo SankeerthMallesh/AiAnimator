@@ -3,6 +3,7 @@
 // Never fail a video because one field is missing.
 
 import { splitSentences } from '../../shared/speech.js';
+import { DELIVERIES } from '../../shared/voicefx.js';
 import { PACES, formatOf } from './presets.js';
 import { Cast } from './cast.js';
 import { PropKit, SetKit } from './props.js';
@@ -603,6 +604,8 @@ export class Script {
       scenes.push({
         id: Script.clean(s.id, 16) || `s${i}_${Math.random().toString(36).slice(2, 6)}`,
         narration,
+        // How the narrator reads it (an ElevenLabs v3 delivery tag).
+        delivery: DELIVERIES.includes(String(s.read || s.delivery || '').toLowerCase()) ? String(s.read || s.delivery).toLowerCase() : '',
         // Scenery only. Never the spoken line: picture models paint the words of a sentence as text.
         bg: (s.bg || s.background || s.visual) ? Script.scenery(s.bg || s.background || s.visual)
           : (scenes.length && scenes[scenes.length - 1].set === set ? scenes[scenes.length - 1].bg : ''),
@@ -963,6 +966,7 @@ props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shru
 ${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, crown = royalty, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
 Never pad a line to reach a word count (no filler like "today", "now", "really", "daily" at the end), and never tack an object's name onto a line: the "props", "hold" and "icon" fields carry the objects. Every line is a complete, grammatical sentence.
 Story objects: in at least half of the scenes the line names an object the speaker holds or uses (${Cast.HOLDS.join(' ')}), for example "Mabel slaps her wrench on the rail" or "Gus waves the rulebook": set "hold" on that character in "who". Never a thing the line does not name, and never say the word "prop".
+"read" is how the narrator reads the line, one of ${DELIVERIES.slice(1).join(" ")}: match the beat (hook: curious or excited; conflict: tense or annoyed; twist: shocked or dramatic; button: amused, warm or deadpan), and vary it from line to line.
 Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"; "one and a half", not "1 1/2"; "five kilometers", not "5 km"). Sound like an upbeat Shorts narrator, never flat: a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits. Do not start a line with a speaker name. The narrator tells the story and names the hero and the rival.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, deck = on board a ship, sea = the sea seen from the shore, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Only use places that belong to this story (no lab or office unless the story is about science or work). Change the set when the story moves to a new place; 2 to 4 different sets that fit the story are plenty.
 Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠). When the video is about an animal or a thing, use that animal or thing in most scenes (a video about cats: 🐱 🐈). Never a face, person, hand or flag, and never vague symbols like ❓ ✨ 💧 ⚙️ 📦.
@@ -971,7 +975,7 @@ bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
 Stay compact so the answer is never cut off: "bg" is 3 to 8 words of scenery for that scene (things and places only, no people, no words or numbers), at most 2 acts per scene, short names, no extra keys.
 Output ONLY compact JSON on one line:
-{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","read":"curious","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   // Parts 2..n of a long video: more scenes with the same cast, continuing the story.
@@ -986,7 +990,7 @@ Write the next ${part.scenes} scenes (about ${plan.wordsPerScene} words each). D
 Facts must be right. No nudity, no gore. Use only these cast ids: ${ids}.
 sets: ${SetKit.IDS.join(' ')}. Change the set when the story moves. Every scene gets "bg": 3 to 8 words of scenery (no people, no words), and "icon": one emoji of its main thing; when the video is about an animal or a thing, use it (never a face, person, hand, flag, or vague symbols like ❓ ✨ 📦).
 Output ONLY compact JSON on one line:
-{"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","read":"curious","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   static checkPrompt(script, topic) {
