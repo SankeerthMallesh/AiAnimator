@@ -14,3 +14,4 @@ tools/tests/cliptest/barred*.webm
 tools/tests/cliptest/out_*
 tools/tests/out/
 tools/tests/proof/out/
+tools/tests/cliptest/barred200.mp4

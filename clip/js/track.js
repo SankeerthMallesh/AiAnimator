@@ -38,6 +38,42 @@ function seek(video, t) {
   });
 }
 
+// The part of the frame that holds picture. Many recordings carry flat bars (letterbox, pillarbox,
+// a slate border) that a crop must never pan into. Samples 8 frames; a border column or row is a bar
+// when its brightness stays within 4 levels along its whole length in every frame.
+export async function activeArea(video, s, e) {
+  return quiet(async () => {
+    const W = 192, H = Math.max(2, Math.round(192 * video.videoHeight / video.videoWidth));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    const cmin = new Float32Array(W).fill(255), cmax = new Float32Array(W), rmin = new Float32Array(H).fill(255), rmax = new Float32Array(H);
+    let frames = 0;
+    for (let k = 0; k < 8; k++) {
+      await seek(video, s + (e - s) * (k + 0.5) / 8);
+      if (video.error) break;
+      g.drawImage(video, 0, 0, W, H);
+      const d = g.getImageData(0, 0, W, H).data;
+      frames++;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4, v = d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+        if (v < cmin[x]) cmin[x] = v; if (v > cmax[x]) cmax[x] = v;
+        if (v < rmin[y]) rmin[y] = v; if (v > rmax[y]) rmax[y] = v;
+      }
+    }
+    if (!frames) return { x0: 0, x1: 1, y0: 0, y1: 1 };
+    const flat = (lo, hi) => hi - lo < 4;
+    let x0 = 0, x1 = W - 1, y0 = 0, y1 = H - 1;
+    while (x0 < x1 && flat(cmin[x0], cmax[x0])) x0++;
+    while (x1 > x0 && flat(cmin[x1], cmax[x1])) x1--;
+    while (y0 < y1 && flat(rmin[y0], rmax[y0])) y0++;
+    while (y1 > y0 && flat(rmin[y1], rmax[y1])) y1--;
+    // One more column/row in, so a soft (scaled) bar edge never shows.
+    const a = { x0: x0 ? (x0 + 1) / W : 0, x1: x1 < W - 1 ? x1 / W : 1, y0: y0 ? (y0 + 1) / H : 0, y1: y1 < H - 1 ? y1 / H : 1 };
+    if (a.x1 - a.x0 < 0.4 || a.y1 - a.y0 < 0.4) return { x0: 0, x1: 1, y0: 0, y1: 1 };
+    return a;
+  });
+}
+
 // Returns { mode: 'crop' | 'fit', at(t) -> centre x as a share of the frame width }
 export async function trackSpeaker(video, s, e, opts = {}) {
   return quiet(() => trackInner(video, s, e, opts));

@@ -57,33 +57,40 @@ export class ClipPainter {
     this.hi = new Set((clip.highlight || []).map(clean));
     this.mode = opts.framing === 'fit' ? 'fit' : opts.framing === 'crop' ? 'crop' : track.mode;
     this.log = null; // a RenderLog while exporting
+    this.area = opts.area || null;
   }
 
   layout() {
-    const v = this.video, vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+    const v = this.video, fw = v.videoWidth || 16, fh0 = v.videoHeight || 9;
+    // Only the part of the frame that holds picture (no letterbox or slate bars).
+    const a = this.area || { x0: 0, x1: 1, y0: 0, y1: 1 };
+    const ax = a.x0 * fw, ay = a.y0 * fh0, vw = (a.x1 - a.x0) * fw, vh = (a.y1 - a.y0) * fh0;
     const vertical = vw / vh < 0.75;
-    if (this.mode === 'crop' || vertical) return { kind: 'crop', headY: 210, capY: Math.round(H * 0.66), vw, vh };
+    if (this.mode === 'crop' || vertical) return { kind: 'crop', headY: 210, capY: Math.round(H * 0.66), ax, ay, vw, vh, fw };
     const fh = Math.round(W * vh / vw), top = Math.round((H - fh) / 2) - 40;
-    return { kind: 'fit', top, fh, headY: Math.max(150, top - 230), capY: Math.min(H - 260, top + fh + 170), vw, vh };
+    return { kind: 'fit', top, fh, headY: Math.max(150, top - 230), capY: Math.min(H - 260, top + fh + 170), ax, ay, vw, vh, fw };
   }
 
   drawVideo(t, L) {
     const { g, video: v } = this;
     if (L.kind === 'crop') {
       const cropW = Math.min(L.vw, L.vh * W / H), cropH = cropW * H / W;
-      const cx = (this.mode === 'crop' ? this.track.at(t) : 0.5) * L.vw;
-      const sx = Math.max(0, Math.min(L.vw - cropW, cx - cropW / 2)), sy = Math.max(0, (L.vh - cropH) / 2);
+      // The tracker gives the speaker's centre as a share of the whole frame; sx and sy stay inside the picture.
+      const cx = this.mode === 'crop' ? this.track.at(t) * L.fw : L.ax + L.vw / 2;
+      const sx = Math.max(L.ax, Math.min(L.ax + L.vw - cropW, cx - cropW / 2));
+      const sy = Math.max(L.ay, Math.min(L.ay + L.vh - cropH, L.ay + (L.vh - cropH) / 2));
       g.drawImage(v, sx, sy, cropW, cropH, 0, 0, W, H);
       return;
     }
     // Blurred fill: a tiny copy scaled up is a cheap, smooth blur.
     g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-    this.sg.drawImage(v, (L.vw - L.vh * 54 / 96) / 2, 0, L.vh * 54 / 96, L.vh, 0, 0, 54, 96);
+    const bw = Math.min(L.vw, L.vh * 54 / 96);
+    this.sg.drawImage(v, L.ax + (L.vw - bw) / 2, L.ay, bw, L.vh, 0, 0, 54, 96);
     g.drawImage(this.small, 0, 0, W, H);
     g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(0, 0, W, H);
     g.save();
     g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 40;
-    g.drawImage(v, 0, L.top, W, L.fh);
+    g.drawImage(v, L.ax, L.ay, L.vw, L.vh, 0, L.top, W, L.fh);
     g.restore();
   }
 

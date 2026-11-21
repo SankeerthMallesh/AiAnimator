@@ -7,7 +7,7 @@ import { getFFmpeg, mountFile, run, probeDuration, removeFiles } from './ff.js';
 import { RenderLog, publishLog, measureAudio } from '../../shared/renderlog.js';
 import { extractAudio, transcribePieces } from './transcribe.js';
 import { findMoments } from './moments.js';
-import { trackSpeaker } from './track.js';
+import { trackSpeaker, activeArea } from './track.js';
 import { ClipPainter, exportClip, canExport } from './render.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -220,14 +220,18 @@ async function renderCard(card, o, signal) {
   const { src, off, owned } = await sourceFor(clip, ff, path);
   const local = { ...clip, s: clip.s - off, e: clip.e - off, emoji: clip.emoji.map(x => ({ ...x, t: x.t - off })) };
   const words = state.transcript.words.map(w => ({ ...w, s: w.s - off, e: w.e - off }));
-  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 };
-  if (o.framing === 'auto') {
+  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 }, area = null;
+  {
     const tv = await freshPlayer(src);
-    try { track = await trackSpeaker(tv, local.s, local.e, { log }); } finally { tv.remove(); }
+    try {
+      area = await activeArea(tv, local.s, local.e).catch(() => null);
+      if (area && (area.x0 > 0 || area.x1 < 1 || area.y0 > 0 || area.y1 < 1)) log(`Left out flat bars at the edges of the picture (${Math.round((1 - (area.x1 - area.x0)) * 100)}% of the width, ${Math.round((1 - (area.y1 - area.y0)) * 100)}% of the height).`);
+      if (o.framing === 'auto') track = await trackSpeaker(tv, local.s, local.e, { log });
+    } finally { tv.remove(); }
   }
   const video = await freshPlayer(src);
   try {
-    const painter = new ClipPainter(video, local, words, track, o);
+    const painter = new ClipPainter(video, local, words, track, { ...o, area });
     painter.log = new RenderLog({ tab: 'clips', style: o.framing });
     card.setStatus('Making the clip… keep this tab open', 0);
     const blob = await exportClip(painter, audio, { signal, onProgress: (f) => card.setStatus(`Making the clip… ${pct(f)}`, f) });
