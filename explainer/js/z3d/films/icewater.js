@@ -10,9 +10,11 @@ import { kf, lerp, smooth, easeOut, easeIn, easeInOut, range, clamp, V, cam, pla
 import { sparks, glowSprite, rippleOverlay } from '../props.js';
 import { loadPerson, POSES, mix, talking } from '../people.js';
 
-export const DURATION = 60.0;
+import { KNOTS, TOTAL } from './icewater-time.js';
+import { retime } from './retime.js';
+export const DURATION = TOTAL;
 // Dips to black: before the "But" turn.
-export const FADES = [[9.05, 9.3, 9.38, 9.62]];
+const FADES0 = [[9.05, 9.3, 9.38, 9.62]];
 
 const WINTER_SKY = { top: 0x5d8fd0, mid: 0x9cc0e8, horizon: 0xe6eef6, floorC: 0xdfe8f2 };
 const DUSK_SKY = { top: 0x3d4f86, mid: 0xc48a92, horizon: 0xf3c38f, floorC: 0xd8c3b0 };
@@ -387,11 +389,12 @@ function s17({ makeStage }) {
   } };
 }
 
-export const SHOTS = [
+const SHOTS0 = [
   [0, 2.6, s1], [2.6, 5.3, s2], [5.3, 9.4, s3], [9.4, 13.2, s4], [13.2, 15.8, s5], [15.8, 19.0, s6], [19.0, 24.6, s7],
   [24.6, 28.4, s8], [28.4, 30.6, s9], [30.6, 33.2, s10], [33.2, 37.9, s11], [37.9, 42.3, s12], [42.3, 46.8, s13],
   [46.8, 50.8, s14], [50.8, 53.0, s15], [53.0, 55.2, s16], [55.2, 60.0, s17],
 ].map(([start, end, build]) => ({ start, end, build }));
+export const { SHOTS, FADES } = retime(SHOTS0, FADES0, KNOTS);
 
 // ---------- captions: 1 to 3 words, white bold, timed to the voice ----------
 import WORDS from './icewater-words.js';

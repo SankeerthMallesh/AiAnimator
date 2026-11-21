@@ -7,9 +7,11 @@ import { glowSprite } from '../props.js';
 import { Avatar, LOOKS, makeWorld, roundBox, paintedMat, plainMat } from '../blocky.js';
 import WORDS from './snowfort-words.js';
 
-export const DURATION = 59.0;
+import { KNOTS, TOTAL } from './snowfort-time.js';
+import { retime } from './retime.js';
+export const DURATION = TOTAL;
 export const CAPTION_STYLE = 'blocky';
-export const FADES = [[26.45, 26.7, 26.8, 27.05]];
+const FADES0 = [[26.45, 26.7, 26.8, 27.05]];
 
 const DAY = { top: 0x3f86d8, mid: 0x7fb6ec, horizon: 0xd4e8f8, floorC: 0xdfeaf5 };
 const NIGHT = { top: 0x0c1430, mid: 0x1d2e5e, horizon: 0x4d5f96, floorC: 0x2a3550 };
@@ -309,10 +311,11 @@ function s14({ makeStage }) {
   } };
 }
 
-export const SHOTS = [
+const SHOTS0 = [
   [0, 4.6, s1], [4.6, 8.9, s2], [8.9, 12.9, s3], [12.9, 17.0, s4], [17.0, 23.1, s5], [23.1, 26.8, s6], [26.8, 31.7, s7],
   [31.7, 36.4, s8], [36.4, 40.0, s9], [40.0, 43.4, s10], [43.4, 45.6, s11], [45.6, 47.8, s12], [47.8, 52.4, s13], [52.4, 59.0, s14],
 ].map(([start, end, build]) => ({ start, end, build }));
+export const { SHOTS, FADES } = retime(SHOTS0, FADES0, KNOTS);
 
 // ---------- captions: 3-4 words, one key word in capitals (the Blocky rule) ----------
 const SMALL = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'to', 'of', 'in', 'on', 'at', 'it', 'is', 'was', 'he', 'she', 'we', 'i', 'my', 'our', 'so', 'his', 'her', 'that', 'this', 'with', 'for', 'be', 'would', "we'd", "he'd", "won't", 'even', 'just', 'one', 'out', 'there', 'since']);
