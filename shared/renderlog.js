@@ -70,8 +70,10 @@ export function captureText(ctx, draw) {
   ctx.fillText = function (text, x, y, maxW) {
     const s = String(text);
     if (s.trim()) {
-      const m = ctx.measureText(s), tr = ctx.getTransform();
-      const asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
+      // The line's height is the drawn font's tallest-to-lowest letters ("Hg"), the same for every
+      // caption at one size, so short words without tall letters do not read as smaller text.
+      const ref = ctx.measureText('Hg'), tr = ctx.getTransform();
+      const asc = ref.actualBoundingBoxAscent, desc = ref.actualBoundingBoxDescent;
       const scaleY = Math.hypot(tr.b, tr.d) || 1;
       // Baseline y and the drawn box, in canvas pixels.
       const by = tr.b * x + tr.d * y + tr.f;

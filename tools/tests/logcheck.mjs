@@ -76,7 +76,7 @@ const CHECKS = {
       [`centre at ${cy}% ±1`, offY.length === 0, offY.length ? `${offY.length} off, e.g. ${offY[0].yCenterPct}%` : `all at ${caps[0]?.yCenterPct}%`],
       [`line height ${lh}% ±0.4`, offH.length === 0, offH.length ? `${offH.length} off, e.g. ${offH[0].lineHeightPct}%` : `all ${r2(median(caps.map(c => c.lineHeightPct)))}%`],
       [`weight ${w0}-${w1}`, offW.length === 0, offW.length ? `${offW.length} off, e.g. ${offW[0].fontWeight}` : `${caps[0]?.fontWeight}`],
-      [`${n0} or ${n1 === 3 ? 3 : 4} words`, offN.length / Math.max(1, caps.length) <= 0.1, `${pct(caps.length - offN.length, caps.length)}% in range`],
+      [`${n0} or ${n1} words on every caption`, offN.length === 0, offN.length ? `${offN.length} of ${caps.length} off: ${offN.slice(0, 4).map(c => `"${c.text}"`).join(', ')}` : `all ${caps.length}`],
     ];
     if (blocky) rows.push([`one key word IN CAPS on >= 90% of captions`, caps.filter(c => c.upperWords >= 1).length / Math.max(1, caps.length) >= 0.9, `${pct(caps.filter(c => c.upperWords >= 1).length, caps.length)}%`]);
     return rows;

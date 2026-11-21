@@ -167,24 +167,56 @@ export class Renderer {
   }
 
   _groupWords(scene) {
-    const maxWords = this.tall ? 3 : this.vertical ? 4 : 5;
-    const maxChars = this.tall ? 16 : this.vertical ? 20 : 28;
-    const groups = [];
-    let cur = [];
-    const flush = () => { if (cur.length) groups.push(cur); cur = []; };
-    for (const w of scene.words || []) {
-      const chars = cur.reduce((n, x) => n + x.text.length + 1, 0) + w.text.length;
-      if (cur.length >= maxWords || (cur.length && chars > maxChars)) flush();
-      cur.push(w);
-      if (/[.!?,;:]["')]?$/.test(w.text)) flush();
+    // Story styles caption like their references: 3D two or three words, Blocky three or four.
+    const story = ['story-3d', 'blocky'].includes(this.options.style) && this.settings.captionStyle !== 'off';
+    const blocky = this.options.style === 'blocky';
+    const [minWords, maxWords] = story ? (blocky ? [3, 4] : [2, 3]) : [1, this.tall ? 3 : this.vertical ? 4 : 5];
+    const maxChars = story ? (blocky ? 24 : 20) : this.tall ? 16 : this.vertical ? 20 : 28;
+    let groups = [];
+    const all = scene.words || [];
+    if (story && all.length) {
+      // Split the line so every caption has min..max words, breaking at punctuation where possible
+      // (a caption that runs over a full stop costs a little; one out of range costs a lot).
+      const ends = (w) => /[.!?;:,]["')]?$/.test(w.text);
+      const cost = new Array(all.length + 1).fill(Infinity), from = new Array(all.length + 1).fill(-1);
+      cost[0] = 0;
+      for (let i = 1; i <= all.length; i++) {
+        for (let j = Math.max(0, i - maxWords - 2); j < i; j++) {
+          if (!isFinite(cost[j])) continue;
+          const chunk = all.slice(j, i), n = chunk.length;
+          const chars = chunk.reduce((k, x) => k + x.text.length + 1, -1);
+          let c = (n < minWords || n > maxWords) ? 100 + Math.abs(n - (n < minWords ? minWords : maxWords)) * 10 : 0;
+          if (i < all.length && !ends(all[i - 1])) c += 2;
+          c += chunk.slice(0, -1).filter(w => /[.!?]["')]?$/.test(w.text)).length * 3;
+          if (chars > maxChars * 1.5) c += 6;
+          if (cost[j] + c < cost[i]) { cost[i] = cost[j] + c; from[i] = j; }
+        }
+      }
+      for (let i = all.length; i > 0; i = from[i]) groups.unshift(all.slice(from[i], i));
+    } else {
+      let cur = [];
+      const flush = () => { if (cur.length) groups.push(cur); cur = []; };
+      for (const w of all) {
+        const chars = cur.reduce((n, x) => n + x.text.length + 1, 0) + w.text.length;
+        if (cur.length >= maxWords || (cur.length && chars > maxChars)) flush();
+        cur.push(w);
+        if (/[.!?,;:]["')]?$/.test(w.text)) flush();
+      }
+      flush();
     }
-    flush();
     const kw = new Set((scene.keywords || []).flatMap(k => k.toLowerCase().split(/\s+/)).map(norm));
-    return groups.map((ws, i) => ({
-      words: ws.map(w => ({ ...w, key: kw.has(norm(w.text)) })),
-      start: ws[0].start,
-      end: i + 1 < groups.length ? groups[i + 1][0].start : ws[ws.length - 1].end + 0.35,
-    }));
+    return groups.map((ws, i) => {
+      let words = ws.map(w => ({ ...w, key: kw.has(norm(w.text)) }));
+      if (blocky) {
+        // Exactly one key word in capitals: the writer's, otherwise the longest word of 4+ letters.
+        const keys = words.filter(w => w.key);
+        words.forEach(w => { w.key = false; });
+        const pick = keys[0] || words.filter(w => norm(w.text).length >= 4 && !STOP.has(norm(w.text))).sort((a, b) => norm(b.text).length - norm(a.text).length)[0]
+          || words.slice().sort((a, b) => norm(b.text).length - norm(a.text).length)[0];
+        if (pick) pick.key = true;
+      }
+      return { words, start: ws[0].start, end: i + 1 < groups.length ? groups[i + 1][0].start : ws[ws.length - 1].end + 0.35 };
+    });
   }
 
   // ---------- frame ----------
@@ -956,22 +988,25 @@ export class Renderer {
 
   // Captions in the style of 3D story Shorts and blocky-game story Shorts: 2-4 words in normal case,
   // white with a dark edge, the key word in CAPITALS; blocky stories put them near the top.
+  // Story captions, measured from the references. 3D: centre at 78% of the height, weight 700, a
+  // soft shadow and no stroke, normal case. Blocky: near the top (23%), weight 600 with an outline,
+  // one key word in capitals. Sizes give a drawn line of 4.2% (3D) and 5.1% (Blocky) of the height.
   _storyCaption(g, vt, top) {
     const { ctx, W, H } = this;
-    const size = Math.round(this.vertical ? W * 0.066 : H * 0.07);
+    const size = Math.round((top ? 0.0548 : 0.0452) * H);
     ctx.save();
-    ctx.font = `800 ${size}px ${CAPTION_FONT}`;
+    ctx.font = `${top ? 600 : 700} ${size}px ${CAPTION_FONT}`;
     ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.textAlign = 'left';
-    const words = g.words.map(w => ({ ...w, label: w.key && w.text.replace(/[^\p{L}]/gu, '').length > 2 ? w.text.toUpperCase() : w.text }));
+    const words = g.words.map(w => ({ ...w, label: top && w.key ? w.text.toUpperCase() : w.text }));
     const space = ctx.measureText(' ').width;
     const lines = [[]]; let lw = 0;
     for (const w of words) {
       w.w = ctx.measureText(w.label).width;
-      if (lines[lines.length - 1].length && lw + space + w.w > W * 0.8) { lines.push([]); lw = 0; }
+      if (lines[lines.length - 1].length && lw + space + w.w > W * 0.84) { lines.push([]); lw = 0; }
       lines[lines.length - 1].push(w); lw += (lw ? space : 0) + w.w;
     }
     const pop = easeOutBack(Math.min(1, (vt - g.start + 0.03) / 0.12));
-    const cy = top ? H * 0.235 : (this.tall ? H * 0.71 : H * 0.8);
+    const cy = (top ? 0.23 : 0.78) * H;
     ctx.translate(W / 2, cy);
     ctx.scale(lerp(0.88, 1, pop), lerp(0.88, 1, pop));
     lines.forEach((line, li) => {
@@ -979,13 +1014,15 @@ export class Renderer {
       let x = -total / 2;
       const y = (li - (lines.length - 1) / 2) * size * 1.1;
       for (const w of line) {
-        ctx.lineWidth = size * (top ? 0.16 : 0.1);
-        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-        ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = size * 0.25; ctx.shadowOffsetY = size * 0.04;
-        ctx.strokeText(w.label, x, y);
-        ctx.shadowColor = 'transparent';
+        if (top) {
+          ctx.lineWidth = size * 0.14;
+          ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+          ctx.strokeText(w.label, x, y);
+        }
+        ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = size * (top ? 0.18 : 0.3); ctx.shadowOffsetY = size * 0.05;
         ctx.fillStyle = '#FFFFFF';
         ctx.fillText(w.label, x, y);
+        ctx.shadowColor = 'transparent';
         x += w.w + space;
       }
     });
@@ -1107,6 +1144,7 @@ export class Renderer {
 }
 
 function norm(w) { return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+const STOP = new Set('that this with from they them their there then than what when where which while were have been your about into just only some very really would could should because after before'.split(' '));
 
 function wrap(ctx, text, maxW) {
   const words = text.split(/\s+/);
@@ -1126,6 +1164,7 @@ export async function loadFonts() {
     await Promise.all([
       document.fonts.load('900 64px "Montserrat"'),
       document.fonts.load('700 64px "Montserrat"'),
+      document.fonts.load('600 64px "Montserrat"'),
       document.fonts.load('600 32px "JetBrains Mono"'),
     ]);
   } catch { /* system fallbacks are fine */ }
