@@ -16,12 +16,19 @@ export class RenderLog {
   }
 
   // One call per frame with the shot on screen; consecutive frames with the same shot merge.
-  shot(t, s) {
+  // `box` (optional): the main character's box on screen this frame, [x0, y0, x1, y1] as shares of
+  // the frame; a shot keeps the union of its frames' boxes.
+  shot(t, s, box = null, face = null) {
     const key = JSON.stringify(s);
     const last = this.m.shots[this.m.shots.length - 1];
-    if (key === this._shotKey && last) { last.end = r3(t); return; }
+    const union = (a, b) => (a ? [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])] : b);
+    const r = (b) => b.map(v => Math.round(v * 1000) / 1000);
+    const grow = (sh) => { if (box) sh.characterBox = union(sh.characterBox, r(box)); if (face) sh.faceBox = union(sh.faceBox, r(face)); };
+    if (key === this._shotKey && last) { last.end = r3(t); grow(last); return; }
     if (last && last.end < t) last.end = r3(t);
-    this.m.shots.push({ start: r3(t), end: r3(t), ...s });
+    const sh = { start: r3(t), end: r3(t), ...s };
+    grow(sh);
+    this.m.shots.push(sh);
     this._shotKey = key;
   }
 

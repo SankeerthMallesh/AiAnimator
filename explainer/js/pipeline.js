@@ -2,7 +2,7 @@
 // Every step is incremental: editing one scene only regenerates what changed.
 
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
-import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady } from './images.js';
+import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady, cloudflareUsedUp } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
@@ -157,7 +157,9 @@ export class Pipeline {
       let done = 0, failed = 0, blocked = 0;
       const blockedScenes = [];
       await cloudflareReady(); // the site's own Cloudflare allowance removes the free-tier pacing
-      const isFree = () => isFreeImageTier(this.s); // can flip mid-run if a saved key is refused
+      // The free-tier pacing (wait 45 s, fetch one at a time) is for public services; when the site's
+      // own allowance is used up for today there is nothing to wait for.
+      const isFree = () => isFreeImageTier(this.s) && !cloudflareUsedUp(); // can flip mid-run if a saved key is refused
       const free = isFree();
       // Free tier: ask for shots spread across the video first (start, middle, end…), so if the
       // service's limit cuts us off, the images we did get cover the whole story.

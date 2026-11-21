@@ -258,3 +258,6 @@ export async function cloudflareImage(prompt, opts = {}, signal) {
   }
 }
 export const cloudflareOn = () => cfState === true;
+// The site has its own picture allowance but it is used up (or failing) today: waiting will not
+// bring pictures back, so the video goes straight to its painted fallback scenes.
+export const cloudflareUsedUp = () => cfSite && cfState === false;

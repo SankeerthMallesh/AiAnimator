@@ -9,6 +9,7 @@ import { glowImage } from './glow.js';
 import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
 import { drawWorld } from '../../cartoon/js/worlds.js';
+import { heroLook, drawHero, feelFor } from './hero.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -49,6 +50,14 @@ export class Renderer {
     // Where each scene's picture came from, for the render log.
     this.sources = timeline.scenes.map((s, i) => (clips[i] ? 'clip' : images[i] ? 'ai' : 'fallback'));
     this.meta = timeline.scenes.map((s, i) => (meta && meta[i]) || {});
+    // Shots with no AI picture: a painted world and the recurring hero, cut every 1.0-1.8 s.
+    this.blocky = options.style === 'blocky';
+    this.hero = heroLook(script, timeline.scenes[0]?.seed || 0);
+    this.plans = planFallbackShots(timeline.scenes, this.sources, this.blocky ? 1.15 : 1.4);
+    // Each line's place; a line that names none stays where the story already is.
+    this.worlds = [];
+    timeline.scenes.forEach((sc, i) => this.worlds.push(worldFor(sc, this.worlds[i - 1] || null, script?.title || '')));
+    this._bg = new Map();
     this.images = timeline.scenes.map((s, i) => images[i] || this._poster(s));
     this.depths = timeline.scenes.map((s, i) => depths[i] || null);
     // Scenes that point at something get a glowing outline around it, baked into the picture.
@@ -227,7 +236,13 @@ export class Renderer {
       if (T && t < tb + T / 2) { this._transition(prev, cur, (t - (tb - T / 2)) / T, t); drawn = true; }
     }
     if (!drawn) this._drawScene(ctx, cur, t - cur.start);
-    if (this.log) this.log.shot(t, this._shotInfo(cur, t - cur.start));
+    if (this.log) {
+      this._heroBox = null;
+      const info = this._shotInfo(cur, t - cur.start);
+      const hero = info.source === 'fallback' && this._lastHero?.scene === cur.index ? this._lastHero : null;
+      const frac = (b) => b.map((v, k) => v / (k % 2 ? H : W));
+      this.log.shot(t, info, hero ? frac(hero.box) : null, hero ? frac(hero.face) : null);
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._atmosphere(cur, t - cur.start);
     this._effect(cur, t - cur.start);
@@ -265,11 +280,71 @@ export class Renderer {
     if (this.settings.handle) this._handle();
   }
 
+  // A shot with no AI picture: the painted world for the line and the hero, framed wide, medium
+  // or close, with a slow push within each shot.
+  _fallbackShot(scene, lt) {
+    const plan = this.plans[scene.index] || [{ a: 0, b: scene.dur, framing: 'wide', side: 1 }];
+    return plan.find(p => lt < p.b) || plan[plan.length - 1];
+  }
+
+  _fallbackBg(scene) {
+    const id = this.worlds[scene.index];
+    if (!this.blocky) return { id, canvas: null };
+    // Blocky: the world painted small and enlarged without smoothing (only the background).
+    const key = id;
+    if (!this._bg.has(key)) {
+      const { W, H } = this, k = 9;
+      const sw = Math.ceil(W * 1.4 / k), sh = Math.ceil(H * 1.4 / k);
+      const small = document.createElement('canvas'); small.width = sw; small.height = sh;
+      const sg = small.getContext('2d');
+      sg.scale(sw / (W * 1.4), sh / (H * 1.4)); sg.translate(W * 0.2, H * 0.2);
+      drawWorld(sg, W, H, id, 0);
+      const big = document.createElement('canvas'); big.width = Math.round(W * 1.4); big.height = Math.round(H * 1.4);
+      const bg = big.getContext('2d'); bg.imageSmoothingEnabled = false; bg.drawImage(small, 0, 0, big.width, big.height);
+      this._bg.set(key, big);
+    }
+    return { id, canvas: this._bg.get(key) };
+  }
+
+  _drawFallback(ctx, scene, lt, extra = {}) {
+    const { W, H } = this;
+    const shot = this._fallbackShot(scene, lt);
+    const F = FRAMING[shot.framing];
+    const k = clamp((lt - shot.a) / Math.max(0.3, shot.b - shot.a), 0, 1);
+    const zoom = lerp(F.zoom, F.zoom + 0.05, k);
+    const heroX = W * (0.5 + shot.side * F.offset);
+    ctx.save();
+    ctx.globalAlpha = extra.alpha ?? 1;
+    ctx.translate(W / 2 + (extra.dx || 0), H / 2 + (extra.dy || 0));
+    ctx.scale(extra.scale || 1, extra.scale || 1);
+    ctx.translate(-W / 2, -H / 2);
+    // Background: zoomed toward the hero's side, a little less than the hero (depth).
+    const bg = this._fallbackBg(scene);
+    ctx.save();
+    const cx = lerp(W / 2, heroX, 0.35), cy = H * 0.6;
+    ctx.translate(cx, cy); ctx.scale(zoom, zoom); ctx.translate(-cx, -cy);
+    if (bg.canvas) ctx.drawImage(bg.canvas, -W * 0.2, -H * 0.2);
+    else drawWorld(ctx, W, H, bg.id, lt + scene.start);
+    ctx.restore();
+    // The hero, sharp (drawn at full resolution even when the background is pixelated).
+    const vt = lt - (scene.voiceOffset || 0);
+    const talking = (this.captionGroups[scene.index] || []).some(g => vt >= g.start && vt < g.end);
+    const heroH = H * F.height * (1 + 0.04 * k);
+    const ground = H * F.ground;
+    const drawn = drawHero(ctx, this.hero, { x: heroX, ground, height: heroH, t: lt + scene.start, talk: talking ? 1 : 0, face: shot.side > 0 ? -1 : 1, blocky: this.blocky, feel: feelFor(scene.narration) });
+    if (!extra.alpha || extra.alpha >= 0.5) this._lastHero = { scene: scene.index, box: drawn.box, face: drawn.face };
+    ctx.restore();
+  }
+
   // What the render log records for the shot on screen.
   _shotInfo(scene, lt) {
     const i = scene.index, src = this.sources[i], style = STYLES[this.options.style] || {};
     const punched = scene.dur > 2.4 && lt >= scene.dur / 2 && !this.clips[i];
     const hero = (this.script?.characters || [])[0];
+    if (src === 'fallback') {
+      const shot = this._fallbackShot(scene, lt);
+      return { scene: i, source: src, framing: shot.framing, shotIndex: shot.n, characterIds: [this.hero.id], world: this.worlds[i], props: [], glow: false, picturePrompt: '', seed: 0 };
+    }
     return {
       scene: i, source: src, framing: punched ? 'close' : 'wide',
       characterIds: src === 'ai' && style.character && hero ? [hero.id || hero.name || 'hero'] : [],
@@ -371,6 +446,7 @@ export class Renderer {
 
   _drawScene(ctx, scene, lt, extra = {}) {
     const { W, H } = this;
+    if (this.sources[scene.index] === 'fallback') { this._drawFallback(ctx, scene, lt, extra); return; }
     const clip = this.clips[scene.index];
     if (clip && clip.video.readyState >= 2) {
       const v = clip.video;
@@ -983,35 +1059,66 @@ export async function loadFonts() {
   } catch { /* system fallbacks are fine */ }
 }
 
+// ---------- shots with no AI picture ----------
+// Hero size (share of frame height), where its feet are, the background zoom and how far off
+// centre it stands. Wide and medium keep the whole body inside an 8% margin; close shows the face.
+const FRAMING = {
+  wide: { height: 0.3, ground: 0.86, zoom: 1.0, offset: 0.14 },
+  medium: { height: 0.47, ground: 0.885, zoom: 1.16, offset: 0.1 },
+  close: { height: 1.0, ground: 1.3, zoom: 1.34, offset: 0.05 },
+};
+const FRAMES = ['wide', 'medium', 'close'];
+// Each fallback scene is cut into shots of 1.0-1.8 s (at least two when it lasts 2 s or more),
+// cycling wide, medium and close across the whole video and alternating the hero's side.
+export function planFallbackShots(scenes, sources, target) {
+  let n = 0;
+  return scenes.map((sc, i) => {
+    if (sources[i] !== 'fallback') return null;
+    const dur = Math.max(0.1, sc.dur);
+    let parts = dur < 2 ? 1 : Math.max(2, Math.round(dur / target));
+    while (dur / parts > 1.8) parts++;
+    while (parts > 2 && dur / parts < 1.0) parts--;
+    return Array.from({ length: parts }, (_, k) => { const p = { a: (k * dur) / parts, b: k === parts - 1 ? dur + 1 : ((k + 1) * dur) / parts, framing: FRAMES[n % 3], side: n % 2 ? 1 : -1, n }; n++; return p; });
+  });
+}
+
 // ---------- the painted place for a line with no picture ----------
 const WORLD_WORDS = [
-  ['space', /\b(space|rocket|astronaut|orbit|planet|moon|mars|galaxy|star(s|ship)?|satellite|nasa|apollo|saturn)s?\b/],
-  ['underwater', /\b(underwater|reef|coral|shark|whale|dolphin|seabed|deep sea|submarine|fish(es)?)s?\b/],
+  ['wall', /\b(great wall|city walls?|castle walls?|fortress|fortif\w*|ramparts?|watchtowers?)\b/],
   ['deck', /\b(ship|titanic|liner|deck|cruise|sail(ed|ing)?|captain|lifeboats?|voyage)s?\b/],
-  ['sea', /\b(ocean|sea|beach|wave|island|coast|shore|iceberg)s?\b/],
-  ['snow', /\b(snow|ice|frozen|arctic|antarctic|penguins?|winter|blizzard|cold|freez\w*|polar)s?\b/],
+  ['underwater', /\b(underwater|reef|coral|shark|whale|dolphin|seabed|deep sea|submarine|fish(es)?)s?\b/],
+  ['school', /\b(school|classroom|cafeteria|lunchroom|teacher|homework|principal|recess|class|students?|hallway|lockers?)s?\b/],
+  ['snow', /\b(snow|ice|icy|frozen|arctic|antarctic|penguins?|winter|blizzard|freez\w*|polar)s?\b/],
+  ['sea', /\b(ocean|sea|beach|wave|island|coast|shore|iceberg|water|lake|pond|swim\w*|float\w*|splash\w*|treading)s?\b/],
+  ['space', /\b(space|rocket|astronaut|orbit|planet|moon|mars|galaxy|star(s|ship)?|satellite|nasa|apollo|saturn)s?\b/],
+  ['forest', /\b(forest|jungle|woods|rainforest|camp(ing)?|bear|wolf|deer|trees?)s?\b/],
   ['desert', /\b(desert|pyramids?|egypt\w*|sand|camel|sahara|dune)s?\b/],
-  ['mountains', /\b(mountains?|volcano\w*|everest|cliff|peak|hiking|great wall|lava|magma)s?\b/],
-  ['forest', /\b(forest|jungle|trees?|woods|leaves|leaf|camp(ing)?|rainforest|bear|wolf|deer)s?\b/],
+  ['mountains', /\b(mountains?|volcano\w*|everest|cliff|peak|hiking|lava|magma)s?\b/],
   ['lab', /\b(lab|science|scientists?|experiment|chemical|molecule|atoms?|cells?|bacteria|virus|dna|brain|nerves?|blood|doctor|enzymes?|microscope|gas)s?\b/],
-  ['rails', /\b(train|railway|rails?|station|locomotive)s?\b/],
+  ['rails', /\b(train|railway|rails?|locomotive)s?\b/],
   ['bridge', /\b(bridge|river)s?\b/],
-  ['temple', /\b(temple|ancient|rome|roman|greek|empire|king|queen|castle|pharaoh|history)s?\b/],
-  ['night', /\b(night|dark|sleep|dream|midnight|ghost|haunted)s?\b/],
-  ['office', /\b(office|money|billion|million|company|business|bank|cost|price|paid|job|work(ers?)?)s?\b/],
+  ['temple', /\b(temple|ancient|rome|roman|greek|empire|king|queen|castle|pharaoh)s?\b/],
+  ['night', /\b(night|midnight|ghost|haunted)s?\b/],
+  ['office', /\b(office|money|billion|million|company|business|bank|cost|price|paid|job|boss)s?\b/],
   ['shop', /\b(shop|store|market|buy|bought|sell|mall)s?\b/],
-  ['room', /\b(home|house|room|bed|kitchen|cook\w*|bake\w*|bread|food|eat\w*|drink\w*|cat|dog|pet|family|mom|dad|school|class)s?\b/],
-  ['city', /\b(city|town|street|cars?|traffic|buildings?|skyscraper|people|crowd)s?\b/],
-  ['field', /\b(sky|clouds?|sun|rain|weather|fly|flight|plane|airplane|birds?|wind|storm)s?\b/],
-  ['field', /\b(farm|field|grass|garden|flowers?|bees?|park|meadow)s?\b/],
+  ['room', /\b(home|house|room|bed|bedroom|kitchen|cook\w*|bake\w*|bread|food|eat\w*|drink\w*|cat|dog|pet|family|mom|dad|sofa|couch|cabin|bath\w*|fireplace|blanket)s?\b/],
+  ['city', /\b(city|town|street|cars?|traffic|buildings?|skyscraper|crowd)s?\b/],
+  ['field', /\b(sky|clouds?|sun|rain|weather|fly|flight|plane|airplane|birds?|wind|storm|farm|field|grass|garden|flowers?|bees?|park|meadow)s?\b/],
 ];
-const SET_TO_WORLD = { sky: 'field', water: 'sea', ship: 'deck', ocean: 'sea', beach: 'sea', kitchen: 'room', volcano: 'mountains', mountain: 'mountains', savanna: 'field', garage: 'room' };
-function worldFor(scene) {
+const SET_TO_WORLD = { sky: 'field', water: 'sea', ship: 'deck', ocean: 'sea', beach: 'sea', kitchen: 'room', volcano: 'mountains', mountain: 'mountains', savanna: 'field', garage: 'room', classroom: 'school' };
+// Neutral places that fit most stories, for a line that names no place (never mountains).
+const NEUTRAL = ['field', 'city', 'road', 'room'];
+export function worldFor(scene, prev = null, topic = '') {
   const set = String(scene.set || '').toLowerCase();
   if (SET_TO_WORLD[set]) return SET_TO_WORLD[set];
   if (set && WORLD_WORDS.some(([id]) => id === set)) return set;
-  const text = `${scene.visual || ''} ${scene.narration || ''}`.toLowerCase();
-  for (const [id, re] of WORLD_WORDS) if (re.test(text)) return id;
-  return ['field', 'city', 'road', 'forest', 'mountains'][hash(text) % 5];
+  // The picture description names the place more reliably than the narration: try it first.
+  const visual = String(scene.visual || '').toLowerCase(), said = String(scene.narration || '').toLowerCase();
+  const text = `${visual} ${said}`;
+  for (const part of [visual, said]) for (const [id, re] of WORLD_WORDS) if (part && re.test(part)) return id;
+  if (prev) return prev;
+  const t = String(topic || '').toLowerCase();
+  for (const [id, re] of WORLD_WORDS) if (t && re.test(t)) return id;
+  return NEUTRAL[hash(text) % NEUTRAL.length];
 }
 

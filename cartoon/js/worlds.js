@@ -565,13 +565,84 @@ P.underwater = (g, W, H, r) => {
   }
 };
 
+// An ancient stone wall winding over green hills, with square watchtowers (landmark walls).
+P.wall = (g, W, H, r) => {
+  const hz = H * 0.5;
+  skyBand(g, W, H, hz, '#5AA9E6', '#DDF0FA', true, 0.82, 0.13);
+  ridge(g, W, hz + H * 0.0, H * 0.12, mix('#7FAF8E', '#DDF0FA', 0.55), 7, { bottom: H * 2, bumps: 4 });
+  ridge(g, W, hz + H * 0.06, H * 0.1, mix('#5E9E62', '#DDF0FA', 0.25), 19, { bottom: H * 2, bumps: 3 });
+  vGrad(g, -W, hz + H * 0.13, W * 3, H, [[0, '#5DA758'], [1, '#3C8040']]);
+  // The wall: a band following a curve over the hills, nearer (wider) toward the bottom right.
+  const path = (k) => {
+    const x = -W * 0.25 + k * W * 1.5;
+    const y = hz + H * (0.02 + 0.22 * k * k) + Math.sin(k * 7.5 + 0.6) * H * 0.035;
+    return [x, y, H * (0.012 + 0.05 * k * k)];
+  };
+  const N = 60;
+  const top = [], bot = [];
+  for (let i = 0; i <= N; i++) { const [x, y, h] = path(i / N); top.push([x, y - h]); bot.push([x, y]); }
+  g.fillStyle = '#B9A68A';
+  g.beginPath(); top.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); [...bot].reverse().forEach(([x, y]) => g.lineTo(x, y)); g.closePath(); g.fill();
+  // Walkway top and shadowed face.
+  g.strokeStyle = '#8E7B62'; g.lineWidth = Math.max(1, W * 0.003);
+  g.beginPath(); bot.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+  for (let i = 0; i <= N; i += 2) { const [x, y, h] = path(i / N); g.fillStyle = '#A8957A'; g.fillRect(x - h * 0.22, y - h * 1.45, h * 0.44, h * 0.5); }
+  // Stone courses on the near part.
+  g.save(); g.globalAlpha = 0.35; g.strokeStyle = '#7E6C55';
+  for (let i = N / 2; i < N; i++) { const [x, y, h] = path(i / N); for (let c = 1; c < 4; c++) { g.beginPath(); g.moveTo(x - h * 0.6, y - h * c / 4); g.lineTo(x + h * 0.6, y - h * c / 4); g.stroke(); } }
+  g.restore();
+  // Watchtowers along it.
+  for (const k of [0.22, 0.5, 0.82]) {
+    const [x, y, h] = path(k);
+    box(g, x - h * 1.1, y - h * 2.6, h * 2.2, h * 2.6, '#C2AF92', { side: h * 0.5, top: h * 0.3 });
+    g.fillStyle = '#5A4A38'; g.fillRect(x - h * 0.25, y - h * 1.9, h * 0.5, h * 0.7);
+    for (let c = 0; c < 4; c++) { g.fillStyle = '#B09D80'; g.fillRect(x - h * 1.1 + c * h * 0.62, y - h * 3.0, h * 0.36, h * 0.42); }
+  }
+  for (let k = 0; k < 8; k++) { const d = r(), x = r() * W; tree(g, x, hz + H * (0.3 + d * 0.15), H * (0.03 + d * 0.04), mix('#3E8E4A', '#A9CDBA', 0.3 - d * 0.25)); }
+};
+
+// A school classroom (also stands in for halls and cafeterias): chalkboard, windows, clock, desks.
+P.school = (g, W, H, r) => {
+  const hz = H * 0.6;
+  roomShell(g, W, H, '#E8E2C8', '#B98C5E', hz);
+  // Windows along the left wall with daylight.
+  for (let k = 0; k < 2; k++) {
+    const wx = W * (0.04 + k * 0.2), wy = H * 0.16, ww = W * 0.16, wh = H * 0.24;
+    vGrad(g, wx, wy, ww, wh, [[0, '#7CC0EE'], [1, '#DDF1FB']]);
+    g.fillStyle = '#86C28A'; g.fillRect(wx, wy + wh * 0.75, ww, wh * 0.25);
+    g.fillStyle = '#FFFFFF'; g.fillRect(wx - W * 0.008, wy - W * 0.008, ww + W * 0.016, W * 0.01); g.fillRect(wx + ww / 2 - W * 0.004, wy, W * 0.008, wh); g.fillRect(wx - W * 0.01, wy + wh, ww + W * 0.02, W * 0.012);
+    g.save(); g.globalAlpha = 0.18; g.fillStyle = '#FFF6D8'; g.beginPath(); g.moveTo(wx, hz); g.lineTo(wx + ww, hz); g.lineTo(wx + ww * 2.2, H); g.lineTo(wx + ww * 0.8, H); g.closePath(); g.fill(); g.restore();
+  }
+  // Chalkboard with chalk scribbles, and a clock above it.
+  const bx = W * 0.47, by = H * 0.17, bw = W * 0.48, bh = H * 0.2;
+  g.fillStyle = '#7A5A3A'; g.fillRect(bx - W * 0.012, by - W * 0.012, bw + W * 0.024, bh + W * 0.024);
+  vGrad(g, bx, by, bw, bh, [[0, '#2F5D4A'], [1, '#264C3C']]);
+  g.save(); g.strokeStyle = 'rgba(240,240,230,0.75)'; g.lineWidth = Math.max(1, W * 0.003); g.lineCap = 'round';
+  for (let k = 0; k < 4; k++) { g.beginPath(); const y = by + bh * (0.2 + k * 0.18); g.moveTo(bx + bw * 0.08, y); for (let i = 1; i < 10; i++) g.lineTo(bx + bw * (0.08 + i * 0.07 * (0.6 + r() * 0.5)), y + (r() - 0.5) * bh * 0.04); g.stroke(); }
+  g.restore();
+  g.fillStyle = '#F5F2E8'; g.beginPath(); g.arc(W * 0.71, H * 0.1, W * 0.035, 0, TAU); g.fill();
+  g.strokeStyle = '#3A3F4B'; g.lineWidth = Math.max(1, W * 0.004); g.stroke();
+  g.beginPath(); g.moveTo(W * 0.71, H * 0.1); g.lineTo(W * 0.71, H * 0.1 - W * 0.022); g.moveTo(W * 0.71, H * 0.1); g.lineTo(W * 0.71 + W * 0.016, H * 0.1); g.stroke();
+  // Rows of desks in perspective.
+  for (let row = 0; row < 3; row++) {
+    const y = hz + H * (0.04 + row * row * 0.05 + row * 0.04), s = 0.6 + row * 0.35;
+    for (let c = 0; c < 4; c++) {
+      const x = W * (0.12 + c * 0.25) + (row - 1) * W * 0.03 * (c - 1.5);
+      const dw = W * 0.14 * s, dh = H * 0.018 * s;
+      shadow(g, x + dw / 2, y + H * 0.05 * s, dw * 0.55, H * 0.006 * s);
+      g.fillStyle = '#6E5236'; g.fillRect(x + dw * 0.08, y, dw * 0.05, H * 0.05 * s); g.fillRect(x + dw * 0.87, y, dw * 0.05, H * 0.05 * s);
+      box(g, x, y - dh, dw, dh, '#D6A66B', { top: dh * 0.9, side: 0 });
+    }
+  }
+};
+
 // The colours to paint beyond the world's edges, for camera pans and whips.
 const EDGE = {
   sky: ['#5FB2EC', '#3F8E3F'], field: ['#5FB2EC', '#3F8E3F'], road: ['#5AAFEA', '#3F8B3B'], rails: ['#4F9BE0', '#8C6544'],
   sea: ['#4FA6E8', '#C48A45'], water: ['#4FA6E8', '#C48A45'], desert: ['#5FA9E4', '#C48A45'], mountains: ['#4C9DE3', '#367F3A'],
   snow: ['#8EC1EA', '#D6E3F0'], forest: ['#8CCB74', '#4E7F33'], city: ['#5AA9E8', '#5D6470'], night: ['#0E1636', '#171A30'],
   space: ['#070A1C', '#6D6F7C'], temple: ['#4FA3E6', '#B69D62'], room: ['#E8D0A2', '#A9784A'], shop: ['#EDDB98', '#C9C6BE'],
-  office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
+  office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], school: ['#E8E2C8', '#B98C5E'], wall: ['#5AA9E6', '#3C8040'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
 };
 export const WORLD_IDS = Object.keys(P);
 
@@ -594,7 +665,7 @@ function still(id, W, H) {
 // ---------- what moves ----------
 function animate(ctx, W, H, id, t) {
   const r = rng(id.length * 131 + 5);
-  const outdoor = !['room', 'shop', 'office', 'lab', 'underwater', 'space', 'night'].includes(id);
+  const outdoor = !['room', 'shop', 'office', 'lab', 'school', 'underwater', 'space', 'night'].includes(id);
   if (outdoor && id !== 'forest') {
     for (let k = 0; k < 3; k++) { const s = W * (0.08 + r() * 0.07), y = H * (0.04 + r() * 0.2), sp = 0.008 + r() * 0.01; const x = (((r() + t * sp) % 1.4) - 0.2) * W; cloud(ctx, x, y, s, 0.95); }
     // A pair of birds crossing now and then.

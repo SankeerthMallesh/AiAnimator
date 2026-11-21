@@ -1,0 +1,31 @@
+{
+  "title": "My Lunchbox Started Talking",
+  "youtubeTitle": "My Lunchbox Started Talking",
+  "description": "A story about the strangest lunch of my life.",
+  "hashtags": ["#shorts", "#story"],
+  "characters": [{ "name": "Me", "look": "a kid with brown hair, a green t-shirt, grey shorts and red sneakers" }],
+  "scenes": [
+    { "narration": "On Monday, my lunchbox started talking to me in the middle of class.", "visual": "me at my desk in a classroom" },
+    { "narration": "At first I thought it was my friend in the next seat playing a joke.", "visual": "me looking at the desk next to me" },
+    { "narration": "But then it said my name, and nobody else could hear it.", "visual": "close-up of me, shocked" },
+    { "narration": "It told me not to eat the sandwich my brother made for me.", "visual": "me holding a sandwich" },
+    { "narration": "I asked why, and it just said trust me.", "visual": "me whispering to the lunchbox" },
+    { "narration": "So at lunch, I gave the sandwich to the class hamster instead.", "visual": "me in the cafeteria with a hamster cage" },
+    { "narration": "The hamster took one bite and fell asleep for three hours.", "visual": "the hamster asleep" },
+    { "narration": "That is when I knew the lunchbox was telling the truth.", "visual": "me staring at the lunchbox" },
+    { "narration": "After school, I ran home to find out what was in that sandwich.", "visual": "me running down the street" },
+    { "narration": "My brother was in the kitchen, laughing with his friends.", "visual": "the kitchen at home" },
+    { "narration": "He had put his sleeping medicine in it so I would miss the big game.", "visual": "a pill bottle on the counter" },
+    { "narration": "The game was tomorrow, and I was the only one who could stop the other team.", "visual": "a football field" },
+    { "narration": "I decided not to say anything and played it cool all night.", "visual": "me at the dinner table" },
+    { "narration": "The next morning, the lunchbox woke me up before my alarm.", "visual": "me in my bedroom at sunrise" },
+    { "narration": "It said my brother had a second plan, and it was worse.", "visual": "me listening to the lunchbox" },
+    { "narration": "He had hidden my football boots somewhere in the house.", "visual": "me searching under the bed" },
+    { "narration": "I searched every room, but they were gone.", "visual": "me in the living room, cushions everywhere" },
+    { "narration": "Then the lunchbox told me to look in the one place he never goes.", "visual": "me looking at the washing machine" },
+    { "narration": "The boots were inside the washing machine, still dry.", "visual": "me holding my boots" },
+    { "narration": "I made it to the game just in time and scored the winning goal.", "visual": "me scoring on the football field" },
+    { "narration": "My brother was so shocked that he told everyone what he had done.", "visual": "my brother in the stands" },
+    { "narration": "And the lunchbox has not said a single word since that day.", "visual": "the lunchbox on my shelf" }
+  ]
+}

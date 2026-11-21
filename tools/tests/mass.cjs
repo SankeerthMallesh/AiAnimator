@@ -31,6 +31,7 @@ const NAMES = [['Maya', 'Leo'], ['Zoe', 'Sam'], ['Ava', 'Kai'], ['Nia', 'Omar'],
 const ICONS = ['🚢', '🍞', '🚀', '🐱', '🌋', '🧱', '☀️', '🐧', '✈️', '💧', '🍂', '🏜️'];
 
 function scriptFor(seed, section) {
+  if (process.env.SCRIPT) return JSON.parse(fs.readFileSync(path.resolve(__dirname, process.env.SCRIPT), 'utf8'));
   const r = rng(seed + 7), t = TOPICS[seed % TOPICS.length];
   const take = Math.max(5, t[2].length - Math.floor(r() * 3));
   const [a, b] = NAMES[seed % NAMES.length];
@@ -53,20 +54,33 @@ for (const [i, src] of ['mandelbrot=s=768x1344', 'testsrc2=s=768x1344', 'cellaut
   PICS.push(out);
 }
 
-// ---------- the whole-script voice: the fixture read once per line, cut points between ----------
+// ---------- the stand-in voice ----------
+// The fixture read looped and cut so each line lasts as long as its words take at 190 words a
+// minute: lengths and pacing like a real narrator (the sound itself is the same clip throughout).
 const PCM = fs.readFileSync(path.join(DIR, 'speech.pcm'));
-function wholeRead(n) {
-  const gap = Buffer.alloc(24000 * 2 * 0.2);
-  const parts = [], cuts = []; let t = 0;
-  for (let i = 0; i < n; i++) {
-    parts.push(PCM); t += PCM.length / 48000;
-    if (i < n - 1) { parts.push(gap); cuts.push(+(t + 0.1).toFixed(3)); t += 0.2; }
-  }
-  const data = Buffer.concat(parts), h = Buffer.alloc(44);
+const WPM = 190;
+function speechPcm(text) {
+  const words = String(text || '').split(/\s+/).filter(Boolean).length || 1;
+  const bytes = Math.round(words * 60 / WPM * 24000) * 2;
+  const out = Buffer.alloc(bytes);
+  for (let o = 0; o < bytes; o += PCM.length) PCM.copy(out, o, 0, Math.min(PCM.length, bytes - o));
+  return out;
+}
+function wav(data) {
+  const h = Buffer.alloc(44);
   h.write('RIFF', 0); h.writeUInt32LE(36 + data.length, 4); h.write('WAVE', 8); h.write('fmt ', 12); h.writeUInt32LE(16, 16);
   h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(24000, 24); h.writeUInt32LE(48000, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34);
   h.write('data', 36); h.writeUInt32LE(data.length, 40);
-  return { body: Buffer.concat([h, data]), cuts };
+  return Buffer.concat([h, data]);
+}
+function wholeRead(lines) {
+  const gap = Buffer.alloc(24000 * 2 * 0.2);
+  const parts = [], cuts = []; let t = 0;
+  lines.forEach((line, i) => {
+    const p = speechPcm(line); parts.push(p); t += p.length / 48000;
+    if (i < lines.length - 1) { parts.push(gap); cuts.push(+(t + 0.1).toFixed(3)); t += 0.2; }
+  });
+  return { body: wav(Buffer.concat(parts)), cuts };
 }
 
 // ---------- Clips sources in many formats ----------
@@ -138,20 +152,21 @@ async function run(browser, n) {
   const errs = [], calls = {};
   const script = scriptFor(n, section);
   const picsFail = section !== 'clip' && (!!process.env.NOPICS || r() < 0.2);      // one run in five: the picture service is out
-  const voiceMode = pick(['whole', 'whole', 'whole', 'lines']); // whole-script read or one line at a time
+  const voiceMode = process.env.VOICE || pick(['whole', 'whole', 'whole', 'lines']); // whole-script read or one line at a time
   let pi = Math.floor(r() * PICS.length);
   await ctx.route('**/api/**', async (route) => {
     const req = route.request(); const p = new URL(req.url()).pathname.replace(/^.*\/api\//, '');
     calls[p] = (calls[p] || 0) + 1;
     if (p === 'config') return route.fulfill({ json: { googleClientId: null, sync: false, ai: true, writer: 'groq', voice: 'gemini' } });
     if (p === 'me') return route.fulfill({ json: { user: null } });
-    if (p === 'image') return picsFail ? route.fulfill({ status: 503, json: { ok: false, error: 'busy' } }) : route.fulfill({ status: 200, contentType: 'image/jpeg', body: fs.readFileSync(PICS[pi++ % PICS.length]) });
+    // No pictures: answer exactly as the live server does when the daily allowance is used up.
+    if (p === 'image') return picsFail ? route.fulfill({ status: 200, json: { ok: false, used: true, error: 'The free daily picture allowance is used up.' } }) : route.fulfill({ status: 200, contentType: 'image/jpeg', body: fs.readFileSync(PICS[pi++ % PICS.length]) });
     if (p === 'speakall') {
       if (voiceMode !== 'whole') return route.fulfill({ status: 503, json: { ok: false } });
-      const body = JSON.parse(req.postData() || '{}'); const w = wholeRead(body.lines.length);
-      return route.fulfill({ status: 200, contentType: 'audio/wav', headers: { 'X-Loomy-Cuts': JSON.stringify(w.cuts), 'X-Loomy-Wpm': '160', 'X-Loomy-Voice': 'gemini', 'Access-Control-Expose-Headers': '*' }, body: w.body });
+      const body = JSON.parse(req.postData() || '{}'); const w = wholeRead(body.lines);
+      return route.fulfill({ status: 200, contentType: 'audio/wav', headers: { 'X-Loomy-Cuts': JSON.stringify(w.cuts), 'X-Loomy-Wpm': String(WPM), 'X-Loomy-Voice': 'gemini', 'Access-Control-Expose-Headers': '*' }, body: w.body });
     }
-    if (p === 'speak') return route.fulfill({ status: 200, contentType: 'audio/mpeg', body: fs.readFileSync(path.join(__dirname, 'speech.mp3')) });
+    if (p === 'speak') { const body = JSON.parse(req.postData() || '{}'); return route.fulfill({ status: 200, contentType: 'audio/wav', body: wav(speechPcm(body.text)) }); }
     if (p === 'write') {
       const body = JSON.parse(req.postData() || '{}'); const sys = JSON.stringify(body.messages || '');
       if (section === 'clip') {
@@ -213,10 +228,12 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       const set = { quality: pick(['720', '1080', '1080', '1080', '1440']), fps: pick(['24', '30', '30', '60']), captionStyle: pick(['word', 'classic', 'bold', 'box', 'minimal', 'off']),
         bgLook: pick(['3d', '3d', 'flat']), stickers: r() < 0.15, showTitle: r() < 0.3, factCheck: r() < 0.8, settingsVersion: section === 'cartoon' ? 10 : 7 };
       if (set.quality === '1440' && set.fps === '60') set.fps = '30';
+      // Proof renders: the app's defaults at 1080x1920, 30 fps (only the picture service may be off).
+      if (process.env.FIXED) Object.assign(set, { quality: '1080', fps: '30', captionStyle: section === 'cartoon' ? 'word' : 'classic', bgLook: '3d', stickers: false, showTitle: false, factCheck: true });
       await p.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, [section === 'cartoon' ? 'storyforge.settings.v1' : 'explainer.settings.v1', JSON.stringify(set)]);
       await p.goto('http://127.0.0.1:8773' + url); await p.waitForTimeout(800);
       const choices = { ...set };
-      for (const id of ['duration', 'pace', 'voice', 'mood']) {
+      for (const id of process.env.FIXED ? [] : ['duration', 'pace', 'voice', 'mood']) {
         const vals = await p.$$eval(`#${id} option`, l => l.map(o => o.value)).catch(() => []);
         if (!vals.length) continue;
         const v = pick(vals);
