@@ -266,6 +266,16 @@ async function write(request, env) {
     if (res.ok && part) return json({ ok: true, ms: Date.now() - t0, type: part.inlineData.mimeType, bytes: Math.round(part.inlineData.data.length * 0.75), data: body.full ? part.inlineData.data : undefined });
     return json({ ok: false, ms: Date.now() - t0, status: res.status, body: JSON.stringify(j.error || j).slice(0, 400) });
   }
+  // Diagnostics: one Cloudflare picture model once ({only: "img:cf:@cf/<vendor>/<model>"}).
+  if (typeof body.only === 'string' && /^img:cf:@cf\/[a-z0-9.\-]+\/[a-z0-9.\-]+$/.test(body.only)) {
+    const model = body.only.slice(7), t0 = Date.now();
+    try {
+      const out = await env.AI.run(model, { prompt: body.text || 'stylized 3D cartoon rocket launching at sunrise, vivid colors', steps: Number(body.steps) || 4, width: 768, height: 1344, num_steps: Number(body.steps) || 4 });
+      const isStream = out && typeof out.getReader === 'function';
+      const bytes = isStream ? (await new Response(out).arrayBuffer()).byteLength : out?.image ? Math.round(out.image.length * 0.75) : 0;
+      return json({ ok: bytes > 0, model, ms: Date.now() - t0, bytes });
+    } catch (e) { return json({ ok: false, model, ms: Date.now() - t0, error: String(e?.message || e).slice(0, 300) }); }
+  }
   // Diagnostics: which models the stored keys can use (names only).
   if (body.only === 'models') {
     const out = {};
