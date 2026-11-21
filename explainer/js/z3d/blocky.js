@@ -213,7 +213,7 @@ export function makeWorld(kind = 'town', seed = 7) {
   const tileA = texMat(snow ? '#f2f6fb' : '#5cbd47', { marks: snow ? null : grassMarks, spots: 1200, spread: 0.06, seed: 21 }, 1);
   const tileB = texMat(snow ? '#e6edf6' : '#55b142', { marks: snow ? null : grassMarks, spots: 1200, spread: 0.06, seed: 22 }, 1);
   for (let i = -10; i < 10; i++) for (let j = -14; j < 6; j++) add(box(T - 0.04, 0.4, T - 0.04, 0.03), (i + j) % 2 ? tileA : tileB, i * T + T / 2, -0.2, j * T + T / 2);
-  const pathM = texMat(kind === 'school' ? '#9a9ea6' : '#cdb78d', { marks: pathMarks, spots: 800, spread: 0.05, seed: 23 }, 1);
+  const pathM = texMat(kind === 'school' ? '#9a9ea6' : snow ? '#d7e0e9' : '#cdb78d', { marks: pathMarks, spots: 800, spread: 0.05, seed: 23 }, 1);
   pathM.map.repeat.set(1, 16);
   add(new THREE.BoxGeometry(3.2, 0.42, 64), pathM, 0, -0.19, -8);
   // Distant hills ring the world, so no shot sees the edge.
@@ -279,4 +279,4 @@ export function makeWorld(kind = 'town', seed = 7) {
   return g;
 }
 
-export { U as BLOCK };
+export { U as BLOCK, box as roundBox, texMat as paintedMat, mat as plainMat };
