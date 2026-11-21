@@ -21,6 +21,21 @@ work if this one runs out of usage. Everything named here is committed in this r
 > by following "Deploying to Loomy" in HANDOFF.md (stamp versions, test, push to `main`, then confirm
 > the new version stamp on https://loomy-app.pages.dev), and tell the user when it is live.
 
+## Keep-going prompt (paste after the master prompt, for hands-off work)
+
+> Work on your own without waiting for me. Right after you read HANDOFF.md, set up a check-in
+> for yourself: use the scheduled-task tools (`create_trigger`, bound to this same session,
+> recurring every 2 hours, written in EST with CRON_TZ=America/New_York) with the prompt "Continue
+> the Loomy work from HANDOFF.md where you left off: check background renders and tests, do the
+> next step, commit, deploy if it is finished, and send me a short update with images or clips."
+> Tell me once that it is set up. On every check-in: carry on with the next unfinished step, send
+> me finished files with SendUserFile (status "proactive" so it reaches my phone) and a 2-3 line
+> update in EST. If you hit a usage limit or a long render, schedule a one-time wake-up with
+> `send_later` for when it should be done and stop for now; when you wake, pick up from the
+> repo and HANDOFF.md (update HANDOFF.md as you finish steps so any session can resume). Keep
+> long renders in background jobs and resume them, never restart finished pieces. When all the
+> remaining work is done and live, delete your scheduled tasks and send me a final summary.
+
 ## What the user wants
 
 "Make sure my tool does this": Loomy itself should make videos like the three films below, from a
