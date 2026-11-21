@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy 3D poses test</title>
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/addons/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<canvas id="view" width="1080" height="1920"></canvas>
+<script type="module">
+// Test page for explainer/js/z3d/people.js. Models are read from ./models/ (git-ignored here).
+//   window.posed(person, pose, t, framing)  framing: 'full' | 'waist' | 'face'
+//   window.lineup()                         the whole cast standing side by side
+import * as THREE from 'three';
+import { createEngine } from '../../../explainer/js/z3d/engine.js';
+import { loadPerson, POSES, talking, walking, CAST } from '../../../explainer/js/z3d/people.js';
+// The cast is read from explainer/people/ (setPeopleBase can point elsewhere).
+const view = document.getElementById('view'), g = view.getContext('2d');
+const engine = createEngine({ width: 1080, height: 1920 });
+const people = new Map();
+const get = async (id) => { if (!people.has(id)) people.set(id, await loadPerson(id)); return people.get(id); };
+const FRAMES = {
+  full: { pos: [1.2, 1.2, 4.6], look: [0, 0.95, 0] },
+  waist: { pos: [0.45, 1.45, 2.0], look: [0, 1.25, 0], dof: { focus: 2.0, aperture: 0.001, maxblur: 0.005 } },
+  face: { pos: [0.12, 1.64, 0.95], look: [0, 1.6, 0], dof: { focus: 0.95, aperture: 0.002, maxblur: 0.006 } },
+};
+function render(build) {
+  engine.setEdit({ shots: [{ start: 0, end: 1, build }] });
+  engine.renderAt(0.5);
+  g.drawImage(engine.canvas, 0, 0, 1080, 1920);
+}
+window.posed = async (id, name, t = 0.6, framing = 'full') => {
+  const p = await get(id);
+  let pose = name === 'walk' ? walking(t) : POSES[name];
+  if (name === 'talk') pose = talking(pose, t);
+  p.pose(pose, t, { blinks: false });
+  const f = FRAMES[framing];
+  render(({ makeStage }) => {
+    const scene = makeStage({ shadowSize: 3 }); scene.add(p.object);
+    const camera = new THREE.PerspectiveCamera(34, 9 / 16, 0.05, 200);
+    const h = p.info.height / 1.8;
+    camera.position.set(f.pos[0], f.pos[1] * h, f.pos[2]); camera.lookAt(f.look[0], f.look[1] * h, f.look[2]);
+    return { scene, camera, update: () => ({ dof: f.dof, bloom: 0.25 }) };
+  });
+};
+window.lineup = async () => {
+  const ids = Object.keys(CAST), ps = [];
+  for (const id of ids) ps.push(await get(id));
+  render(({ makeStage }) => {
+    const scene = makeStage({ shadowSize: 6 });
+    ps.forEach((p, i) => { p.pose(POSES.stand, 0.3 + i, { blinks: false }); p.object.position.set((i - (ps.length - 1) / 2) * 0.75, 0, -Math.abs(i - 2.5) * 0.15); scene.add(p.object); });
+    const camera = new THREE.PerspectiveCamera(34, 9 / 16, 0.05, 200);
+    camera.position.set(0, 1.4, 13.5); camera.lookAt(0, 0.95, 0);
+    return { scene, camera, update: () => ({ bloom: 0.2 }) };
+  });
+};
+window.ready = true;
+</script>
+</body>
+</html>

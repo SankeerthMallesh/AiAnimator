@@ -69,7 +69,7 @@ function relax(root) {
 }
 
 const SHOTS = [
-  { pos: [0.25, 1.66, 0.62], look: [0, 1.62, 0], fov: 34, dof: { focus: 0.66, aperture: 0.0025, maxblur: 0.008 } },
+  { pos: [0.12, 1.66, 0.95], look: [0, 1.6, 0], fov: 34, dof: { focus: 0.66, aperture: 0.0025, maxblur: 0.008 } },
   { pos: [0.5, 1.4, 1.75], look: [0, 1.3, 0], fov: 34, dof: { focus: 1.8, aperture: 0.0012, maxblur: 0.006 } },
   { pos: [0.9, 1.15, 4.4], look: [0, 0.95, 0], fov: 34 },
 ];
@@ -89,6 +89,21 @@ window.still = async (n = 0, file = 'eric.glb') => {
   engine.renderAt(0.5);
   g.drawImage(engine.canvas, 0, 0, 1080, 1920);
   return Math.round(performance.now() - t0);
+};
+// For tuning: still with a tweak applied to the person (fnSrc gets root, THREE, bone).
+window.stillWith = async (n, file, fnSrc) => {
+  const fn = new Function('root', 'THREE', 'bone', fnSrc);
+  const p = await person(file);
+  relax(p); fn(p, THREE, (re) => bone(p, re));
+  const s = SHOTS[n];
+  engine.setEdit({ shots: [{ start: 0, end: 1, build: ({ makeStage }) => {
+    const scene = makeStage({ shadowSize: 3 }); scene.add(p);
+    const camera = new THREE.PerspectiveCamera(s.fov, 9 / 16, 0.05, 200);
+    camera.position.set(...s.pos); camera.lookAt(...s.look);
+    return { scene, camera, update: () => ({ dof: s.dof, bloom: 0.25 }) };
+  } }] });
+  engine.renderAt(0.5);
+  g.drawImage(engine.canvas, 0, 0, 1080, 1920);
 };
 window.ready = true;
 document.getElementById('status').textContent = 'Ready';
