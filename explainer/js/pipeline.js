@@ -407,7 +407,8 @@ export class Pipeline {
     const scenes = p.script.scenes;
     m.script = { title: p.script.title, lines: scenes.map(s => s.narration), characters: (p.script.characters || []).map(c => ({ id: c.id || c.name, description: c.look || '' })) };
     const v = voiceReport(scenes.map(s => s.narration));
-    const words = scenes.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0);
+    // Words per minute counts what the narrator said (numbers spelled out), not the written words.
+    const words = v.spoken.reduce((n, l) => n + String(l || '').split(/\s+/).filter(Boolean).length, 0);
     const talk = p.timeline.scenes.reduce((n, s) => n + (s.voice ? s.voice.samples.length / s.voice.sampleRate : 0), 0);
     m.voice = { engine: v.engine, maxPlaybackRate: v.maxRate, wordsSpoken: words, wpm: talk ? Math.round(words / talk * 60) : 0, spokenText: v.spoken };
     const a = measureAudio(p.audio);

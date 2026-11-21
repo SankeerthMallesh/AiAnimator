@@ -20,7 +20,8 @@ export function buildTimeline(scenes, voices, { endPad = 0.9, wps = WPS } = {}) 
     if (v && v.samples?.length) {
       const b = speechBounds(v.samples, v.sampleRate);
       dur = lead + b.end + 0.2;
-      words = alignWords(narration, v.samples, v.sampleRate, lead, v.sentences);
+      // Heard word times (whole-script read) when there are any; otherwise spread by the voice's shape.
+      words = v.words?.length ? v.words.map(w => ({ ...w, start: lead + w.start, end: lead + w.end })) : alignWords(narration, v.samples, v.sampleRate, lead, v.sentences);
       if (!v.env) v.env = voiceEnvelope(v.samples, v.sampleRate);
     } else {
       const n = narration.split(/\s+/).filter(Boolean).length;

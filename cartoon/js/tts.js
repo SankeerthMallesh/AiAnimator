@@ -1,3 +1,5 @@
+import { speakable, sayNumbers, mapToWritten } from '../../shared/speech.js';
+export { sayNumbers, mapToWritten };
 import { voiceChoice } from './router.js';
 // Narration: Kokoro (free, runs in the browser) with a cloud fallback and a silent mode.
 import { fetchTimeout } from './net.js';
@@ -73,8 +75,8 @@ export class Narrator {
           // A touch quicker than the model's default (it reads like an audiobook), with lift on
           // exclamations and questions, so the narrator sounds awake and interested.
           const vary = 1.06 + (wobble(part, 7) - 0.5) * 0.06 + (/!/.test(part) ? 0.04 : /\?/.test(part) ? 0.02 : 0);
-          const d = await this._call({ type: 'speak', text: speakable(part), voice: s.voice, speed: Math.max(0.6, Math.min(1.6, speed * vary)) });
-          noteVoice('kokoro', Math.max(0.6, Math.min(1.6, speed * vary)), null, null);
+          const d = await this._call({ type: 'speak', text: speakable(part), voice: s.voice, speed: capRate(speed * vary) });
+          noteVoice('kokoro', capRate(speed * vary), null, null);
           sampleRate = d.sampleRate;
           pieces.push({ text: part, samples: trimmed(d) });
         }
@@ -150,7 +152,7 @@ async function elevenSpeak(text, s, speedMul) {
     body: JSON.stringify({
       text: speakable(text),
       model_id: s.elevenModel || 'eleven_multilingual_v2',
-      voice_settings: { stability: 0.38, similarity_boost: 0.8, style: 0.4, speed: Math.max(0.7, Math.min(1.2, (Number(s.voiceSpeed) || 1) * speedMul)) },
+      voice_settings: { stability: 0.38, similarity_boost: 0.8, style: 0.4, speed: capRate((Number(s.voiceSpeed) || 1) * speedMul) },
     }),
   }, 40000, 'arrayBuffer');
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -160,14 +162,6 @@ async function elevenSpeak(text, s, speedMul) {
 }
 
 // Small text cleanups that make TTS read naturally.
-function speakable(text) {
-  return sayNumbers(text)
-    .replace(/\bB\.C\.(?=\s|$)/g, 'B.C.')
-    .replace(/\bvs\.?\b/gi, 'versus')
-    .replace(/&/g, ' and ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 async function cloudSpeak(text, s) {
   const voice = /^(onyx|echo|fable|alloy|nova|shimmer)$/.test(s.cloudVoice || '') ? s.cloudVoice : 'onyx';
@@ -422,7 +416,8 @@ function joinPhrases(pieces, sampleRate) {
   });
   return { samples, sentences };
 }
-function trimmed(d) {
+function trimmed(d) { return trimmedAt(d).samples; }
+function trimmedAt(d) {
   const b = speechBounds(d.samples, d.sampleRate);
   const pad = Math.round(d.sampleRate * 0.05);
   const a0 = Math.max(0, Math.round(b.start * d.sampleRate) - pad);
@@ -431,51 +426,9 @@ function trimmed(d) {
   // 8 ms fades at both ends, so a cut between lines can never click.
   const f = Math.min(Math.round(d.sampleRate * 0.008), out.length >> 2);
   for (let i = 0; i < f; i++) { const k = i / f; out[i] *= k; out[out.length - 1 - i] *= k; }
-  return out;
+  return { samples: out, a0 };
 }
 
-// ---------- Say numbers and units the way people do ----------
-// "1 1/2 cups" -> "one and a half cups", "3/4" -> "three quarters", "5 km" -> "5 kilometers".
-// Only the voice hears this; captions keep the written text.
-const FRAC = { '1/2': ['a half', 'half'], '1/3': ['a third', 'one third'], '2/3': ['two thirds', 'two thirds'], '1/4': ['a quarter', 'one quarter'], '3/4': ['three quarters', 'three quarters'], '1/8': ['an eighth', 'one eighth'], '3/8': ['three eighths', 'three eighths'], '1/10': ['a tenth', 'one tenth'] };
-const UFRAC = { '½': '1/2', '⅓': '1/3', '⅔': '2/3', '¼': '1/4', '¾': '3/4', '⅛': '1/8', '⅜': '3/8', '⅒': '1/10' };
-const ORD = { 2: 'half', 3: 'third', 4: 'quarter', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth', 12: 'twelfth', 16: 'sixteenth', 100: 'hundredth' };
-function fracWords(a, b, mixed) {
-  const f = FRAC[`${a}/${b}`];
-  if (f) return mixed ? f[0] : f[1];
-  const o = ORD[+b];
-  return o ? `${a} ${o}${+a === 1 ? '' : 's'}` : `${a} over ${b}`;
-}
-const UNITS = [
-  ['km/h', 'kilometers per hour', 'kilometer per hour'], ['kph', 'kilometers per hour', 'kilometer per hour'], ['mph', 'miles per hour', 'mile per hour'],
-  ['km²', 'square kilometers', 'square kilometer'], ['m²', 'square meters', 'square meter'], ['km', 'kilometers', 'kilometer'], ['cm', 'centimeters', 'centimeter'],
-  ['mm', 'millimeters', 'millimeter'], ['m', 'meters', 'meter'], ['mi', 'miles', 'mile'], ['ft', 'feet', 'foot'], ['yd', 'yards', 'yard'],
-  ['kg', 'kilograms', 'kilogram'], ['mg', 'milligrams', 'milligram'], ['g', 'grams', 'gram'], ['lbs', 'pounds', 'pound'], ['lb', 'pounds', 'pound'], ['oz', 'ounces', 'ounce'],
-  ['mL', 'milliliters', 'milliliter'], ['ml', 'milliliters', 'milliliter'], ['L', 'liters', 'liter'], ['l', 'liters', 'liter'], ['gal', 'gallons', 'gallon'],
-  ['hrs', 'hours', 'hour'], ['hr', 'hours', 'hour'], ['mins', 'minutes', 'minute'], ['min', 'minutes', 'minute'], ['sec', 'seconds', 'second'], ['ms', 'milliseconds', 'millisecond'],
-  ['°F', 'degrees Fahrenheit', 'degree Fahrenheit'], ['°C', 'degrees Celsius', 'degree Celsius'], ['°', 'degrees', 'degree'], ['%', 'percent', 'percent'],
-  ['kWh', 'kilowatt hours', 'kilowatt hour'], ['kW', 'kilowatts', 'kilowatt'], ['W', 'watts', 'watt'], ['V', 'volts', 'volt'], ['GB', 'gigabytes', 'gigabyte'], ['MB', 'megabytes', 'megabyte'],
-];
-const esc = (x) => x.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-const UNIT_RE = new RegExp(`(\\d[\\d,]*(?:\\.\\d+)?)\\s?(${UNITS.map(u => esc(u[0])).join('|')})(?![\\w²])`, 'g');
-export function sayNumbers(text) {
-  let t = String(text || '');
-  // Money first ("$1.5 billion" -> "1.5 billion dollars"), then units on plain numbers, then fractions.
-  t = t.replace(/\$\s?(\d[\d,]*(?:\.\d+)?)(\s?(?:thousand|million|billion|trillion|[kKmMbB]\b))?/g, (_, n, big) => {
-    const scale = (big || '').trim(); const word = { k: 'thousand', K: 'thousand', m: 'million', M: 'million', b: 'billion', B: 'billion' }[scale] || scale;
-    return `${n}${word ? ` ${word}` : ''} ${n === '1' && !word ? 'dollar' : 'dollars'}`;
-  });
-  t = t.replace(UNIT_RE, (_, n, u) => { const unit = UNITS.find(x => x[0] === u); return `${n} ${n === '1' ? unit[2] : unit[1]}`; });
-  t = t.replace(/(\d)\s?([½⅓⅔¼¾⅛⅜⅒])/g, (_, n, f) => `${n} ${UFRAC[f]}`).replace(/[½⅓⅔¼¾⅛⅜⅒]/g, (f) => UFRAC[f]);
-  const isFrac = (a, b) => +a < +b && (FRAC[`${a}/${b}`] || ORD[+b]);
-  t = t.replace(/\b(\d+)\s+(\d{1,2})\/(\d{1,3})\b/g, (m, n, a, b) => (isFrac(a, b) ? `${n} and ${fracWords(a, b, true)}` : m));
-  // A lone fraction, but not a date (2/29, 9/11) or 24/7.
-  t = t.replace(/(^|[^\d/])(\d{1,2})\/(\d{1,3})(?![\d/])/g, (m, pre, a, b) => (isFrac(a, b) && !(+b > 12 && !FRAC[`${a}/${b}`]) && !(/^(9\/11|24\/7)$/.test(`${a}/${b}`)) ? `${pre}${fracWords(a, b, false)}` : m));
-  t = t.replace(/\b(\d+)\.5\b(?!\d)/g, '$1 and a half');
-  t = t.replace(/\b(\d+)x\b/g, '$1 times');
-  t = t.replace(/~\s?(?=\d)/g, 'about ').replace(/≈\s?/g, 'about ').replace(/(\d)\s?[x×]\s?(\d)/g, '$1 by $2');
-  return t;
-}
 
 // ---------- Whole-script read ----------
 // One request reads every line in one go (one voice, natural flow, far less of the daily
@@ -483,7 +436,9 @@ export function sayNumbers(text) {
 export async function speakAllLines(lines, voice) {
   if (!(await auraReady()) || !Array.isArray(lines) || lines.length < 2) return null;
   try {
-    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines, speaker: auraSpeaker(voice) }) });
+    // The narrator reads the spoken form ("1 and a half cups"); captions keep the written lines.
+    const spoken = lines.map(speakable);
+    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: spoken, speaker: auraSpeaker(voice) }) });
     if (!/^audio\//.test(res.headers.get('Content-Type') || '')) return null;
     const cuts = JSON.parse(res.headers.get('X-Loomy-Cuts') || '[]');
     if (cuts.length !== lines.length - 1) return null;
@@ -492,21 +447,33 @@ export async function speakAllLines(lines, voice) {
     // Faster, Shorts-style pace without a pitch change; the cut times scale with it.
     // Bring this read to the target pace, whatever model read it (each talks at its own speed).
     const wpm = Number(res.headers.get('X-Loomy-Wpm')) || 165;
-    lastStretch = Math.max(1, Math.min(1.35, TARGET_WPM / wpm));
+    lastStretch = Math.max(1, Math.min(MAX_RATE, TARGET_WPM / wpm));
     const all = timeStretch(audio.getChannelData(0), sr, lastStretch);
     const k = all.length / audio.length;
     const bounds = [0, ...cuts.map(c => Math.round(c * sr * k)), all.length];
+    // The words the recogniser heard, per line, timed in the read (before speed-up).
+    let heard = null;
+    try { heard = JSON.parse(res.headers.get('X-Loomy-Words') || 'null'); } catch { heard = null; }
     const out = new Map();
     lines.forEach((line, i) => {
       const slice = all.slice(bounds[i], bounds[i + 1]);
       if (slice.length < sr * 0.3) return;
-      const samples = trimmed({ samples: slice, sampleRate: sr });
+      const cut = trimmedAt({ samples: slice, sampleRate: sr });
+      const samples = cut.samples;
       const b = speechBounds(samples, sr);
-      out.set(line, { samples, sampleRate: sr, sentences: [{ text: line, start: b.start, end: b.end }], engine: 'aura' });
+      // Caption timing: the heard words moved into this slice's own time, mapped onto the written
+      // words ("1/2" takes the time of "and a half").
+      let words = null;
+      if (Array.isArray(heard?.[i]) && heard[i].length) {
+        const off = bounds[i] / sr + cut.a0 / sr;
+        const sp = heard[i].map(([s0, e0, w]) => ({ w, s: Math.max(0, s0 * k - off), e: Math.max(0, e0 * k - off) }));
+        words = mapToWritten(line, sp).map(x => ({ text: x.w, start: x.s, end: Math.max(x.s + 0.05, x.e) }));
+      }
+      out.set(line, { samples, sampleRate: sr, sentences: [{ text: line, start: b.start, end: b.end }], engine: 'aura', words });
     });
     if (out.size < lines.length * 0.8) return null;
     serverVoice = res.headers.get('X-Loomy-Voice') || 'gemini';
-    for (const line of out.keys()) noteVoice(serverVoice === 'gemini' ? 'gemini' : serverVoice, lastStretch, line, line);
+    lines.forEach((line, i) => { if (out.has(line)) noteVoice(serverVoice === 'gemini' ? 'gemini' : serverVoice, lastStretch, line, spoken[i]); });
     auraHits++;
     return out;
   } catch { return null; }
@@ -561,3 +528,7 @@ export function voiceReport(lines = []) {
   return { engine: [...vrep.engines].join('+') || 'none', maxRate: vrep.maxRate, spoken: lines.map(l => vrep.sent.get(l) ?? l) };
 }
 const TARGET_WPM = 195; // the pace of popular narrated Shorts (the reference videos measure 196)
+// Never speed a voice up more than this, or slow it below MIN_RATE: past 1.15 a sped-up read starts
+// to sound processed. A line too long for its slot is a script to shorten, not a voice to rush.
+export const MAX_RATE = 1.15, MIN_RATE = 0.9;
+const capRate = (r) => Math.max(MIN_RATE, Math.min(MAX_RATE, r));

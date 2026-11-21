@@ -75,12 +75,16 @@ function wav(data) {
 }
 function wholeRead(lines) {
   const gap = Buffer.alloc(24000 * 2 * 0.2);
-  const parts = [], cuts = []; let t = 0;
+  const parts = [], cuts = [], heard = []; let t = 0;
   lines.forEach((line, i) => {
-    const p = speechPcm(line); parts.push(p); t += p.length / 48000;
+    const p = speechPcm(line); parts.push(p);
+    // What a recogniser would hear: the spoken words, evenly through the line.
+    const ws = String(line).split(/\s+/).filter(Boolean), d = p.length / 48000;
+    heard.push(ws.map((w, k) => [+(t + (k / ws.length) * d).toFixed(2), +(t + ((k + 0.85) / ws.length) * d).toFixed(2), w]));
+    t += d;
     if (i < lines.length - 1) { parts.push(gap); cuts.push(+(t + 0.1).toFixed(3)); t += 0.2; }
   });
-  return { body: wav(Buffer.concat(parts)), cuts };
+  return { body: wav(Buffer.concat(parts)), cuts, heard };
 }
 
 // ---------- Clips sources in many formats ----------
@@ -164,7 +168,7 @@ async function run(browser, n) {
     if (p === 'speakall') {
       if (voiceMode !== 'whole') return route.fulfill({ status: 503, json: { ok: false } });
       const body = JSON.parse(req.postData() || '{}'); const w = wholeRead(body.lines);
-      return route.fulfill({ status: 200, contentType: 'audio/wav', headers: { 'X-Loomy-Cuts': JSON.stringify(w.cuts), 'X-Loomy-Wpm': String(WPM), 'X-Loomy-Voice': 'gemini', 'Access-Control-Expose-Headers': '*' }, body: w.body });
+      return route.fulfill({ status: 200, contentType: 'audio/wav', headers: { 'X-Loomy-Cuts': JSON.stringify(w.cuts), 'X-Loomy-Wpm': String(WPM), 'X-Loomy-Voice': 'gemini', 'X-Loomy-Words': JSON.stringify(w.heard), 'Access-Control-Expose-Headers': '*' }, body: w.body });
     }
     if (p === 'speak') { const body = JSON.parse(req.postData() || '{}'); return route.fulfill({ status: 200, contentType: 'audio/wav', body: wav(speechPcm(body.text)) }); }
     if (p === 'write') {

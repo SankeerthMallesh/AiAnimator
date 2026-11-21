@@ -17,7 +17,7 @@ export function buildTimeline(scenes, voices, { endPad = 0.9, wps = WPS } = {}) 
     if (v && v.samples?.length) {
       const b = speechBounds(v.samples, v.sampleRate);
       dur = lead + b.end + 0.16;
-      words = wordTimings(scene.narration, lead + b.start, lead + b.end);
+      words = v.words?.length ? v.words.map(w => ({ ...w, start: lead + w.start, end: lead + w.end })) : wordTimings(scene.narration, lead + b.start, lead + b.end);
     } else {
       const n = scene.narration.split(/\s+/).filter(Boolean).length;
       const speak = n / wps;

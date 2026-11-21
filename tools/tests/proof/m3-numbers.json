@@ -1,0 +1,16 @@
+{
+  "title": "Why Pancakes Puff Up",
+  "youtubeTitle": "Why Pancakes Puff Up",
+  "description": "The science of a fluffy pancake.",
+  "hashtags": ["#shorts"],
+  "cast": [{ "id": "a", "name": "Maya", "color": "#E8A33D", "hat": "cap", "hair": "curly", "costume": "shirt" }, { "id": "b", "name": "Leo", "color": "#3E8FE0", "hat": "none", "hair": "short", "costume": "shirt" }],
+  "scenes": [
+    { "line": "Maya wants the fluffiest pancakes in town.", "set": "kitchen", "say": "a", "who": [{ "id": "a", "x": 0.3, "pose": "point" }, { "id": "b", "x": 0.7, "pose": "idle" }] },
+    { "line": "She starts with 1 1/2 cups of flour.", "set": "kitchen", "say": "a", "who": [{ "id": "a", "x": 0.3, "pose": "idle" }, { "id": "b", "x": 0.7, "pose": "idle" }] },
+    { "line": "The baking powder cost her $3.99 at the corner shop.", "set": "shop", "say": "b", "who": [{ "id": "a", "x": 0.3, "pose": "idle" }, { "id": "b", "x": 0.7, "pose": "point" }] },
+    { "line": "Heat the pan to about 375°F, and pour 1/4 cup of batter.", "set": "kitchen", "say": "a", "who": [{ "id": "a", "x": 0.3, "pose": "point" }, { "id": "b", "x": 0.7, "pose": "idle" }] },
+    { "line": "Bubbles of gas lift the batter by 3/16 inch.", "set": "lab", "say": "b", "who": [{ "id": "a", "x": 0.3, "pose": "idle" }, { "id": "b", "x": 0.7, "pose": "point" }] },
+    { "line": "Flip it when the edges look dry.", "set": "kitchen", "say": "a", "who": [{ "id": "a", "x": 0.3, "pose": "point" }, { "id": "b", "x": 0.7, "pose": "idle" }] },
+    { "line": "That is how Maya got a stack 5 inches tall.", "set": "kitchen", "say": "b", "who": [{ "id": "a", "x": 0.3, "pose": "cheer" }, { "id": "b", "x": 0.7, "pose": "idle" }] }
+  ]
+}
