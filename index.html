@@ -29,7 +29,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .brand small { font: 500 13.5px "Inter", sans-serif; color: var(--muted); letter-spacing: 0; padding-left: 12px; margin-left: 2px; border-left: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; }
 .tabs { display: flex; gap: 8px; }
 .tab { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--pill-line); background: var(--pill); color: var(--ink); font: 500 14px/1 "Inter", sans-serif;
-  padding: 9px 16px; border-radius: 999px; cursor: pointer; min-height: 40px; transition: background .15s, border-color .15s, color .15s; }
+  padding: 9px 16px; border-radius: 999px; cursor: pointer; min-height: 44px; transition: background .15s, border-color .15s, color .15s; }
 .tab svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .tab { color: #D4D4D4; }
 .tab:hover { border-color: #4A4A4A; background: rgba(255,255,255,.05); color: #fff; }
@@ -69,13 +69,16 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
   .brand span { display: none; }
   .tabs { gap: 4px; justify-content: center; }
   .tab { gap: 5px; padding: 8px 10px; font-size: 13px; min-height: 38px; }
-  /* Phones: only the open section shows its name; the others are icons (named for screen readers). */
-  .tab:not([aria-selected="true"]) span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  /* Phones: every tab keeps its name (no icons); the row scrolls sideways if it has to. */
+  .tabs { overflow-x: auto; scrollbar-width: none; min-width: 0; justify-content: flex-start; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab svg { display: none; }
+  .tab { flex: none; min-height: 44px; }
   .brand svg { width: 26px; height: 26px; }
   .share { padding: 10px; }
   .account:not([hidden]) + .share { display: none; }
 }
-@media (max-width: 370px) { .tabs { gap: 2px; } .tab { padding: 8px 8px; } }
+@media (max-width: 370px) { .tabs { gap: 4px; } .tab { padding: 8px 10px; } }
 </style>
 </head>
 <body>
@@ -95,7 +98,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 </header>
 <main class="views" id="views"></main>
 <div class="toast" id="toast" role="status" hidden></div>
-<script src="account.js?v=202611211049"></script>
+<script src="account.js?v=202611211053"></script>
 <script>
 (() => {
   const SECTIONS = {

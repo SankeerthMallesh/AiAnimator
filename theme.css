@@ -1,7 +1,7 @@
 /* Loomy look: near-black canvas, white type, hairline borders, pill controls, a white primary button.
    Loaded last on every page so the sections match. Light mode stays available from Settings. */
 html:root:not([data-theme="light"]) {
-  --bg: #000000; --paper: #0A0A0A; --panel: #111111; --ink: #EDEDED; --muted: #A1A1A1; --faint: #6B6B6B;
+  --bg: #000000; --paper: #0A0A0A; --panel: #111111; --ink: #EDEDED; --muted: #A1A1A1; --faint: #8C8C8C;
   --line: #1C1C1C; --line-2: #2A2A2A; --hover: rgba(255, 255, 255, .06); --press: rgba(255, 255, 255, .1);
   --accent: #FAFAFA; --accent-ink: #FFFFFF; --accent-soft: rgba(255, 255, 255, .08); --accent-tint: #1A1A1A; --on-accent: #0A0A0A;
   --value: #EDEDED; --tag: #FB923C; --tag-bg: rgba(251, 146, 60, .14);
@@ -9,6 +9,7 @@ html:root:not([data-theme="light"]) {
   color-scheme: dark;
 }
 html:root[data-theme="light"] {
+  --faint: #6B7280; --muted: #4B5563;
   --accent: #111111; --accent-ink: #111111; --accent-soft: rgba(0, 0, 0, .06); --accent-tint: #F1F1F1; --on-accent: #FFFFFF;
   --value: #111111; --tag: #C2410C; --tag-bg: rgba(234, 88, 12, .1);
 }
@@ -129,3 +130,29 @@ html:root:not([data-theme="light"]) .bar { --bar: #000000; --line: #1C1C1C; }
 html:root .pane-board .pane-head { flex-wrap: wrap; row-gap: 6px; }
 html:root .board-actions { flex-wrap: wrap; }
 html:root .board-actions .btn { white-space: nowrap; padding: 6px 10px; font-size: 12.5px; min-height: 32px; border-radius: 999px; }
+
+/* ---------- the pill-tab header on pages opened on their own (shared/topbar.js) ---------- */
+.loomy-topbar { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 14px; min-height: 56px;
+  padding: 6px max(14px, env(safe-area-inset-right, 0px)) 6px max(14px, env(safe-area-inset-left, 0px)); background: #000; border-bottom: 1px solid #1C1C1C; }
+.lt-brand { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: #EDEDED; text-decoration: none; font: 600 20px/1 "Inter", system-ui, sans-serif; letter-spacing: -.03em; flex: none; }
+.lt-brand svg { width: 28px; height: 28px; }
+.lt-tabs { display: flex; gap: 8px; margin: 0 auto; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.lt-tabs::-webkit-scrollbar { display: none; }
+.lt-tab { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #2A2A2A; border-radius: 999px; color: #D4D4D4; text-decoration: none; font: 500 14px/1 "Inter", system-ui, sans-serif; white-space: nowrap; flex: none; }
+.lt-tab:hover { border-color: #4A4A4A; color: #FFF; }
+.lt-tab[aria-current="page"] { background: #FAFAFA; border-color: #FAFAFA; color: #0A0A0A; }
+html.has-topbar a.nav-btn.tool-link, html.has-topbar .masthead .wordmark { display: none; }
+html.has-topbar .masthead { top: 56px; }
+@media (max-width: 560px) {
+  .lt-brand span { display: none; }
+  .loomy-topbar { gap: 8px; }
+  .lt-tabs { gap: 6px; margin: 0; }
+  .lt-tab { padding: 0 12px; font-size: 13px; }
+}
+
+/* ---------- touch targets: every tab, button and field at least 44 px tall ---------- */
+.nav-btn, .btn, .go, .tab, .lt-tab, select, input[type="text"], input[type="url"], .slot-btn, .frames button, .sheet-tabs button, .view.home .slot-grid .slot, .link-row input, .link-row .btn { min-height: 44px; }
+.view.home .sheet-tabs button { padding-top: 0; padding-bottom: 0; display: inline-flex; align-items: center; }
+.nav-btn.icon { min-width: 44px; justify-content: center; }
+html:root .hear { width: 44px; height: 44px; }
+html:root .view.home .frames button, html:root .view.home .slot-grid select { min-height: 44px; }

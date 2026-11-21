@@ -18,6 +18,7 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
     s = open('index.html').read()
     s = re.sub(r'href="css/(\w+)\.css(\?v=[^"]*)?"', lambda m: f'href="css/{m.group(1)}.css?v={v}"', s)
     s = re.sub(r'href="\.\./theme\.css(\?v=[^"]*)?"', f'href="../theme.css?v={v}"', s)
+    s = re.sub(r'src="\.\./shared/topbar\.js(\?v=[^"]*)?"', f'src="../shared/topbar.js?v={v}"', s)
     mods = sorted(os.path.basename(f) for f in glob.glob('js/*.js') if not f.endswith('worker.js'))
     entries = [f'  "./js/{m}": "./js/{m}?v={v}"' for m in mods]
     if app == 'explainer':

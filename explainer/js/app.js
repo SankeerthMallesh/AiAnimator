@@ -81,6 +81,7 @@ function initComposer() {
   if (new URLSearchParams(location.search).get('style') === 'blocky') {
     const badge = document.querySelector('.hero-badge b'), h = document.querySelector('.view.home .headline'), lede = document.querySelector('.view.home .lede');
     if (badge) badge.textContent = 'Blocky';
+    document.title = 'Loomy · Blocky';
     const topic = document.querySelector('#topic'); if (topic) topic.placeholder = 'The day my best friend and I found a secret door under the spawn';
     if (h) h.textContent = 'Tell a blocky game story';
     if (lede) lede.textContent = 'Give it a story or a topic. Loomy writes it like a game story Short, builds every shot in a blocky game world, narrates it with captions and hands you an MP4.';

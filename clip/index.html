@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <script>if (window.top !== window) document.documentElement.classList.add("embedded");</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loomy Clips</title>
+<title>Loomy · Clips</title>
 <meta name="description" content="Turn a stream or long video into short vertical clips with headings and captions. Made in your browser.">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111315" media="(prefers-color-scheme: dark)">
@@ -12,8 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611211049">
-<link rel="stylesheet" href="../theme.css?v=202611211049">
+<link rel="stylesheet" href="css/app.css?v=202611211053">
+<script type="module" src="../shared/topbar.js?v=202611211053"></script>
+<link rel="stylesheet" href="../theme.css?v=202611211053">
 </head>
 <body>
 <div class="app">
@@ -34,7 +35,7 @@
       </label>
       <form class="link-row" id="linkForm">
         <label class="sr" for="linkInput">Video link</label>
-        <input id="linkInput" type="url" inputmode="url" placeholder="…or paste a video link (Dropbox, Google Drive, a .mp4 link)" autocomplete="off">
+        <input id="linkInput" type="url" inputmode="url" placeholder="Paste a video link" autocomplete="off">
         <button class="btn" id="btnLink" type="submit">Get video</button>
       </form>
       <p class="link-note" id="linkNote" hidden></p>
@@ -78,19 +79,20 @@
 </div>
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611211049",
-  "./js/ff.js": "./js/ff.js?v=202611211049",
-  "./js/moments.js": "./js/moments.js?v=202611211049",
-  "./js/render.js": "./js/render.js?v=202611211049",
-  "./js/track.js": "./js/track.js?v=202611211049",
-  "./js/transcribe.js": "./js/transcribe.js?v=202611211049",
-  "./js/wav.js": "./js/wav.js?v=202611211049",
-  "../shared/level.js": "../shared/level.js?v=202611211049",
-  "../shared/renderlog.js": "../shared/renderlog.js?v=202611211049",
-  "../shared/speech.js": "../shared/speech.js?v=202611211049",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611211049"
+  "./js/app.js": "./js/app.js?v=202611211053",
+  "./js/ff.js": "./js/ff.js?v=202611211053",
+  "./js/moments.js": "./js/moments.js?v=202611211053",
+  "./js/render.js": "./js/render.js?v=202611211053",
+  "./js/track.js": "./js/track.js?v=202611211053",
+  "./js/transcribe.js": "./js/transcribe.js?v=202611211053",
+  "./js/wav.js": "./js/wav.js?v=202611211053",
+  "../shared/level.js": "../shared/level.js?v=202611211053",
+  "../shared/renderlog.js": "../shared/renderlog.js?v=202611211053",
+  "../shared/speech.js": "../shared/speech.js?v=202611211053",
+  "../shared/topbar.js": "../shared/topbar.js?v=202611211053",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611211053"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611211049"></script>
+<script type="module" src="./js/app.js?v=202611211053"></script>
 </body>
 </html>
