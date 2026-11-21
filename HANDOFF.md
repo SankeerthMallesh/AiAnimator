@@ -58,10 +58,10 @@ slow, about 5-15 s a frame).
   key, the writer adds `delivery` per scene (`explainer/js/llm.js`) / `read` (`cartoon/js/script.js`),
   pipelines call `finishLine`. Server (`functions/api/[[path]].js`): `elevenAll` reads the whole script
   with v3 when `ELEVEN_KEY` is set (then Gemini, then Aura). Unit test `tools/tests/unit/l1-voice.test.mjs`.
-  NOT VERIFIED, CHECK FIRST: both mocked full-video tests (`tools/tests/cleanmaster.cjs` and
-  `clean3dmaster.cjs`) timed out waiting for a button while three film renders loaded the CPU. On an idle
-  machine, re-run them. If they still fail, compare against `git stash`/the commit before `ea69696` to see
-  whether L1 broke the flow (L1 is already live), and fix that before anything else.
+  Test status: in `tools/tests/cleanmaster.cjs` (Cartoons, mocked AI) the script, fact-check, voice and
+  sound steps all passed with the L1 code, but the first render was still going after the test's 600 s
+  limit, because three film renders were using all 4 CPU cores. That run never reached its later
+  checks. Re-run `cleanmaster.cjs` and `clean3dmaster.cjs` on an idle machine to confirm.
   The site's `ELEVEN_KEY` Cloudflare secret is already set (`/api/config` says `voice: elevenlabs`).
 - **Render speed** (`a8b0a41`): `createEngine({ perf: { msaa, aoSamples, shadowMax } })`.
 - **L2 started** (`85b0962`, not wired in): `explainer/js/z3d/auto3d.js` (places, shot kinds, camera moves,
