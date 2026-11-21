@@ -25,6 +25,20 @@ window.frame = async (f) => {
   g.drawImage(br.renderFrame(f), 0, 0);
   return { ms: Math.round(performance.now() - t0), kit: br.kitCount, total: br.total };
 };
+// Frames [from, from + count) as a silent MP4 (Loomy's encoder), for long renders in pieces.
+window.film = async (from, count) => {
+  const { mp4Writer } = await import('../../../shared/encode.js');
+  br ||= await createBridge({ width: 1080, height: 1920 });
+  const sr = 48000, audio = new AudioBuffer({ numberOfChannels: 2, length: Math.ceil(count / 30 * sr), sampleRate: sr });
+  const out = await mp4Writer({ width: 1080, height: 1920, fps: 30, audio });
+  const c = document.createElement('canvas'); c.width = 1080; c.height = 1920; const cg = c.getContext('2d');
+  for (let i = 0; i < count; i++) {
+    cg.drawImage(br.renderFrame(from + i), 0, 0);
+    await out.addFrame(c, i / 30);
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  return URL.createObjectURL(await out.finish());
+};
 window.ready = true;
 </script>
 </body>
