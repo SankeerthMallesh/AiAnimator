@@ -288,12 +288,12 @@ Return JSON with this exact shape:
   "youtubeTitle": "click-worthy but honest title, under 70 characters",
   "description": "2 short sentences describing the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
   "hashtags": ["5-8 relevant hashtags"],
-${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: hair = an ordinary person in everyday stories, cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "Aristotle", "look": "elderly ancient Greek philosopher, short grey curly beard, receding hairline, cream wool himation draped over one shoulder, leather sandals"}],
+${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: hair = an ordinary person in everyday stories, cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "the main character's short name (a real historical person only if the story is about them)", "look": "specific age, build, hair, face and clothing colours, e.g. 'stocky man in his 40s, short black hair, stubble, red t-shirt, blue jeans'"}],
   "scenes": [
     {
       "narration": "spoken words for this scene",
       "visual": "single-frame image prompt, one sentence of at most 30 words: subject, setting, camera angle, lighting",
-      "onScreenText": "optional tiny label like '350 BC' or 'Eratosthenes' or '' for none",
+      "onScreenText": "optional tiny label (a date, name, number or place that matters to this line) or '' for none",
       "keywords": ["one or two words from the narration to highlight in captions"],
       "camera": one of ${JSON.stringify(CAMERAS)},
       "transition": one of ${JSON.stringify(TRANSITIONS)},
