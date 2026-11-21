@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy cartoon 3D engine test</title>
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/examples/jsm/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<canvas id="view" width="1080" height="1920"></canvas>
+<script type="module">
+// Test page for the cartoon-3d-short engine port (cartoon/js/c3d). window.frame(f) draws frame f.
+import { createBridge, setStaticBase } from '../../../cartoon/js/c3d/cartoon3d.js';
+setStaticBase('../../../cartoon/c3d-assets/');
+const view = document.getElementById('view'), g = view.getContext('2d');
+let br = null;
+window.frame = async (f) => {
+  br ||= await createBridge({ width: 1080, height: 1920 });
+  const t0 = performance.now();
+  g.drawImage(br.renderFrame(f), 0, 0);
+  return { ms: Math.round(performance.now() - t0), kit: br.kitCount, total: br.total };
+};
+window.ready = true;
+</script>
+</body>
+</html>
