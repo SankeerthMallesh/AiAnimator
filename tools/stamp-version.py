@@ -19,10 +19,13 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
     s = re.sub(r'href="css/(\w+)\.css(\?v=[^"]*)?"', lambda m: f'href="css/{m.group(1)}.css?v={v}"', s)
     s = re.sub(r'href="\.\./theme\.css(\?v=[^"]*)?"', f'href="../theme.css?v={v}"', s)
     s = re.sub(r'src="\.\./shared/topbar\.js(\?v=[^"]*)?"', f'src="../shared/topbar.js?v={v}"', s)
-    mods = sorted(os.path.basename(f) for f in glob.glob('js/*.js') if not f.endswith('worker.js'))
+    mods = sorted(os.path.relpath(f, 'js').replace(os.sep, '/') for f in glob.glob('js/**/*.js', recursive=True) if not f.endswith('worker.js'))
     entries = [f'  "./js/{m}": "./js/{m}?v={v}"' for m in mods]
     if app == 'explainer':
         entries.append(f'  "../cartoon/js/worlds.js": "../cartoon/js/worlds.js?v={v}"')
+        # three.js for the code-drawn 3D engine (js/z3d/).
+        entries.append(f'  "three": "../vendor/three/three.module.min.js?v={v}"')
+        entries.append(f'  "three/addons/": "../vendor/three/addons/"')
     for sh in sorted(glob.glob(os.path.join(root, 'shared', '*.js'))):
         n = os.path.basename(sh)
         entries.append(f'  "../shared/{n}": "../shared/{n}?v={v}"')

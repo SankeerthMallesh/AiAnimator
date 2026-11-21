@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy 3D engine test</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/addons/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; color: #ddd; font: 14px system-ui; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<p id="status">Loading…</p>
+<canvas id="view" width="1080" height="1920"></canvas>
+<script type="module">
+// Test page for the code-drawn 3D engine (explainer/js/z3d). Renders the engine's example edit
+// ("Could ancient armour stop a bullet?") through Loomy's film renderer.
+//   window.still(t)            -> draws one frame into #view
+//   window.film(start, length) -> MP4 Blob URL of that stretch (silent sound track)
+import { createEngine } from '../../../explainer/js/z3d/engine.js';
+import { renderFilm, composeFrame } from '../../../explainer/js/z3d/film.js';
+import { SHOTS, CAPTIONS, FADES, DURATION } from '../../../explainer/js/z3d/shots-armour.js';
+const edit = { shots: SHOTS };
+const view = document.getElementById('view'), g = view.getContext('2d');
+let engine = null;
+window.DURATION = DURATION;
+window.still = async (t) => {
+  await document.fonts.load('700 40px Montserrat');
+  engine ||= createEngine({ width: 720, height: 1280 });
+  if (!engine._set) { engine.setEdit(edit); engine._set = true; }
+  const t0 = performance.now();
+  const shot = composeFrame(engine, g, 1080, 1920, t, { captions: CAPTIONS, fades: FADES });
+  return { shot, ms: Math.round(performance.now() - t0) };
+};
+window.film = async (start = 0, length = DURATION) => {
+  const sr = 48000, audio = new AudioBuffer({ numberOfChannels: 2, length: Math.ceil(length * sr), sampleRate: sr });
+  const blob = await renderFilm({ edit, captions: CAPTIONS, fades: FADES, start, duration: length, audio,
+    onProgress: (f, ms) => { document.getElementById('status').textContent = `${Math.round(f * 100)}% · ${Math.round(ms)} ms a frame`; } });
+  return URL.createObjectURL(blob);
+};
+window.ready = true;
+document.getElementById('status').textContent = 'Ready';
+</script>
+</body>
+</html>
