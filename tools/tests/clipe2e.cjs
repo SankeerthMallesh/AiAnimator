@@ -12,7 +12,9 @@ const file = process.argv[2] || 'cliptest/stream.webm', framing = process.argv[3
     await ctx.route('http://127.0.0.1:8773/api/**', async (route) => {
       const req = route.request(); const u = new URL(req.url());
       calls[u.pathname.split('/').pop()] = (calls[u.pathname.split('/').pop()] || 0) + 1;
-      try { const r = await route.fetch({ url: 'https://loomy-app.pages.dev' + u.pathname, headers: { ...req.headers(), cookie, origin: 'https://loomy-app.pages.dev' }, timeout: 180000 }); await route.fulfill({ response: r }); }
+      try { const r = await route.fetch({ url: 'https://loomy-app.pages.dev' + u.pathname, headers: { ...req.headers(), cookie, origin: 'https://loomy-app.pages.dev' }, timeout: 180000 });
+        if (process.env.DUMP && /write|transcribe/.test(u.pathname)) require('fs').writeFileSync(`cliptest/dump_${u.pathname.split('/').pop()}_${calls[u.pathname.split('/').pop()]}.json`, JSON.stringify({ request: /write/.test(u.pathname) ? req.postData() : '(audio)', status: r.status(), response: await r.text() }, null, 1));
+        await route.fulfill({ response: r }); }
       catch (e) { console.log('relay fail', e.message); await route.abort(); }
     });
   } else {

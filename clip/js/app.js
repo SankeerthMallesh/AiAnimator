@@ -200,10 +200,12 @@ async function sourceFor(clip, ff, path) {
 }
 
 // Streams come in at any level (a whisper-quiet mic, a blasting game). Each clip is levelled to
-// -13.5 LUFS with peaks under -1.5 dB: by ffmpeg's loudnorm when it works and lands on target,
-// otherwise in JavaScript (gated loudness, gain, then a limiter at -1.5 dBFS with 5 ms look-ahead).
+// -13.5 LUFS by ffmpeg's loudnorm when it works and lands near target, otherwise in JavaScript
+// (gated loudness and gain). Either way the page's look-ahead limiter then holds samples under
+// -3 dBFS: the AAC encoder adds up to about 1.5 dB, and loudnorm alone let a real stream reach
+// -0.7 dBTP. The same ceiling as the other tabs.
 // The WAV is read without the browser's decoder, which fails on some files.
-const CLIP_LUFS = -13.5, CLIP_CEILING = Math.pow(10, -1.5 / 20);
+const CLIP_LUFS = -13.5, CLIP_CEILING = Math.pow(10, -3 / 20);
 async function clipAudio(ff, path, clip) {
   const args = (af) => ['-hide_banner', '-ss', String(clip.s), '-i', path, '-t', String(clip.e - clip.s), '-vn', ...af, '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s16le', 'clip.wav'];
   const read = async () => { const d = await ff.readFile('clip.wav'); await removeFiles(ff, ['clip.wav']); return parseWav(d); };
@@ -212,7 +214,7 @@ async function clipAudio(ff, path, clip) {
   try {
     // ?jslevel=1 (tests) skips loudnorm to exercise the page's own levelling.
     if (new URLSearchParams(location.search).get('jslevel') === '1') throw new Error('skipped for this test');
-    await run(ff, args(['-af', `loudnorm=I=${CLIP_LUFS}:TP=-1.5:LRA=11`]));
+    await run(ff, args(['-af', `loudnorm=I=${CLIP_LUFS}:TP=-2:LRA=11`]));
     wav = await read();
     if (!wav.channels.length || wav.channels[0].length < want * 0.5) throw new Error('loudnorm gave no sound');
     measured = loudness(wav.channels, wav.sampleRate);
@@ -234,7 +236,12 @@ async function clipAudio(ff, path, clip) {
     const r = levelChannels(channels, sampleRate, { target: CLIP_LUFS, ceiling: CLIP_CEILING });
     measured = loudness(channels, sampleRate);
     log(`Sound levelled in the page: ${isFinite(r.before) ? r.before.toFixed(1) : 'silent'} -> ${isFinite(measured) ? measured.toFixed(1) : 'silent'} LUFS.`);
-  } else if (normalizePath === 'loudnorm') log(`Sound levelled by loudnorm: ${measured.toFixed(1)} LUFS.`);
+  } else if (normalizePath === 'loudnorm') {
+    const before = measured;
+    levelChannels(channels, sampleRate, { target: CLIP_LUFS, ceiling: CLIP_CEILING });
+    measured = loudness(channels, sampleRate);
+    log(`Sound levelled by loudnorm: ${before.toFixed(1)} LUFS, then held to ${measured.toFixed(1)} LUFS with peaks under -3 dBFS.`);
+  }
   else normalizePath = 'none';
   const buf = new AudioBuffer({ numberOfChannels: channels.length, length: Math.max(1, channels[0].length), sampleRate });
   channels.forEach((c, i) => buf.copyToChannel(c, i));
