@@ -19,3 +19,4 @@ tools/tests/cliptest/vorbis*.webm
 tools/tests/cliptest/loud.webm
 tools/tests/cliptest/burned.webm
 tools/tests/cliptest/burned-mid.webm
+tools/tests/cliptest/dump_*.json
