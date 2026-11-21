@@ -41,7 +41,7 @@ export class Stage {
     let scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];
     const local = Math.max(0, Math.min(scene.dur - 0.001, t - scene.start));
     const shot = Stage.shot(scene, local);
-    Stage.lastShot = null;
+    Stage.lastShot = null; Stage.lastBox = null; Stage.lastFace = null;
     Stage.world(ctx, W, H, view, scene, local, shot);
     // Finish: warm light from the top left and a gentle vignette tie every set together.
     if (!this._finish || this._finish.width !== W || this._finish.height !== H) {
@@ -57,7 +57,7 @@ export class Stage {
     }
     ctx.drawImage(this._finish, 0, 0);
     if (shot.whip > 0) { Stage.smear(ctx, W, H, shot.whip * ((scene.index + (shot.setup?.k || 0)) % 2 ? 1 : -1)); Stage.speedLines(ctx, W, H, shot.whip); }
-    if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot);
+    if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot, Stage.lastBox, Stage.lastFace);
     if (view.settings?.captionStyle !== 'off') {
       if (this.log) this.log.caption(t, ctx, H, () => Stage.caption(ctx, W, H, scene, local));
       else Stage.caption(ctx, W, H, scene, local);
@@ -143,7 +143,7 @@ export class Stage {
     const z = portrait ? 1.22 : 1.14;
     const tx = Ink.clamp(Ink.lerp(W / 2, sp.x * W, 0.85), W * 0.3, W * 0.7);
     // Low-angle hero shot: the camera sits low, so the speaker stands lower and larger with more sky.
-    if (scene.low) return { z: z * 1.12, tx, ty: ground - u * 3.0, sx: W / 2, sy: H * (portrait ? 0.62 : 0.6), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
+    if (scene.low) return { z: z * 1.12, tx, ty: ground - u * 3.0, sx: W / 2, sy: H * (portrait ? 0.6 : 0.58), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
     return { z, tx, ty: ground - u * 4.2, sx: W / 2, sy: H * (portrait ? 0.5 : 0.52), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
   }
 
@@ -241,6 +241,7 @@ export class Stage {
     ctx.restore();
     if (cutaway) { ctx.restore(); return; } // scenery only: no cast, no props
     if (mv) Stage.applyMotion(mv, actors, scene, local, talkIdFor(scene, actors), bgX, W);
+    Stage.keepInFrame(ctx, actors, fr, W, H, u, ground, cast);
     if (photo) {
       // The picture itself as a framed card at the top, steady on screen while the camera moves.
       ctx.save();
@@ -784,6 +785,57 @@ export class Stage {
     ctx.fillStyle = hot ? '#FFD43B' : '#FFFFFF';
     ctx.fillText(c.text, 0, 0);
     ctx.restore();
+  }
+
+  // Safe framing: every character's whole body inside an 8% margin. Wide shots zoom out a little
+  // (around the feet, so nobody leaves the ground) and slide to fit everyone; medium shots slide to
+  // keep the speaker in and leave out a listener the edge would cut; close-ups keep the face in.
+  // Applied to the cast's transform before props and cast are drawn; the boxes go to the render log.
+  static HAT_TOP = { tophat: 1.45, chef: 1.15, crown: 1.05, fedora: 0.95, beanie: 0.95, bowler: 0.8, conductor: 0.75, flatcap: 0.7, cap: 0.65, hardhat: 0.65, grad: 0.55, helmet: 0.35, laurel: 0.25 };
+  static keepInFrame(ctx, actors, fr, W, H, u, ground, cast) {
+    Stage.lastBox = null; Stage.lastFace = null;
+    if (!actors.length || typeof DOMMatrix === 'undefined') return;
+    const M0 = ctx.getTransform();
+    const box = (a, M) => {
+      const hat = Stage.HAT_TOP[(cast.get(a.id) || {}).hat] || 0.15;
+      const pts = [[a.x * W - 1.6 * u, ground - (5.8 + hat) * u], [a.x * W + 1.6 * u, ground + 0.35 * u]].map(([x, y]) => M.transformPoint(new DOMPoint(x, y)));
+      return [Math.min(pts[0].x, pts[1].x), Math.min(pts[0].y, pts[1].y), Math.max(pts[0].x, pts[1].x), Math.max(pts[0].y, pts[1].y)];
+    };
+    const face = (a, M) => {
+      const hat = Stage.HAT_TOP[(cast.get(a.id) || {}).hat] || 0.15;
+      const pts = [[a.x * W - 1.25 * u, ground - (5.8 + hat) * u], [a.x * W + 1.25 * u, ground - 3.6 * u]].map(([x, y]) => M.transformPoint(new DOMPoint(x, y)));
+      return [Math.min(pts[0].x, pts[1].x), Math.min(pts[0].y, pts[1].y), Math.max(pts[0].x, pts[1].x), Math.max(pts[0].y, pts[1].y)];
+    };
+    const union = (bs) => [Math.min(...bs.map(b => b[0])), Math.min(...bs.map(b => b[1])), Math.max(...bs.map(b => b[2])), Math.max(...bs.map(b => b[3]))];
+    const L = W * 0.08, R = W * 0.92, T = H * 0.08, B = H * 0.92;
+    const shiftX = (b) => (b[0] < L && b[2] > R ? (L + R) / 2 - (b[0] + b[2]) / 2 : b[0] < L ? L - b[0] : b[2] > R ? R - b[2] : 0);
+    let M = M0;
+    if (fr.close) {
+      const f = fr.sp || actors[0];
+      const fb = face(f, M0);
+      const dx = fb[0] < 0 ? -fb[0] : fb[2] > W ? W - fb[2] : 0;
+      if (dx) { M = new DOMMatrix().translate(dx, 0).multiply(M0); ctx.setTransform(M); }
+      Stage.lastFace = face(f, M).map((v, k) => v / (k % 2 ? H : W));
+      return;
+    }
+    const focus = fr.medium ? (fr.sp || actors[0]) : null;
+    let b = union((focus ? [focus] : actors).map(a => box(a, M0)));
+    // Too big for the safe area: zoom out around the feet.
+    const P = new DOMPoint((b[0] + b[2]) / 2, b[3]);
+    const s = Math.min(1, (R - L) / Math.max(1, b[2] - b[0]), (P.y - T) / Math.max(1, P.y - b[1]));
+    if (s < 1) M = new DOMMatrix().translate(P.x, P.y).scale(s).translate(-P.x, -P.y).multiply(M);
+    b = union((focus ? [focus] : actors).map(a => box(a, M)));
+    const dx = shiftX(b), dy = b[3] > B ? B - b[3] : 0;
+    if (dx || dy) M = new DOMMatrix().translate(dx, dy).multiply(M);
+    if (M !== M0) ctx.setTransform(M);
+    // Medium shots: a listener the frame edge would cut leaves the shot.
+    if (focus) for (let k = actors.length - 1; k >= 0; k--) {
+      if (actors[k] === focus) continue;
+      const ab = box(actors[k], M);
+      if (ab[0] < L || ab[2] > R || ab[1] < T || ab[3] > B) actors.splice(k, 1);
+    }
+    Stage.lastBox = union(actors.map(a => box(a, M))).map((v, k) => v / (k % 2 ? H : W));
+    if (Stage.lastShot) Stage.lastShot.characterIds = actors.map(a => a.id);
   }
 
   // Horizontal motion blur for a whip pan: the frame smeared along the pan direction.
