@@ -64,7 +64,18 @@ function snap(c, words, minLen, maxLen, duration) {
     if (!st) return null;
     s = Math.max(0, st.s - 0.12);
   }
-  if (e - s < Math.min(minLen, 12)) return null;
+  // A tight moment (the writer may give 7 s that end on the payoff) keeps its ending and gets lead-in
+  // instead: it starts earlier, on the first word of a sentence, until it lasts at least 12 s (or
+  // minLen when that is shorter). It is dropped only when the video has too little before it (under 10 s).
+  const need = Math.min(minLen, 12);
+  if (e - s < need) {
+    const from = e - need;
+    const isStart = (i) => i === 0 || /[.!?]["')]?$/.test(words[i - 1].w);
+    const idx = words.map((w, i) => i).filter(i => words[i].s <= from && words[i].s >= from - 8 && isStart(i));
+    const st = idx.length ? words[idx[idx.length - 1]] : [...words].reverse().find(w => w.s <= from) || words[0];
+    s = Math.max(0, Math.min(s, st.s - 0.12));
+    if (e - s < 10) return null;
+  }
   // Never past the end of the video (a cut-off file can have speech timed beyond it).
   if (duration) {
     if (s >= duration - 3) return null;

@@ -34,4 +34,19 @@ export const tests = [
       assert.equal(clips.filter(c => c.s < 8 && c.e > 8).length, 0, 'no clip spans the repeated stretch');
     },
   },
+  {
+    name: 'a tight 7 s moment ending on its payoff is kept: lead-in from a sentence start, same ending, 12 s or more',
+    fn: async () => {
+      const words = []; let t = 0;
+      for (let i = 0; i < 250; i++) { const w = VOCAB[i % VOCAB.length] + (i % 9 === 8 ? '.' : ''); words.push({ w, s: t, e: t + 0.3 }); t += 0.4; }
+      stub([{ start: 44.2, end: 51.2, payoffEnd: 51.2, heading: 'I Shouted His Secret', score: 8, why: 'fast payoff', highlight: [], emoji: [] }]);
+      const clips = await findMoments(transcript(words), { count: 1, minLen: 15, maxLen: 30, duration: 100 });
+      assert.equal(clips.length, 1, 'the moment is kept');
+      const c = clips[0], first = words.find(w => w.s >= c.s);
+      const i = words.indexOf(first);
+      assert.ok(c.e - c.s >= 12, `lasts ${(c.e - c.s).toFixed(2)} s`);
+      assert.ok(c.e <= 51.2 + 1.5 && c.e >= 51.0, `ends at ${c.e.toFixed(2)} s, on the payoff`);
+      assert.ok(i === 0 || /[.!?]$/.test(words[i - 1].w), `starts on a sentence start ("${first.w}" at ${first.s.toFixed(1)} s)`);
+    },
+  },
 ];
