@@ -75,6 +75,14 @@ function refreshVoiceSelect() {
 function initComposer() {
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 30);
   fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), STYLES[new URLSearchParams(location.search).get('style')] ? new URLSearchParams(location.search).get('style') : 'story-3d');
+  // The Blocky tab opens this page with ?style=blocky: give it its own heading.
+  if (new URLSearchParams(location.search).get('style') === 'blocky') {
+    const badge = document.querySelector('.hero-badge b'), h = document.querySelector('.view.home .headline'), lede = document.querySelector('.view.home .lede');
+    if (badge) badge.textContent = 'Blocky';
+    const topic = document.querySelector('#topic'); if (topic) topic.placeholder = 'The day my best friend and I found a secret door under the spawn';
+    if (h) h.textContent = 'Tell a blocky game story';
+    if (lede) lede.textContent = 'Give it a story or a topic. Loomy writes it like a game story Short, builds every shot in a blocky game world, narrates it with captions and hands you an MP4.';
+  }
   fillSelect($('#mood'), Object.entries(MOODS).map(([k, m]) => [k, m.label]), 'curious');
   fillSelect($('#pace'), Object.entries(PACES).map(([k, p]) => [k, p.label]), 'normal');
   $('#quality').value = String(settings.quality || '1080');
