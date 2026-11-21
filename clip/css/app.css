@@ -82,3 +82,9 @@ html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5
 .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
 .toast.bad { background: var(--err); color: #fff; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.link-row { display: flex; gap: 8px; }
+.link-row input { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 11px; }
+.link-note { margin: 0; font-size: 13px; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.link-note b { color: var(--ink); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -279,3 +279,70 @@ $('#btnAgain').addEventListener('click', () => go({ reuseTranscript: true }));
 $('#btnStop').addEventListener('click', () => state.abort?.abort());
 window.addEventListener('beforeunload', (e) => { if (state.running) { e.preventDefault(); e.returnValue = ''; } });
 updateGo();
+
+// ---------- a pasted link ----------
+// Share links become direct file links; the file streams through the Loomy server and is saved in
+// the browser's private storage as it arrives, so even a long stream never has to fit in memory.
+function directLink(raw) {
+  let u;
+  try { u = new URL(raw.trim()); } catch { return null; }
+  if (/(^|\.)dropbox\.com$/.test(u.hostname)) { u.searchParams.delete('dl'); u.searchParams.set('dl', '1'); return u.toString(); }
+  const drive = /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]{10,})/.exec(raw) || /[?&]id=([\w-]{10,})/.exec(/drive\.google\.com/.test(raw) ? raw : '');
+  if (drive) return `https://drive.usercontent.google.com/download?id=${drive[1]}&export=download&confirm=t`;
+  return u.toString();
+}
+const SITE_HELP = {
+  youtube: 'YouTube does not let other sites download its videos. For your own video: <b>YouTube Studio → Content → ⋮ next to the video → Download</b>, then drop the file here.',
+  twitch: 'Twitch does not let other sites download its videos. For your own stream: <b>Creator Dashboard → Content → Video Producer → ⋮ → Download</b>, then drop the file here.',
+  tiktok: 'TikTok does not let other sites download its videos. Save your own video from the TikTok app (Share → Save video), then drop the file here.',
+  other: 'That site does not let other sites download its videos. Download your video from the site first, then drop the file here.',
+};
+function note(html) { const n = $('#linkNote'); n.innerHTML = html; n.hidden = !html; }
+$('#linkForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (state.running) return;
+  const raw = $('#linkInput').value;
+  if (/youtu\.?be/i.test(raw)) { note(SITE_HELP.youtube); return; }
+  if (/twitch\.tv/i.test(raw)) { note(SITE_HELP.twitch); return; }
+  if (/tiktok\.com/i.test(raw)) { note(SITE_HELP.tiktok); return; }
+  const url = directLink(raw);
+  if (!url) { note('That does not look like a link.'); return; }
+  note('');
+  const btn = $('#btnLink'); btn.disabled = true; btn.textContent = 'Getting…';
+  try {
+    const res = await fetch('/api/fetchvideo', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+    if (/json/.test(res.headers.get('Content-Type') || '')) {
+      const j = await res.json();
+      note(j.site ? SITE_HELP.other : (j.error || 'Could not get that video.'));
+      return;
+    }
+    const total = Number(res.headers.get('Content-Length')) || 0;
+    const name = decodeURIComponent(res.headers.get('X-Loomy-Name') || 'video.mp4').replace(/[\\/:*?"<>|]/g, '_');
+    let file;
+    try {
+      // Stream to the browser's private disk storage (no memory limit), then open it as a File.
+      const dir = await navigator.storage.getDirectory();
+      const handle = await dir.getFileHandle(`clip-source-${Date.now()}`, { create: true });
+      const w = await handle.createWritable();
+      const reader = res.body.getReader();
+      let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        await w.write(value); got += value.length;
+        btn.textContent = total ? `Getting… ${Math.round(got / total * 100)}%` : `Getting… ${(got / 1e6).toFixed(0)} MB`;
+      }
+      await w.close();
+      const f = await handle.getFile();
+      file = new File([f], name, { type: f.type || 'video/mp4' });
+    } catch {
+      file = new File([await res.blob()], name, { type: 'video/mp4' });
+    }
+    if (file.size < 10000) { note('That link did not give a video file.'); return; }
+    await pickFile(new File([file], /\.\w{2,4}$/.test(name) ? name : `${name}.mp4`, { type: file.type && file.type !== 'application/octet-stream' ? file.type : 'video/mp4' }));
+  } catch (err) {
+    note(`Could not get that video (${err.message}).`);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Get video';
+  }
+});

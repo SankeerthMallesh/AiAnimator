@@ -37,6 +37,7 @@ export async function onRequest({ request, env, params }) {
     if (path === 'runway' && request.method === 'POST') return await runway(request);
     if (path === 'fal' && request.method === 'POST') return await fal(request);
     if (path === 'transcribe' && request.method === 'POST') return await transcribe(request, env);
+    if (path === 'fetchvideo' && request.method === 'POST') return await fetchVideo(request);
     if (!env.DB || !env.GOOGLE_CLIENT_ID) {
       // Signed-out is the normal state on a site without sign-in: answer it without an error status.
       if (path === 'me') return json({ user: null });
@@ -186,6 +187,30 @@ async function transcribe(request, env) {
     if (![0, 400, 404].includes(res.status)) break;
   }
   return json({ ok: false, error: last.slice(0, 300) });
+}
+
+// ---------- a pasted link to a video file (Clips) ----------
+// Downloads a video FILE the visitor links to (Dropbox, Google Drive, a site's .mp4) and streams
+// it to the page. Video sites (YouTube, Twitch, TikTok...) do not allow downloads by other sites,
+// so their page links are refused with a note on how to download your own videos instead.
+const VIDEO_SITES = /(^|\.)(youtube\.com|youtu\.be|twitch\.tv|tiktok\.com|instagram\.com|kick\.com|facebook\.com|fb\.watch|x\.com|twitter\.com|vimeo\.com|rumble\.com)$/i;
+async function fetchVideo(request) {
+  const body = await readJson(request, 4000);
+  let u;
+  try { u = new URL(String(body.url || '').trim()); } catch { return json({ ok: false, error: 'That is not a link.' }); }
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') return json({ ok: false, error: 'Use an http or https link.' });
+  if (VIDEO_SITES.test(u.hostname)) return json({ ok: false, site: true, error: 'That site does not let other sites download its videos.' });
+  if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.|\[)/.test(u.hostname) || /\.local$/.test(u.hostname)) return json({ ok: false, error: 'That address is not reachable.' });
+  let res;
+  try { res = await fetch(u.toString(), { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (Loomy Clips)' } }); }
+  catch (e) { return json({ ok: false, error: `Could not reach that link (${String(e?.message || e).slice(0, 80)}).` }); }
+  const type = res.headers.get('Content-Type') || '';
+  if (!res.ok) return json({ ok: false, error: `That link answered ${res.status}.` });
+  if (/text\/html|application\/json/i.test(type)) return json({ ok: false, page: true, error: 'That link opens a web page, not a video file. Use the file\'s download link.' });
+  const name = (/filename\*?=(?:UTF-8'')?"?([^";]+)/i.exec(res.headers.get('Content-Disposition') || '')?.[1] || decodeURIComponent(u.pathname.split('/').pop() || '') || 'video.mp4').slice(0, 120);
+  const headers = { 'Content-Type': /video|octet-stream|mp4|webm|quicktime|matroska/i.test(type) ? type : 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Loomy-Name': encodeURIComponent(name) };
+  const len = res.headers.get('Content-Length'); if (len) headers['Content-Length'] = len;
+  return new Response(res.body, { headers });
 }
 
 async function groqWrite(env, messages, temperature, max_tokens) {

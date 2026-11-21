@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611210110">
+<link rel="stylesheet" href="css/app.css?v=202611210122">
 </head>
 <body>
 <div class="app">
@@ -31,6 +31,12 @@
         <b id="fileName">Drop a video here, or click to choose</b>
         <span id="fileMeta">MP4, MOV, WebM or MKV. Streams up to about 2 hours.</span>
       </label>
+      <form class="link-row" id="linkForm">
+        <label class="sr" for="linkInput">Video link</label>
+        <input id="linkInput" type="url" inputmode="url" placeholder="…or paste a video link (Dropbox, Google Drive, a .mp4 link)" autocomplete="off">
+        <button class="btn" id="btnLink" type="submit">Get video</button>
+      </form>
+      <p class="link-note" id="linkNote" hidden></p>
       <video id="preview" class="preview" muted playsinline controls hidden></video>
 
       <h2>2. Clips</h2>
@@ -71,15 +77,15 @@
 </div>
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611210110",
-  "./js/ff.js": "./js/ff.js?v=202611210110",
-  "./js/moments.js": "./js/moments.js?v=202611210110",
-  "./js/render.js": "./js/render.js?v=202611210110",
-  "./js/track.js": "./js/track.js?v=202611210110",
-  "./js/transcribe.js": "./js/transcribe.js?v=202611210110",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611210110"
+  "./js/app.js": "./js/app.js?v=202611210122",
+  "./js/ff.js": "./js/ff.js?v=202611210122",
+  "./js/moments.js": "./js/moments.js?v=202611210122",
+  "./js/render.js": "./js/render.js?v=202611210122",
+  "./js/track.js": "./js/track.js?v=202611210122",
+  "./js/transcribe.js": "./js/transcribe.js?v=202611210122",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611210122"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611210110"></script>
+<script type="module" src="./js/app.js?v=202611210122"></script>
 </body>
 </html>
