@@ -1,0 +1,689 @@
+{
+ "title": "Why Railroad Tracks Have Gaps 🤔",
+ "youtubeTitle": "Why Railroad Tracks Have Gaps 🤯",
+ "description": "Tracks aren’t sloppy – they’re clever! Find out why those tiny gaps matter.",
+ "hashtags": [
+  "#shorts",
+  "#railway",
+  "#train",
+  "#engineering",
+  "#history",
+  "#funfact",
+  "#science",
+  "#trivia"
+ ],
+ "cast": [
+  {
+   "id": "a",
+   "name": "Milo",
+   "color": "#1E90FF",
+   "hat": "flatcap",
+   "hair": "brown",
+   "costume": "vest"
+  },
+  {
+   "id": "b",
+   "name": "Ruth",
+   "color": "#FF4500",
+   "hat": "conductor",
+   "hair": "black",
+   "costume": "coat"
+  },
+  {
+   "id": "c",
+   "name": "Eli",
+   "color": "#32CD32",
+   "hat": "bowler",
+   "hair": "blonde",
+   "costume": "suit"
+  }
+ ],
+ "scenes": [
+  {
+   "line": "Milo snaps a tiny rail piece—\"Whoa, why this gap?\"",
+   "bg": "iron rails, dusty road",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.3,
+     "pose": "point",
+     "feel": "neutral",
+     "face": 1,
+     "hold": "ticket"
+    }
+   ],
+   "icon": "🛤️",
+   "props": [
+    {
+     "id": "p1",
+     "kind": "question",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "a",
+     "do": "walk",
+     "x": 0.35
+    }
+   ]
+  },
+  {
+   "line": "He’s a 1900s rail worker, fixing tracks daily.",
+   "bg": "workbench, tools, rail ties",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.4,
+     "pose": "idle",
+     "feel": "happy",
+     "face": 1,
+     "hold": "wrench"
+    }
+   ],
+   "icon": "🔧",
+   "props": [
+    {
+     "id": "p2",
+     "kind": "gear",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "a",
+     "do": "point",
+     "x": 0.4
+    }
+   ]
+  },
+  {
+   "line": "Ruth, the stern conductor, demands perfect alignment.",
+   "bg": "train platform, signal lights",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.6,
+     "pose": "shrug",
+     "feel": "smug",
+     "face": -1,
+     "hold": "clipboard"
+    }
+   ],
+   "icon": "🚂",
+   "props": [
+    {
+     "id": "p3",
+     "kind": "exclaim",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "b",
+     "do": "walk",
+     "x": 0.55
+    }
+   ]
+  },
+  {
+   "line": "She warns: “Any gap expands, trains could derail!”",
+   "bg": "steam locomotive, rails",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.6,
+     "pose": "shout",
+     "feel": "angry",
+     "face": -1,
+     "hold": "ticket"
+    }
+   ],
+   "icon": "⚠️",
+   "props": [
+    {
+     "id": "p4",
+     "kind": "clock",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "b",
+     "do": "point",
+     "x": 0.65
+    }
+   ]
+  },
+  {
+   "line": "Enter Eli, a railway historian, clutching an old map.",
+   "bg": "museum exhibit, rail diagrams",
+   "set": "room",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.5,
+     "pose": "walk",
+     "feel": "neutral",
+     "face": 1,
+     "hold": "map"
+    }
+   ],
+   "icon": "📜",
+   "props": [
+    {
+     "id": "p5",
+     "kind": "book",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "c",
+     "do": "enter",
+     "x": 0.5
+    }
+   ]
+  },
+  {
+   "line": "He claims gaps prevent rails from buckling in heat.",
+   "bg": "sunlit tracks, heat waves",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.5,
+     "pose": "think",
+     "feel": "neutral",
+     "face": 1,
+     "hold": "magnet"
+    }
+   ],
+   "icon": "☀️",
+   "props": [
+    {
+     "id": "p6",
+     "kind": "drop",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "c",
+     "do": "point",
+     "x": 0.55
+    }
+   ]
+  },
+  {
+   "line": "Milo shrugs, “Thermal expansion? Sounds plausible.”",
+   "bg": "trackside, distant hills",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.3,
+     "pose": "shrug",
+     "feel": "skeptical",
+     "face": 1,
+     "hold": "coin"
+    }
+   ],
+   "icon": "🤔",
+   "props": [
+    {
+     "id": "p7",
+     "kind": "atom",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "a",
+     "do": "walk",
+     "x": 0.35
+    }
+   ]
+  },
+  {
+   "line": "Ruth rolls her eyes, “Myths! It’s about safety standards.”",
+   "bg": "signal tower, rails",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.7,
+     "pose": "facepalm",
+     "feel": "angry",
+     "face": -1,
+     "hold": "watch"
+    }
+   ],
+   "icon": "🚨",
+   "props": [
+    {
+     "id": "p8",
+     "kind": "question",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "b",
+     "do": "point",
+     "x": 0.75
+    }
+   ]
+  },
+  {
+   "line": "She reveals: gaps let tracks expand without warping.",
+   "bg": "metal rails, expanding joints",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.7,
+     "pose": "point",
+     "feel": "neutral",
+     "face": -1,
+     "hold": "engine"
+    }
+   ],
+   "icon": "🔩",
+   "props": [
+    {
+     "id": "p9",
+     "kind": "gear",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "b",
+     "do": "walk",
+     "x": 0.7
+    }
+   ]
+  },
+  {
+   "line": "Eli nods, “Engineers designed a 6‑mm gap for 30°C rise.”",
+   "bg": "engineering chart, rails",
+   "set": "room",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.5,
+     "pose": "point",
+     "feel": "happy",
+     "face": 1,
+     "hold": "book"
+    }
+   ],
+   "icon": "📏",
+   "props": [
+    {
+     "id": "p10",
+     "kind": "clock",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "c",
+     "do": "walk",
+     "x": 0.5
+    }
+   ]
+  },
+  {
+   "line": "Milo laughs, “So gaps keep trains on track, literally!”",
+   "bg": "train speeding, blur lines",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.3,
+     "pose": "laugh",
+     "feel": "happy",
+     "face": 1,
+     "hold": "ticket"
+    }
+   ],
+   "icon": "🚆",
+   "props": [
+    {
+     "id": "p11",
+     "kind": "exclaim",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "a",
+     "do": "jump",
+     "x": 0.35
+    }
+   ]
+  },
+  {
+   "line": "Ruth adds, “Without them, rails would snap, causing chaos.”",
+   "bg": "broken rail, wreckage",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.6,
+     "pose": "shout",
+     "feel": "angry",
+     "face": -1,
+     "hold": "hammer"
+    }
+   ],
+   "icon": "💥",
+   "props": [
+    {
+     "id": "p12",
+     "kind": "bolt",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "b",
+     "do": "point",
+     "x": 0.65
+    }
+   ]
+  },
+  {
+   "line": "Eli flashes a grin, “History loves clever fixes.”",
+   "bg": "old railway museum, plaques",
+   "set": "room",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.5,
+     "pose": "smile",
+     "feel": "neutral",
+     "face": 1,
+     "hold": "lantern"
+    }
+   ],
+   "icon": "🕰️",
+   "props": [
+    {
+     "id": "p13",
+     "kind": "star",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "c",
+     "do": "walk",
+     "x": 0.55
+    }
+   ]
+  },
+  {
+   "line": "Milo waves his ticket, “Next stop: understanding physics!”",
+   "bg": "train interior, seats",
+   "set": "train",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.4,
+     "pose": "wave",
+     "feel": "happy",
+     "face": 1,
+     "hold": "ticket"
+    }
+   ],
+   "icon": "🎫",
+   "props": [
+    {
+     "id": "p14",
+     "kind": "heart",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "a",
+     "do": "walk",
+     "x": 0.45
+    }
+   ]
+  },
+  {
+   "line": "Ruth snaps a photo, “Proof that gaps save lives.”",
+   "bg": "photo studio, rails backdrop",
+   "set": "room",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.6,
+     "pose": "snap",
+     "feel": "neutral",
+     "face": -1,
+     "hold": "camera"
+    }
+   ],
+   "icon": "📸",
+   "props": [
+    {
+     "id": "p15",
+     "kind": "exclaim",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "b",
+     "do": "point",
+     "x": 0.65
+    }
+   ]
+  },
+  {
+   "line": "Eli holds up a brass gauge, “Measure it, trust it.”",
+   "bg": "workshop bench, gauges",
+   "set": "room",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.5,
+     "pose": "hold",
+     "feel": "neutral",
+     "face": 1,
+     "hold": "gauge"
+    }
+   ],
+   "icon": "⚖️",
+   "props": [
+    {
+     "id": "p16",
+     "kind": "gear",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "c",
+     "do": "walk",
+     "x": 0.5
+    }
+   ]
+  },
+  {
+   "line": "Milo chuckles, “Gaps: tiny, mighty, and totally intentional!”",
+   "bg": "sunset over tracks, silhouette",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.3,
+     "pose": "laugh",
+     "feel": "happy",
+     "face": 1,
+     "hold": "coin"
+    }
+   ],
+   "icon": "✨",
+   "props": [
+    {
+     "id": "p17",
+     "kind": "star",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "a",
+     "do": "jump",
+     "x": 0.35
+    }
+   ]
+  },
+  {
+   "line": "Ruth nods, “And that’s why we love rail engineering.”",
+   "bg": "bridge over river, rails",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.7,
+     "pose": "nod",
+     "feel": "neutral",
+     "face": -1,
+     "hold": "book"
+    }
+   ],
+   "icon": "🛤️",
+   "props": [
+    {
+     "id": "p18",
+     "kind": "clock",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.3,
+     "id": "b",
+     "do": "point",
+     "x": 0.75
+    }
+   ]
+  },
+  {
+   "line": "Button: Gaps keep trains rolling smooth—no myth, just physics!",
+   "bg": "railroad sunrise, smooth track",
+   "set": "rails",
+   "cam": "push",
+   "cut": "whip",
+   "say": "a",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.5,
+     "pose": "cheer",
+     "feel": "happy",
+     "face": 1,
+     "hold": "heart"
+    }
+   ],
+   "icon": "🚄",
+   "props": [
+    {
+     "id": "p19",
+     "kind": "gear",
+     "x": 0.5
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.2,
+     "id": "c",
+     "do": "jump",
+     "x": 0.55
+    }
+   ]
+  }
+ ]
+}

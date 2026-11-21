@@ -180,7 +180,16 @@ async function run(browser, n) {
         const clips = [0, 1, 2, 3].map(k => ({ start: a + 3 + k * 33, end: Math.min(z, a + 30 + k * 33), payoffEnd: Math.min(z, a + 24.5 + k * 33), heading: ['He Tried To Break It 💀', 'It Survived EVERYTHING', 'Chat Could Not Believe This', 'The Fire Test 🔥'][k], score: 9 - k, why: 'Big reaction and a payoff.', highlight: ['indestructible', 'insane'], emoji: [{ t: a + 8 + k * 33, e: '💀' }] })).filter(c => c.end - c.start > 10);
         return route.fulfill({ json: { ok: true, text: JSON.stringify({ clips }) } });
       }
-      const text = /fact-check|Check each line/i.test(sys) ? JSON.stringify({ notes: [], fixes: [], unverified: [] }) : JSON.stringify(script);
+      let text;
+      if (/fact-check|Check each line/i.test(sys)) text = JSON.stringify({ notes: [], fixes: [], unverified: [] });
+      else {
+        // Long scripts are asked for in parts: answer each part with its slice of the script.
+        const user = String(body.messages?.[body.messages.length - 1]?.content || '');
+        const first = /write only the first (\d+) scenes/.exec(user), next = /Write the next (\d+) scenes/.exec(user);
+        if (next) { const done = (user.match(/^\d+\. /gm) || []).length; text = JSON.stringify({ scenes: script.scenes.slice(done, done + +next[1]) }); }
+        else if (first) text = JSON.stringify({ ...script, scenes: script.scenes.slice(0, +first[1]) });
+        else text = JSON.stringify(script);
+      }
       return route.fulfill({ json: { ok: true, text, model: 'mock' } });
     }
     if (p === 'transcribe') {

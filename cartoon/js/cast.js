@@ -76,11 +76,13 @@ export class Ink {
 }
 
 export class Cast {
-  static HATS = ['none', 'hair', 'cap', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel'];
-  static FEELS = ['neutral', 'happy', 'sad', 'angry', 'shocked', 'skeptical'];
+  static HATS = ['none', 'hair', 'cap', 'flatcap', 'conductor', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel'];
+  static FEELS = ['neutral', 'happy', 'sad', 'angry', 'shocked', 'skeptical', 'smug'];
   static POSES = ['idle', 'walk', 'turn', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'shock', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'enter', 'exit'];
   static HAIR = ['none', 'brown', 'black', 'blonde', 'red'];
-  static COSTUMES = ['vest', 'suit', 'shirt', 'coat'];
+  static COSTUMES = ['vest', 'suit', 'shirt', 'coat', 'apron'];
+  // Things a character can hold or use, drawn in the hand.
+  static HOLDS = ['phone', 'money', 'coin', 'ticket', 'heart', 'magnet', 'map', 'letter', 'key', 'book', 'lantern', 'cup', 'bag', 'wrench', 'hammer', 'newspaper', 'clipboard', 'watch', 'camera', 'ruler', 'rail'];
   static PALETTE = ['#2A9D8F', '#E8B931', '#E85D4C', '#3D74E0', '#2C3E6B', '#F08A2A', '#7A4EBF', '#3E9A45'];
 
   // Pixel scale. One character is a bit under half the frame, big head, short body.
@@ -232,6 +234,13 @@ export class Cast {
     // Belt, so the hip is a costume and not a body.
     ctx.fillStyle = Ink.INK;
     ctx.fillRect(-0.95 * u, (y + h - 0.28) * u, 1.9 * u, 0.16 * u);
+    if (costume === 'apron') {
+      // A work apron over the shirt: bib, straps and a pocket, in off-white.
+      Ink.rrect(ctx, -0.62 * u, (y + 0.32) * u, 1.24 * u, (h + 0.2) * u, 0.16 * u);
+      ctx.fillStyle = '#F3EEDF'; ctx.fill(); ctx.lineWidth = 0.12 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-0.5 * u, (y + 0.36) * u); ctx.lineTo(-0.72 * u, (y + 0.05) * u); ctx.moveTo(0.5 * u, (y + 0.36) * u); ctx.lineTo(0.72 * u, (y + 0.05) * u); ctx.stroke();
+      Ink.rrect(ctx, -0.32 * u, (y + h * 0.62) * u, 0.64 * u, 0.36 * u, 0.06 * u); ctx.stroke();
+    }
   }
 
   static head(ctx, st, u, bob, hand) {
@@ -284,6 +293,12 @@ export class Cast {
     const eyeY = hy - 0.18;
     ctx.fillStyle = Ink.INK;
     const drawEye = (x, wide) => {
+      if (feel === 'smug') {
+        // Half-closed, pleased with itself.
+        ctx.beginPath(); ctx.ellipse(x * u, eyeY * u, 0.15 * u, 0.12 * u, 0, 0, Math.PI); ctx.fill();
+        ctx.lineWidth = 0.1 * u; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo((x - 0.22) * u, (eyeY - 0.01) * u); ctx.lineTo((x + 0.22) * u, (eyeY - 0.01) * u); ctx.stroke();
+        return;
+      }
       if (feel === 'happy' || st.pose === 'laugh') {
         ctx.lineWidth = 0.14 * u;
         ctx.lineCap = 'round';
@@ -336,6 +351,10 @@ export class Cast {
       for (const fx of [-0.165, 0, 0.165]) { ctx.moveTo(fx * u, (my - h / 2) * u); ctx.lineTo(fx * u, (my + h / 2) * u); }
       ctx.lineWidth = 0.045 * u; ctx.stroke();
       ctx.fillStyle = Ink.INK;
+    } else if (feel === 'smug' && talk < 0.3) {
+      // A one-sided smirk.
+      ctx.lineWidth = 0.12 * u; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-0.3 * u, (my + 0.02) * u); ctx.quadraticCurveTo(0.1 * u, (my + 0.12) * u, 0.38 * u, (my - 0.14) * u); ctx.stroke();
     } else if ((feel === 'sad' || st.pose === 'cry') && talk < 0.2) {
       ctx.beginPath();
       ctx.arc(0, (my + 0.28) * u, 0.32 * u, 1.15 * Math.PI, 1.85 * Math.PI);
@@ -389,6 +408,20 @@ export class Cast {
       ctx.fillStyle = '#F4F1EA';
       for (let i = -2; i <= 2; i++) ctx.fillRect((i * 0.22 - 0.06) * u, (top - 0.5) * u, 0.1 * u, 0.58 * u);
       Ink.oval(ctx, 0.95, top + 0.05, 0.7, 0.18, color, u, 0.1);
+    } else if (kind === 'flatcap') {
+      // A low flat cap with a short peak (1900s workers, paperboys).
+      ctx.beginPath();
+      ctx.moveTo(-1.0 * u, (top + 0.1) * u); ctx.quadraticCurveTo(-0.9 * u, (top - 0.62) * u, 0.2 * u, (top - 0.62) * u);
+      ctx.quadraticCurveTo(1.05 * u, (top - 0.58) * u, 1.05 * u, (top + 0.05) * u); ctx.closePath();
+      ctx.fillStyle = '#6B5B4E'; ctx.fill(); ctx.lineWidth = 0.12 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      Ink.oval(ctx, 0.95, top + 0.08, 0.62, 0.15, '#5A4B40', u, 0.1);
+    } else if (kind === 'conductor') {
+      // A stiff railway conductor's cap with a peak and a gold badge.
+      Ink.rrect(ctx, -0.95 * u, (top - 0.62) * u, 1.9 * u, 0.7 * u, 0.12 * u);
+      ctx.fillStyle = '#23304F'; ctx.fill(); ctx.lineWidth = 0.12 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.fillStyle = '#F2C230'; ctx.fillRect(-0.95 * u, (top - 0.12) * u, 1.9 * u, 0.12 * u);
+      Ink.oval(ctx, 0, top - 0.36, 0.17, 0.17, '#F2C230', u, 0.07);
+      Ink.oval(ctx, 0.85, top + 0.08, 0.6, 0.15, '#151D33', u, 0.1);
     } else if (kind === 'hardhat') {
       ctx.beginPath();
       ctx.arc(0, (top + 0.15) * u, 1.15 * u, Math.PI, 0);
@@ -436,7 +469,62 @@ class PropMini {
     ctx.lineWidth = 6;
     ctx.strokeStyle = Ink.INK;
     ctx.lineJoin = 'round';
-    if (kind === 'phone') {
+    if (kind === 'camera') {
+      Ink.rrect(ctx, -28, -18, 56, 38, 6); ctx.fillStyle = '#3A3F4B'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2A2A2E'; ctx.fillRect(-18, -26, 16, 9); ctx.fillStyle = '#9FD3F2'; ctx.beginPath(); ctx.arc(4, 1, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    } else if (kind === 'ruler') {
+      ctx.save(); ctx.rotate(-0.5); Ink.rrect(ctx, -36, -8, 72, 16, 2); ctx.fillStyle = '#E8C547'; ctx.fill(); ctx.stroke();
+      ctx.lineWidth = 2; for (let k = -30; k <= 30; k += 6) { ctx.beginPath(); ctx.moveTo(k, -8); ctx.lineTo(k, k % 12 ? -3 : 1); ctx.stroke(); } ctx.restore();
+    } else if (kind === 'rail') {
+      // A short piece of steel rail, end on: head, web and foot.
+      ctx.save(); ctx.rotate(-0.3); ctx.fillStyle = '#8D949E';
+      ctx.beginPath(); ctx.moveTo(-34, -10); ctx.lineTo(34, -10); ctx.lineTo(34, -2); ctx.lineTo(28, -2); ctx.lineTo(28, 6); ctx.lineTo(36, 10); ctx.lineTo(-36, 10); ctx.lineTo(-28, 6); ctx.lineTo(-28, -2); ctx.lineTo(-34, -2); ctx.closePath();
+      ctx.fill(); ctx.stroke(); ctx.fillStyle = '#B9C0C9'; ctx.fillRect(-32, -9, 64, 3); ctx.restore();
+    } else if (kind === 'wrench') {
+      ctx.fillStyle = '#9AA3AE'; ctx.save(); ctx.rotate(-0.6); Ink.rrect(ctx, -6, -30, 12, 52, 5); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -32, 13, 0.35 * Math.PI, 2.65 * Math.PI); ctx.lineTo(4, -32); ctx.lineTo(-4, -32); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    } else if (kind === 'hammer') {
+      ctx.save(); ctx.rotate(-0.4); ctx.fillStyle = '#8A5A32'; Ink.rrect(ctx, -5, -22, 10, 50, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#5F6670'; Ink.rrect(ctx, -22, -34, 44, 16, 4); ctx.fill(); ctx.stroke(); ctx.restore();
+    } else if (kind === 'newspaper') {
+      Ink.rrect(ctx, -30, -24, 60, 48, 2); ctx.fillStyle = '#EFEDE6'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2A2A2E'; ctx.fillRect(-24, -18, 48, 8); ctx.fillStyle = '#9A9AA0';
+      for (let k = 0; k < 4; k++) ctx.fillRect(-24, -4 + k * 7, k % 2 ? 20 : 48, 3);
+    } else if (kind === 'clipboard') {
+      Ink.rrect(ctx, -22, -30, 44, 60, 4); ctx.fillStyle = '#B5844E'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-16, -20, 32, 44); ctx.fillStyle = '#9AA3AE'; ctx.fillRect(-10, -34, 20, 8);
+      ctx.fillStyle = '#B0B0B5'; for (let k = 0; k < 4; k++) ctx.fillRect(-12, -12 + k * 9, 24, 3);
+    } else if (kind === 'watch') {
+      ctx.strokeStyle = '#C9A227'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0, -24); ctx.quadraticCurveTo(14, -40, 20, -30); ctx.stroke();
+      ctx.fillStyle = '#E8C547'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.fillStyle = '#FFFDF5'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
+      ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -9); ctx.moveTo(0, 0); ctx.lineTo(7, 3); ctx.stroke();
+    } else if (kind === 'map') {
+      Ink.rrect(ctx, -30, -22, 60, 44, 3); ctx.fillStyle = '#F1E2B8'; ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#C0392B'; ctx.lineWidth = 3; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(-20, 12); ctx.quadraticCurveTo(0, -18, 18, 4); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = Ink.INK; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(22, 8); ctx.moveTo(22, 0); ctx.lineTo(14, 8); ctx.stroke();
+    } else if (kind === 'letter') {
+      Ink.rrect(ctx, -28, -18, 56, 36, 3); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-28, -18); ctx.lineTo(0, 4); ctx.lineTo(28, -18); ctx.stroke();
+      ctx.fillStyle = '#C0392B'; ctx.beginPath(); ctx.arc(0, 6, 5, 0, Math.PI * 2); ctx.fill();
+    } else if (kind === 'key') {
+      ctx.lineWidth = 6; ctx.strokeStyle = '#D4A017'; ctx.beginPath(); ctx.arc(-14, 0, 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(26, 0); ctx.moveTo(18, 0); ctx.lineTo(18, 9); ctx.moveTo(25, 0); ctx.lineTo(25, 7); ctx.stroke();
+    } else if (kind === 'book') {
+      Ink.rrect(ctx, -24, -28, 48, 56, 4); ctx.fillStyle = '#7A3E2E'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#F4EBD0'; ctx.fillRect(16, -24, 6, 48); ctx.strokeStyle = '#E8C15A'; ctx.lineWidth = 3; ctx.strokeRect(-16, -18, 26, 12);
+    } else if (kind === 'lantern') {
+      ctx.strokeStyle = Ink.INK; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, -30, 9, Math.PI, 0); ctx.stroke();
+      Ink.rrect(ctx, -16, -26, 32, 44, 5); ctx.fillStyle = 'rgba(255,214,102,0.95)'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#3A3F4B'; ctx.fillRect(-18, -30, 36, 6); ctx.fillRect(-18, 16, 36, 6);
+    } else if (kind === 'cup') {
+      Ink.rrect(ctx, -18, -20, 32, 38, 5); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(18, -2, 9, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+      ctx.fillStyle = '#6F4E37'; ctx.fillRect(-14, -16, 24, 6);
+    } else if (kind === 'bag') {
+      Ink.rrect(ctx, -26, -14, 52, 40, 8); ctx.fillStyle = '#B5763C'; ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -14, 14, Math.PI, 0); ctx.stroke();
+    } else if (kind === 'phone') {
       Ink.rrect(ctx, -16, -28, 32, 52, 6);
       ctx.fillStyle = '#2C3E6B'; ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#9AD0FF'; ctx.fillRect(-10, -18, 20, 28);

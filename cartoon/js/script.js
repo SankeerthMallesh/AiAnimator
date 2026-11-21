@@ -36,6 +36,31 @@ const TOON_WORDS = {
   thermometer: /\b(temperat\w*|hot|cold|heat\w*|degrees?|thermo\w*|warm\w*|freez\w*)\b/,
 };
 
+// A sticker or prop must stand for a thing the line names literally: never a colour, a describing
+// word, or a word inside a figure of speech ("orange sunset", "felt blue", "time flies").
+const COLOUR_WORDS = /^(red|orange|yellow|green|blue|purple|violet|pink|brown|black|white|grey|gray|gold|golden|silver)$/;
+const DESCRIBING = /^(cool|hot|cold|warm|big|small|huge|tiny|fast|slow|sweet|sour|sharp|bright|dark|happy|sad|angry|funny|weird|strange|crazy|wild|smart|good|bad|great|nice|heavy|light|loud|quiet|soft|hard|new|old|fresh|dry|wet)$/;
+const FIGURES = [/\b(orange|red|pink|golden|purple) (sunsets?|skies|sky|glow|light|dawn|dusk)\b/, /\b(felt|feel|feeling|feels|is|was|looked) blue\b/, /\bcool (idea|move|trick|thing)\b/,
+  /\bapple of (my|his|her|your|their|our) eyes?\b/, /\bbrain ?freeze\b/, /\btime flies\b/, /\bpiece of cake\b/, /\bbreak the ice\b/, /\bcold feet\b/, /\bunder the weather\b/,
+  /\braining cats and dogs\b/, /\bon fire\b/, /\b(on|off|back on) track\b/, /\btrack record\b/, /\bkeep(s|ing)? track\b/, /\bheart of gold\b/, /\bspill the beans\b/, /\bhot potato\b/, /\bin hot water\b/];
+export function literalTrigger(word, narration) {
+  const w = String(word || '').toLowerCase().trim(), low = String(narration || '').toLowerCase();
+  if (!w || COLOUR_WORDS.test(w) || DESCRIBING.test(w)) return false;
+  return !FIGURES.some(re => { const m = re.exec(low); return m && new RegExp(`\\b${w}\\b`).test(m[0]); });
+}
+
+// Story objects a character can hold, and the words that name them in a line.
+export const HOLD_WORDS = [
+  ['ticket', /\btickets?\b/], ['money', /\b(money|cash|dollars?|coins?|paid|pay|wages?|price|cost|costs|bill|bribe|fare)\b/], ['phone', /\b(phones?|called|calls?|texted)\b/],
+  ['map', /\b(maps?|route|directions)\b/], ['letter', /\b(letters?|note|envelope|telegram|message|mail)\b/], ['key', /\b(keys?|locked|unlocked)\b/],
+  ['book', /\b(books?|diary|notebook|rulebook|manual|records?|ledger)\b/], ['lantern', /\b(lanterns?|lamps?|torch|candles?)\b/], ['cup', /\b(cups?|coffee|tea|mug)\b/],
+  ['bag', /\b(bags?|sacks?|suitcases?|luggage|parcel|package)\b/], ['wrench', /\b(wrench|spanner|tools?)\b/], ['hammer', /\b(hammers?|mallet)\b/],
+  ['newspaper', /\b(newspapers?|headlines?|paper)\b/], ['clipboard', /\b(clipboard|plans?|blueprints?|reports?|checklist|forms?)\b/], ['watch', /\b(watch|stopwatch|pocket watch|timer)\b/],
+  ['camera', /\b(cameras?|photos?|photographs?|snapshots?)\b/], ['ruler', /\b(rulers?|gauges?|tape measure|measur\w*)\b/], ['rail', /\b(rails?|tracks?)\b/],
+];
+// Lines where those words are figurative ("cost him his job", "time flies") get no object.
+const FIGURATIVE_HOLD = /\b(cost (him|her|them|us|me) (his|her|their|our|my)|pay attention|paid off|piece of cake|open book|key (point|fact|reason|idea|part)|in a nutshell)\b/;
+
 // Backup stickers: common things and their emoji, used when the script writer leaves "icon" out.
 const EMOJI_WORDS = {
   calendar: '🗓️', year: '🗓️', leap: '🗓️', february: '🗓️', month: '🗓️', week: '🗓️', birthday: '🎂', season: '🍂', autumn: '🍂', winter: '⛄', summer: '🏖️', spring: '🌸',
@@ -95,6 +120,8 @@ export function propTrigger(p, narration) {
     return '';
   }
   if (TOON_WORDS[p.kind]) return find(TOON_WORDS[p.kind]);
+  const held = HOLD_WORDS.find(([k]) => k === p.kind);
+  if (held) return find(held[1]);
   return find(new RegExp(`\\b${String(p.kind).replace(/[^a-z]/g, '')}(s|es)?\\b`));
 }
 
@@ -387,7 +414,7 @@ export class Script {
           pose: Script.oneOf(Cast.POSES, w.pose || w.do, ['point', 'shrug', 'idle', 'think'][(i + k) % 4]),
           feel: Script.oneOf(Cast.FEELS, w.feel || w.emotion, 'neutral'),
           face: w.face === 'left' || w.face === -1 || w.face === '-1' ? -1 : 1,
-          hold: PropKit.KINDS.includes(String(w.hold || '')) ? String(w.hold) : '',
+          hold: Cast.HOLDS.includes(String(w.hold || '')) || PropKit.KINDS.includes(String(w.hold || '')) ? String(w.hold) : '',
         };
       }).filter((w, idx, arr) => arr.findIndex(x => x.id === w.id) === idx).slice(0, 4);
       if (!who.length) {
@@ -488,6 +515,13 @@ export class Script {
           const toon = props.find(p => PropKit.TOONS.includes(p.kind));
           if (!toon) props = [...props, { id: 'icon', kind: 'icon', emoji, x: 0.5, y: null }].slice(-4);
         }
+      }
+      // Nothing appears without a reason (the sailboat rule): a prop stays only if its line names
+      // it, literally, and a shot has at most two of them (stickers are separate and off by default).
+      {
+        const named = props.filter(p => literalTrigger(propTrigger(p, narration), narration));
+        const objects = named.filter(p => p.kind !== 'icon').slice(0, 2);
+        props = [...objects, ...named.filter(p => p.kind === 'icon')];
       }
       const actsIn = Array.isArray(s.acts) ? s.acts : Array.isArray(s.actions) ? s.actions : [];
       const acts = [];
@@ -622,6 +656,7 @@ export class Script {
         else { sc.cut = sc.cut === 'zoom' ? 'zoom' : (i % 2 ? 'whip' : 'zoom'); flashy = true; }
       });
     }
+    Script.storyPass(cast, scenes, options, raw);
     return {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
       youtubeTitle: Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90),
@@ -801,23 +836,80 @@ export class Script {
     }, { ...options, topic });
   }
 
+  // A cast of at least three in different period costumes (no hard hats off building sites), the
+  // speaker holding the story object the line names, and a range of feelings across the video.
+  static storyPass(cast, scenes, options = {}, raw = {}) {
+    const topic = `${options.topic || ''} ${raw.title || ''}`.toLowerCase();
+    // Hard hats only when the video is about building something (decided by its topic).
+    const building = /\b(construct\w*|building sites?|builders?|built|scaffold\w*|cranes?|skyscrapers?|road ?works?|demolition)\b/.test(topic);
+    const ERA = ['flatcap', 'bowler', 'tophat', 'conductor', 'fedora', 'cap', 'beanie'];
+    const usedHat = new Set();
+    for (const c of cast) {
+      if (c.hat === 'hardhat' && !building) c.hat = ERA.find(h => !usedHat.has(h) && !cast.some(o => o !== c && o.hat === h)) || 'flatcap';
+      if (usedHat.has(c.hat) && c.hat !== 'hair' && c.hat !== 'none') c.hat = ERA.find(h => !usedHat.has(h)) || c.hat;
+      usedHat.add(c.hat);
+    }
+    if (cast.length < 3 && !(options.crew?.length) && scenes.length >= 3) {
+      const names = ['Otto', 'Iris', 'Hugo', 'Nell', 'Pip', 'Rosa'].filter(n => !cast.some(c => c.name === n));
+      const colors = ['#9B5DE5', '#E76F51', '#5B7FE0', '#F15BB5'].filter(c => !cast.some(o => o.color.toLowerCase() === c.toLowerCase()));
+      const third = { id: ['c', 'd', 'e'].find(id => !cast.some(o => o.id === id)), name: names[0], color: colors[0] || '#9B5DE5', hat: ERA.find(h => !usedHat.has(h)) || 'bowler', hair: 'black', costume: 'apron' };
+      cast.push(third);
+      // The third character joins every third scene, standing in the middle.
+      scenes.forEach((sc, i) => {
+        if (i % 3 !== 1 || sc.who.length >= 3 || sc.use) return;
+        sc.who.sort((a, b) => a.x - b.x);
+        if (sc.who[0]) sc.who[0].x = 0.24;
+        if (sc.who[1]) sc.who[1].x = 0.76;
+        sc.who.push({ id: third.id, x: 0.5, pose: 'think', feel: 'skeptical', face: 1, hold: '' });
+      });
+    }
+    // A held object the line does not name goes; then the story object in hand: what the line
+    // names, held by whoever says it.
+    for (const sc of scenes) for (const w of sc.who) if (w.hold && !literalTrigger(propTrigger({ kind: w.hold }, sc.narration), sc.narration)) w.hold = '';
+    for (const sc of scenes) {
+      const sp = sc.who.find(w => w.id === sc.say) || sc.who[0];
+      if (!sp || sp.hold || sc.use) continue;
+      const low = sc.narration.toLowerCase();
+      const hit = HOLD_WORDS.find(([k, re]) => re.test(low) && !FIGURATIVE_HOLD.test(low) && literalTrigger(propTrigger({ kind: k }, sc.narration), sc.narration));
+      if (hit) sp.hold = hit[0];
+    }
+    // Feelings: at least four different ones across the video (neutral, angry, smug, shocked...).
+    const feels = new Set(scenes.flatMap(sc => sc.who.map(w => w.feel)));
+    if (feels.size < 4) {
+      const rival = cast[1]?.id;
+      scenes.forEach((sc, i) => {
+        const low = sc.narration.toLowerCase();
+        for (const w of sc.who) {
+          const speaking = w.id === sc.say;
+          if (/!/.test(low) && !speaking) w.feel = 'shocked';
+          else if (/\?/.test(low) && !speaking) w.feel = 'skeptical';
+          else if (w.id === rival && /\b(rival|won|wins?|beat|laugh\w*|cheat\w*|steal\w*|stole|first|faster|better|richer)\b/.test(low)) w.feel = speaking ? 'smug' : 'angry';
+          else if (i === scenes.length - 1) w.feel = 'happy';
+          else if (!speaking) w.feel = ['skeptical', 'smug', 'shocked', 'angry'][(i + (w.id === rival ? 1 : 0)) % 4];
+        }
+      });
+    }
+  }
+
   static prompt(topic, options, part = null) {
     const plan = { ...Script.plan(options) };
     if (part) { plan.scenes = part.scenes; plan.words = part.scenes * plan.wordsPerScene; }
     const where = { '9:16': 'vertical 9:16 YouTube Short', '16:9': 'horizontal 16:9 video', '1:1': 'square video', '4:5': '4:5 video' }[plan.fmt];
     const pace = { chill: 'calm', normal: 'brisk', fast: 'very fast' }[options.pace || 'normal'];
-    return `Write a ${where}, ${plan.seconds}s, ${pace} comedy-explainer.
+    return `Write a ${where}, ${plan.seconds}s, ${pace} comedy-explainer told as a story.
 TOPIC (follow it, keep real facts accurate): """${topic}"""
 ${options.extra ? `NOTES: ${options.extra}\n` : ''}About ${plan.words} spoken words across exactly ${plan.scenes} scenes (about ${plan.wordsPerScene} words each).
-${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the setup). Later parts continue the story.\n` : 'Hook in scene 1, a small story with the cast, a payoff in the last scene.\n'}Upload kit: "youtubeTitle" is a viral, curiosity-gap title under 70 characters with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"). "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 tags: #shorts plus specific ones for this topic.
+${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the set-up). Later parts continue the story.\n` : ''}Story beats, in order: 1) HOOK in scene 1 (the first 3 seconds): a named hero doing something surprising, or a sharp question. Never a passive fact ("X is a Y", "Have you ever wondered"). 2) SET-UP: who the hero is and what they want. 3) CONFLICT: a rival stands in the way. 4) ESCALATION: it gets bigger or worse. 5) TWIST: a surprising turn that reveals the real fact. 6) BUTTON: one short last line that lands the point or the joke. The real facts drive the story, and the story delivers exactly what the title promises (never contradict the title).
+Upload kit: "youtubeTitle" is a viral, curiosity-gap title under 70 characters with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"). "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 tags: #shorts plus specific ones for this topic.
 Facts: dates, names and numbers must be right. If a popular belief is a myth, say so and give the real version. Never state a myth as fact. Uncertain claims use "about" or "historians think".
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
-${options.crew?.length ? '' : `Cast: name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Choose each hat, costume and colour to fit the topic and era: laurel = ancient Greece or Rome, hardhat = engineering, cap = trains and pilots, helmet = space, chef = food, grad = science, crown = royalty, tophat = the 1800s. Give the two main characters different colours.`}
-Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"; "one and a half", not "1 1/2"; "five kilometers", not "5 km"). Sound like an upbeat Shorts narrator, never flat: a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits. Do not start a line with a speaker name, and do not mention cast names unless they are those real people.
+${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, crown = royalty, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
+Story objects: in at least half of the scenes the line names an object the speaker holds or uses (${Cast.HOLDS.join(' ')}), for example "Mabel slaps her wrench on the rail" or "Gus waves the rulebook": set "hold" on that character in "who". Never a thing the line does not name, and never say the word "prop".
+Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"; "one and a half", not "1 1/2"; "five kilometers", not "5 km"). Sound like an upbeat Shorts narrator, never flat: a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits. Do not start a line with a speaker name. The narrator tells the story and names the hero and the rival.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, deck = on board a ship, sea = the sea seen from the shore, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Only use places that belong to this story (no lab or office unless the story is about science or work). Change the set when the story moves to a new place; 2 to 4 different sets that fit the story are plenty.
 Props: every scene has one animated prop that shows what the line is about: earth, moon, eclipse (Earth's shadow crossing the Moon), stick (a stick and its moving shadow), bulb (an idea), question, exclaim, clock, book, thermometer, gear, atom, star, fire, drop, bolt. Add ground props (car, train, boat, house, tree, rocket...) when the line mentions them. Every scene also gets "icon": one emoji of the line's main thing, as specific as possible (🐝 🍯 🌋 🦈 🍕 🧲 🦠). When the video is about an animal or a thing, use that animal or thing in most scenes (a video about cats: 🐱 🐈). Never a face, person, hand or flag, and never vague symbols like ❓ ✨ 💧 ⚙️ 📦.
 Acts: give every scene 2 or 3 acts so the cast keeps moving (walk to a new x, point, jump, shrug, cheer, facepalm, turn).
@@ -825,7 +917,7 @@ bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
 Stay compact so the answer is never cut off: "bg" is 3 to 8 words of scenery for that scene (things and places only, no people, no words or numbers), at most 2 acts per scene, short names, no extra keys.
 Output ONLY compact JSON on one line:
-{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1},{"id":"b","x":0.7,"pose":"shrug","feel":"skeptical","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   // Parts 2..n of a long video: more scenes with the same cast, continuing the story.

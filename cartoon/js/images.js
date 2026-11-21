@@ -236,7 +236,7 @@ export function scenePrompt(bg, set, topic = '', look = '3d') {
   // The look of popular animated explainer Shorts: a bright, stylized 3D world with real depth
   // (tracks running into the distance, canyon walls, a station hall), clean ground in the lower
   // half where the drawn cast stands.
-  return `Stylized 3D cartoon game environment, vivid saturated colors, warm sunny lighting, soft shadows, clean simple shapes with painted textures, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, ${indoor ? 'cozy detailed interior' : 'bright blue sky with puffy white clouds'}, wide-angle view from a low camera with strong perspective and depth, open flat ground in the foreground, empty scene, no people, no characters, no animals, no text, no letters`;
+  return `3D-rendered game-engine environment, wide-angle lens, low or aerial camera, warm saturated light, empty foreground floor, stylized cartoon world with clean simple shapes and painted textures, ${about ? `a place from the story of ${about}: ` : ''}${place}${clean ? `, ${clean}` : ''}, ${indoor ? 'detailed interior with depth' : 'bright sky with puffy white clouds'}, strong perspective and depth, empty scene, no people, no characters, no animals, no text, no letters`;
 }
 
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {

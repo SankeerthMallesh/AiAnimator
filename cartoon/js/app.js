@@ -77,7 +77,7 @@ function refreshVoiceSelect() {
 }
 
 function initComposer() {
-  fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 30);
+  fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 60); // the reference Shorts run about a minute
   fillSelect($('#mood'), Object.entries(MOODS).map(([k, m]) => [k, m.label]), 'curious');
   fillSelect($('#pace'), Object.entries(PACES).map(([k, p]) => [k, p.label]), 'normal');
   $('#quality').value = String(settings.quality || '1080');

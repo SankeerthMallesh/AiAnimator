@@ -56,7 +56,7 @@ export class Stage {
       this._finish = f;
     }
     ctx.drawImage(this._finish, 0, 0);
-    if (shot.whip > 0) Stage.speedLines(ctx, W, H, shot.whip);
+    if (shot.whip > 0) { Stage.smear(ctx, W, H, shot.whip * ((scene.index + (shot.setup?.k || 0)) % 2 ? 1 : -1)); Stage.speedLines(ctx, W, H, shot.whip); }
     if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot);
     if (view.settings?.captionStyle !== 'off') {
       if (this.log) this.log.caption(t, ctx, H, () => Stage.caption(ctx, W, H, scene, local));
@@ -87,28 +87,41 @@ export class Stage {
 
   // One continuous camera move per scene, eased, with a gentle handheld drift, so a shot
   // never jumps mid-line. Transitions happen only at scene changes.
+  // Camera set-ups: each scene is cut into 2 or 3 set-ups of about 1.3 s, like the reference shorts
+  // (a new angle about every second). The first keeps the scene's own framing with a dolly-in; the
+  // others are a close-up, a reaction, a low-angle hero shot, an aerial tilt-down, a side truck or a
+  // scenery-only cutaway. A whip pan (0.22 s, about 6-7 frames) with motion blur joins them.
+  static SETUPS = ['close', 'aerial', 'reaction', 'low', 'truck', 'cutaway'];
+  static setupAt(scene, local) {
+    const dur = Math.max(0.5, scene.dur || 0);
+    const n = dur < 2 ? 1 : Math.max(2, Math.min(3, Math.round(dur / 1.3)));
+    const k = Math.min(n - 1, Math.floor((Math.max(0, local) / dur) * n));
+    const a = (k * dur) / n, b = ((k + 1) * dur) / n;
+    const kind = k === 0 ? 'first' : Stage.SETUPS[((scene.index || 0) + k - 1) % Stage.SETUPS.length];
+    return { k, n, kind, a, b };
+  }
+
   static shot(scene, local) {
-    const dur = Math.max(0.5, scene.dur);
-    const p = Ink.smooth(Ink.clamp(local / dur, 0, 1));
-    const cam = scene.cam || 'push';
+    const su = Stage.setupAt(scene, local);
+    const lt = local - su.a;
+    const p = Ink.smooth(Ink.clamp(lt / Math.max(0.3, su.b - su.a), 0, 1));
     let whip = 0, z = 1, panX = 0, panY = 0, rot = 0;
-    if (local < 0.22 && scene.cut === 'whip') whip = 1 - local / 0.22;
-    if (local < 0.3 && scene.cut === 'zoom') z = 1.16 - 0.16 * Ink.smooth(local / 0.3);
-    if (cam === 'push') z *= 1 + 0.07 * p;
-    else if (cam === 'pull') z *= 1.07 - 0.07 * p;
-    else if (cam === 'pan') { panX = (p - 0.5) * (scene.index % 2 ? -0.9 : 0.9); z *= 1.05; }
-    else if (cam === 'tilt') { rot = (p - 0.5) * 0.035; z *= 1.04; }
-    else if (cam === 'punch') {
-      // A quick punch-in on the first beat of the line, then a slow settle.
-      const k = local - 0.3;
-      z *= 1.02 + (k > 0 && k < 0.5 ? 0.11 * Math.sin((k / 0.5) * Math.PI) * (k < 0.25 ? 1 : 0.6) : 0) + 0.03 * p;
-    }
+    // Scene start: the scene's own cut; set-up start: a whip pan.
+    if (su.k === 0 && local < 0.22 && scene.cut === 'whip') whip = 1 - local / 0.22;
+    if (su.k === 0 && local < 0.3 && scene.cut === 'zoom') z = 1.16 - 0.16 * Ink.smooth(local / 0.3);
+    if (su.k > 0 && lt < 0.22) whip = 1 - lt / 0.22;
+    if (su.kind === 'first') z *= 1 + (0.08 + 0.07 * ((scene.index || 0) % 2)) * p; // dolly-in, 8-15%
+    else if (su.kind === 'close' || su.kind === 'reaction') z *= 1 + 0.06 * p;
+    else if (su.kind === 'low') { z *= 1.02 + 0.05 * p; rot = -0.012; }
+    else if (su.kind === 'aerial') { z *= 1.1; panY = (1 - p) * 150; } // tilts down onto the scene
+    else if (su.kind === 'truck') { z *= 1.06; panX = (p - 0.5) * ((scene.index || 0) % 2 ? -1.2 : 1.2); }
+    else if (su.kind === 'cutaway') z *= 1 + 0.08 * p;
     // Breathing: barely visible, but it keeps every frame alive.
     z *= 1 + 0.006 * Math.sin(local * 0.9 + scene.index);
     panX += 0.02 * Math.sin(local * 0.6 + scene.index * 1.7);
     panY += 3 * Math.sin(local * 0.75 + scene.index);
-    if (whip) panX += (scene.index % 2 ? 1 : -1) * whip * whip * 0.42;
-    return { cam, z, panX, panY, rot, whip, lt: local };
+    if (whip) panX += ((scene.index + su.k) % 2 ? 1 : -1) * whip * whip * 0.42;
+    return { cam: su.kind, z, panX, panY, rot, whip, lt: local, setup: su };
   }
 
   // Shot size for a scene, like an animator would cut it: an establishing wide shot first, then
@@ -129,6 +142,8 @@ export class Stage {
     }
     const z = portrait ? 1.22 : 1.14;
     const tx = Ink.clamp(Ink.lerp(W / 2, sp.x * W, 0.85), W * 0.3, W * 0.7);
+    // Low-angle hero shot: the camera sits low, so the speaker stands lower and larger with more sky.
+    if (scene.low) return { z: z * 1.12, tx, ty: ground - u * 3.0, sx: W / 2, sy: H * (portrait ? 0.62 : 0.6), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
     return { z, tx, ty: ground - u * 4.2, sx: W / 2, sy: H * (portrait ? 0.5 : 0.52), medium: true, sp, dir: sp.x < 0.5 ? 1 : -1 };
   }
 
@@ -149,14 +164,16 @@ export class Stage {
     // A cut halfway through longer scenes, like the 1.5-2 s shots of the reference Shorts: the
     // second half is a close-up (or back to wide), a reaction close-up on the listener, or a
     // scenery-only cutaway where the camera pushes into the world while the narration goes on.
-    const second = !photo && (scene.dur || 0) > 2.6 && local >= scene.dur / 2;
-    const variant = (scene.index || 0) % 3;
-    const cutaway = second && variant === 1;
+    const su = photo ? { k: 0, n: 1, kind: 'first' } : (shot.setup || Stage.setupAt(scene, local));
+    const cutaway = su.kind === 'cutaway';
+    const second = su.k > 0;
     let framed = scene;
-    if (second && !cutaway) {
-      const first = Stage.framing(scene, actors, W, H, u, ground);
+    {
       const other = actors.find(a => a.id !== scene.say)?.id;
-      framed = { ...scene, frame: first.close ? 'wide' : 'close', say: variant === 2 && other && !first.close ? other : scene.say };
+      if (su.kind === 'close') framed = { ...scene, frame: 'close' };
+      else if (su.kind === 'reaction') framed = { ...scene, frame: 'close', say: other || scene.say };
+      else if (su.kind === 'low') framed = { ...scene, frame: 'medium', low: true };
+      else if (su.kind === 'aerial' || su.kind === 'truck') framed = { ...scene, frame: 'wide' };
     }
     const fr = photo ? Stage.framing({ ...scene, frame: 'wide' }, actors, W, H, u, ground) : Stage.framing(cutaway ? { ...scene, frame: 'wide' } : framed, actors, W, H, u, ground);
     if (photo) props = props.filter(p => !(p.kind === 'icon' || PropKit.TOONS.includes(p.kind)));
@@ -178,9 +195,13 @@ export class Stage {
     Stage.lastShot = {
       scene: scene.index, source: pe?.bitmap ? (photo ? 'photo' : 'ai') : 'fallback',
       framing: cutaway ? 'wide' : fr.close ? 'close' : fr.medium ? 'medium' : 'wide',
-      characterIds: cutaway ? [] : actors.map(a => a.id),
-      world: scene.set || '', props: (fr.close && pe?.bitmap && pe?.scene ? [] : props).map(p => ({ kind: p.kind === 'icon' ? `icon:${p.emoji}` : p.kind, emoji: p.emoji || '' })),
-      cut: second ? (cutaway ? 'cutaway' : 'second') : 'first',
+      characterIds: cutaway ? [] : fr.close && fr.sp ? [fr.sp.id] : actors.map(a => a.id),
+      world: scene.set || '',
+      props: [
+        ...(fr.close && pe?.bitmap && pe?.scene ? [] : props).map(p => ({ kind: p.kind === 'icon' ? `icon:${p.emoji}` : p.kind, emoji: p.emoji || '' })),
+        ...(cutaway ? [] : actors.filter(a => a.hold && (!fr.close || a === fr.sp)).map(a => ({ kind: a.hold, emoji: '', held: a.id }))),
+      ],
+      cut: su.kind, setup: su.k, feels: cutaway ? [] : [...new Set((fr.close && fr.sp ? [fr.sp] : actors).map(a => a.feel || 'neutral'))],
       glow: false, picturePrompt: pe?.prompt || '', seed: 0,
     };
     ctx.save();
@@ -204,7 +225,7 @@ export class Stage {
     // The background zooms much less than the cast: a close-up stays sharp instead of blowing the
     // picture up 2x, and the difference reads as depth.
     {
-      const Z = shot.z * fr.z, Zb = cutaway ? 1.12 + 0.1 * Ink.clamp((local - scene.dur / 2) / (scene.dur / 2), 0, 1) : 1 + (Z - 1) * 0.35;
+      const Z = shot.z * fr.z, Zb = cutaway ? 1.12 + 0.1 * Ink.clamp((local - (su.a || 0)) / Math.max(0.3, (su.b || scene.dur) - (su.a || 0)), 0, 1) : 1 + (Z - 1) * 0.35;
       ctx.setTransform(screen);
       ctx.translate(fr.sx, fr.sy);
       ctx.rotate(shot.rot);
@@ -758,6 +779,19 @@ export class Stage {
     ctx.shadowColor = 'transparent';
     ctx.fillStyle = hot ? '#FFD43B' : '#FFFFFF';
     ctx.fillText(c.text, 0, 0);
+    ctx.restore();
+  }
+
+  // Horizontal motion blur for a whip pan: the frame smeared along the pan direction.
+  static smear(ctx, W, H, k) {
+    const c = Stage._smearCanvas ||= document.createElement('canvas');
+    if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.drawImage(ctx.canvas, 0, 0);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const reach = W * 0.09 * Math.abs(k), dir = Math.sign(k) || 1;
+    for (let i = 1; i <= 5; i++) { ctx.globalAlpha = 0.22; ctx.drawImage(c, dir * reach * (i / 5), 0); }
     ctx.restore();
   }
 

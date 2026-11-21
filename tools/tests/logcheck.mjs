@@ -113,6 +113,8 @@ const CHECKS = {
       [`>= 3 characters`, chars.size >= 3, [...chars].join(', ')],
       [`props tied to trigger words`, props.every(p => p.triggerWord), `${props.filter(p => p.triggerWord).length}/${props.length}`],
       [`story prop in >= 30% of shots`, withProp / Math.max(1, shots.length) >= 0.3, `${pct(withProp, shots.length)}%`],
+      [`>= 4 emotions on faces`, new Set(shots.flatMap(s => s.feels || [])).size >= 4, [...new Set(shots.flatMap(s => s.feels || []))].join(', ')],
+      [`>= 3 different camera set-ups besides the first`, new Set(shots.map(s => s.cut).filter(c => c && c !== 'first')).size >= 3, [...new Set(shots.map(s => s.cut))].join(', ')],
     ];
   },
 };
