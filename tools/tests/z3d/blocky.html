@@ -20,33 +20,36 @@ import { createEngine } from '../../../explainer/js/z3d/engine.js';
 import { Avatar, LOOKS, makeWorld } from '../../../explainer/js/z3d/blocky.js';
 const view = document.getElementById('view'), g = view.getContext('2d');
 const engine = createEngine({ width: 1080, height: 1920 });
+// The blocky look: warm hard sun, sharp shadows, soft contact shading, haze far away, rich colour.
+const STAGE = (size) => ({ shadowSize: size, sun: 3.3, sunDir: [-11, 9, 4], sunColor: 0xffeccc, hemi: 0.7, rimLight: 2.0, rimDir: [7, 5, -6], shadowMap: 3072, fog: [40, 140] });
+const LOOK = { bloom: 0.18, ao: 0.9, grade: { sat: 1.12, con: 1.05, vig: 0.18 } };
 const cam = (pos, look, fov = 36) => { const c = new THREE.PerspectiveCamera(fov, 9 / 16, 0.05, 400); c.position.set(...pos); c.lookAt(...look); return c; };
 const SHOTS = [
   // 0: the cast in town, wide
   ({ makeStage }) => {
-    const scene = makeStage({ shadowSize: 12, sun: 2.8, sunDir: [-6, 10, 8] }); scene.add(makeWorld('town'));
-    const av = LOOKS.map((l, i) => { const a = new Avatar(l); a.object.position.set((i - 2.5) * 0.85, 0, 0.6 - Math.abs(i - 2.5) * 0.2); a.object.rotation.y = -(i - 2.5) * 0.08; scene.add(a.object); return a; });
-    return { scene, camera: cam([0, 1.5, 9.5], [0, 0.95, 0]), update: (t) => { av.forEach((a, i) => a.pose(['wave', 'stand', 'cheer', 'point', 'stand', 'shrug'][i], t + i)); return { bloom: 0.15 }; } };
+    const scene = makeStage(STAGE(12)); scene.add(makeWorld('town'));
+    const av = LOOKS.map((l, i) => { const a = new Avatar(l); a.object.position.set(4.2 + (i - 2.5) * 0.85, 0, -3.2 - Math.abs(i - 2.5) * 0.2); a.object.rotation.y = -(i - 2.5) * 0.08; scene.add(a.object); return a; });
+    return { scene, camera: cam([3.6, 1.5, 6.3], [4.2, 1.1, -3.2]), update: (t) => { av.forEach((a, i) => a.pose(['wave', 'stand', 'cheer', 'point', 'stand', 'shrug'][i], t + i)); return LOOK; } };
   },
   // 1: talking close-up
   ({ makeStage }) => {
-    const scene = makeStage({ shadowSize: 8, sun: 2.8, sunDir: [-6, 10, 8] }); scene.add(makeWorld('town'));
-    const a = new Avatar(LOOKS[0]); scene.add(a.object);
-    return { scene, camera: cam([0.45, 1.45, 2.4], [0, 1.25, 0], 34), update: (t) => { a.pose('talk', t, { talking: true }); return { bloom: 0.15 }; } };
+    const scene = makeStage(STAGE(8)); scene.add(makeWorld('town'));
+    const a = new Avatar(LOOKS[0]); a.object.position.set(4.5, 0, -3); a.object.rotation.y = -0.2; scene.add(a.object);
+    return { scene, camera: cam([4.2, 1.45, -0.6], [4.5, 1.25, -3], 34), update: (t) => { a.pose('talk', t, { talking: true }); return LOOK; } };
   },
   // 2: reactions
   ({ makeStage }) => {
-    const scene = makeStage({ shadowSize: 8, sun: 2.8, sunDir: [-6, 10, 8] }); scene.add(makeWorld('park'));
+    const scene = makeStage(STAGE(8)); scene.add(makeWorld('park'));
     const pose = ['surprised', 'cheer', 'scared'];
     const av = [LOOKS[2], LOOKS[3], LOOKS[1]].map((l, i) => { const a = new Avatar(l); a.object.position.set((i - 1) * 1.05, 0, -Math.abs(i - 1) * 0.3); a.object.rotation.y = -(i - 1) * 0.25; scene.add(a.object); return a; });
-    return { scene, camera: cam([0.2, 1.25, 5.6], [0, 0.9, 0]), update: (t) => { av.forEach((a, i) => a.pose(pose[i], t)); return { bloom: 0.15 }; } };
+    return { scene, camera: cam([0.2, 1.25, 5.6], [0, 0.9, 0]), update: (t) => { av.forEach((a, i) => a.pose(pose[i], t)); return LOOK; } };
   },
   // 3: walking in the snow, low tracking shot
   ({ makeStage }) => {
-    const scene = makeStage({ shadowSize: 10, sun: 2.6, sunDir: [-6, 10, 8] }); scene.add(makeWorld('snow', 11));
+    const scene = makeStage(STAGE(10)); scene.add(makeWorld('snow', 11));
     const a = new Avatar(LOOKS[4]), b = new Avatar(LOOKS[5]); scene.add(a.object, b.object);
     a.object.position.set(-0.55, 0, 0); b.object.position.set(0.55, 0, 0.2);
-    return { scene, camera: cam([2.3, 1.2, 5.2], [0, 0.95, -0.4], 38), update: (t) => { a.pose('walk', t); b.pose('walk', t + 0.4, { talking: true }); return { bloom: 0.15 }; } };
+    return { scene, camera: cam([2.3, 1.2, 5.2], [0, 0.95, -0.4], 38), update: (t) => { a.pose('walk', t); b.pose('walk', t + 0.4, { talking: true }); return LOOK; } };
   },
 ];
 window.shot = async (n, t = 0.5) => {

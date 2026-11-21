@@ -17,6 +17,23 @@ const tex = (w, h, draw) => {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 };
 const box = (w, h, d, r = 0.06) => new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2, h / 2, d / 2));
+// Painted surfaces: a base colour with soft noise and small marks, so nothing looks like flat plastic.
+const shade = (hex, k) => { const c = new THREE.Color(hex); c.offsetHSL(0, 0, k); return `#${c.getHexString()}`; };
+function noisy(base, { size = 256, spots = 900, spread = 0.05, marks = null, seed = 3 } = {}) {
+  const r = rng(seed);
+  const t = tex(size, size, (g, w, h) => {
+    g.fillStyle = base; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < spots; i++) { g.fillStyle = shade(base, (r() - 0.5) * 2 * spread); g.globalAlpha = 0.5; const s2 = 2 + r() * 6; g.fillRect(r() * w, r() * h, s2, s2); }
+    g.globalAlpha = 1;
+    marks?.(g, w, h, r);
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+const texMat = (base, o = {}, repeat = 1) => { const m = noisy(base, o); m.repeat.set(repeat, repeat); return new THREE.MeshStandardMaterial({ map: m, roughness: o.roughness ?? 0.8, metalness: 0 }); };
+const grassMarks = (g, w, h, r) => { for (let i = 0; i < 1400; i++) { const x = r() * w, y = r() * h; g.strokeStyle = r() < 0.5 ? 'rgba(30,110,30,.45)' : 'rgba(150,220,90,.4)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 3, y - 4 - r() * 5); g.stroke(); } };
+const pathMarks = (g, w, h, r) => { for (let i = 0; i < 60; i++) { g.fillStyle = r() < 0.5 ? 'rgba(90,70,40,.10)' : 'rgba(255,255,255,.08)'; g.beginPath(); g.ellipse(r() * w, r() * h, 2 + r() * 5, 1.5 + r() * 3, r() * 3, 0, Math.PI * 2); g.fill(); } };
+const fabricMarks = (g, w, h) => { g.globalAlpha = 0.06; g.fillStyle = '#000'; for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1); for (let x = 0; x < w; x += 3) g.fillRect(x, 0, 1, h); g.globalAlpha = 1; };
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0, ...o });
 
 // ---------- faces ----------
@@ -56,6 +73,8 @@ function shirtTex(c) {
     if (c.pattern === 'hoodie') { g.fillStyle = 'rgba(0,0,0,.15)'; g.fillRect(w * 0.18, h * 0.62, w * 0.64, h * 0.2); g.strokeStyle = c.accent; g.lineWidth = 6; g.beginPath(); g.moveTo(w * 0.42, 0); g.lineTo(w * 0.42, h * 0.3); g.moveTo(w * 0.58, 0); g.lineTo(w * 0.58, h * 0.3); g.stroke(); }
     if (c.pattern === 'jacket') { g.fillStyle = c.accent; g.fillRect(w * 0.44, 0, w * 0.12, h); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(w * 0.08, h * 0.55, w * 0.22, h * 0.12); g.fillRect(w * 0.7, h * 0.55, w * 0.22, h * 0.12); }
     g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(0, h * 0.92, w, h * 0.08); // belt line shadow
+    fabricMarks(g, w, h);
+    g.fillStyle = 'rgba(0,0,0,.1)'; g.beginPath(); g.moveTo(w * 0.38, 0); g.lineTo(w / 2, h * 0.1); g.lineTo(w * 0.62, 0); g.fill(); // collar
   });
 }
 
@@ -75,9 +94,10 @@ export class Avatar {
     const L = look, g = this.object = new THREE.Group();
     const part = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = true; o.receiveShadow = true; return o; };
     const pivot = (x, y, z) => { const p = new THREE.Group(); p.position.set(x, y, z); return p; };
-    const skin = mat(L.skin), pants = mat(L.pants), shoes = mat(L.shoes, { roughness: 0.4 });
-    const shirtMat = new THREE.MeshStandardMaterial({ map: shirtTex(L), roughness: 0.6 });
-    const sleeve = mat(L.shirt, { roughness: 0.6 });
+    const skin = mat(L.skin, { roughness: 0.45 }), shoes = mat(L.shoes, { roughness: 0.35 });
+    const pants = texMat(L.pants, { spots: 500, spread: 0.04, marks: fabricMarks, roughness: 0.75, seed: 5 });
+    const shirtMat = new THREE.MeshStandardMaterial({ map: shirtTex(L), roughness: 0.7 });
+    const sleeve = texMat(L.shirt, { spots: 400, spread: 0.03, marks: fabricMarks, roughness: 0.7, seed: 9 });
     // Body: torso 2x2x1 units, legs and arms 1x2x1, head 1.25 wide; feet on y = 0.
     this.hips = pivot(0, 2 * U, 0); g.add(this.hips);
     this.torso = pivot(0, 0, 0); this.hips.add(this.torso);
@@ -89,11 +109,18 @@ export class Avatar {
       leg.add(part(box(0.96 * U, 1.7 * U, 0.96 * U, 0.05), pants, 0, -0.85 * U, 0));
       leg.add(part(box(1.0 * U, 0.34 * U, 1.08 * U, 0.05), shoes, 0, -1.83 * U, 0.04 * U));
     }
+    // Belt, collar and shoe soles: small edges that catch the light.
+    const beltM = mat(L.pattern === 'hoodie' ? L.accent : '#2b2622', { roughness: 0.4 });
+    this.hips.add(part(box(2.04 * U, 0.2 * U, 1.04 * U, 0.03), beltM, 0, 0.02 * U, 0));
+    this.torso.add(part(box(0.9 * U, 0.14 * U, 0.6 * U, 0.04), mat(shade(L.shirt, -0.12), { roughness: 0.7 }), 0, 2.02 * U, 0.12 * U));
+    const sole = mat(shade(L.shoes, L.shoes === '#ffffff' || L.shoes === '#f2f2f2' ? -0.35 : 0.25), { roughness: 0.6 });
+    for (const leg of [this.legL, this.legR]) leg.add(part(box(1.02 * U, 0.1 * U, 1.1 * U, 0.02), sole, 0, -1.97 * U, 0.04 * U));
     // Arms (pivot at the shoulder): sleeve then skin hand.
     this.armL = pivot(1.5 * U, 1.85 * U, 0); this.armR = pivot(-1.5 * U, 1.85 * U, 0);
     for (const arm of [this.armL, this.armR]) {
       this.torso.add(arm);
       arm.add(part(box(0.94 * U, 1.25 * U, 0.94 * U, 0.05), sleeve, 0, -0.55 * U, 0));
+      arm.add(part(box(0.98 * U, 0.14 * U, 0.98 * U, 0.03), mat(shade(L.shirt, -0.1), { roughness: 0.7 }), 0, -1.13 * U, 0));
       arm.add(part(box(0.9 * U, 0.75 * U, 0.9 * U, 0.08), skin, 0, -1.55 * U, 0));
     }
     // Head on a neck pivot; the face is a texture on the front, swapped for expressions.
@@ -101,7 +128,7 @@ export class Avatar {
     this.faces = {};
     this.faceMat = new THREE.MeshStandardMaterial({ roughness: 0.5 });
     const headSide = mat(L.skin, { roughness: 0.5 });
-    const headGeo = box(1.25 * U, 1.2 * U, 1.15 * U, 0.12);
+    const headGeo = new RoundedBoxGeometry(1.25 * U, 1.2 * U, 1.15 * U, 5, 0.42 * U * 0.42);
     const head = part(headGeo, headSide, 0, 0.62 * U, 0); this.neck.add(head); this.head = head;
     const face = new THREE.Mesh(new THREE.PlaneGeometry(1.08 * U, 1.05 * U), this.faceMat);
     face.position.set(0, 0.62 * U, 0.578 * U); this.neck.add(face);
@@ -134,7 +161,7 @@ export class Avatar {
   setFace(kind) {
     if (this.faceKind === kind) return;
     this.faceKind = kind;
-    this.faces[kind] ||= tex(256, 256, (g, w, h) => drawFace(g, w, h, kind, this.look.skin));
+    this.faces[kind] ||= tex(512, 512, (g, w, h) => drawFace(g, w, h, kind, this.look.skin));
     this.faceMat.map = this.faces[kind]; this.faceMat.needsUpdate = true;
   }
 
@@ -181,14 +208,20 @@ export function makeWorld(kind = 'town', seed = 7) {
   const add = (geo, m, x, y, z, ry = 0) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.rotation.y = ry; o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
   const snow = kind === 'snow';
   // Ground: big tiles in two tones (no studs), a path.
-  const tileA = mat(snow ? '#f4f7fb' : '#5fbf4a', { roughness: 0.9 }), tileB = mat(snow ? '#e8eef6' : '#57b244', { roughness: 0.9 });
+  // Ground: big painted tiles in two tones (grass blades or snow sparkle), no studs; a textured path.
   const T = 4;
-  for (let i = -8; i < 8; i++) for (let j = -10; j < 6; j++) add(new THREE.BoxGeometry(T, 0.4, T), (i + j) % 2 ? tileA : tileB, i * T + T / 2, -0.2, j * T + T / 2);
-  const pathM = mat(kind === 'school' ? '#9a9ea6' : '#c9b48c', { roughness: 0.95 });
+  const tileA = texMat(snow ? '#f2f6fb' : '#5cbd47', { marks: snow ? null : grassMarks, spots: 1200, spread: 0.06, seed: 21 }, 1);
+  const tileB = texMat(snow ? '#e6edf6' : '#55b142', { marks: snow ? null : grassMarks, spots: 1200, spread: 0.06, seed: 22 }, 1);
+  for (let i = -10; i < 10; i++) for (let j = -14; j < 6; j++) add(box(T - 0.04, 0.4, T - 0.04, 0.03), (i + j) % 2 ? tileA : tileB, i * T + T / 2, -0.2, j * T + T / 2);
+  const pathM = texMat(kind === 'school' ? '#9a9ea6' : '#cdb78d', { marks: pathMarks, spots: 800, spread: 0.05, seed: 23 }, 1);
+  pathM.map.repeat.set(1, 16);
   add(new THREE.BoxGeometry(3.2, 0.42, 64), pathM, 0, -0.19, -8);
+  // Distant hills ring the world, so no shot sees the edge.
+  const hillM = [texMat(snow ? '#dfe8f3' : '#4fa64a', { spots: 600, seed: 31 }), texMat(snow ? '#d5e0ee' : '#459a42', { spots: 600, seed: 32 })];
+  for (let k = 0; k < 14; k++) { const a = (k / 14) * Math.PI * 2, R = 62 + r() * 10, w = 18 + r() * 14, h = 6 + r() * 9; const o = add(box(w, h, w * 0.7, 2.5), hillM[k % 2], Math.cos(a) * R, h / 2 - 1.5, Math.sin(a) * R - 10, -a); o.castShadow = false; }
   if (kind === 'studio') return g;
   // Trees: trunk + stacked leaf blocks.
-  const trunk = mat('#7a4f2c'), leafA = mat(snow ? '#e9f1f7' : '#2f9e41'), leafB = mat(snow ? '#dbe7f1' : '#3db450');
+  const trunk = texMat('#7a4f2c', { spots: 500, spread: 0.08, seed: 41 }), leafA = texMat(snow ? '#e9f1f7' : '#2f9e41', { spots: 1500, spread: 0.09, seed: 42 }), leafB = texMat(snow ? '#dbe7f1' : '#3db450', { spots: 1500, spread: 0.09, seed: 43 });
   const tree = (x, z, h = 2.4) => {
     add(box(0.5, h, 0.5, 0.04), trunk, x, h / 2, z);
     add(box(2.2, 1.4, 2.2, 0.15), leafA, x, h + 0.5, z);
@@ -224,9 +257,25 @@ export function makeWorld(kind = 'town', seed = 7) {
     for (const x of [-6, -3, 3, 6]) add(box(1.6, 1.4, 0.12, 0.04), mat('#9fd3f5', { roughness: 0.15 }), x, 3.5, -12.9);
     tree(-9, -6); tree(9, -7);
   }
-  // Clouds: flat white blocks high up.
-  const cm = mat('#ffffff', { roughness: 1, emissive: '#3a4a5a' });
-  for (let k = 0; k < 7; k++) { const x = (r() - 0.5) * 70, z = -30 - r() * 40, y = 16 + r() * 10; add(box(6 + r() * 6, 1.2, 3 + r() * 2, 0.4), cm, x, y, z).castShadow = false; }
+  // Small things that make a place feel lived in: flowers, rocks, lamp posts, a bench.
+  if (kind !== 'studio') {
+    const petal = ['#ff5a7a', '#ffd23f', '#ffffff', '#b57bff', '#ff8c42'].map(c => mat(c, { roughness: 0.5 })), stem = mat('#2f8a3a');
+    for (let k = 0; k < (snow ? 0 : 60); k++) {
+      const x = (r() - 0.5) * 30, z = -r() * 26 + 2; if (Math.abs(x) < 2.2) continue;
+      add(box(0.05, 0.3, 0.05, 0.01), stem, x, 0.15, z).castShadow = false;
+      add(box(0.18, 0.12, 0.18, 0.04), petal[k % petal.length], x, 0.34, z).castShadow = false;
+    }
+    const rock = texMat('#9aa1a8', { spots: 700, spread: 0.1, seed: 51 });
+    for (let k = 0; k < 10; k++) { const x = (r() < 0.5 ? -1 : 1) * (3 + r() * 12), z = -r() * 24; const sz = 0.3 + r() * 0.6; add(box(sz * 1.3, sz, sz, sz * 0.3), rock, x, sz / 2 - 0.02, z, r() * 3); }
+    const pole = mat('#2d3238', { roughness: 0.4, metalness: 0.3 }), lampM = mat('#fff4c2', { emissive: '#ffe08a', emissiveIntensity: 0.6 });
+    for (const z of [-2.5, -10.5, -18.5]) for (const x of [-2.9, 2.9]) { add(box(0.14, 3.2, 0.14, 0.03), pole, x, 1.6, z); add(box(0.42, 0.42, 0.42, 0.08), lampM, x, 3.35, z); }
+  }
+  // Clouds: puffy clusters of soft blocks high up.
+  const cm = mat('#ffffff', { roughness: 1, emissive: '#5b6f86' });
+  for (let k = 0; k < 9; k++) {
+    const x = (r() - 0.5) * 80, z = -34 - r() * 45, y = 17 + r() * 10;
+    for (let q = 0; q < 4; q++) { const w = 3 + r() * 4; const o = add(box(w, 1.6 + r() * 1.4, w * 0.7, 0.7), cm, x + (q - 1.5) * 2.4, y + (q % 2) * 0.8, z + (r() - 0.5) * 2); o.castShadow = false; o.receiveShadow = false; }
+  }
   return g;
 }
 

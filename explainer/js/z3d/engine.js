@@ -15,6 +15,7 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 
 const SKY_FRAG = `
   uniform vec3 top, mid, horizon, floorC; varying vec3 vDir;
@@ -74,7 +75,8 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
   }
   const envTex = pmrem.fromScene(envScene, 0.02).texture;
 
-  function makeStage({ shadowSize = 3, sunDir = [-3, 6, 4], sun = 2.3, sky = null } = {}) {
+  // shadowMap: shadow resolution; fog: [near, far] in metres, coloured like the horizon.
+  function makeStage({ shadowSize = 3, sunDir = [-3, 6, 4], sun = 2.3, sky = null, shadowMap = 1536, fog = null, sunColor = 0xfff3e6, hemi = 0.75, rimLight = 1.2, rimDir = [4, 3, -5] } = {}) {
     const scene = new THREE.Scene();
     scene.environment = envTex;
     scene.environmentIntensity = 1.0;
@@ -84,14 +86,15 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
     scene.add(skyMesh); scene.userData.sky = skyMesh;
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ color: 0x1a3a66, opacity: 0.32 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-    scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x7f93ad, 0.75));
-    const key = new THREE.DirectionalLight(0xfff3e6, sun);
+    scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x7f93ad, hemi));
+    if (fog) scene.fog = new THREE.Fog(skyMesh.material.uniforms.horizon.value.clone(), fog[0], fog[1]);
+    const key = new THREE.DirectionalLight(sunColor, sun);
     key.position.set(...sunDir); key.castShadow = true;
-    key.shadow.mapSize.set(1536, 1536);
+    key.shadow.mapSize.set(shadowMap, shadowMap);
     const c = key.shadow.camera; c.left = c.bottom = -shadowSize; c.right = c.top = shadowSize; c.near = 0.5; c.far = 30;
     key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 4;
     scene.add(key, key.target);
-    const rim = new THREE.DirectionalLight(0xdbe9ff, 1.2); rim.position.set(4, 3, -5); scene.add(rim);
+    const rim = new THREE.DirectionalLight(0xdbe9ff, rimLight); rim.position.set(...rimDir); scene.add(rim);
     scene.userData.key = key;
     return scene;
   }
@@ -105,17 +108,28 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
   const bokeh = new BokehPass(dummyScene, dummyCam, { focus: 2, aperture: 0.002, maxblur: 0.01 });
   const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.25, 0.4 * px, 1.6);
   const grade = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uVig: { value: 0.28 }, uGrain: { value: grain ? 0.018 : 0 }, uRes: { value: H } },
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uVig: { value: 0.28 }, uGrain: { value: grain ? 0.018 : 0 }, uRes: { value: H }, uSat: { value: 1 }, uCon: { value: 1 } },
     vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uVig, uGrain, uRes; varying vec2 vUv;
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uVig, uGrain, uRes, uSat, uCon; varying vec2 vUv;
       float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)) + uTime*7.13) * 43758.5453); }
       void main(){ vec4 c = texture2D(tDiffuse, vUv);
         vec2 q = vUv - 0.5; q.x *= 0.5625;
+        float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+        c.rgb = mix(vec3(l), c.rgb, uSat);
+        c.rgb = (c.rgb - 0.5) * uCon + 0.5;
         c.rgb *= 1.0 - uVig * smoothstep(0.18, 0.62, length(q));
         c.rgb += (h(floor(vUv*uRes)) - 0.5) * uGrain;
         gl_FragColor = c; }`,
   });
   composer.addPass(renderPass);
+  // Ambient occlusion (soft shading where things meet): on when a shot's update returns ao.
+  const gtao = new GTAOPass(dummyScene, dummyCam, W, H);
+  gtao.output = GTAOPass.OUTPUT.Default;
+  gtao.blendIntensity = 1;
+  gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: 16 });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  gtao.enabled = false;
+  composer.addPass(gtao);
   composer.addPass(bokeh);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -144,6 +158,8 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
       shot.scene.userData.sky?.position.copy(cam.position);
       renderPass.scene = bokeh.scene = shot.scene;
       renderPass.camera = bokeh.camera = cam;
+      gtao.enabled = !!r.ao;
+      if (gtao.enabled) { gtao.scene = shot.scene; gtao.camera = cam; gtao.blendIntensity = r.ao === true ? 1 : r.ao; }
       const dof = r.dof || { focus: 3, aperture: 0, maxblur: 0 };
       bokeh.enabled = dof.aperture > 0;
       bokeh.uniforms.focus.value = dof.focus;
@@ -153,6 +169,9 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
       bloom.strength = (r.bloom ?? 0.35) * 0.6;
       renderer.toneMappingExposure = r.exposure ?? 1.0;
       grade.uniforms.uTime.value = t;
+      grade.uniforms.uSat.value = r.grade?.sat ?? 1;
+      grade.uniforms.uCon.value = r.grade?.con ?? 1;
+      grade.uniforms.uVig.value = r.grade?.vig ?? 0.28;
       composer.render();
       // Shots far from t are freed, so long videos keep memory flat.
       for (const k of [...built.keys()]) if (Math.abs(k - idx) > 1) { disposeScene(built.get(k).scene); built.delete(k); }
