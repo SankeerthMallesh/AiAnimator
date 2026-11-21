@@ -79,9 +79,11 @@ export class Renderer {
     }
     const flatStyle = ['flat', 'comic'].includes(options.style);
     const cleanCGI = options.style === 'cgi-short';
+    // Blocky looks like a game screenshot: sharp everywhere, no depth-of-field blur or haze.
+    const sharp = options.style === 'blocky';
     this.look = {
-      dof: flatStyle ? 0 : cleanCGI ? 0.45 : 0.55,
-      haze: flatStyle ? 0 : cleanCGI ? 0.06 : 0.22,
+      dof: flatStyle || sharp ? 0 : cleanCGI ? 0.45 : 0.55,
+      haze: flatStyle || sharp ? 0 : cleanCGI ? 0.06 : 0.22,
       grade: flatStyle ? 0.35 : cleanCGI ? 0.45 : 1,
       grain: cleanCGI ? 0.025 : 0.055,
       vignette: cleanCGI ? 0.55 : 1,
