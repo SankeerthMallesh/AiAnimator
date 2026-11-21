@@ -169,7 +169,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
     if (h.startsWith('board:')) {
       show('board', '#' + h.slice(6), false);
       history.replaceState(null, '', location.pathname + '#board');
-    } else if (h === '3d' || h === 'board') {
+    } else if (SECTIONS[h] && h !== 'cartoon') {
       show(h, topic ? '?topic=' + encodeURIComponent(topic) : '', false);
     } else {
       show('cartoon', topic ? '?topic=' + encodeURIComponent(topic) : '', false);
@@ -180,7 +180,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
   addEventListener('hashchange', () => {
     const h = location.hash.slice(1);
     if (h.startsWith('board:')) { boot(); return; }
-    show(h === '3d' || h === 'board' ? h : 'cartoon', '', false);
+    show(SECTIONS[h] ? h : 'cartoon', '', false);
   });
 })();
 </script>
