@@ -169,7 +169,7 @@ export class ClipPainter {
     const big = this.boldLines(112), small = this.boldLines(Math.round(112 * 0.68));
     const hBig = big.lines.length * big.size * 1.08, hSmall = small.lines.length * small.size * 1.08;
     let yBig = H * 0.48;
-    const ySmall = L.headY + hSmall / 2;
+    const ySmall = this.topFor(L, hSmall) + hSmall / 2;
     // Never cover captions burned into the source: sit just above or below them instead.
     // Captions in the source pop up a little higher or lower than where they were seen, so the
     // band is widened by 5% of the height each side.
@@ -181,11 +181,20 @@ export class ClipPainter {
     return { lt, move, y: yBig + (ySmall - yBig) * move, size: big.size + (small.size - big.size) * move, lines: big.lines };
   }
 
+  // Top of the heading when it sits at the top (h pixels tall): above captions burned into the video
+  // there when it fits, otherwise just below them.
+  topFor(L, h) {
+    const b = L.headAvoid;
+    let top = L.headY;
+    if (b && top < b[1] + 20 && top + h > b[0] - 20) top = b[0] - 20 - h >= 40 ? b[0] - 20 - h : b[1] + 20;
+    return top;
+  }
+
   headTrack() {
     if (this.opts.heading === false || !(this.clip.heading || '').trim()) return [];
     const L = this.layout();
     return [0.5, 1.5, 2.9, 3.6, 6].map(d => {
-      const b = this.opts.headStyle === 'pill' ? { y: L.headY + 60 } : this.boldAt(this.clip.s + d, L);
+      const b = this.opts.headStyle === 'pill' ? { y: this.topFor(L, 120) + 60 } : this.boldAt(this.clip.s + d, L);
       return { t: d, yCenterPct: Math.round(b.y / H * 1000) / 10 };
     });
   }
@@ -242,7 +251,7 @@ export class ClipPainter {
     const lh = size * 1.16, padX = 44, padY = 28;
     const bw = Math.min(980, Math.max(...lines.map(l => g.measureText(l).width)) + padX * 2);
     const bh = lines.length * lh + padY * 2 - (lh - size);
-    const x = (W - bw) / 2, y = L.headY - (1 - k) * 30;
+    const x = (W - bw) / 2, y = this.topFor(L, bh) - (1 - k) * 30;
     g.globalAlpha = k;
     g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 24; g.shadowOffsetY = 6;
     g.fillStyle = '#FFFFFF'; roundRect(g, x, y, bw, bh, 26); g.fill();

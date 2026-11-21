@@ -78,3 +78,13 @@ tests.push(
     assert.equal(out.capFrom, undefined); assert.equal(out.capY, Math.round(H * 0.66));
   } },
 );
+tests.push(
+  { name: 'captions burned in at 18-27%: the top heading sits above them when it fits, else below', fn: () => {
+    const L = { kind: 'crop', headY: 210, headAvoid: [0.18 * H, 0.27 * H] };
+    const top = ClipPainter.prototype.topFor.call({}, L, 164);
+    assert.ok(top + 164 <= 0.18 * H - 20 && top >= 40, `top ${top}`);
+    const tall = ClipPainter.prototype.topFor.call({}, L, 320);
+    assert.ok(tall >= 0.27 * H + 20, `a tall heading goes below: ${tall}`);
+    assert.equal(ClipPainter.prototype.topFor.call({}, { headY: 210 }, 164), 210);
+  } },
+);
