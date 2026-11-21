@@ -382,13 +382,18 @@ export class Pipeline {
     const scenes = p.script.scenes;
     p.timeline = buildTimeline(scenes, scenes.map(s => p.voices.get(s.id)?.data || null), { wps: this.pace.wps, endPad: this.demo ? 0.9 : 0.7 });
     const mood = p.options.mood || 'curious';
+    // Test switches: ?stem=voice|music renders only that part (same master gain as the full mix),
+    // ?musicseed= fixes the score so two renders share it.
+    const q = new URLSearchParams(location.search), stem = /^(voice|music)$/.test(q.get('stem') || '') ? q.get('stem') : null;
+    if (q.get('musicseed') || stem) p.musicSeed = Number(q.get('musicseed')) || 1234567;
+    p.stem = stem;
     p.musicSeed ||= Math.floor(Math.random() * 1e9);
     const musicKey = `${mood}|${p.musicSeed}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}`;
     if (p.musicKey !== musicKey) {
       p.music = p.userMusic || (mood === 'none' ? null : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
       p.musicKey = musicKey;
     }
-    p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume) });
+    p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume), stem: p.stem });
     this.h.step('sound', 'done', `${p.timeline.total.toFixed(1)}s · ${mood === 'none' ? 'no music' : p.userMusic ? 'your music' : mood + ' score'}`);
   }
 
@@ -437,7 +442,7 @@ export class Pipeline {
     const talk = first ? (last.start + last.voiceOffset + last.voice.samples.length / last.voice.sampleRate) - (first.start + first.voiceOffset) : 0;
     m.voice = { engine: v.engine, maxPlaybackRate: v.maxRate, wordsSpoken: words, wpm: talk ? Math.round(words / talk * 60) : 0, spokenText: v.spoken };
     const a = measureAudio(p.audio);
-    m.audio = { targetLufs: -13.5, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback' };
+    m.audio = { targetLufs: -13.5, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback', stem: p.stem || 'full', musicSeed: p.musicSeed ?? null, musicVolume: Number(this.s.musicVolume), masterGainDb: p.audio?.levelInfo ? Math.round(20 * Math.log10(p.audio.levelInfo.gain) * 100) / 100 : null, music: p.audio?.musicInfo || null };
     return m;
   }
 

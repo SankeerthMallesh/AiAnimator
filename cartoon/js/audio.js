@@ -2,6 +2,7 @@
 // Everything is synthesized locally with the Web Audio API, so there is nothing to license.
 
 import { levelChannels } from '../../shared/level.js';
+import { loudness } from '../../shared/renderlog.js';
 import { MOODS } from './presets.js';
 import { speechBounds, wordTimings, alignWords, voiceEnvelope } from './tts.js';
 
@@ -377,7 +378,21 @@ function zap(ctx, dest, t, noise) {
   src.start(t); src.stop(t + 0.16);
 }
 
-export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true } = {}) {
+// How far the music sits below the voice during speech, in dB (the brief asks for 15-20).
+export const MUSIC_UNDER_VOICE = 17.5;
+// stem 'voice' or 'music' (test only, ?stem=): just that part of the soundtrack, through the same
+// chain and with the same master gain as the full mix, so the two can be measured against each other.
+export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0 } = {}) {
+  let master = null;
+  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx })).levelInfo; sfx = false; }
+  // The voice as it comes out of the voice chain, measured, so the music can be set against it.
+  // The music too, through the same bus at a fixed 0.2 gain (the bus compressor adds makeup gain).
+  const lufsOf = (b) => loudness(Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c)), b.sampleRate);
+  let voiceOut = -Infinity, musicOut = -Infinity;
+  if (music && !probeMusic && !raw && timeline.scenes.some(s => s.voice)) {
+    voiceOut = lufsOf(await mixSoundtrack(timeline, { sfx: false, raw: true }));
+    musicOut = lufsOf(await mixSoundtrack(timeline, { music, sfx: false, raw: true, probeMusic: 0.2 }));
+  }
   const total = timeline.total;
   const ctx = new OfflineAudioContext(2, Math.ceil(SAMPLE_RATE * total), SAMPLE_RATE);
 
@@ -425,7 +440,7 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     buf.copyToChannel(s.voice.samples, 0);
     const src = ctx.createBufferSource();
     src.buffer = buf;
-    src.connect(voiceBus);
+    if (stem !== 'music' && !probeMusic) src.connect(voiceBus);
     src.start(s.start + s.voiceOffset);
   }
 
@@ -436,10 +451,22 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     const mg = ctx.createGain();
     const vol = Math.max(0, Math.min(1, musicVolume));
     const hasVoice = timeline.scenes.some(s => s.voice);
-    const loud = vol * 0.55, ducked = vol * (hasVoice ? 0.2 : 0.55);
+    let loud = vol * 0.55, ducked = vol * (hasVoice ? 0.2 : 0.55);
+    // Under narration the music sits MUSIC_UNDER_VOICE dB below the voice, both measured as they
+    // leave the bus, at the default volume (0.55) and whatever the track's own loudness. The volume
+    // setting moves it from there; in the gaps it lifts by the same 2.75x as before.
+    if (hasVoice) {
+      const lv = voiceOut, lm = musicOut; // lm: the music out of the bus at gain 0.2
+      if (isFinite(lv) && isFinite(lm)) {
+        ducked = 0.2 * Math.pow(10, (lv - MUSIC_UNDER_VOICE - lm) / 20) * (vol / 0.55);
+        loud = Math.min(1, ducked * 2.75);
+      }
+      ctx.musicInfo = { voiceLufs: lv, musicLufs: lm, duckedGain: ducked, gapGain: loud };
+    }
+    if (probeMusic) { ducked = loud = probeMusic; }
     mg.gain.setValueAtTime(ducked, 0);
     // Duck under narration, lift in the gaps.
-    if (hasVoice) {
+    if (hasVoice && !probeMusic) {
       for (const s of timeline.scenes) {
         if (!s.voice || !s.words.length) continue;
         const a = s.start + s.voiceOffset + s.words[0].start - 0.1;
@@ -449,7 +476,7 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
       }
     }
     mg.gain.setTargetAtTime(0.0001, Math.max(0, total - 0.8), 0.25);
-    src.connect(mg).connect(comp);
+    if (stem !== 'voice') src.connect(mg).connect(comp);
     src.start(0);
   }
 
@@ -504,7 +531,9 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
   const out = await ctx.startRendering();
   // Level the mix by how loud it sounds (BS.1770 integrated loudness, what YouTube measures),
   // not by its highest peak: the reference Shorts sit at -10 to -14 LUFS. Peaks stay under -1 dB.
-  levelMix(out);
+  if (raw) return out;
+  out.levelInfo = levelMix(out, master);
+  out.musicInfo = ctx.musicInfo || null;
   return out;
 }
 
@@ -539,8 +568,12 @@ export function integratedLoudness(buffer) {
   const gated = abs.filter(z => lufs(z) > rel);
   return lufs(mean(gated.length ? gated : abs));
 }
-function levelMix(out) {
+function levelMix(out, master = null) {
   const chans = [];
   for (let c = 0; c < out.numberOfChannels; c++) chans.push(out.getChannelData(c));
-  levelChannels(chans, out.sampleRate);
+  if (!master) return levelChannels(chans, out.sampleRate);
+  // A stem gets the full mix's gain: aim at its own loudness raised by that gain.
+  const own = loudness(chans, out.sampleRate);
+  if (!isFinite(own)) return { before: own, gain: master.gain };
+  return levelChannels(chans, out.sampleRate, { target: own + 20 * Math.log10(master.gain), maxGain: Infinity });
 }

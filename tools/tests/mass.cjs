@@ -244,7 +244,9 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       // Proof renders: the app's defaults at 1080x1920, 30 fps (only the picture service may be off).
       if (process.env.FIXED) Object.assign(set, { quality: '1080', fps: '30', captionStyle: section === 'cartoon' ? 'word' : 'classic', bgLook: '3d', stickers: false, showTitle: false, factCheck: true });
       await p.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, [section === 'cartoon' ? 'storyforge.settings.v1' : 'explainer.settings.v1', JSON.stringify(set)]);
-      await p.goto('http://127.0.0.1:8773' + url); await p.waitForTimeout(800);
+      // STEM=voice|music renders only that part of the soundtrack (same master gain); MUSICSEED fixes the score.
+      const extra = [process.env.STEM && `stem=${process.env.STEM}`, process.env.MUSICSEED && `musicseed=${process.env.MUSICSEED}`].filter(Boolean).join('&');
+      await p.goto('http://127.0.0.1:8773' + url + (extra ? (url.includes('?') ? '&' : '?') + extra : '')); await p.waitForTimeout(800);
       const choices = { ...set };
       for (const id of process.env.FIXED ? [] : ['duration', 'pace', 'voice', 'mood']) {
         const vals = await p.$$eval(`#${id} option`, l => l.map(o => o.value)).catch(() => []);

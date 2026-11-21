@@ -23,3 +23,12 @@ Clips switches (environment variables for clipe2e.cjs):
     HEADSTYLE=pill               # the white-pill heading instead of the Bold default (S20)
     CAPSOFF=1                    # after the run, press "Turn Loomy's captions off" and re-make clip 1 (N22)
     node clipe2e.cjs cliptest/burned-mid.webm crop   # a source with captions burned in on Loomy's caption line
+
+Music under the voice (Cartoons, 3D, Blocky): render the same video as voice only and as music only
+(same script, same score, same master gain as the full mix), then measure:
+
+    FIXED=1 NOPICS=1 VOICE=whole SCRIPT=proof/3d-fallback.json STEM=voice node mass.cjs 942 1 3d
+    FIXED=1 NOPICS=1 VOICE=whole SCRIPT=proof/3d-fallback.json STEM=music node mass.cjs 943 1 3d
+    python3 musiclevel.py mass/942-3d.mp4 mass/943-3d.mp4     # target: music 15-20 dB below the voice
+
+The page switches behind it: ?stem=voice|music and ?musicseed=N (STEM and MUSICSEED for mass.cjs).
