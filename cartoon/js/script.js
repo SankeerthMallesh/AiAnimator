@@ -83,6 +83,20 @@ for (const [w, e] of Object.entries(EMOJI_WORDS)) {
 }
 
 
+// The word in a line that a prop or sticker stands for ('' if the line never says it). The render
+// log records it, so a prop with no reason to be on screen shows up in tests.
+export function propTrigger(p, narration) {
+  const low = String(narration || '').toLowerCase();
+  const find = (re) => { const m = re.exec(low); return m ? m[0].trim() : ''; };
+  if (p.kind === 'icon') {
+    const words = EMOJI_FOR.get(String(p.emoji || '').replace(/\uFE0F/g, ''));
+    for (const w of words || []) { const hit = find(new RegExp(`\\b${w}(s|es)?\\b`)); if (hit) return hit; }
+    return '';
+  }
+  if (TOON_WORDS[p.kind]) return find(TOON_WORDS[p.kind]);
+  return find(new RegExp(`\\b${String(p.kind).replace(/[^a-z]/g, '')}(s|es)?\\b`));
+}
+
 export class Script {
   static CAMS = ['hold', 'push', 'pull', 'pan', 'tilt', 'punch'];
   static CUTS = ['cut', 'whip', 'zoom'];

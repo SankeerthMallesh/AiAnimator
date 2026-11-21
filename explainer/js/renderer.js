@@ -33,7 +33,7 @@ const CAPTION_FONT = '"Montserrat", "Arial Black", Impact, sans-serif';
 const LABEL_FONT = '"JetBrains Mono", ui-monospace, Menlo, monospace';
 
 export class Renderer {
-  constructor(canvas, { timeline, images, depths = [], clips = [], options, settings, script }) {
+  constructor(canvas, { timeline, images, depths = [], clips = [], options, settings, script, meta = null }) {
     this.clips = timeline.scenes.map((s, i) => clips[i] || null);
     this.hostOn = !!STYLES[options.style]?.mascot && settings.host !== false;
     this.canvas = canvas;
@@ -46,13 +46,18 @@ export class Renderer {
     this.script = script;
     this.vertical = this.H >= this.W;
     this.tall = this.H / this.W > 1.5;
+    // Where each scene's picture came from, for the render log.
+    this.sources = timeline.scenes.map((s, i) => (clips[i] ? 'clip' : images[i] ? 'ai' : 'fallback'));
+    this.meta = timeline.scenes.map((s, i) => (meta && meta[i]) || {});
     this.images = timeline.scenes.map((s, i) => images[i] || this._poster(s));
     this.depths = timeline.scenes.map((s, i) => depths[i] || null);
     // Scenes that point at something get a glowing outline around it, baked into the picture.
+    this.glowed = timeline.scenes.map(() => false);
     this.images = this.images.map((img, i) => {
       if (!timeline.scenes[i].highlight || !this.depths[i]) return img;
-      try { return glowImage(img, this.depths[i]) || img; } catch { return img; }
+      try { const gl = glowImage(img, this.depths[i]); if (gl) this.glowed[i] = true; return gl || img; } catch { return img; }
     });
+    this.log = null; // a RenderLog while exporting
     this.gl = null;
     if (this.depths.some(Boolean)) {
       // AI images are ~864px on their short side, so rendering the 3D layer above that adds cost, not detail.
@@ -222,6 +227,7 @@ export class Renderer {
       if (T && t < tb + T / 2) { this._transition(prev, cur, (t - (tb - T / 2)) / T, t); drawn = true; }
     }
     if (!drawn) this._drawScene(ctx, cur, t - cur.start);
+    if (this.log) this.log.shot(t, this._shotInfo(cur, t - cur.start));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this._atmosphere(cur, t - cur.start);
     this._effect(cur, t - cur.start);
@@ -246,7 +252,10 @@ export class Renderer {
 
     this._label(cur, t - cur.start);
     if (this.settings.showTitle && i === 0) this._title(t);
-    if (this.settings.captionStyle !== 'off') this._captions(cur, t - cur.start - cur.voiceOffset);
+    if (this.settings.captionStyle !== 'off') {
+      if (this.log) this.log.caption(t, ctx, H, () => this._captions(cur, t - cur.start - cur.voiceOffset));
+      else this._captions(cur, t - cur.start - cur.voiceOffset);
+    }
     if (this.settings.showProgress) {
       ctx.fillStyle = 'rgba(255,255,255,0.18)';
       ctx.fillRect(0, 0, W, Math.max(6, H * 0.004));
@@ -254,6 +263,20 @@ export class Renderer {
       ctx.fillRect(0, 0, W * clamp(t / timeline.total, 0, 1), Math.max(6, H * 0.004));
     }
     if (this.settings.handle) this._handle();
+  }
+
+  // What the render log records for the shot on screen.
+  _shotInfo(scene, lt) {
+    const i = scene.index, src = this.sources[i], style = STYLES[this.options.style] || {};
+    const punched = scene.dur > 2.4 && lt >= scene.dur / 2 && !this.clips[i];
+    const hero = (this.script?.characters || [])[0];
+    return {
+      scene: i, source: src, framing: punched ? 'close' : 'wide',
+      characterIds: src === 'ai' && style.character && hero ? [hero.id || hero.name || 'hero'] : [],
+      world: src === 'fallback' ? worldFor(scene) : '',
+      props: this.settings.stickers === true && scene.icon ? [{ kind: `icon:${scene.icon}`, triggerWord: scene.iconWord || '' }] : [],
+      glow: !!this.glowed[i], picturePrompt: this.meta[i].prompt || '', seed: this.meta[i].seed ?? scene.seed ?? 0,
+    };
   }
 
   _camera(scene, lt) {

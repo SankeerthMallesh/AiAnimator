@@ -22,6 +22,9 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
     entries = [f'  "./js/{m}": "./js/{m}?v={v}"' for m in mods]
     if app == 'explainer':
         entries.append(f'  "../cartoon/js/worlds.js": "../cartoon/js/worlds.js?v={v}"')
+    for sh in sorted(glob.glob(os.path.join(root, 'shared', '*.js'))):
+        n = os.path.basename(sh)
+        entries.append(f'  "../shared/{n}": "../shared/{n}?v={v}"')
     if vendor:
         entries.append(f'  "{vendor}/mp4-muxer.mjs": "{vendor}/mp4-muxer.mjs?v={v}"')
     imap = '<script type="importmap">\n{"imports": {\n' + ',\n'.join(entries) + '\n}}\n</script>\n'

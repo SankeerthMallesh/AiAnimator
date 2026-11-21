@@ -1,4 +1,5 @@
 // UI controller for Storyforge.
+import { resetVoiceReport } from './tts.js';
 import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
@@ -346,6 +347,7 @@ function setBusy(b) {
 async function run({ render }) {
   if (blockedForViewer()) return;
   pipeline?.cancel();
+  resetVoiceReport(); // a new video: its render log reports only its own voice
   pipeline = new Pipeline(project, settings, hooks());
   const mine = pipeline;
   $('#btnRetry').classList.add('hidden');

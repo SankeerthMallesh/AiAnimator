@@ -46,6 +46,17 @@ const pics = ['ref/gw.jpg', 'ref/p1.jpg', 'ref/p3.jpg', 'ref/p4.jpg', 'wk_map.jp
   await f.locator('#topic').fill('How bees make honey');
   await f.locator('#btnGo').click();
   await f.locator('#btnDownload:not(.hidden)').waitFor({ timeout: 600000 }).catch(() => msgs.push('TIMEOUT'));
+  { // Save the first render and its render log.
+    const fr = p.frames().find(x => x.url().includes('/explainer/')); const href = await f.locator('#btnDownload').getAttribute('href');
+    if (fr && href) {
+      const b64 = await fr.evaluate(async u => { const a = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s=''; for (let i=0;i<a.length;i+=32768) s+=String.fromCharCode.apply(null,a.subarray(i,i+32768)); return btoa(s); }, href);
+      const name = process.env.OUT || 'out/clean3dmaster';
+      fs.writeFileSync(name + '.mp4', Buffer.from(b64, 'base64'));
+      const man = await fr.evaluate(() => window.loomyManifest || null);
+      if (man) fs.writeFileSync(name + '.loomy-manifest.json', JSON.stringify(man, null, 1));
+      console.log('saved', name + '.mp4', man ? '+ render log' : '(no render log)');
+    }
+  }
   console.log(await f.locator('#steps li').evaluateAll(l => l.map(x => x.dataset.step + ':' + x.className + ':' + x.querySelector('.d').textContent).join('\n')));
   await f.locator('#btnShotPack').click(); await p.waitForTimeout(800);
   console.log('3D shot pack rows:', await f.locator('#shotPack .shot-row').count());

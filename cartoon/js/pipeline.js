@@ -2,15 +2,16 @@
 // Plates never hold the video longer than 20 seconds. A missing plate is a drawn set.
 
 import { writeScript, factCheck, waitForFreeText } from './llm.js';
-import { Script } from './script.js';
+import { Script, propTrigger } from './script.js';
 import { Demo } from './demo.js';
 import { fetchPlate, platePrompt, scenePrompt, mapLimit, cloudflareReady, cloudflareOn } from './images.js';
 import { topicPictures } from './wiki.js';
 import { isSafeImage } from './safety.js';
-import { getNarrator, warmNarrator, auraUsed, serverVoiceName, speakAllLines } from './tts.js';
+import { getNarrator, warmNarrator, auraUsed, serverVoiceName, speakAllLines, voiceReport } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
 import { exportVideo } from './encoder.js';
+import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { FORMATS, PACES, formatOf } from './presets.js';
 
 export const STEPS = [
@@ -418,6 +419,24 @@ export class Pipeline {
     return stage;
   }
 
+  // The render log's script, voice and sound sections, and each prop's trigger word.
+  fillLog(log) {
+    const p = this.p, m = log.finish(p.timeline.total);
+    const scenes = p.script.scenes;
+    for (const sh of m.shots) {
+      const line = scenes[sh.scene]?.narration || '';
+      sh.props = sh.props.map(pr => ({ kind: pr.kind, triggerWord: propTrigger({ kind: pr.kind.startsWith('icon:') ? 'icon' : pr.kind, emoji: pr.emoji }, line) }));
+    }
+    m.script = { title: p.script.title, lines: scenes.map(s => s.narration), characters: (p.script.cast || []).map(c => ({ id: c.id, description: [c.name, c.costume, c.hat && c.hat !== 'none' ? `${c.hat} hat` : '', c.hair ? `${c.hair} hair` : '', c.color].filter(Boolean).join(', ') })) };
+    const v = voiceReport(scenes.map(s => s.narration));
+    const words = scenes.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0);
+    const talk = p.timeline.scenes.reduce((n, s) => n + (s.voice ? s.voice.samples.length / s.voice.sampleRate : 0), 0);
+    m.voice = { engine: v.engine, maxPlaybackRate: v.maxRate, wordsSpoken: words, wpm: talk ? Math.round(words / talk * 60) : 0, spokenText: v.spoken };
+    const a = measureAudio(p.audio);
+    m.audio = { targetLufs: -13, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback' };
+    return m;
+  }
+
   async render() {
     const p = this.p;
     await loadFonts();
@@ -429,6 +448,7 @@ export class Pipeline {
     canvas.width = width;
     canvas.height = height;
     const renderer = this.makeRenderer(canvas);
+    renderer.log = new RenderLog({ tab: 'cartoons', style: this.s.bgLook || 'cartoon' });
     const t0 = performance.now();
     const fps = Number(p.options.fps || this.s.fps) || 24;
     try {
@@ -444,6 +464,8 @@ export class Pipeline {
       this.log(`Encoded with ${out.codec}`);
       if (p.video?.url) URL.revokeObjectURL(p.video.url);
       p.video = { ...out, url: URL.createObjectURL(out.blob), width, height };
+      p.manifest = this.fillLog(renderer.log);
+      publishLog(p.manifest, slugName(p.script.title));
       return p.video;
     } finally {
       renderer.dispose();

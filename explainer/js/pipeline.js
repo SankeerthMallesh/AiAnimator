@@ -4,10 +4,11 @@
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
 import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
-import { auraUsed, serverVoiceName, speakAllLines } from './tts.js';
+import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
 import { exportVideo } from './encoder.js';
+import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { estimateDepth, onDepthProgress } from './depth.js';
 import { FORMATS, PACES, STYLES, formatOf } from './presets.js';
 import { clipsEnabled, generateClip } from './clips.js';
@@ -171,7 +172,7 @@ export class Pipeline {
         if (bitmap === BLOCKED) { bitmap = null; blocked++; blockedScenes.push(scene); }
         else if (!bitmap && isFree()) { limited = true; waiting.push(scene); return; }
         if (!bitmap) failed++;
-        p.images.set(scene.id, { key, bitmap, custom: false, depth: null });
+        p.images.set(scene.id, { key, bitmap, custom: false, depth: null, prompt, seed: scene.seed });
         done++;
         this.h.step('visuals', 'active', `${done} / ${todo.length}`);
         this.h.scene?.(scenes.indexOf(scene));
@@ -394,7 +395,22 @@ export class Pipeline {
       options: p.options,
       settings: this.s,
       script: p.script,
+      meta: entries.map(e => ({ prompt: e?.prompt || '', seed: e?.seed ?? null })),
     });
+  }
+
+  // The render log's script, voice and sound sections.
+  fillLog(log) {
+    const p = this.p, m = log.finish(p.timeline.total);
+    const scenes = p.script.scenes;
+    m.script = { title: p.script.title, lines: scenes.map(s => s.narration), characters: (p.script.characters || []).map(c => ({ id: c.id || c.name, description: c.look || '' })) };
+    const v = voiceReport(scenes.map(s => s.narration));
+    const words = scenes.reduce((n, s) => n + (s.narration || '').split(/\s+/).filter(Boolean).length, 0);
+    const talk = p.timeline.scenes.reduce((n, s) => n + (s.voice ? s.voice.samples.length / s.voice.sampleRate : 0), 0);
+    m.voice = { engine: v.engine, maxPlaybackRate: v.maxRate, wordsSpoken: words, wpm: talk ? Math.round(words / talk * 60) : 0, spokenText: v.spoken };
+    const a = measureAudio(p.audio);
+    m.audio = { targetLufs: -13, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback' };
+    return m;
   }
 
   async render() {
@@ -405,6 +421,7 @@ export class Pipeline {
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     const renderer = this.makeRenderer(canvas);
+    renderer.log = new RenderLog({ tab: p.options.style === 'blocky' ? 'blocky' : '3d', style: p.options.style });
     const t0 = performance.now();
     const fps = Number(p.options.fps || this.s.fps) || 30;
     try {
@@ -420,6 +437,8 @@ export class Pipeline {
       this.log(`Encoded with ${out.codec}${renderer.gl ? ' · 3D camera on' : ' · 2D camera'}`);
       if (p.video?.url) URL.revokeObjectURL(p.video.url);
       p.video = { ...out, url: URL.createObjectURL(out.blob), width, height };
+      p.manifest = this.fillLog(renderer.log);
+      publishLog(p.manifest, slugName(p.script.title));
       return p.video;
     } finally {
       renderer.dispose();

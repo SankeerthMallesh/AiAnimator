@@ -56,6 +56,7 @@ export class ClipPainter {
     this.chunks = opts.captions === false ? [] : captionChunks(words, clip.s, clip.e);
     this.hi = new Set((clip.highlight || []).map(clean));
     this.mode = opts.framing === 'fit' ? 'fit' : opts.framing === 'crop' ? 'crop' : track.mode;
+    this.log = null; // a RenderLog while exporting
   }
 
   layout() {
@@ -172,8 +173,14 @@ export class ClipPainter {
     this.g.fillStyle = '#000'; this.g.fillRect(0, 0, W, H);
     this.drawVideo(t, L);
     this.drawHeading(t, L);
-    this.drawCaption(t, L);
+    const lt = t - this.clip.s;
+    if (this.log) this.log.caption(lt, this.g, H, () => this.drawCaption(t, L));
+    else this.drawCaption(t, L);
     this.drawEmoji(t, L);
+    if (this.log) {
+      const pops = this.opts.emoji === false ? [] : (this.clip.emoji || []).filter(em => t - em.t >= 0 && t - em.t <= 1.3);
+      this.log.shot(lt, { scene: 0, source: 'clip', framing: L.kind === 'crop' ? 'medium' : 'wide', characterIds: [], world: '', props: pops.map(em => ({ kind: `emoji:${em.e}`, triggerWord: '' })), glow: false, picturePrompt: '', seed: 0 });
+    }
   }
 }
 

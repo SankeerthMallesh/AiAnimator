@@ -52,7 +52,7 @@ export class Narrator {
     }
     if (this.engine === 'elevenlabs') {
       try {
-        return await elevenSpeak(text, s, speedMul);
+        const r = await elevenSpeak(text, s, speedMul); noteVoice('elevenlabs', 1, text, text); return r;
       } catch (e) {
         this.log(`ElevenLabs failed (${e.message}); switching to the free built-in voice.`);
         this.engine = 'kokoro';
@@ -64,6 +64,7 @@ export class Narrator {
         const speed = Math.max(0.6, Math.min(1.6, (Number(s.voiceSpeed) || 1) * speedMul));
         // A touch quicker than the model's default (it reads like an audiobook), so it sounds awake.
         const d = await this._call({ type: 'speak', text: speakable(text), voice: s.voice, speed: Math.min(1.6, speed * 1.06) });
+        noteVoice('kokoro', Math.min(1.6, speed * 1.06), text, speakable(text));
         return { samples: d.samples, sampleRate: d.sampleRate };
       } catch (e) {
         this.log(`Built-in voice failed (${e.message}); trying the cloud voice.`);
@@ -260,6 +261,7 @@ async function auraSpeak(text, s, log) {
       sampleRate = d.sampleRate;
       // A line re-recorded alone (after a fact-check fix) matches the pace of the whole read.
       if (serverVoice === 'gemini' && lastStretch > 1) d.samples = timeStretch(d.samples, d.sampleRate, lastStretch);
+      noteVoice(serverVoice, serverVoice === 'gemini' && lastStretch > 1 ? lastStretch : 1, null, null);
       pieces.push({ text: part, samples: trimmed(d) });
     }
   } catch (e) {
@@ -267,6 +269,7 @@ async function auraSpeak(text, s, log) {
     throw e;
   }
   const { samples, sentences } = joinPhrases(pieces, sampleRate);
+  vrep.sent.set(text, parts.map(speakable).join(' '));
   auraHits++;
   return { samples, sampleRate, sentences, engine: 'aura' };
 }
@@ -397,6 +400,7 @@ export async function speakAllLines(lines, voice) {
     });
     if (out.size < lines.length * 0.8) return null;
     serverVoice = res.headers.get('X-Loomy-Voice') || 'gemini';
+    for (const line of out.keys()) noteVoice(serverVoice === 'gemini' ? 'gemini' : serverVoice, lastStretch, line, line);
     auraHits++;
     return out;
   } catch { return null; }
@@ -437,4 +441,17 @@ export function timeStretch(x, sr, rate) {
   return out;
 }
 let lastStretch = 1; // the speed-up of the last whole-script read, reused for lines re-recorded alone
+
+// ---------- Voice report (for the render log) ----------
+// Which engine read each line, the fastest playback rate applied, and the exact text sent.
+const vrep = { engines: new Set(), maxRate: 1, sent: new Map() };
+function noteVoice(engine, rate, line, sentText) {
+  vrep.engines.add(engine);
+  vrep.maxRate = Math.max(vrep.maxRate, Math.round(rate * 1000) / 1000);
+  if (line != null) vrep.sent.set(line, sentText);
+}
+export function resetVoiceReport() { vrep.engines.clear(); vrep.maxRate = 1; vrep.sent.clear(); }
+export function voiceReport(lines = []) {
+  return { engine: [...vrep.engines].join('+') || 'none', maxRate: vrep.maxRate, spoken: lines.map(l => vrep.sent.get(l) ?? l) };
+}
 const TARGET_WPM = 195; // the pace of popular narrated Shorts (the reference videos measure 196)

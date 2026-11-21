@@ -19,11 +19,14 @@ const file = process.argv[2] || 'cliptest/stream.webm', framing = process.argv[3
   await ctx.route('**/api/transcribe', async (route) => {
     calls.transcribe++;
     const words = []; const segments = [];
-    const lines = ['Bro this thing is literally indestructible.', 'Watch what happens when I drop it.', 'No way it survived that!', 'Okay chat, one more time, higher.', 'It is still in one piece, this is insane.', 'I need to try fire next.'];
+const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 'Yo', 'Alright', 'Look'];
+      const MID = ['this thing is literally indestructible', 'watch what happens when I drop it', 'it survived that somehow', 'we are going one floor higher', 'the glass did not even crack', 'I need to try fire next', 'my hands are shaking right now', 'that was the loudest bang ever', 'the box says it is waterproof', 'somebody clip that right now', 'I paid forty dollars for this', 'the neighbors are going to hate me', 'it bounced off the car roof', 'we have one shot left', 'the timer says ten seconds', 'I really thought it would explode'];
+      const END = ['!', '.', '?', '!!', '.'];
+      const lineAt = (k) => `${SUBJ[(k * 7) % SUBJ.length]} ${MID[(k * 5 + Math.floor(k / 16)) % MID.length]}${END[k % END.length]}`;
     if (process.env.NOSPEECH) return route.fulfill({ json: { ok: true, model: 'mock', language: 'english', duration: 40, text: '', words: [], segments: [] } });
     let t = 0.5, k = 0;
     while (t < 598) {
-      const line = lines[k++ % lines.length]; const st = t;
+      const line = lineAt(k++); const st = t;
       for (const w of line.split(' ')) { words.push({ w, s: t, e: t + 0.32 }); t += 0.38; }
       segments.push({ s: st, e: t, t: line }); t += 0.6;
     }
@@ -59,6 +62,8 @@ const file = process.argv[2] || 'cliptest/stream.webm', framing = process.argv[3
   for (const [i, h] of hrefs.entries()) {
     const b64 = await p.evaluate(async u => { const a = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode.apply(null, a.subarray(i, i + 32768)); return btoa(s); }, h);
     require('fs').writeFileSync(`cliptest/out_${framing}_${i}.mp4`, Buffer.from(b64, 'base64'));
+    const man = await p.evaluate((k) => (window.loomyClipManifests || [])[k] || null, i);
+    if (man) require('fs').writeFileSync(`cliptest/out_${framing}_${i}.loomy-manifest.json`, JSON.stringify(man, null, 1));
   }
   await p.screenshot({ path: `cliptest/page_${framing}.png`, fullPage: true });
   console.log('cards:', JSON.stringify(await p.$$eval('.card', l => l.map(c => ({ score: c.querySelector('.score').textContent, when: c.querySelector('.when').textContent, heading: c.querySelector('input').value, why: c.querySelector('.why').textContent }))), null, 1));

@@ -4,6 +4,7 @@
 // captioned and exported as MP4 with the original sound. Nothing is posted anywhere.
 
 import { getFFmpeg, mountFile, run, probeDuration, removeFiles } from './ff.js';
+import { RenderLog, publishLog, measureAudio } from '../../shared/renderlog.js';
 import { extractAudio, transcribePieces } from './transcribe.js';
 import { findMoments } from './moments.js';
 import { trackSpeaker } from './track.js';
@@ -199,12 +200,15 @@ async function clipAudio(ff, path, clip) {
   // Streams come in at any level (a whisper-quiet mic, a blasting game): level each clip to the
   // loudness YouTube plays at (-14 LUFS, peaks under -1.5 dB). Plain copy if the filter is missing.
   const args = (af) => ['-hide_banner', '-ss', String(clip.s), '-i', path, '-t', String(clip.e - clip.s), '-vn', ...af, '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s16le', 'clip.wav'];
+  let path_ = 'loudnorm';
   try { await run(ff, args(['-af', 'loudnorm=I=-14:TP=-1.5:LRA=11'])); }
-  catch { await run(ff, args([])); }
+  catch { path_ = 'none'; await run(ff, args([])); }
   const data = await ff.readFile('clip.wav');
   await removeFiles(ff, ['clip.wav']);
   const ctx = new OfflineAudioContext(2, 1, 48000);
-  return ctx.decodeAudioData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+  const buffer = await ctx.decodeAudioData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+  buffer.normalizePath = path_;
+  return buffer;
 }
 
 async function renderCard(card, o, signal) {
@@ -224,9 +228,21 @@ async function renderCard(card, o, signal) {
   const video = await freshPlayer(src);
   try {
     const painter = new ClipPainter(video, local, words, track, o);
+    painter.log = new RenderLog({ tab: 'clips', style: o.framing });
     card.setStatus('Making the clip… keep this tab open', 0);
     const blob = await exportClip(painter, audio, { signal, onProgress: (f) => card.setStatus(`Making the clip… ${pct(f)}`, f) });
     card.done(blob);
+    // Render log for this clip.
+    const m = painter.log.finish(clip.e - clip.s);
+    const spoken = state.transcript.words.filter(w => w.s >= clip.s && w.e <= clip.e);
+    m.script = { title: clip.heading, lines: [spoken.map(w => w.w).join(' ')], characters: [] };
+    m.voice = { engine: 'source', maxPlaybackRate: 1, wordsSpoken: spoken.length, wpm: Math.round(spoken.length / Math.max(1, clip.e - clip.s) * 60), spokenText: [] };
+    m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
+    const a = measureAudio(audio);
+    m.audio = { targetLufs: -14, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: audio.normalizePath || 'none' };
+    card.manifest = m;
+    (window.loomyClipManifests ||= [])[card.index] = m;
+    publishLog(m, `clip-${card.index + 1}`);
   } finally {
     video.remove();
     if (owned) URL.revokeObjectURL(src);
@@ -256,7 +272,7 @@ function makeCard(clip, i) {
     try { await navigator.clipboard.writeText(clip.heading); toast('Heading copied.'); } catch { input.select(); }
   });
   const card = {
-    el, clip,
+    el, clip, index: i,
     setStatus(text, f) { el.querySelector('.st').textContent = text; el.querySelector('.bar i').style.width = pct(f); },
     done(blob) {
       const v = el.querySelector('video');

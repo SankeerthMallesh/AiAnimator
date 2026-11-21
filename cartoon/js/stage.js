@@ -24,6 +24,7 @@ export class Stage {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.view = null;
+    this.log = null; // a RenderLog while exporting
   }
   get W() { return this.canvas.width; }
   get H() { return this.canvas.height; }
@@ -40,6 +41,7 @@ export class Stage {
     let scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];
     const local = Math.max(0, Math.min(scene.dur - 0.001, t - scene.start));
     const shot = Stage.shot(scene, local);
+    Stage.lastShot = null;
     Stage.world(ctx, W, H, view, scene, local, shot);
     // Finish: warm light from the top left and a gentle vignette tie every set together.
     if (!this._finish || this._finish.width !== W || this._finish.height !== H) {
@@ -55,7 +57,11 @@ export class Stage {
     }
     ctx.drawImage(this._finish, 0, 0);
     if (shot.whip > 0) Stage.speedLines(ctx, W, H, shot.whip);
-    if (view.settings?.captionStyle !== 'off') Stage.caption(ctx, W, H, scene, local);
+    if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot);
+    if (view.settings?.captionStyle !== 'off') {
+      if (this.log) this.log.caption(t, ctx, H, () => Stage.caption(ctx, W, H, scene, local));
+      else Stage.caption(ctx, W, H, scene, local);
+    }
     if (scene.index === 0 && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
   }
 
@@ -129,7 +135,7 @@ export class Stage {
   static world(ctx, W, H, view, scene, local, shot) {
     const screen = ctx.getTransform();
     const clipEntry = view.plates?.get(scene.id);
-    if (clipEntry?.clip) { Stage.clip(ctx, W, H, clipEntry.clip, local, shot); return; }
+    if (clipEntry?.clip) { Stage.lastShot = { scene: scene.index, source: 'clip', framing: 'wide', characterIds: [], world: scene.set || '', props: [], glow: false, picturePrompt: '', seed: 0 }; Stage.clip(ctx, W, H, clipEntry.clip, local, shot); return; }
     const u = Cast.unit(H);
     const ground = H * (W < H ? 0.78 : 0.84);
     const cast = new Map((view.script?.cast || []).map(c => [c.id, c]));
@@ -168,6 +174,15 @@ export class Stage {
           ? { ...p, x: fr.sp.x, y: 7.6, small: true, scale: 0.42 }
           : { ...p, x: Ink.clamp(fr.sp.x + fr.dir * 0.17, 0.14, 0.86), y: 7.7, small: true, scale: 0.68 }) : p));
     }
+    // What the render log records for this shot.
+    Stage.lastShot = {
+      scene: scene.index, source: pe?.bitmap ? (photo ? 'photo' : 'ai') : 'fallback',
+      framing: cutaway ? 'wide' : fr.close ? 'close' : fr.medium ? 'medium' : 'wide',
+      characterIds: cutaway ? [] : actors.map(a => a.id),
+      world: scene.set || '', props: (fr.close && pe?.bitmap && pe?.scene ? [] : props).map(p => ({ kind: p.kind === 'icon' ? `icon:${p.emoji}` : p.kind, emoji: p.emoji || '' })),
+      cut: second ? (cutaway ? 'cutaway' : 'second') : 'first',
+      glow: false, picturePrompt: pe?.prompt || '', seed: 0,
+    };
     ctx.save();
     ctx.translate(fr.sx, fr.sy);
     ctx.rotate(shot.rot);

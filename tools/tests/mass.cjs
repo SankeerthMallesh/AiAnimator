@@ -165,9 +165,12 @@ async function run(browser, n) {
       return route.fulfill({ json: { ok: true, text, model: 'mock' } });
     }
     if (p === 'transcribe') {
-      const lines = ['Bro this thing is literally indestructible.', 'Watch what happens when I drop it.', 'No way it survived that!', 'Okay chat, one more time, higher.', 'It is still in one piece, this is insane.', 'I need to try fire next.'];
+const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 'Yo', 'Alright', 'Look'];
+      const MID = ['this thing is literally indestructible', 'watch what happens when I drop it', 'it survived that somehow', 'we are going one floor higher', 'the glass did not even crack', 'I need to try fire next', 'my hands are shaking right now', 'that was the loudest bang ever', 'the box says it is waterproof', 'somebody clip that right now', 'I paid forty dollars for this', 'the neighbors are going to hate me', 'it bounced off the car roof', 'we have one shot left', 'the timer says ten seconds', 'I really thought it would explode'];
+      const END = ['!', '.', '?', '!!', '.'];
+      const lineAt = (k) => `${SUBJ[(k * 7) % SUBJ.length]} ${MID[(k * 5 + Math.floor(k / 16)) % MID.length]}${END[k % END.length]}`;
       const words = [], segments = []; let t = 0.5, k = 0;
-      while (t < 148) { const line = lines[k++ % lines.length]; const st = t; for (const w of line.split(' ')) { words.push({ w, s: t, e: t + 0.32 }); t += 0.38; } segments.push({ s: st, e: t, t: line }); t += 0.6; }
+      while (t < 148) { const line = lineAt(k++); const st = t; for (const w of line.split(' ')) { words.push({ w, s: t, e: t + 0.32 }); t += 0.38; } segments.push({ s: st, e: t, t: line }); t += 0.6; }
       return route.fulfill({ json: { ok: true, model: 'mock', language: 'english', duration: 150, text: 'x', words, segments } });
     }
     return route.fulfill({ json: { ok: false } });
@@ -198,6 +201,8 @@ async function run(browser, n) {
       for (const [i, h] of hrefs.slice(0, 2).entries()) {
         const out = path.join(DIR, `${n}-clip-${i}.mp4`);
         fs.writeFileSync(out, Buffer.from(await p.evaluate(async u => { const a = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode.apply(null, a.subarray(i, i + 32768)); return btoa(s); }, h), 'base64'));
+        const man = await p.evaluate((k) => (window.loomyClipManifests || [])[k] || null, i);
+        if (man) fs.writeFileSync(out.replace(/\.mp4$/, '.loomy-manifest.json'), JSON.stringify(man, null, 1));
         result.outputs.push({ file: path.basename(out), ...check(out, { audio: true, w: 1080, h: 1920, minDur: Math.min(lo, 10) - 1, maxDur: hi + 8, motion: true }) });
       }
       if (!hrefs.length) throw new Error('no clips made');
@@ -224,6 +229,8 @@ async function run(browser, n) {
       const href = await p.getAttribute('#btnDownload', 'href');
       const out = path.join(DIR, `${n}-${section}.mp4`);
       fs.writeFileSync(out, Buffer.from(await p.evaluate(async u => { const a = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode.apply(null, a.subarray(i, i + 32768)); return btoa(s); }, href), 'base64'));
+      const man = await p.evaluate(() => window.loomyManifest || null);
+      if (man) fs.writeFileSync(out.replace(/\.mp4$/, '.loomy-manifest.json'), JSON.stringify(man, null, 1));
       const q = +(choices.quality || 1080); const w = q === 720 ? 720 : q === 1440 ? 1440 : 1080;
       result.outputs = [{ file: path.basename(out), ...check(out, { audio: true, w, h: Math.round(w * 16 / 9), minDur: script.scenes.length * 1.2, motion: true, lufs: [-15, -11] }) }];
       result.log = await p.$$eval('#log div, #log li', l => l.map(x => x.textContent).filter(t => /fail|error|could not|fallback|instead/i.test(t)).slice(-6)).catch(() => []);
