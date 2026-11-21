@@ -1,7 +1,7 @@
 // Draws and exports one vertical clip (1080x1920): the source video framed to 9:16, a heading on top,
 // big word-by-word captions with the spoken word and key words highlighted, and emoji pops.
-// The source plays once at normal speed while each of its frames is drawn and encoded, so a clip
-// takes about as long to make as it lasts, with frame-exact timing and the original audio.
+// The source plays once (slower when the computer cannot keep up) while each of its frames is drawn and encoded, so a clip
+// takes about as long to make as it lasts or a little longer, with frame-exact timing and the original audio.
 
 import { Muxer, ArrayBufferTarget } from '../../vendor/mp4-muxer.mjs';
 
@@ -354,7 +354,8 @@ export async function exportClip(painter, audio, { onProgress, signal } = {}) {
   };
   video.muted = true;
   video.pause();
-  video.playbackRate = 1;
+  // Start a little slow so the first second is caught whole; it speeds up once frames keep up.
+  video.playbackRate = 0.35;
   await seek(video, clip.s);
   put(clip.s);
   await new Promise((resolve, reject) => {
@@ -364,7 +365,7 @@ export async function exportClip(painter, audio, { onProgress, signal } = {}) {
     // stutter), so when frames are skipped the video plays slower until each one is caught: the
     // sound is encoded separately, so the speed of playback never shows in the clip. A 60 fps
     // source is taken at a smooth 30.
-    let lastT = clip.s, lastPresented = -1, missed = 0, seen = 0, nextT = clip.s + 1 / fps * 0.5;
+    let lastT = clip.s, lastPresented = -1, missed = 0, seen = 0, clean = 0, ceiling = 1, lastDropped = video.getVideoPlaybackQuality?.().droppedVideoFrames || 0, nextT = clip.s + 1 / fps * 0.5;
     const step = (now, meta) => {
       if (stopped) return;
       if (signal?.aborted) { stopped = true; video.pause(); reject(new DOMException('Cancelled', 'AbortError')); return; }
@@ -373,8 +374,15 @@ export async function exportClip(painter, audio, { onProgress, signal } = {}) {
       if (t >= clip.e) { finish(); return; }
       if (lastPresented >= 0 && meta.presentedFrames - lastPresented > 1 && t - lastT > 1.4 / fps) missed += meta.presentedFrames - lastPresented - 1;
       lastPresented = meta.presentedFrames; lastT = t; seen++;
-      if (seen >= 20) {
-        if (missed > seen * 0.08 && video.playbackRate > 0.26) video.playbackRate = Math.max(0.25, video.playbackRate * 0.6);
+      if (seen >= 15) {
+        // Frames the browser dropped count as missed too.
+        const dropped = video.getVideoPlaybackQuality?.().droppedVideoFrames || 0;
+        missed += Math.max(0, dropped - lastDropped); lastDropped = dropped;
+        // Slow down at once on any miss; speed back up (never past real time) only after three
+        // clean stretches in a row, so a busy computer settles at a speed it can keep up with.
+        // A speed that missed a frame is never tried again in this clip.
+        if (missed > 0) { clean = 0; ceiling = Math.max(0.25, video.playbackRate * 0.85); video.playbackRate = Math.max(0.25, video.playbackRate * 0.5); }
+        else if (++clean >= 3 && video.playbackRate < ceiling) { clean = 0; video.playbackRate = Math.min(ceiling, video.playbackRate * 1.15); }
         missed = 0; seen = 0;
       }
       if (t > clip.s && t >= nextT) { put(t); nextT = Math.max(nextT + 1 / fps, t + 0.5 / fps); }
