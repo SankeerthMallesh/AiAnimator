@@ -317,6 +317,16 @@ function zap(ctx, dest, t, noise) {
   src.start(t); src.stop(t + 0.16);
 }
 
+// Where narration is heard: [start, end] in seconds, merged when less than `join` s apart.
+export function speechSpans(timeline, join = 0.6) {
+  const spans = timeline.scenes.filter(s => s.voice && s.words.length)
+    .map(s => [s.start + s.voiceOffset + s.words[0].start - 0.1, s.start + s.voiceOffset + s.words[s.words.length - 1].end])
+    .sort((x, y) => x[0] - y[0]);
+  const out = [];
+  for (const sp of spans) { const last = out[out.length - 1]; if (last && sp[0] - last[1] < join) last[1] = Math.max(last[1], sp[1]); else out.push([...sp]); }
+  return out;
+}
+
 // How far the music sits below the voice during speech, in dB (the brief asks for 15-20).
 export const MUSIC_UNDER_VOICE = 17.5;
 // stem 'voice' or 'music' (test only, ?stem=): just that part of the soundtrack, through the same
@@ -405,11 +415,11 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     if (probeMusic) { ducked = loud = probeMusic; }
     mg.gain.setValueAtTime(ducked, 0);
     // Duck under narration, lift in the gaps.
+    // Speech stretches less than 0.6 s apart count as one, so the music never lifts between two
+    // lines (it used to: when a scene's lift landed after the next scene's duck, it stayed up
+    // under the whole next scene).
     if (hasVoice && !probeMusic) {
-      for (const s of timeline.scenes) {
-        if (!s.voice || !s.words.length) continue;
-        const a = s.start + s.voiceOffset + s.words[0].start - 0.1;
-        const b = s.start + s.voiceOffset + s.words[s.words.length - 1].end;
+      for (const [a, b] of speechSpans(timeline, 0.6)) {
         mg.gain.setTargetAtTime(ducked, Math.max(0, a - 0.15), 0.05);
         mg.gain.setTargetAtTime(loud, b + 0.05, 0.12);
       }
