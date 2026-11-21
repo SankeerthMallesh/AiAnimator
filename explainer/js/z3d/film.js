@@ -83,12 +83,12 @@ export function composeFrame(engine, g, W, H, t, { captions = [], fades = [], lo
 // scales down (cleanest edges, about 3-4 times slower). The skill rendered 720x1280 and stretched it,
 // which looked soft.
 export const QUALITY = { standard: 1, best: 2 };
-export async function renderFilm({ edit, captions = [], fades = [], captionStyle = 'classic', duration, start = 0, audio = null, width = 1080, height = 1920, fps = 30, quality = 'standard', renderSize = null, onProgress, signal, onFrame } = {}) {
+export async function renderFilm({ edit, captions = [], fades = [], captionStyle = 'classic', duration, start = 0, audio = null, width = 1080, height = 1920, fps = 30, quality = 'standard', renderSize = null, onProgress, signal, onFrame, perf = {} } = {}) {
   const k = QUALITY[quality] || 1;
   renderSize ||= [width * k, height * k];
   const total = duration ?? Math.max(...edit.shots.map(s => s.end)) - start;
   await document.fonts?.load?.(`700 40px ${CAPTION_FONT}`).catch(() => {});
-  const engine = createEngine({ width: renderSize[0], height: renderSize[1], grain: false });
+  const engine = createEngine({ width: renderSize[0], height: renderSize[1], grain: false, perf });
   try {
     engine.setEdit(edit);
     const out = await mp4Writer({ width, height, fps, audio });

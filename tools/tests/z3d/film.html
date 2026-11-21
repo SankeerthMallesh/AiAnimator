@@ -21,6 +21,8 @@
 import { createEngine } from '../../../explainer/js/z3d/engine.js';
 import { renderFilm, composeFrame } from '../../../explainer/js/z3d/film.js';
 const name = new URLSearchParams(location.search).get('film') || 'icewater';
+const Q = new URLSearchParams(location.search), PERF = {};
+if (Q.has('msaa')) PERF.msaa = +Q.get('msaa'); if (Q.has('ao')) PERF.aoSamples = +Q.get('ao'); if (Q.has('shadow')) PERF.shadowMax = +Q.get('shadow');
 const mod = await import(`../../../explainer/js/z3d/films/${name}.js`);
 const F = await mod.prepare();
 await document.fonts.load('700 40px Montserrat');
@@ -28,7 +30,7 @@ const view = document.getElementById('view'), g = view.getContext('2d');
 let engine = null;
 window.DURATION = F.DURATION;
 window.still = async (t) => {
-  engine ||= createEngine({ width: 1080, height: 1920 });
+  engine ||= createEngine({ width: 1080, height: 1920, perf: PERF });
   if (!engine._set) { engine.setEdit({ shots: F.SHOTS }); engine._set = true; }
   const t0 = performance.now();
   const shot = composeFrame(engine, g, 1080, 1920, t, { captions: F.CAPTIONS, fades: F.FADES, captionStyle: F.CAPTION_STYLE || 'classic' });
@@ -36,7 +38,7 @@ window.still = async (t) => {
 };
 window.clip = async (start, length) => {
   const sr = 48000, audio = new AudioBuffer({ numberOfChannels: 2, length: Math.ceil(length * sr), sampleRate: sr });
-  const blob = await renderFilm({ edit: { shots: F.SHOTS }, captions: F.CAPTIONS, fades: F.FADES, captionStyle: F.CAPTION_STYLE || 'classic', start, duration: length, audio });
+  const blob = await renderFilm({ edit: { shots: F.SHOTS }, captions: F.CAPTIONS, fades: F.FADES, captionStyle: F.CAPTION_STYLE || 'classic', start, duration: length, audio, perf: PERF });
   return URL.createObjectURL(blob);
 };
 window.ready = true;

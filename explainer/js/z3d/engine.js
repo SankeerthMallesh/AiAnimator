@@ -45,7 +45,8 @@ export function webglAvailable() {
 
 // width x height is the render size. Grain is off by default: it adds noise that video compression
 // turns to mush (the skill's light grain; the cartoon skill found the same).
-export function createEngine({ width = 1080, height = 1920, grain = false } = {}) {
+// perf: { msaa (render-target samples, default 4), aoSamples (default 16), shadowMax (cap on shadow-map size) }
+export function createEngine({ width = 1080, height = 1920, grain = false, perf = {} } = {}) {
   const W = width, H = height, px = H / 1280; // pixel-sized settings scale with the height
   const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);
@@ -90,7 +91,7 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
     if (fog) scene.fog = new THREE.Fog(skyMesh.material.uniforms.horizon.value.clone(), fog[0], fog[1]);
     const key = new THREE.DirectionalLight(sunColor, sun);
     key.position.set(...sunDir); key.castShadow = true;
-    key.shadow.mapSize.set(shadowMap, shadowMap);
+    const sm = Math.min(shadowMap, perf.shadowMax ?? Infinity); key.shadow.mapSize.set(sm, sm);
     const c = key.shadow.camera; c.left = c.bottom = -shadowSize; c.right = c.top = shadowSize; c.near = 0.5; c.far = 30;
     key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02; key.shadow.radius = 4;
     scene.add(key, key.target);
@@ -100,7 +101,7 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
   }
 
   // Post: depth of field, bloom, then a vignette and light grain.
-  const rt = new THREE.WebGLRenderTarget(W, H, { samples: 4, type: THREE.HalfFloatType });
+  const rt = new THREE.WebGLRenderTarget(W, H, { samples: perf.msaa ?? 4, type: THREE.HalfFloatType });
   const composer = new EffectComposer(renderer, rt);
   composer.setSize(W, H);
   const dummyScene = new THREE.Scene(), dummyCam = new THREE.PerspectiveCamera();
@@ -126,8 +127,8 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
   const gtao = new GTAOPass(dummyScene, dummyCam, W, H);
   gtao.output = GTAOPass.OUTPUT.Default;
   gtao.blendIntensity = 1;
-  gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: 16 });
-  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: perf.aoSamples ?? 16 });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: perf.aoSamples ?? 16 });
   gtao.enabled = false;
   composer.addPass(gtao);
   composer.addPass(bokeh);
