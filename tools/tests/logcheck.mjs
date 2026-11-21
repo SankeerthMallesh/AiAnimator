@@ -46,6 +46,23 @@ const CHECKS = {
       [`world recorded for every shot`, shots.every(s => s.world), worlds.join(' ')],
     ];
   },
+  M2(m) {
+    const ai = shotsOf(m).filter(s => s.source === 'ai');
+    const look = String(m.script?.characters?.[0]?.description || '').replace(/\s+/g, ' ').trim().replace(/[.;]+$/, '');
+    const canon = look.split(' ').slice(0, 40).join(' ');
+    const seeds = new Set(ai.map(s => s.seed));
+    const rows = [[`AI shots`, ai.length > 0, `${ai.length}`], [`one seed for the whole video`, seeds.size === 1, [...seeds].join(', ')]];
+    if (m.tab === 'blocky') {
+      const withHero = ai.filter(s => (s.characterIds || []).length && s.characterBox).length;
+      rows.push([`Blocky: the code-drawn hero is composited in every AI shot`, withHero === ai.length, `${withHero}/${ai.length}`]);
+      rows.push([`Blocky: prompts ask for an empty place (no people)`, ai.every(s => /no people/.test(s.picturePrompt)), `${ai.filter(s => /no people/.test(s.picturePrompt)).length}/${ai.length}`]);
+    } else {
+      const ok = ai.filter(s => canon && s.picturePrompt.startsWith(canon)).length;
+      rows.push([`the hero's description (${canon.split(' ').length} words) starts every prompt, word for word`, canon && ok === ai.length, `${ok}/${ai.length}`]);
+      rows.push([`every prompt has the same-person list`, ai.every(s => /not a different person/.test(s.picturePrompt)), `${ai.filter(s => /not a different person/.test(s.picturePrompt)).length}/${ai.length}`]);
+    }
+    return rows;
+  },
   S11(m) {
     const caps = m.captions || [];
     const blocky = m.tab === 'blocky';

@@ -16,6 +16,8 @@ export const STYLES = {
     prompt: 'low-poly blocky game world, characters built from simple blocks with cube heads, rectangular bodies and blocky arms and legs, smooth flat-shaded plastic look, simple painted faces, bright saturated colors, green grass baseplate, simple houses and round trees, clean soft daylight, everyone fully clothed, no logos, no text',
     direction: 'Make it a story-time video like popular blocky game story Shorts: first person ("I", "my best friend Milo"), dramatic and funny, short punchy lines, a cliffhanger in the middle and a twist at the end. Describe the main character once in "characters" as a blocky game avatar with specific clothing colours (always fully dressed), and keep them in most scenes. Describe actions, never body parts. Vary the camera: close-ups on blocky faces with big emotions, over-the-shoulder shots, wide shots of the town, snow or forest when the story moves. Mark 2 to 3 scenes with "highlight": true where the narration points at one object.',
     character: true,
+    composite: true, // the hero is Loomy's own cube avatar drawn over an empty AI-painted place
+    placePrompt: 'low-poly blocky game world environment, everything built from simple blocks, bright saturated colors, green grass, simple houses and round trees, clean daylight, no logos',
   },
   'cgi-short': {
     label: '3D render short',

@@ -164,17 +164,19 @@ export class Pipeline {
       // Free tier: ask for shots spread across the video first (start, middle, end…), so if the
       // service's limit cuts us off, the images we did get cover the whole story.
       const order = free ? spreadOrder(todo) : todo;
+      const videoSeed = (p.videoSeed ||= (scenes[0]?.seed || Math.floor(Math.random() * 1e9)));
       let limited = false;
       let waiting = [];
       const fetchRound = (list, limit = imageConcurrency(this.s)) => mapLimit(list, limit, async (scene) => {
         const key = this.imageKey(scene);
         if (limited) { waiting.push(scene); return; }
         const prompt = imagePromptFor(scene, p.script, p.options.style);
-        let bitmap = await generateImage(prompt, { ...size, seed: scene.seed }, this.s, { signal: this.signal, quick: isFree(), log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
+        // One seed for the whole video (where the picture service takes one), so shots stay alike.
+        let bitmap = await generateImage(prompt, { ...size, seed: videoSeed }, this.s, { signal: this.signal, quick: isFree(), log: (m) => this.log(`Scene ${scenes.indexOf(scene) + 1}: ${m}`) });
         if (bitmap === BLOCKED) { bitmap = null; blocked++; blockedScenes.push(scene); }
         else if (!bitmap && isFree()) { limited = true; waiting.push(scene); return; }
         if (!bitmap) failed++;
-        p.images.set(scene.id, { key, bitmap, custom: false, depth: null, prompt, seed: scene.seed });
+        p.images.set(scene.id, { key, bitmap, custom: false, depth: null, prompt, seed: videoSeed });
         done++;
         this.h.step('visuals', 'active', `${done} / ${todo.length}`);
         this.h.scene?.(scenes.indexOf(scene));

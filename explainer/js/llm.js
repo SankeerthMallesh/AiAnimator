@@ -490,23 +490,40 @@ export function safeVisual(text, noPeople = false, closeUps = false) {
   return t;
 }
 
+// The hero's look, at most 40 words (age, build, hair, face, exact clothing colours), used word for
+// word at the start of every picture so the same person appears in every shot.
+export function canonicalHero(script) {
+  const c = (script.characters || [])[0];
+  if (!c?.look) return '';
+  const look = c.look.replace(SWIMWEAR, 'long-sleeve swim shirt and knee-length swim shorts').replace(/\s+/g, ' ').trim().replace(/[.;]+$/, '');
+  const words = look.split(' ');
+  return words.length > 40 ? words.slice(0, 40).join(' ') : look;
+}
+const SAME_PERSON = 'the same person in every shot: same hair colour, same outfit, same face, not a different person';
+
 export function imagePromptFor(scene, script, styleKey) {
   const style = STYLES[styleKey] || STYLES['cinematic-3d'];
   let prompt = safeVisual(scene.visual, !!style.mascot, !!style.character);
   const chars = script.characters || [];
-  for (const c of chars) {
+  // Blocky: the hero is drawn by Loomy over the picture (identical in every shot), so the picture
+  // is the place only, with nobody in it.
+  if (style.composite) {
+    const place = prompt.replace(/\b(I|me|my|we|us|our|he|she|him|her|his|they|them|their)\b/gi, '').replace(/\s+/g, ' ').trim();
+    return `${style.lead ? style.lead + '. ' : ''}An empty scene with no people and no characters in it, just the place: ${place}. ${style.placePrompt || style.prompt}, no text, no letters, no watermark`;
+  }
+  for (const c of chars.slice(1)) {
     const first = c.name.split(' ')[0];
-    const look = style.character ? c.look.replace(SWIMWEAR, 'long-sleeve swim shirt and knee-length swim shorts') : c.look;
-    if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(look.slice(0, 30))) {
-      prompt += `. ${c.name}: ${look}`;
-    }
+    if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(c.look.slice(0, 30))) prompt += `. ${c.name}: ${c.look}`;
   }
-  // Story styles: the main character keeps the same look in every shot they are in, even when the
-  // visual only says "he" or "the man".
-  if (style.character && chars[0] && !prompt.includes('The main character:') && !prompt.includes(chars[0].name + ':') && /\b(he|she|him|her|his|they|man|woman|guy|girl|boy|kid|person|character|swimmer|driver|player)\b/i.test(scene.visual)) {
-    prompt += `. The main character: ${chars[0].look.replace(SWIMWEAR, 'long-sleeve swim shirt and knee-length swim shorts')}`;
+  const hero = style.character ? canonicalHero(script) : '';
+  if (hero) {
+    // Image models weight the start of a prompt most: the hero's look comes first, word for word.
+    return `${hero}. ${style.lead ? style.lead + '. ' : ''}${prompt}. ${style.prompt}, ${SAME_PERSON}, clear foreground subject with deep background, no text, no letters, no watermark`;
   }
-  // Image models weight the start of a prompt most, so the look goes first.
+  if (chars[0]) {
+    const first = chars[0].name.split(' ')[0];
+    if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(chars[0].look.slice(0, 30))) prompt += `. ${chars[0].name}: ${chars[0].look}`;
+  }
   return `${style.lead ? style.lead + '. ' : ''}${prompt}. ${style.prompt}, clear foreground subject with deep background, no text, no letters, no watermark`;
 }
 

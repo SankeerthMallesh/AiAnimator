@@ -53,7 +53,10 @@ export class Renderer {
     // Shots with no AI picture: a painted world and the recurring hero, cut every 1.0-1.8 s.
     this.blocky = options.style === 'blocky';
     this.hero = heroLook(script, timeline.scenes[0]?.seed || 0);
-    this.plans = planFallbackShots(timeline.scenes, this.sources, this.blocky ? 1.15 : 1.4);
+    // Blocky AI pictures are places only: the hero is composited over them, cut like the fallback.
+    this.composite = this.blocky && !!STYLES[options.style]?.composite;
+    this.drawnHero = timeline.scenes.map((s, i) => this.sources[i] === 'fallback' || (this.composite && this.sources[i] === 'ai'));
+    this.plans = planFallbackShots(timeline.scenes, this.drawnHero.map(d => (d ? 'fallback' : 'other')), this.blocky ? 1.15 : 1.4);
     // Each line's place; a line that names none stays where the story already is.
     this.worlds = [];
     timeline.scenes.forEach((sc, i) => this.worlds.push(worldFor(sc, this.worlds[i - 1] || null, script?.title || '')));
@@ -63,7 +66,7 @@ export class Renderer {
     // Scenes that point at something get a glowing outline around it, baked into the picture.
     this.glowed = timeline.scenes.map(() => false);
     this.images = this.images.map((img, i) => {
-      if (!timeline.scenes[i].highlight || !this.depths[i]) return img;
+      if (!timeline.scenes[i].highlight || !this.depths[i] || this.drawnHero?.[i]) return img;
       try { const gl = glowImage(img, this.depths[i]); if (gl) this.glowed[i] = true; return gl || img; } catch { return img; }
     });
     this.log = null; // a RenderLog while exporting
@@ -239,7 +242,7 @@ export class Renderer {
     if (this.log) {
       this._heroBox = null;
       const info = this._shotInfo(cur, t - cur.start);
-      const hero = info.source === 'fallback' && this._lastHero?.scene === cur.index ? this._lastHero : null;
+      const hero = this.drawnHero[cur.index] && this._lastHero?.scene === cur.index ? this._lastHero : null;
       const frac = (b) => b.map((v, k) => v / (k % 2 ? H : W));
       this.log.shot(t, info, hero ? frac(hero.box) : null, hero ? frac(hero.face) : null);
     }
@@ -319,12 +322,19 @@ export class Renderer {
     ctx.scale(extra.scale || 1, extra.scale || 1);
     ctx.translate(-W / 2, -H / 2);
     // Background: zoomed toward the hero's side, a little less than the hero (depth).
-    const bg = this._fallbackBg(scene);
     ctx.save();
     const cx = lerp(W / 2, heroX, 0.35), cy = H * 0.6;
     ctx.translate(cx, cy); ctx.scale(zoom, zoom); ctx.translate(-cx, -cy);
-    if (bg.canvas) ctx.drawImage(bg.canvas, -W * 0.2, -H * 0.2);
-    else drawWorld(ctx, W, H, bg.id, lt + scene.start);
+    if (this.sources[scene.index] === 'ai') {
+      // The AI-painted place, filling the frame.
+      const img = this.images[scene.index];
+      const cover = Math.max(W / img.width, H / img.height);
+      ctx.drawImage(img, (W - img.width * cover) / 2, (H - img.height * cover) / 2, img.width * cover, img.height * cover);
+    } else {
+      const bg = this._fallbackBg(scene);
+      if (bg.canvas) ctx.drawImage(bg.canvas, -W * 0.2, -H * 0.2);
+      else drawWorld(ctx, W, H, bg.id, lt + scene.start);
+    }
     ctx.restore();
     // The hero, sharp (drawn at full resolution even when the background is pixelated).
     const vt = lt - (scene.voiceOffset || 0);
@@ -341,9 +351,9 @@ export class Renderer {
     const i = scene.index, src = this.sources[i], style = STYLES[this.options.style] || {};
     const punched = scene.dur > 2.4 && lt >= scene.dur / 2 && !this.clips[i];
     const hero = (this.script?.characters || [])[0];
-    if (src === 'fallback') {
+    if (this.drawnHero[i]) {
       const shot = this._fallbackShot(scene, lt);
-      return { scene: i, source: src, framing: shot.framing, shotIndex: shot.n, characterIds: [this.hero.id], world: this.worlds[i], props: [], glow: false, picturePrompt: '', seed: 0 };
+      return { scene: i, source: src, framing: shot.framing, shotIndex: shot.n, characterIds: [this.hero.id], world: src === 'fallback' ? this.worlds[i] : '', props: [], glow: false, picturePrompt: this.meta[i].prompt || '', seed: this.meta[i].seed ?? 0 };
     }
     return {
       scene: i, source: src, framing: punched ? 'close' : 'wide',
@@ -446,7 +456,7 @@ export class Renderer {
 
   _drawScene(ctx, scene, lt, extra = {}) {
     const { W, H } = this;
-    if (this.sources[scene.index] === 'fallback') { this._drawFallback(ctx, scene, lt, extra); return; }
+    if (this.drawnHero[scene.index]) { this._drawFallback(ctx, scene, lt, extra); return; }
     const clip = this.clips[scene.index];
     if (clip && clip.video.readyState >= 2) {
       const v = clip.video;
