@@ -88,6 +88,14 @@ function repeats(words, s, e) {
 
 const EMOJI_RE = /\p{Extended_Pictographic}/u;
 
+// An emoji that pictures a word said around it ("think" and a thinking face) is clutter: dropped.
+export const MIRRORS = [[/🤔/u, /\b(think|thinking|thought|wonder)/], [/🔥/u, /\b(fire|hot|burn)/], [/💰|💵|🤑/u, /\b(money|cash|rich|dollars?)/], [/⏰|⌛|⏳/u, /\b(time|clock|hour|minute)/],
+  [/🍊/u, /\borange/], [/❤️|💔/u, /\b(love|heart)/], [/👀/u, /\b(look|see|watch|eyes?)/], [/🧠/u, /\b(brain|smart)/], [/💀/u, /\b(dead|die|skull)/], [/😂|🤣/u, /\b(funny|laugh)/]];
+export function mirrorsWord(e, t, words) {
+  const near = words.filter(w => Math.abs(w.s - t) < 1.6).map(w => w.w.toLowerCase()).join(' ');
+  return MIRRORS.some(([em, word]) => em.test(e) && word.test(near));
+}
+
 // transcript: { words, segments }. opts: { count, minLen, maxLen, duration, log, onProgress, signal }
 export async function findMoments(transcript, { count = 5, minLen = 20, maxLen = 60, duration = 0, log, onProgress, signal } = {}) {
   const { words, segments } = transcript;
@@ -107,7 +115,7 @@ export async function findMoments(transcript, { count = 5, minLen = 20, maxLen =
     log?.(`Looking for the best moments (${i + 1} of ${windows.length})…`);
     const out = await ask([
       { role: 'system', content: SYSTEM },
-      { role: 'user', content: `Transcript (each line starts with its time in seconds):\n${text}\n\nFind up to ${perWindow} of the best clips in this part, each about ${minLen} to ${maxLen} seconds long (shorter if the moment is over sooner). Use the line times for start and end, and give "payoffEnd": the time the punchline or reaction ends; the clip ends there.\nFor each clip also give "highlight": 3 to 8 single words from the clip worth highlighting in the captions (the punchiest words), and "emoji": 0 to 3 reaction emoji at moments where they fit, each with its time in seconds (like 💀 for something funny, 😳 shocking, 🔥 hype).\nReturn JSON only:\n{"clips":[{"start":0.0,"end":0.0,"payoffEnd":0.0,"heading":"","score":7,"why":"one short line on why it works","highlight":["word"],"emoji":[{"t":0.0,"e":"💀"}]}]}` },
+      { role: 'user', content: `Transcript (each line starts with its time in seconds):\n${text}\n\nFind up to ${perWindow} of the best clips in this part, each about ${minLen} to ${maxLen} seconds long (shorter if the moment is over sooner). Use the line times for start and end, and give "payoffEnd": the time the punchline or reaction ends; the clip ends there.\nFor each clip also give "highlight": 3 to 8 single words from the clip worth highlighting in the captions (the punchiest words), and "emoji": 0 to 2 reaction emoji, only as a reaction to what happens (like 💀 for something funny, 😳 shocking), each with its time in seconds. Never an emoji that repeats or pictures a word in the captions (no 🤔 when someone says "think", no 🔥 for "fire", no 🍊 for "orange"); when unsure, give none.\nReturn JSON only:\n{"clips":[{"start":0.0,"end":0.0,"payoffEnd":0.0,"heading":"","score":7,"why":"one short line on why it works","highlight":["word"],"emoji":[{"t":0.0,"e":"💀"}]}]}` },
     ], signal);
     for (const c of out?.clips || []) found.push(c);
     onProgress?.((i + 1) / windows.length);
@@ -125,7 +133,7 @@ export async function findMoments(transcript, { count = 5, minLen = 20, maxLen =
       score: Math.max(1, Math.min(10, Math.round(Number(c.score) || 5))),
       why: String(c.why || '').slice(0, 140),
       highlight: (Array.isArray(c.highlight) ? c.highlight : []).map(w => String(w).toLowerCase().replace(/[^\p{L}\p{N}']/gu, '')).filter(Boolean).slice(0, 10),
-      emoji: (Array.isArray(c.emoji) ? c.emoji : []).filter(x => x && EMOJI_RE.test(String(x.e)) && Number(x.t) >= span.s && Number(x.t) <= span.e)
+      emoji: (Array.isArray(c.emoji) ? c.emoji : []).filter(x => x && EMOJI_RE.test(String(x.e)) && Number(x.t) >= span.s && Number(x.t) <= span.e && !mirrorsWord(String(x.e), Number(x.t), words))
         .map(x => ({ t: Number(x.t), e: [...new Intl.Segmenter().segment(String(x.e))][0]?.segment || '🔥' })).slice(0, 3),
     });
     if (clips.length >= count) break;
