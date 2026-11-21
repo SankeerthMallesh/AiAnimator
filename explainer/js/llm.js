@@ -461,6 +461,7 @@ export async function factCheck(script, settings, { signal, log, avoid } = {}) {
 // Rewrite every prompt so that can't be asked for: bodies become isolated organ models, people are dressed and distant.
 const BARE = /\b(naked|nude|nudity|bare|shirtless|topless|undressed|unclothed|exposed|sensual|seductive)\b/gi;
 const BODY = /\b(?:(?:human|person'?s?|man'?s?|woman'?s?|patient'?s?|male|female|their|his|her|your|the|a)\s+)?(?:body|bodies|torso|chest|abdomen|belly|midsection|waist|hips|figure|silhouette|physique|mannequin|anatomy|skin|flesh)\b/gi;
+const SWIMWEAR = /\b(?:one[- ]piece |two[- ]piece |black |red |blue |)?(?:swimsuits?|bikinis?|swim trunks|trunks|speedos?|swimwear|bathing suits?)\b/gi;
 const PERSON = /\b(person|people|man|men|woman|women|human|humans|patient|child|kid|boy|girl|guy|teen|teenager|adult|athlete|swimmer|diver|he|she)\b/i;
 export function safeVisual(text, noPeople = false, closeUps = false) {
   let t = String(text || '').replace(BARE, ' ');
@@ -468,6 +469,14 @@ export function safeVisual(text, noPeople = false, closeUps = false) {
     // Cartoon-host style: the picture is only the set. Remove anyone the writer put in it.
     t = t.replace(BODY, ' ').replace(new RegExp(PERSON.source, 'gi'), ' ').replace(/\s{2,}/g, ' ').trim();
     return `${t}. Empty scene, nobody present`;
+  }
+  if (closeUps) {
+    // Story styles: a character's body part is just the character, fully clothed. (The organ
+    // rewrite below is for medical explainers; in a story it painted organs into a pool.)
+    t = t.replace(BODY, ' fully clothed figure ').replace(SWIMWEAR, 'long-sleeve swim shirt and knee-length swim shorts');
+    BODY.lastIndex = 0;
+    t = t.replace(/\s{2,}/g, ' ').trim();
+    return PERSON.test(t) || /fully clothed figure|'s\b/.test(t) ? `${t}. Everyone is fully clothed (t-shirt and long shorts, or a long-sleeve swim shirt and swim shorts in water)` : t;
   }
   const hadBody = BODY.test(t); BODY.lastIndex = 0;
   if (hadBody) t = t.replace(BODY, ' 3D medical organ model ');
@@ -486,14 +495,15 @@ export function imagePromptFor(scene, script, styleKey) {
   const chars = script.characters || [];
   for (const c of chars) {
     const first = c.name.split(' ')[0];
-    if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(c.look.slice(0, 30))) {
-      prompt += `. ${c.name}: ${c.look}`;
+    const look = style.character ? c.look.replace(SWIMWEAR, 'long-sleeve swim shirt and knee-length swim shorts') : c.look;
+    if (new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(prompt) && !prompt.includes(look.slice(0, 30))) {
+      prompt += `. ${c.name}: ${look}`;
     }
   }
   // Story styles: the main character keeps the same look in every shot they are in, even when the
   // visual only says "he" or "the man".
-  if (style.character && chars[0] && !prompt.includes(chars[0].look.slice(0, 30)) && /\b(he|she|him|her|his|they|man|woman|guy|girl|boy|kid|person|character|swimmer|driver|player)\b/i.test(scene.visual)) {
-    prompt += `. The main character: ${chars[0].look}`;
+  if (style.character && chars[0] && !prompt.includes('The main character:') && !prompt.includes(chars[0].name + ':') && /\b(he|she|him|her|his|they|man|woman|guy|girl|boy|kid|person|character|swimmer|driver|player)\b/i.test(scene.visual)) {
+    prompt += `. The main character: ${chars[0].look.replace(SWIMWEAR, 'long-sleeve swim shirt and knee-length swim shorts')}`;
   }
   // Image models weight the start of a prompt most, so the look goes first.
   return `${style.lead ? style.lead + '. ' : ''}${prompt}. ${style.prompt}, clear foreground subject with deep background, no text, no letters, no watermark`;
