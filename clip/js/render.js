@@ -97,9 +97,97 @@ export class ClipPainter {
     g.restore();
   }
 
+  // ---------- Bold heading (the default) ----------
+  // Uppercase, weight 900, heavy black stroke, two lines, one key word in yellow. It sits centred at
+  // 48% of the height for the first 3 s, then moves up and shrinks to the top for the rest of the clip.
+  headKey() {
+    const words = (this.clip.heading || '').split(/\s+/).map(clean).filter(Boolean);
+    if (!words.length) return '';
+    const want = clean(this.clip.headingKey || '');
+    if (want && words.includes(want)) return want;
+    const hit = words.find(w => this.hi.has(w));
+    if (hit) return hit;
+    const SMALL = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'to', 'of', 'in', 'on', 'at', 'it', 'is', 'he', 'she', 'they', 'we', 'i', 'you', 'this', 'that', 'with', 'for', 'his', 'her', 'my', 'was', 'not', 'did']);
+    return [...words].filter(w => !SMALL.has(w)).sort((a, b) => b.length - a.length)[0] || words[0];
+  }
+
+  // Splits the heading into the two most even lines and the font size that fits 940 px.
+  boldLines(size) {
+    const { g } = this;
+    const words = (this.clip.heading || '').trim().toUpperCase().split(/\s+/).filter(Boolean);
+    g.font = `900 ${size}px ${FONT}`;
+    const wid = (ws) => g.measureText(ws.join(' ')).width;
+    let lines = [words];
+    if (words.length > 1) {
+      let best = Infinity;
+      for (let i = 1; i < words.length; i++) {
+        const a = words.slice(0, i), b = words.slice(i);
+        // An emoji never starts the second line on its own.
+        if (b.length === 1 && !/[\p{L}\p{N}]/u.test(b[0])) continue;
+        const m = Math.max(wid(a), wid(b));
+        if (m < best) { best = m; lines = [a, b]; }
+      }
+    }
+    const widest = Math.max(...lines.map(wid));
+    if (widest > 940) size = Math.floor(size * 940 / widest);
+    return { lines, size };
+  }
+
+  // Where the Bold heading is at time t: centre y as a share of the height, and its scale.
+  boldAt(t, L) {
+    const lt = t - this.clip.s;
+    const move = ease((lt - 3.0) / 0.45);
+    const big = this.boldLines(112), small = this.boldLines(Math.round(112 * 0.68));
+    const hBig = big.lines.length * big.size * 1.08, hSmall = small.lines.length * small.size * 1.08;
+    const yBig = H * 0.48, ySmall = L.headY + hSmall / 2;
+    return { lt, move, y: yBig + (ySmall - yBig) * move, size: big.size + (small.size - big.size) * move, lines: big.lines };
+  }
+
+  headTrack() {
+    if (this.opts.heading === false || !(this.clip.heading || '').trim()) return [];
+    const L = this.layout();
+    return [0.5, 1.5, 2.9, 3.6, 6].map(d => {
+      const b = this.opts.headStyle === 'pill' ? { y: L.headY + 60 } : this.boldAt(this.clip.s + d, L);
+      return { t: d, yCenterPct: Math.round(b.y / H * 1000) / 10 };
+    });
+  }
+
+  drawBoldHeading(t, L) {
+    const { g } = this;
+    const { lt, y, size, lines } = this.boldAt(t, L);
+    if (lt < 0) return;
+    const key = this.headKey();
+    const pop = lt < 0.25 ? 0.82 + 0.18 * ease(lt / 0.25) : 1;
+    const lh = size * 1.08;
+    g.save();
+    g.translate(W / 2, y); g.scale(pop, pop);
+    g.font = `900 ${size}px ${FONT}`;
+    g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+    const space = g.measureText(' ').width;
+    lines.forEach((ws, li) => {
+      const ly = (li - (lines.length - 1) / 2) * lh;
+      const width = ws.reduce((n, w) => n + g.measureText(w).width, 0) + space * (ws.length - 1);
+      let x = -width / 2;
+      for (const w of ws) {
+        const isWord = /[\p{L}\p{N}]/u.test(w);
+        if (isWord) {
+          g.lineWidth = size * 0.24; g.strokeStyle = '#000000';
+          g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 18; g.shadowOffsetY = 6;
+          g.strokeText(w, x, ly);
+          g.shadowColor = 'transparent';
+        }
+        g.fillStyle = isWord && clean(w) === key ? '#FFE14D' : '#FFFFFF';
+        g.fillText(w, x, ly);
+        x += g.measureText(w).width + space;
+      }
+    });
+    g.restore();
+  }
+
   drawHeading(t, L) {
     const text = (this.clip.heading || '').trim();
     if (!text || this.opts.heading === false) return;
+    if (this.opts.headStyle !== 'pill') return this.drawBoldHeading(t, L);
     const { g } = this;
     const k = ease((t - this.clip.s) / 0.35);
     g.save();

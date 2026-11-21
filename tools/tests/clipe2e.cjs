@@ -51,7 +51,7 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
   await p.setInputFiles('#fileInput', path.resolve(file));
   await p.waitForFunction(() => !document.querySelector('#btnGo').disabled, null, { timeout: 60000 });
   console.log('file meta:', await p.textContent('#fileMeta'));
-  await p.selectOption('#count', process.env.COUNT || '3'); await p.selectOption('#framing', framing);
+  await p.selectOption('#count', process.env.COUNT || '3'); await p.selectOption('#framing', framing); if (process.env.HEADSTYLE) await p.selectOption('#headStyle', process.env.HEADSTYLE);
   if (process.env.EMOJI) await p.check('#optEmoji');
   const t0 = Date.now();
   await p.click('#btnGo');

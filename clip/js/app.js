@@ -108,7 +108,7 @@ function options() {
   const [minLen, maxLen] = $('#length').value.split('-').map(Number);
   return {
     count: Number($('#count').value), minLen, maxLen,
-    framing: $('#framing').value, captions: $('#optCaptions').checked, heading: $('#optHeading').checked, emoji: $('#optEmoji').checked,
+    framing: $('#framing').value, captions: $('#optCaptions').checked, heading: $('#optHeading').checked, headStyle: $('#headStyle').value === 'pill' ? 'pill' : 'bold', emoji: $('#optEmoji').checked,
     language: $('#language').value,
   };
 }
@@ -271,7 +271,7 @@ async function renderCard(card, o, signal) {
     const spoken = state.transcript.words.filter(w => w.s >= clip.s && w.e <= clip.e);
     m.script = { title: clip.heading, lines: [spoken.map(w => w.w).join(' ')], characters: [] };
     m.voice = { engine: 'source', maxPlaybackRate: 1, wordsSpoken: spoken.length, wpm: Math.round(spoken.length / Math.max(1, clip.e - clip.s) * 60), spokenText: [] };
-    m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
+    m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, headingStyle: o.heading === false ? 'off' : o.headStyle, headingKey: painter.headKey(), headingPos: painter.headTrack(), emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
     const a = measureAudio(audio);
     m.audio = { targetLufs: CLIP_LUFS, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: audio.normalizePath || 'none' };
     card.manifest = m;

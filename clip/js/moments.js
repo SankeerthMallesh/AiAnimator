@@ -115,7 +115,7 @@ export async function findMoments(transcript, { count = 5, minLen = 20, maxLen =
     log?.(`Looking for the best moments (${i + 1} of ${windows.length})…`);
     const out = await ask([
       { role: 'system', content: SYSTEM },
-      { role: 'user', content: `Transcript (each line starts with its time in seconds):\n${text}\n\nFind up to ${perWindow} of the best clips in this part, each about ${minLen} to ${maxLen} seconds long (shorter if the moment is over sooner). Use the line times for start and end, and give "payoffEnd": the time the punchline or reaction ends; the clip ends there.\nFor each clip also give "highlight": 3 to 8 single words from the clip worth highlighting in the captions (the punchiest words), and "emoji": 0 to 2 reaction emoji, only as a reaction to what happens (like 💀 for something funny, 😳 shocking), each with its time in seconds. Never an emoji that repeats or pictures a word in the captions (no 🤔 when someone says "think", no 🔥 for "fire", no 🍊 for "orange"); when unsure, give none.\nReturn JSON only:\n{"clips":[{"start":0.0,"end":0.0,"payoffEnd":0.0,"heading":"","score":7,"why":"one short line on why it works","highlight":["word"],"emoji":[{"t":0.0,"e":"💀"}]}]}` },
+      { role: 'user', content: `Transcript (each line starts with its time in seconds):\n${text}\n\nFind up to ${perWindow} of the best clips in this part, each about ${minLen} to ${maxLen} seconds long (shorter if the moment is over sooner). Use the line times for start and end, and give "payoffEnd": the time the punchline or reaction ends; the clip ends there.\nFor each clip also give "highlight": 3 to 8 single words from the clip worth highlighting in the captions (the punchiest words), and "emoji": 0 to 2 reaction emoji, only as a reaction to what happens (like 💀 for something funny, 😳 shocking), each with its time in seconds. Never an emoji that repeats or pictures a word in the captions (no 🤔 when someone says "think", no 🔥 for "fire", no 🍊 for "orange"); when unsure, give none.\nReturn JSON only:\n{"clips":[{"start":0.0,"end":0.0,"payoffEnd":0.0,"heading":"","headingKey":"the one word of the heading to colour","score":7,"why":"one short line on why it works","highlight":["word"],"emoji":[{"t":0.0,"e":"💀"}]}]}` },
     ], signal);
     for (const c of out?.clips || []) found.push(c);
     onProgress?.((i + 1) / windows.length);
@@ -130,6 +130,7 @@ export async function findMoments(transcript, { count = 5, minLen = 20, maxLen =
     clips.push({
       ...span,
       heading: String(c.heading || '').replace(/#\S+/g, '').replace(/["“”]/g, '').trim().slice(0, 70) || 'Wait for it…',
+      headingKey: String(c.headingKey || '').replace(/[^\p{L}\p{N}']/gu, '').slice(0, 30),
       score: Math.max(1, Math.min(10, Math.round(Number(c.score) || 5))),
       why: String(c.why || '').slice(0, 140),
       highlight: (Array.isArray(c.highlight) ? c.highlight : []).map(w => String(w).toLowerCase().replace(/[^\p{L}\p{N}']/gu, '')).filter(Boolean).slice(0, 10),
