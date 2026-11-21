@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy 3D film render</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/addons/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<canvas id="view" width="1080" height="1920"></canvas>
+<script type="module">
+// Renders a hand-directed film module (explainer/js/z3d/films/<name>.js): ?film=icewater
+//   window.still(t)            one frame into #view
+//   window.clip(start, length) silent MP4 of that stretch (sound is mixed afterwards)
+import { createEngine } from '../../../explainer/js/z3d/engine.js';
+import { renderFilm, composeFrame } from '../../../explainer/js/z3d/film.js';
+const name = new URLSearchParams(location.search).get('film') || 'icewater';
+const mod = await import(`../../../explainer/js/z3d/films/${name}.js`);
+const F = await mod.prepare();
+await document.fonts.load('700 40px Montserrat');
+const view = document.getElementById('view'), g = view.getContext('2d');
+let engine = null;
+window.DURATION = F.DURATION;
+window.still = async (t) => {
+  engine ||= createEngine({ width: 1080, height: 1920 });
+  if (!engine._set) { engine.setEdit({ shots: F.SHOTS }); engine._set = true; }
+  const t0 = performance.now();
+  const shot = composeFrame(engine, g, 1080, 1920, t, { captions: F.CAPTIONS, fades: F.FADES, captionStyle: F.CAPTION_STYLE || 'classic' });
+  return { shot, ms: Math.round(performance.now() - t0) };
+};
+window.clip = async (start, length) => {
+  const sr = 48000, audio = new AudioBuffer({ numberOfChannels: 2, length: Math.ceil(length * sr), sampleRate: sr });
+  const blob = await renderFilm({ edit: { shots: F.SHOTS }, captions: F.CAPTIONS, fades: F.FADES, captionStyle: F.CAPTION_STYLE || 'classic', start, duration: length, audio });
+  return URL.createObjectURL(blob);
+};
+window.ready = true;
+</script>
+</body>
+</html>

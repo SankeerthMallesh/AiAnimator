@@ -65,6 +65,7 @@ export class Person {
     this.body.scale.setScalar(s);
     this.body.position.set(-(box.min.x + box.max.x) / 2 * s, -box.min.y * s, -(box.min.z + box.max.z) / 2 * s);
     this.hipRest = this.bones.hip?.position.clone();
+    this.holder.userData.keep = true; // shared between shots: never freed with one
     this.holder.updateMatrixWorld(true);
   }
 

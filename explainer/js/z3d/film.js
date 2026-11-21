@@ -36,6 +36,28 @@ export function drawCaption(g, W, H, text) {
   g.restore();
 }
 
+// The Blocky caption (the S11 rule): 3-4 words centred at 23% of the height, weight 600, a dark
+// outline, one key word in capitals. text may mark the key word as *word*.
+export function drawCaptionBlocky(g, W, H, text) {
+  if (!text) return;
+  const size = Math.round(H * 0.039);
+  g.save();
+  g.font = `600 ${size}px ${CAPTION_FONT}`;
+  g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  const words = text.split(' ').map(w => /^\*.*\*$/.test(w) ? { t: w.slice(1, -1).toUpperCase(), key: true } : { t: w, key: false });
+  const sp = g.measureText(' ').width;
+  const width = words.reduce((n, w) => n + g.measureText(w.t).width, 0) + sp * (words.length - 1);
+  let x = (W - width) / 2; const y = H * 0.23;
+  for (const w of words) {
+    g.lineWidth = size * 0.22; g.strokeStyle = 'rgba(0,0,0,.9)';
+    g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = size * 0.2; g.shadowOffsetY = size * 0.06;
+    g.strokeText(w.t, x, y); g.shadowColor = 'transparent';
+    g.fillStyle = w.key ? '#FFE14D' : '#FFFFFF'; g.fillText(w.t, x, y);
+    x += g.measureText(w.t).width + sp;
+  }
+  g.restore();
+}
+
 // fades: [[a, b, c, d], ...]: black rises a->b, holds b->c, falls c->d.
 export function fadeAt(fades, t) {
   let f = 0;
@@ -44,15 +66,16 @@ export function fadeAt(fades, t) {
 }
 
 // One output frame at time t into the 2D context g (W x H).
-export function composeFrame(engine, g, W, H, t, { captions = [], fades = [], log = null } = {}) {
+export function composeFrame(engine, g, W, H, t, { captions = [], fades = [], log = null, captionStyle = 'classic' } = {}) {
   const shot = engine.renderAt(t);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   g.drawImage(engine.canvas, 0, 0, W, H);
   const f = fadeAt(fades, t);
   if (f > 0) { g.fillStyle = `rgba(0,0,0,${f})`; g.fillRect(0, 0, W, H); }
   const text = captionAt(captions, t);
-  if (log) log.caption(t, g, H, () => drawCaption(g, W, H, text));
-  else drawCaption(g, W, H, text);
+  const draw = captionStyle === 'blocky' ? drawCaptionBlocky : drawCaption;
+  if (log) log.caption(t, g, H, () => draw(g, W, H, text));
+  else draw(g, W, H, text);
   return shot;
 }
 
@@ -60,7 +83,7 @@ export function composeFrame(engine, g, W, H, t, { captions = [], fades = [], lo
 // scales down (cleanest edges, about 3-4 times slower). The skill rendered 720x1280 and stretched it,
 // which looked soft.
 export const QUALITY = { standard: 1, best: 2 };
-export async function renderFilm({ edit, captions = [], fades = [], duration, start = 0, audio = null, width = 1080, height = 1920, fps = 30, quality = 'standard', renderSize = null, onProgress, signal, onFrame } = {}) {
+export async function renderFilm({ edit, captions = [], fades = [], captionStyle = 'classic', duration, start = 0, audio = null, width = 1080, height = 1920, fps = 30, quality = 'standard', renderSize = null, onProgress, signal, onFrame } = {}) {
   const k = QUALITY[quality] || 1;
   renderSize ||= [width * k, height * k];
   const total = duration ?? Math.max(...edit.shots.map(s => s.end)) - start;
@@ -76,7 +99,7 @@ export async function renderFilm({ edit, captions = [], fades = [], duration, st
     for (let i = 0; i < n; i++) {
       if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError');
       const t = start + i / fps;
-      const shot = composeFrame(engine, g, width, height, t, { captions, fades });
+      const shot = composeFrame(engine, g, width, height, t, { captions, fades, captionStyle });
       onFrame?.(t, shot, g);
       await out.addFrame(canvas, t - start);
       if (i % 5 === 0) {

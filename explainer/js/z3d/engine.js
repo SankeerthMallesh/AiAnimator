@@ -183,8 +183,12 @@ export function createEngine({ width = 1080, height = 1920, grain = false } = {}
   function disposeShots() { for (const s of built.values()) disposeScene(s.scene); built.clear(); }
 }
 
+// Frees a shot's GPU memory. Objects marked userData.keep (people shared between shots) are skipped.
 function disposeScene(scene) {
+  const keep = new Set();
+  scene?.traverse((o) => { if (o.userData?.keep) o.traverse(c => keep.add(c)); });
   scene?.traverse((o) => {
+    if (keep.has(o)) return;
     o.geometry?.dispose?.();
     const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
     for (const m of ms) { for (const v of Object.values(m)) if (v && v.isTexture && !v.isRenderTargetTexture && v !== scene.environment) v.dispose?.(); m.dispose?.(); }
