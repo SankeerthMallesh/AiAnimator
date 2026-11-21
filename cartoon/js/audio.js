@@ -1,6 +1,7 @@
 // Timeline + soundtrack: narration, royalty-free generated music, whooshes and impacts.
 // Everything is synthesized locally with the Web Audio API, so there is nothing to license.
 
+import { levelChannels } from '../../shared/level.js';
 import { MOODS } from './presets.js';
 import { speechBounds, wordTimings, alignWords, voiceEnvelope } from './tts.js';
 
@@ -506,7 +507,6 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
   return out;
 }
 
-const TARGET_LUFS = -13, CEILING = 0.89;
 function kWeighted(x, sr) {
   // The two K-weighting filters: a high shelf (+4 dB above ~1.7 kHz) and a low cut at ~38 Hz.
   const shelf = (() => { const A = Math.pow(10, 3.99984 / 40), w = 2 * Math.PI * 1681.97445 / sr, c = Math.cos(w), al = Math.sin(w) / (2 * 0.70718), s = 2 * Math.sqrt(A) * al;
@@ -539,18 +539,7 @@ export function integratedLoudness(buffer) {
   return lufs(mean(gated.length ? gated : abs));
 }
 function levelMix(out) {
-  const L = integratedLoudness(out);
-  if (!isFinite(L)) return;
-  let g = Math.pow(10, (TARGET_LUFS - L) / 20);
-  g = Math.min(g, 4); // never lift a near-silent mix into hiss
-  const knee = CEILING * 0.8;
-  for (let c = 0; c < out.numberOfChannels; c++) {
-    const d = out.getChannelData(c);
-    for (let i = 0; i < d.length; i++) {
-      // Gain, then a soft limiter: untouched below the knee, smoothly bent toward the ceiling above it.
-      let v = d[i] * g; const a = Math.abs(v);
-      if (a > knee) v = Math.sign(v) * (knee + (CEILING - knee) * Math.tanh((a - knee) / (CEILING - knee)));
-      d[i] = v;
-    }
-  }
+  const chans = [];
+  for (let c = 0; c < out.numberOfChannels; c++) chans.push(out.getChannelData(c));
+  levelChannels(chans, out.sampleRate);
 }

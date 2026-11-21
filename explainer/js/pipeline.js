@@ -409,7 +409,7 @@ export class Pipeline {
     const talk = p.timeline.scenes.reduce((n, s) => n + (s.voice ? s.voice.samples.length / s.voice.sampleRate : 0), 0);
     m.voice = { engine: v.engine, maxPlaybackRate: v.maxRate, wordsSpoken: words, wpm: talk ? Math.round(words / talk * 60) : 0, spokenText: v.spoken };
     const a = measureAudio(p.audio);
-    m.audio = { targetLufs: -13, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback' };
+    m.audio = { targetLufs: -13.5, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback' };
     return m;
   }
 
