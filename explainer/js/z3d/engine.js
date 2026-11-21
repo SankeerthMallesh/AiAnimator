@@ -42,8 +42,9 @@ export function webglAvailable() {
   try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
 }
 
-// width x height is the render size (the skill renders 720x1280 and scales to 1080x1920).
-export function createEngine({ width = 720, height = 1280, grain = true } = {}) {
+// width x height is the render size. Grain is off by default: it adds noise that video compression
+// turns to mush (the skill's light grain; the cartoon skill found the same).
+export function createEngine({ width = 1080, height = 1920, grain = false } = {}) {
   const W = width, H = height, px = H / 1280; // pixel-sized settings scale with the height
   const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1);

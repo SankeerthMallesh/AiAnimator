@@ -25,11 +25,15 @@ import { renderFilm, composeFrame } from '../../../explainer/js/z3d/film.js';
 import { SHOTS, CAPTIONS, FADES, DURATION } from '../../../explainer/js/z3d/shots-armour.js';
 const edit = { shots: SHOTS };
 const view = document.getElementById('view'), g = view.getContext('2d');
-let engine = null;
+let engine = null, size = '1080x1920';
 window.DURATION = DURATION;
-window.still = async (t) => {
+// size: the engine's render size, e.g. '720x1280', '1080x1920' or '2160x3840' (drawn at 1080x1920).
+window.still = async (t, want = '1080x1920') => {
   await document.fonts.load('700 40px Montserrat');
-  engine ||= createEngine({ width: 720, height: 1280 });
+  if (engine && want !== size) { engine.dispose(); engine = null; }
+  size = want;
+  const [w, h] = want.split('x').map(Number);
+  engine ||= createEngine({ width: w, height: h });
   if (!engine._set) { engine.setEdit(edit); engine._set = true; }
   const t0 = performance.now();
   const shot = composeFrame(engine, g, 1080, 1920, t, { captions: CAPTIONS, fades: FADES });
