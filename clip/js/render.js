@@ -13,7 +13,10 @@ export function captionChunks(words, s, e) {
   const ws = words.filter(w => w.s >= s - 0.05 && w.s < e);
   const out = [];
   let cur = [];
-  const flush = () => { if (cur.length) out.push({ a: cur[0].s, words: cur }); cur = []; };
+  // A word timed over 0.8 s usually means the recogniser stretched it over a pause or noise before
+  // it: its caption starts 0.35 s before the word ends instead of seconds early.
+  const start = (w) => (w.e - w.s > 0.8 ? w.e - 0.35 : w.s);
+  const flush = () => { if (cur.length) out.push({ a: start(cur[0]), words: cur }); cur = []; };
   for (let i = 0; i < ws.length; i++) {
     const w = ws[i], prev = cur[cur.length - 1];
     const chars = cur.reduce((n, x) => n + x.w.length + 1, 0) + w.w.length;
