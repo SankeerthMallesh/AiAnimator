@@ -318,7 +318,11 @@ function trimmed(d) {
   const pad = Math.round(d.sampleRate * 0.05);
   const a0 = Math.max(0, Math.round(b.start * d.sampleRate) - pad);
   const a1 = Math.min(d.samples.length, Math.round(b.end * d.sampleRate) + pad);
-  return d.samples.slice(a0, a1);
+  const out = d.samples.slice(a0, a1);
+  // 8 ms fades at both ends, so a cut between lines can never click.
+  const f = Math.min(Math.round(d.sampleRate * 0.008), out.length >> 2);
+  for (let i = 0; i < f; i++) { const k = i / f; out[i] *= k; out[out.length - 1 - i] *= k; }
+  return out;
 }
 
 // ---------- Say numbers and units the way people do ----------

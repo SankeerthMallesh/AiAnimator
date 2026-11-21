@@ -317,6 +317,15 @@ export class Renderer {
     // Gentler 3D: strong depth moves bend straight edges and make parts of the picture melt
     // into each other. About half the parallax keeps the depth without the warping.
     px *= 0.5; py *= 0.5; dolly *= 0.5;
+    // A cut halfway through longer shots, like the 1.5-2 s shots of popular Shorts: the second half
+    // punches in on another part of the same picture (alternating sides, a little higher or lower).
+    if (scene.dur > 2.4 && lt >= scene.dur / 2 && !this.clips[scene.index]) {
+      const side = scene.index % 2 ? 1 : -1;
+      zoom *= 1.3;
+      x += side * W * 0.07;
+      y += (scene.index % 3 === 0 ? -1 : 1) * H * 0.035;
+      focus = Math.min(0.9, focus + 0.08);
+    }
     return { zoom, x, y, rot, px, py, dolly, focus, three };
   }
 
@@ -776,11 +785,51 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Captions in the style of 3D story Shorts and blocky-game story Shorts: 2-4 words in normal case,
+  // white with a dark edge, the key word in CAPITALS; blocky stories put them near the top.
+  _storyCaption(g, vt, top) {
+    const { ctx, W, H } = this;
+    const size = Math.round(this.vertical ? W * 0.066 : H * 0.07);
+    ctx.save();
+    ctx.font = `800 ${size}px ${CAPTION_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.textAlign = 'left';
+    const words = g.words.map(w => ({ ...w, label: w.key && w.text.replace(/[^\p{L}]/gu, '').length > 2 ? w.text.toUpperCase() : w.text }));
+    const space = ctx.measureText(' ').width;
+    const lines = [[]]; let lw = 0;
+    for (const w of words) {
+      w.w = ctx.measureText(w.label).width;
+      if (lines[lines.length - 1].length && lw + space + w.w > W * 0.8) { lines.push([]); lw = 0; }
+      lines[lines.length - 1].push(w); lw += (lw ? space : 0) + w.w;
+    }
+    const pop = easeOutBack(Math.min(1, (vt - g.start + 0.03) / 0.12));
+    const cy = top ? H * 0.235 : (this.tall ? H * 0.71 : H * 0.8);
+    ctx.translate(W / 2, cy);
+    ctx.scale(lerp(0.88, 1, pop), lerp(0.88, 1, pop));
+    lines.forEach((line, li) => {
+      const total = line.reduce((n, w) => n + w.w, 0) + space * (line.length - 1);
+      let x = -total / 2;
+      const y = (li - (lines.length - 1) / 2) * size * 1.1;
+      for (const w of line) {
+        ctx.lineWidth = size * (top ? 0.16 : 0.1);
+        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+        ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = size * 0.25; ctx.shadowOffsetY = size * 0.04;
+        ctx.strokeText(w.label, x, y);
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(w.label, x, y);
+        x += w.w + space;
+      }
+    });
+    ctx.restore();
+  }
+
   _captions(scene, vt) {
     const groups = this.captionGroups[scene.index];
     const g = groups.find(gr => vt >= gr.start - 0.03 && vt < gr.end);
     if (!g) return;
     const style = this.settings.captionStyle;
+    // Story styles caption like the Shorts they come from: normal case, white, key word in capitals.
+    if (['story-3d', 'blocky'].includes(this.options.style) && style !== 'off') { this._storyCaption(g, vt, this.options.style === 'blocky'); return; }
     if (style === 'word') { this._wordCaption(scene, vt); return; }
     if (style === 'classic') { this._classicCaption(g, vt); return; }
     const { ctx, W, H } = this;

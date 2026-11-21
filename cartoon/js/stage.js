@@ -140,7 +140,19 @@ export class Stage {
     const pe = view.plates?.get(scene.id);
     const photo = !!pe?.photo;
     // With a real picture on screen, the picture is the visual: wide shot, no floating props.
-    const fr = photo ? Stage.framing({ ...scene, frame: 'wide' }, actors, W, H, u, ground) : Stage.framing(scene, actors, W, H, u, ground);
+    // A cut halfway through longer scenes, like the 1.5-2 s shots of the reference Shorts: the
+    // second half is a close-up (or back to wide), a reaction close-up on the listener, or a
+    // scenery-only cutaway where the camera pushes into the world while the narration goes on.
+    const second = !photo && (scene.dur || 0) > 2.6 && local >= scene.dur / 2;
+    const variant = (scene.index || 0) % 3;
+    const cutaway = second && variant === 1;
+    let framed = scene;
+    if (second && !cutaway) {
+      const first = Stage.framing(scene, actors, W, H, u, ground);
+      const other = actors.find(a => a.id !== scene.say)?.id;
+      framed = { ...scene, frame: first.close ? 'wide' : 'close', say: variant === 2 && other && !first.close ? other : scene.say };
+    }
+    const fr = photo ? Stage.framing({ ...scene, frame: 'wide' }, actors, W, H, u, ground) : Stage.framing(cutaway ? { ...scene, frame: 'wide' } : framed, actors, W, H, u, ground);
     if (photo) props = props.filter(p => !(p.kind === 'icon' || PropKit.TOONS.includes(p.kind)));
     // An AI picture already shows the place and its objects: no toy props on top of it, just the
     // one sticker for the line (and none on a close-up, where the face is the point).
@@ -177,7 +189,7 @@ export class Stage {
     // The background zooms much less than the cast: a close-up stays sharp instead of blowing the
     // picture up 2x, and the difference reads as depth.
     {
-      const Z = shot.z * fr.z, Zb = 1 + (Z - 1) * 0.35;
+      const Z = shot.z * fr.z, Zb = cutaway ? 1.12 + 0.1 * Ink.clamp((local - scene.dur / 2) / (scene.dur / 2), 0, 1) : 1 + (Z - 1) * 0.35;
       ctx.setTransform(screen);
       ctx.translate(fr.sx, fr.sy);
       ctx.rotate(shot.rot);
@@ -191,6 +203,7 @@ export class Stage {
     }
     SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene || photo, blur: photo, vx: pe?.vx || 0, vz: pe?.vz || 1, tint: pe?.tint || null });
     ctx.restore();
+    if (cutaway) { ctx.restore(); return; } // scenery only: no cast, no props
     if (mv) Stage.applyMotion(mv, actors, scene, local, talkIdFor(scene, actors), bgX, W);
     if (photo) {
       // The picture itself as a framed card at the top, steady on screen while the camera moves.
