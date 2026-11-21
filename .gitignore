@@ -9,4 +9,4 @@ tools/tests/cliptest/out_*
 tools/tests/cliptest/page_*
 tools/tests/*.png
 tools/tests/*.mp4
-tests/mass/
+tools/tests/mass/
