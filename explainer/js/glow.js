@@ -25,6 +25,56 @@ function boxBlur(src, w, h, r) {
   return a;
 }
 
+// The glow's shape test, on a 0/1 mask (w x h). Returns the shape to outline, or null unless there
+// is exactly one connected shape (specks under 15% of the largest are ignored, as are thin strips
+// along the bottom edge), it covers 5-35% of the frame, and it is solid: its area is at least 0.8
+// of its convex hull (splashes, spray and water ripples are not).
+export function glowMask(mask, w, h) {
+  const lab = new Int32Array(w * h).fill(-1);
+  const comps = [];
+  const q = new Int32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    if (!mask[i] || lab[i] >= 0) continue;
+    const id = comps.length; let qh = 0, qt = 0, n = 0, y0 = h, y1 = 0;
+    const left = new Map(), right = new Map();
+    q[qt++] = i; lab[i] = id;
+    while (qh < qt) {
+      const j = q[qh++]; n++;
+      const x = j % w, y = (j / w) | 0;
+      if (y < y0) y0 = y; if (y > y1) y1 = y;
+      if (!left.has(y) || x < left.get(y)) left.set(y, x);
+      if (!right.has(y) || x > right.get(y)) right.set(y, x);
+      for (const k of [x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1, y > 0 ? j - w : -1, y < h - 1 ? j + w : -1]) {
+        if (k >= 0 && mask[k] && lab[k] < 0) { lab[k] = id; q[qt++] = k; }
+      }
+    }
+    comps.push({ id, n, strip: y1 >= h - 2 && (y1 - y0) < h * 0.2, left, right });
+  }
+  const real = comps.filter(c => !c.strip);
+  if (!real.length) return null;
+  const big = real.reduce((a, c) => (c.n > a.n ? c : a));
+  if (real.filter(c => c.n >= big.n * 0.15).length !== 1) return null;
+  const share = big.n / (w * h);
+  if (share < 0.05 || share > 0.35) return null;
+  // Convex hull of the shape's row ends (monotone chain), and its area.
+  const pts = [];
+  for (const [y, x] of big.left) pts.push([x, y]);
+  for (const [y, x] of big.right) pts.push([x + 1, y + 1]);
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [], upper = [];
+  for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+  const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+  let area = 0;
+  for (let i = 0; i < hull.length; i++) { const [x1, y1] = hull[i], [x2, y2] = hull[(i + 1) % hull.length]; area += x1 * y2 - x2 * y1; }
+  const hullArea = Math.abs(area) / 2;
+  if (!hullArea || big.n / hullArea < 0.8) return null;
+  const out = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) if (lab[i] === big.id) out[i] = 1;
+  return out;
+}
+
 // Returns a canvas with the glow baked in, or null when the picture has no clear subject.
 export function glowImage(img, depth, color = '#FFE14D') {
   if (!img || !depth?.data || depth.width <= 160) return null; // estimated depth is too rough
@@ -40,36 +90,12 @@ export function glowImage(img, depth, color = '#FFE14D') {
     const hit = data[i] - around[i] > 14 && data[i] > median;
     if (hit) { mask.data[i * 4 + 3] = 255; on++; }
   }
-  // Keep the main shape: the biggest connected piece and any nearly as big, but not thin strips
-  // along the bottom edge (the floor or pool edge right in front of the camera).
-  {
-    const lab = new Int32Array(dw * dh).fill(-1);
-    const comps = [];
-    const q = new Int32Array(dw * dh);
-    for (let i = 0; i < dw * dh; i++) {
-      if (!mask.data[i * 4 + 3] || lab[i] >= 0) continue;
-      const id = comps.length; let qh = 0, qt = 0, n = 0, y0 = dh, y1 = 0;
-      q[qt++] = i; lab[i] = id;
-      while (qh < qt) {
-        const j = q[qh++]; n++;
-        const x = j % dw, y = (j / dw) | 0;
-        if (y < y0) y0 = y; if (y > y1) y1 = y;
-        for (const k of [x > 0 ? j - 1 : -1, x < dw - 1 ? j + 1 : -1, y > 0 ? j - dw : -1, y < dh - 1 ? j + dw : -1]) {
-          if (k >= 0 && mask.data[k * 4 + 3] && lab[k] < 0) { lab[k] = id; q[qt++] = k; }
-        }
-      }
-      comps.push({ n, strip: y1 >= dh - 2 && (y1 - y0) < dh * 0.2 });
-    }
-    const big = Math.max(0, ...comps.filter(c => !c.strip).map(c => c.n));
-    const keep = comps.map(c => !c.strip && c.n >= big * 0.35);
-    on = 0;
-    for (let i = 0; i < dw * dh; i++) {
-      if (mask.data[i * 4 + 3] && !keep[lab[i]]) mask.data[i * 4 + 3] = 0;
-      else if (mask.data[i * 4 + 3]) on++;
-    }
-  }
-  const share = on / data.length;
-  if (share < 0.02 || share > 0.45) return null;
+  // Glow only around ONE solid subject (see glowMask): not two blobs, not splashes or water.
+  const bin = new Uint8Array(dw * dh);
+  for (let i = 0; i < dw * dh; i++) bin[i] = mask.data[i * 4 + 3] ? 1 : 0;
+  const keepMask = glowMask(bin, dw, dh);
+  if (!keepMask) return null;
+  for (let i = 0; i < dw * dh; i++) mask.data[i * 4 + 3] = keepMask[i] ? 255 : 0;
   const mc = document.createElement('canvas'); mc.width = dw; mc.height = dh;
   mc.getContext('2d').putImageData(mask, 0, 0);
 

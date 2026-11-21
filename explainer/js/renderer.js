@@ -65,6 +65,7 @@ export class Renderer {
     this.depths = timeline.scenes.map((s, i) => depths[i] || null);
     // Scenes that point at something get a glowing outline around it, baked into the picture.
     this.glowed = timeline.scenes.map(() => false);
+    this.plain = this.images.slice(); // without the glow, for fading it out before a transition
     this.images = this.images.map((img, i) => {
       if (!timeline.scenes[i].highlight || !this.depths[i] || this.drawnHero?.[i]) return img;
       try { const gl = glowImage(img, this.depths[i]); if (gl) this.glowed[i] = true; return gl || img; } catch { return img; }
@@ -360,7 +361,7 @@ export class Renderer {
       characterIds: src === 'ai' && style.character && hero ? [hero.id || hero.name || 'hero'] : [],
       world: src === 'fallback' ? worldFor(scene) : '',
       props: this.settings.stickers === true && scene.icon ? [{ kind: `icon:${scene.icon}`, triggerWord: scene.iconWord || '' }] : [],
-      glow: !!this.glowed[i], picturePrompt: this.meta[i].prompt || '', seed: this.meta[i].seed ?? scene.seed ?? 0,
+      glow: !!this.glowed[i] && this._glowAlpha(scene, lt) > 0.5, picturePrompt: this.meta[i].prompt || '', seed: this.meta[i].seed ?? scene.seed ?? 0,
     };
   }
 
@@ -437,6 +438,15 @@ export class Renderer {
       focus = Math.min(0.9, focus + 0.08 * pk);
     }
     return { zoom, x, y, rot, px, py, dolly, focus, three };
+  }
+
+  // How much of a scene's glow shows: it fades out over the 0.25 s before the outgoing transition.
+  _glowAlpha(scene, lt) {
+    if (!this.glowed[scene.index]) return 0;
+    const next = this.timeline.scenes[scene.index + 1];
+    const T = next ? (TRANSITION_LEN[next.transition] ?? 0.36) : 0;
+    const end = scene.dur - T / 2;
+    return clamp((end - lt) / 0.25, 0, 1);
   }
 
   // Which punch-in is on screen: 0 (the opening framing), 1 or 2, for shots over 2 s.
@@ -519,27 +529,38 @@ export class Renderer {
     const cam = this._camera(scene, lt);
     if (cam.three) {
       cam.nx = cam.x / W; cam.ny = cam.y / H;
-      const layer = this.gl.render(scene.index, this.images[scene.index], this.depths[scene.index], cam, this.look);
-      const sc = extra.scale || 1;
-      ctx.save();
-      ctx.globalAlpha = extra.alpha ?? 1;
-      ctx.translate(W / 2 + (extra.dx || 0), H / 2 + (extra.dy || 0));
-      ctx.scale(sc, sc);
-      ctx.drawImage(layer, -W / 2, -H / 2, W, H);
-      ctx.restore();
+      const ga = this._glowAlpha(scene, lt);
+      const draw = (layer, alpha) => {
+        const sc = extra.scale || 1;
+        ctx.save();
+        ctx.globalAlpha = (extra.alpha ?? 1) * alpha;
+        ctx.translate(W / 2 + (extra.dx || 0), H / 2 + (extra.dy || 0));
+        ctx.scale(sc, sc);
+        ctx.drawImage(layer, -W / 2, -H / 2, W, H);
+        ctx.restore();
+      };
+      if (this.glowed[scene.index] && ga < 1) {
+        // Fading the glow: the plain picture, then the glowing one on top at the glow's strength.
+        draw(this.gl.render(scene.index + 100000, this.plain[scene.index], this.depths[scene.index], cam, this.look), 1);
+        if (ga > 0) draw(this.gl.render(scene.index, this.images[scene.index], this.depths[scene.index], cam, this.look), ga);
+      } else draw(this.gl.render(scene.index, this.images[scene.index], this.depths[scene.index], cam, this.look), 1);
       return;
     }
-    const img = this.images[scene.index];
-    const iw = img.width, ih = img.height;
-    const cover = Math.max(W / iw, H / ih);
-    const zoom = cam.zoom * (extra.scale || 1);
-    ctx.save();
-    ctx.globalAlpha = extra.alpha ?? 1;
-    ctx.translate(W / 2 + cam.x + (extra.dx || 0), H / 2 + cam.y + (extra.dy || 0));
-    ctx.rotate(cam.rot);
-    ctx.scale(cover * zoom, cover * zoom);
-    ctx.drawImage(img, -iw / 2, -ih / 2);
-    ctx.restore();
+    const ga = this._glowAlpha(scene, lt);
+    const layers = this.glowed[scene.index] && ga < 1 ? [[this.plain[scene.index], 1], [this.images[scene.index], ga]] : [[this.images[scene.index], 1]];
+    for (const [img, alpha] of layers) {
+      if (!(alpha > 0)) continue;
+      const iw = img.width, ih = img.height;
+      const cover = Math.max(W / iw, H / ih);
+      const zoom = cam.zoom * (extra.scale || 1);
+      ctx.save();
+      ctx.globalAlpha = (extra.alpha ?? 1) * alpha;
+      ctx.translate(W / 2 + cam.x + (extra.dx || 0), H / 2 + cam.y + (extra.dy || 0));
+      ctx.rotate(cam.rot);
+      ctx.scale(cover * zoom, cover * zoom);
+      ctx.drawImage(img, -iw / 2, -ih / 2);
+      ctx.restore();
+    }
   }
 
   // Floating dust in the light + slow light rays, moving with the 3D camera.
