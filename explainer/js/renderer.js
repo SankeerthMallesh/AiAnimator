@@ -349,14 +349,14 @@ export class Renderer {
   // What the render log records for the shot on screen.
   _shotInfo(scene, lt) {
     const i = scene.index, src = this.sources[i], style = STYLES[this.options.style] || {};
-    const punched = scene.dur > 2.4 && lt >= scene.dur / 2 && !this.clips[i];
+    const pk = this._punch(scene, lt);
     const hero = (this.script?.characters || [])[0];
     if (this.drawnHero[i]) {
       const shot = this._fallbackShot(scene, lt);
       return { scene: i, source: src, framing: shot.framing, shotIndex: shot.n, characterIds: [this.hero.id], world: src === 'fallback' ? this.worlds[i] : '', props: [], glow: false, picturePrompt: this.meta[i].prompt || '', seed: this.meta[i].seed ?? 0 };
     }
     return {
-      scene: i, source: src, framing: punched ? 'close' : 'wide',
+      scene: i, source: src, framing: ['wide', 'medium', 'close'][pk], shotIndex: pk,
       characterIds: src === 'ai' && style.character && hero ? [hero.id || hero.name || 'hero'] : [],
       world: src === 'fallback' ? worldFor(scene) : '',
       props: this.settings.stickers === true && scene.icon ? [{ kind: `icon:${scene.icon}`, triggerWord: scene.iconWord || '' }] : [],
@@ -423,16 +423,57 @@ export class Renderer {
     // Gentler 3D: strong depth moves bend straight edges and make parts of the picture melt
     // into each other. About half the parallax keeps the depth without the warping.
     px *= 0.5; py *= 0.5; dolly *= 0.5;
-    // A cut halfway through longer shots, like the 1.5-2 s shots of popular Shorts: the second half
-    // punches in on another part of the same picture (alternating sides, a little higher or lower).
-    if (scene.dur > 2.4 && lt >= scene.dur / 2 && !this.clips[scene.index]) {
-      const side = scene.index % 2 ? 1 : -1;
-      zoom *= 1.3;
-      x += side * W * 0.07;
-      y += (scene.index % 3 === 0 ? -1 : 1) * H * 0.035;
-      focus = Math.min(0.9, focus + 0.08);
+    // Two punch-ins in longer shots (at a third and two thirds), like the 1.5 s shots of popular
+    // story Shorts: first on the subject the depth map finds nearest, then on its upper part (a face
+    // or a detail) from the other side, so each cut is a new framing.
+    const pk = this._punch(scene, lt);
+    if (pk) {
+      const t = this._targets(scene.index)[pk - 1];
+      const z1 = pk === 1 ? 1.32 : 1.55;
+      zoom *= z1;
+      const mx = Math.max(0, (zoom - 1) / 2 - 0.02) * W, my = Math.max(0, (zoom - 1) / 2 - 0.02) * H;
+      x = clamp(x + (0.5 - t.u) * W * zoom, -mx, mx);
+      y = clamp(y + (0.5 - t.v) * H * zoom, -my, my);
+      focus = Math.min(0.9, focus + 0.08 * pk);
     }
     return { zoom, x, y, rot, px, py, dolly, focus, three };
+  }
+
+  // Which punch-in is on screen: 0 (the opening framing), 1 or 2, for shots over 2 s.
+  _punch(scene, lt) {
+    if (!(scene.dur > 2.0) || this.clips[scene.index] || this.drawnHero?.[scene.index]) return 0;
+    return lt >= (scene.dur * 2) / 3 ? 2 : lt >= scene.dur / 3 ? 1 : 0;
+  }
+
+  // Punch-in targets for a picture, as shares of its width and height: the nearest subject in the
+  // depth map, then its upper part on the other side. Without depth, two rule-of-thirds points.
+  _targets(i) {
+    this._tg ||= [];
+    if (this._tg[i]) return this._tg[i];
+    const d = this.depths[i];
+    const side = i % 2 ? 1 : -1;
+    let a = { u: 0.5 + side * 0.12, v: 0.42 }, b = { u: 0.5 - side * 0.12, v: 0.34 };
+    if (d?.data && d.width > 8) {
+      const { data, width: w, height: h } = d;
+      // The nearest 8% of the picture (largest depth values), ignoring the bottom edge (floor).
+      const vals = [];
+      for (let y = 0; y < h * 0.88; y += 2) for (let x = 0; x < w; x += 2) vals.push(data[y * w + x]);
+      vals.sort((p, q) => q - p);
+      // A small subject (under 8% of the picture) would put the cut on the background: then take the
+      // values clearly nearer than the median instead.
+      const med = vals[Math.floor(vals.length / 2)] ?? 0, max = vals[0] ?? 0;
+      let cut = vals[Math.floor(vals.length * 0.08)] ?? 0;
+      if (cut <= med) cut = (max + med) / 2;
+      let sx = 0, sy = 0, n = 0, top = h;
+      for (let y = 0; y < h * 0.88; y += 2) for (let x = 0; x < w; x += 2) if (data[y * w + x] >= cut && data[y * w + x] > med) { sx += x; sy += y; n++; if (y < top) top = y; }
+      if (n > 20) {
+        const cu = sx / n / w, cv = sy / n / h;
+        a = { u: clamp(cu, 0.2, 0.8), v: clamp(cv, 0.2, 0.75) };
+        // The upper part of the subject, pushed to the other side of it.
+        b = { u: clamp(cu + (cu < 0.5 ? 0.08 : -0.08), 0.2, 0.8), v: clamp(Math.min(cv - 0.1, top / h + 0.08), 0.15, 0.7) };
+      }
+    }
+    return (this._tg[i] = [a, b]);
   }
 
   // Where in its clip a shot is at local time lt. Clips are ~5 s: longer shots play them a little slower.
