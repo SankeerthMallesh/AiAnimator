@@ -126,3 +126,20 @@ export function mapToWritten(written, spoken) {
   }
   return out;
 }
+
+// Sentences: a full stop, ! or ? ends one only when a space or the end follows, so "$3.99",
+// "2.5 million" and "Dr. Smith" stay whole.
+const ABBREV = /(?:\b(?:Mr|Mrs|Ms|Dr|St|Jr|Sr|Prof|vs|etc|No|Mt|Ft|approx|e\.g|i\.e)|\b[A-Z](?:\.[A-Z])*)$/;
+export function splitSentences(text) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim();
+  const out = [];
+  let start = 0, m;
+  const re = /[.!?]+["')\]]*(?=\s|$)/g;
+  while ((m = re.exec(t))) {
+    if (m[0] === '.' && ABBREV.test(t.slice(start, m.index))) continue;
+    out.push(t.slice(start, m.index + m[0].length).trim());
+    start = m.index + m[0].length;
+  }
+  if (start < t.length) out.push(t.slice(start).trim());
+  return out.filter(Boolean);
+}

@@ -409,7 +409,10 @@ export class Pipeline {
     const v = voiceReport(scenes.map(s => s.narration));
     // Words per minute counts what the narrator said (numbers spelled out), not the written words.
     const words = v.spoken.reduce((n, l) => n + String(l || '').split(/\s+/).filter(Boolean).length, 0);
-    const talk = p.timeline.scenes.reduce((n, s) => n + (s.voice ? s.voice.samples.length / s.voice.sampleRate : 0), 0);
+    // Over the span from the first word to the last, like a transcript-based count.
+    const voiced = p.timeline.scenes.filter(s => s.voice);
+    const first = voiced[0], last = voiced[voiced.length - 1];
+    const talk = first ? (last.start + last.voiceOffset + last.voice.samples.length / last.voice.sampleRate) - (first.start + first.voiceOffset) : 0;
     m.voice = { engine: v.engine, maxPlaybackRate: v.maxRate, wordsSpoken: words, wpm: talk ? Math.round(words / talk * 60) : 0, spokenText: v.spoken };
     const a = measureAudio(p.audio);
     m.audio = { targetLufs: -13.5, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: 'js-fallback' };

@@ -2,6 +2,7 @@
 // The free writer often returns truncated or slightly wrong JSON. Repair it.
 // Never fail a video because one field is missing.
 
+import { splitSentences } from '../../shared/speech.js';
 import { PACES, formatOf } from './presets.js';
 import { Cast } from './cast.js';
 import { PropKit, SetKit } from './props.js';
@@ -779,7 +780,7 @@ export class Script {
   }
 
   static fromText(text, options = {}) {
-    const sentences = String(text || '').replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [String(text || '')];
+    const sentences = splitSentences(text);
     const words = String(text || '').split(/\s+/).filter(Boolean).length;
     const plan = Script.plan({ ...options, duration: Math.max(15, Math.round(words / WORDS_PER_SECOND)) });
     const target = Math.max(6, plan.wordsPerScene);

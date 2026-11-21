@@ -1,3 +1,4 @@
+import { splitSentences } from '../../shared/speech.js';
 import { writerOrder } from './router.js';
 // Script writing + fact checking with free LLM providers.
 // No key needed for Pollinations; Gemini / Groq / OpenRouter free keys are faster and more reliable.
@@ -511,7 +512,7 @@ export function imagePromptFor(scene, script, styleKey) {
 
 // Split user-written text into scenes (used for "I'll write my own script" mode).
 export function scriptFromText(text, options) {
-  const sentences = text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) || [text];
+  const sentences = splitSentences(text);
   const plan = planFor({ ...options, duration: Math.max(10, Math.round(text.split(/\s+/).length / WORDS_PER_SECOND)) });
   const target = Math.max(6, plan.wordsPerScene);
   const scenes = [];

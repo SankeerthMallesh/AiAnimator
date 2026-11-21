@@ -6,7 +6,8 @@ let tts = null;
 let loading = null;
 
 function splitSentences(text) {
-  const parts = text.match(/[^.!?;:]+[.!?;:]+["')\]]*|[^.!?;:]+$/g) || [text];
+  // A stop ends a part only before a space or the end ("3.14" and "$3.99" stay whole).
+  const parts = text.match(/[\s\S]*?[.!?;:]+["')\]]*(?=\s|$)|[\s\S]+$/g) || [text];
   const chunks = [];
   let cur = '';
   for (const p of parts) {
