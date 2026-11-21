@@ -66,6 +66,36 @@ export function tidyLine(line) {
   return /[.!?…]["')\]]*$/.test(t) ? t : `${t}.`;
 }
 
+// Grammar a small writer gets wrong ("leo grab cold cones on sunny street"): names and the first
+// word capitalised, a verb after one named person agreeing with it ("Leo grabs"), and "a" before an
+// adjective and a place or time word after a preposition ("on a sunny street"; "in cold water" stays).
+const BASE_VERBS = 'grab take run jump walk say look find make give show tell know want need try ask see hear build fix pull push open close hold carry drop throw catch flip check measure warn block point smile laugh shout grin wave buy sell pay win lose eat drink cook bake swim climb fall read write sing play stop start wait watch notice realize decide explain claim insist sigh nod shrug freeze gasp race chase stare spot sneak rush dash slam grab snap rip lift'.split(' ');
+const PREPS = 'on|at|in|to|from|by|near|onto|into|across|along|down|up|through|past';
+const ADJ = 'sunny|busy|quiet|old|small|big|dark|long|empty|crowded|narrow|wide|tiny|huge|rainy|windy|snowy|cold|hot|freezing|steep|muddy|dusty|noisy|new|giant|secret|hidden|broken|rusty|shiny';
+const PLACE_NOUNS = 'street|road|day|night|morning|evening|afternoon|hill|beach|train|platform|track|bridge|town|city|field|farm|house|room|corner|station|ship|boat|island|path|trail|mountain|square|market|shop|lab|kitchen|yard|stage|bench|rooftop|tunnel|cave|forest|desert|river|lake';
+const ARTICLE_RE = new RegExp(`\\b(${PREPS})\\s+(${ADJ})\\s+(${PLACE_NOUNS})\\b`, 'gi');
+function thirdPerson(v) { return /(s|sh|ch|x|z)$/.test(v) ? `${v}es` : /[^aeiou]y$/.test(v) ? `${v.slice(0, -1)}ies` : `${v}s`; }
+export function fixGrammar(line, names = []) {
+  let t = String(line || '').trim();
+  for (const n of names.filter(Boolean)) t = t.replace(new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi'), n);
+  const nameAlt = names.filter(Boolean).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  if (nameAlt) t = t.replace(new RegExp(`(^|[^\\w]|(?<!\\band\\s))\\b(${nameAlt})\\s+(${BASE_VERBS.join('|')})\\b`, 'g'), (m, pre, n, v) => (/\band\s*$/i.test(t.slice(0, t.indexOf(m) + pre.length)) ? m : `${pre}${n} ${thirdPerson(v)}`));
+  t = t.replace(ARTICLE_RE, (m, p, a, n) => `${p} ${/^[aeiou]/i.test(a) ? 'an' : 'a'} ${a} ${n}`);
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+// Lines that still look ungrammatical after fixGrammar, for the fact-check to rewrite.
+export function grammarIssues(line, names = []) {
+  const t = String(line || '');
+  const out = [];
+  if (/^[a-z]/.test(t)) out.push('starts in lower case');
+  for (const n of names.filter(Boolean)) if (new RegExp(`\\b${n.toLowerCase()}\\b`).test(t) && !new RegExp(`\\b${n}\\b`).test(t)) out.push(`"${n}" not capitalised`);
+  const nameAlt = names.filter(Boolean).join('|');
+  if (nameAlt && new RegExp(`(?<!\\band\\s)\\b(${nameAlt})\\s+(${BASE_VERBS.join('|')})\\b`, 'i').test(t)) out.push('verb does not agree with its subject');
+  if (new RegExp(`\\b(${PREPS})\\s+(${ADJ})\\s+(${PLACE_NOUNS})\\b`, 'i').test(t)) out.push('missing "a" or "the"');
+  if (t.split(/\s+/).length >= 4 && !new RegExp(`\\b(is|are|was|were|has|have|had|\\w+s|\\w+ed|will|can|could|would|should|did|does|${BASE_VERBS.join('|')})\\b`, 'i').test(t)) out.push('no verb');
+  return out;
+}
+
 export function literalTrigger(word, narration) {
   const w = String(word || '').toLowerCase().trim(), low = String(narration || '').toLowerCase();
   if (!w || COLOUR_WORDS.test(w) || DESCRIBING.test(w)) return false;
@@ -415,9 +445,9 @@ export class Script {
     let lastIcon = '';
     scenesIn.forEach((s, i) => {
       // Writers sometimes prefix a line with "Scene 3:" or a speaker name; the narrator must not read that.
-      const narration = tidyLine(Script.clean(s.line || s.narration || s.text || s.voiceover, 280)
+      const narration = fixGrammar(tidyLine(Script.clean(s.line || s.narration || s.text || s.voiceover, 280)
         .replace(/^\s*(scene|shot)\s*\d+\s*[:.\-–—]?\s*/i, '')
-        .replace(/^\s*[A-Z][a-zA-Z]{1,14}\s*:\s+/, ''));
+        .replace(/^\s*[A-Z][a-zA-Z]{1,14}\s*:\s+/, '')), cast.map(c => c.name));
       if (!narration) return;
       let set = Script.oneOf(SetKit.IDS, s.set || s.place, '');
       // A missing or generic set is replaced by what this line is actually about, then by the topic.
@@ -972,7 +1002,8 @@ A two-part account is wrong when the line denies one of the parts or mashes them
 Major-jackpot odds are hundreds of millions to one. Powerball is about 1 in 292 million. "1 in 292,201" is a thousand times too small.
 A heartbeat moves about 70 mL. About 5 litres is a minute of output, not one beat.
 Check the arithmetic in every line. If a line says two amounts are close, multiply or add them out. 288,000 is not close to 40,030.
-${flags.length ? `A local check already flagged:\n${flags.map(f => `- ${f}`).join('\n')}\n` : ''}Fix every wrong line. Omit a line that is already right. Keep each fix short. No nudity, no gore.
+${flags.length ? `A local check already flagged:\n${flags.map(f => `- ${f}`).join('\n')}\n` : ''}Also rewrite any line that is not a complete, grammatical sentence: missing "a"/"the", a verb that does not agree with its subject ("Leo grab" -> "Leo grabs"), lower-case names, or filler words tacked on the end. Keep its facts, its meaning and about its length, in the same lively voice.
+${(() => { const names = (script.cast || []).map(c => c.name); const bad = script.scenes.map((s, i) => [i, grammarIssues(s.narration, names)]).filter(([, g]) => g.length); return bad.length ? `A grammar check flagged: ${bad.map(([i, g]) => `line ${i} (${g.join(', ')})`).join('; ')}.\n` : ''; })()}Fix every wrong line. Omit a line that is already right. Keep each fix short. No nudity, no gore.
 Return JSON only:
 {"notes":["what you fixed, or empty"],"fixes":[{"i":0,"line":"replacement, omit if the line was already right"}],"unverified":["names or numbers a human should double-check"]}`;
   }
