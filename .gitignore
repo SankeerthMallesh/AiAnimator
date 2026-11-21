@@ -15,3 +15,5 @@ tools/tests/cliptest/out_*
 tools/tests/out/
 tools/tests/proof/out/
 tools/tests/cliptest/barred200.mp4
+tools/tests/cliptest/vorbis*.webm
+tools/tests/cliptest/loud.webm

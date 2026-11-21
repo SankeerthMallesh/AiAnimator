@@ -4,7 +4,9 @@
 // captioned and exported as MP4 with the original sound. Nothing is posted anywhere.
 
 import { getFFmpeg, mountFile, run, probeDuration, removeFiles } from './ff.js';
-import { RenderLog, publishLog, measureAudio } from '../../shared/renderlog.js';
+import { RenderLog, publishLog, measureAudio, loudness } from '../../shared/renderlog.js';
+import { levelChannels } from '../../shared/level.js';
+import { parseWav } from './wav.js';
 import { extractAudio, transcribePieces } from './transcribe.js';
 import { findMoments } from './moments.js';
 import { trackSpeaker, activeArea } from './track.js';
@@ -196,19 +198,47 @@ async function sourceFor(clip, ff, path) {
   return { src, off, owned: true };
 }
 
+// Streams come in at any level (a whisper-quiet mic, a blasting game). Each clip is levelled to
+// -13.5 LUFS with peaks under -1.5 dB: by ffmpeg's loudnorm when it works and lands on target,
+// otherwise in JavaScript (gated loudness, gain, then a limiter at -1.5 dBFS with 5 ms look-ahead).
+// The WAV is read without the browser's decoder, which fails on some files.
+const CLIP_LUFS = -13.5, CLIP_CEILING = Math.pow(10, -1.5 / 20);
 async function clipAudio(ff, path, clip) {
-  // Streams come in at any level (a whisper-quiet mic, a blasting game): level each clip to the
-  // loudness YouTube plays at (-14 LUFS, peaks under -1.5 dB). Plain copy if the filter is missing.
   const args = (af) => ['-hide_banner', '-ss', String(clip.s), '-i', path, '-t', String(clip.e - clip.s), '-vn', ...af, '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s16le', 'clip.wav'];
-  let path_ = 'loudnorm';
-  try { await run(ff, args(['-af', 'loudnorm=I=-14:TP=-1.5:LRA=11'])); }
-  catch { path_ = 'none'; await run(ff, args([])); }
-  const data = await ff.readFile('clip.wav');
-  await removeFiles(ff, ['clip.wav']);
-  const ctx = new OfflineAudioContext(2, 1, 48000);
-  const buffer = await ctx.decodeAudioData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
-  buffer.normalizePath = path_;
-  return buffer;
+  const read = async () => { const d = await ff.readFile('clip.wav'); await removeFiles(ff, ['clip.wav']); return parseWav(d); };
+  const want = Math.round((clip.e - clip.s) * 48000);
+  let normalizePath = 'loudnorm', wav = null, measured = null;
+  try {
+    // ?jslevel=1 (tests) skips loudnorm to exercise the page's own levelling.
+    if (new URLSearchParams(location.search).get('jslevel') === '1') throw new Error('skipped for this test');
+    await run(ff, args(['-af', `loudnorm=I=${CLIP_LUFS}:TP=-1.5:LRA=11`]));
+    wav = await read();
+    if (!wav.channels.length || wav.channels[0].length < want * 0.5) throw new Error('loudnorm gave no sound');
+    measured = loudness(wav.channels, wav.sampleRate);
+    if (!(Math.abs(measured - CLIP_LUFS) <= 0.7)) throw new Error(`loudnorm landed at ${measured.toFixed(1)} LUFS`);
+  } catch (e) {
+    normalizePath = 'js-fallback';
+    log(`Sound: ffmpeg loudnorm not used (${e.message}); levelling in the page instead.`);
+    try { await run(ff, args([])); wav = await read(); }
+    catch { wav = { sampleRate: 48000, channels: [] }; } // no sound track at all
+  }
+  let { sampleRate, channels } = wav;
+  if (!channels.length) channels = [new Float32Array(0), new Float32Array(0)];
+  if (channels[0].length < want - sampleRate * 0.1) {
+    // A damaged file or one without sound: keep the clip, silent where sound is missing.
+    log(channels[0].length ? 'Part of this clip has no sound in the file; that part stays silent.' : 'This part of the video has no sound; the clip will be silent.');
+    channels = channels.map(c => { const f = new Float32Array(want); f.set(c.subarray(0, want)); return f; });
+  }
+  if (normalizePath === 'js-fallback' && channels[0].length && isFinite(loudness(channels, sampleRate))) {
+    const r = levelChannels(channels, sampleRate, { target: CLIP_LUFS, ceiling: CLIP_CEILING });
+    measured = loudness(channels, sampleRate);
+    log(`Sound levelled in the page: ${isFinite(r.before) ? r.before.toFixed(1) : 'silent'} -> ${isFinite(measured) ? measured.toFixed(1) : 'silent'} LUFS.`);
+  } else if (normalizePath === 'loudnorm') log(`Sound levelled by loudnorm: ${measured.toFixed(1)} LUFS.`);
+  else normalizePath = 'none';
+  const buf = new AudioBuffer({ numberOfChannels: channels.length, length: Math.max(1, channels[0].length), sampleRate });
+  channels.forEach((c, i) => buf.copyToChannel(c, i));
+  buf.normalizePath = normalizePath;
+  return buf;
 }
 
 async function renderCard(card, o, signal) {
@@ -243,7 +273,7 @@ async function renderCard(card, o, signal) {
     m.voice = { engine: 'source', maxPlaybackRate: 1, wordsSpoken: spoken.length, wpm: Math.round(spoken.length / Math.max(1, clip.e - clip.s) * 60), spokenText: [] };
     m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
     const a = measureAudio(audio);
-    m.audio = { targetLufs: -14, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: audio.normalizePath || 'none' };
+    m.audio = { targetLufs: CLIP_LUFS, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: audio.normalizePath || 'none' };
     card.manifest = m;
     (window.loomyClipManifests ||= [])[card.index] = m;
     publishLog(m, `clip-${card.index + 1}`);

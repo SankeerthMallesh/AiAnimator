@@ -47,7 +47,7 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
   p.on('pageerror', e => errs.push(`[pageerror] ${e.message}`));
   p.on('console', m => { if (m.type() === 'error' && !/__access/.test(m.text())) errs.push(`[console] ${m.text().slice(0, 200)}`); });
   p.on('response', r => { if (r.status() >= 400 && !/__access/.test(r.url())) errs.push(`[${r.status()}] ${r.url().slice(0, 100)}`); });
-  await p.goto('http://127.0.0.1:8773/clip/');
+  await p.goto('http://127.0.0.1:8773/clip/' + (process.env.JSLEVEL ? '?jslevel=1' : ''));
   await p.setInputFiles('#fileInput', path.resolve(file));
   await p.waitForFunction(() => !document.querySelector('#btnGo').disabled, null, { timeout: 60000 });
   console.log('file meta:', await p.textContent('#fileMeta'));
