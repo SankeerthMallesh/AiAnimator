@@ -56,6 +56,15 @@ window.shot = async (n, t = 0.5) => {
   g.drawImage(engine.canvas, 0, 0, 1080, 1920);
   return Math.round(performance.now() - t0);
 };
+// A short silent clip: the four test shots, 1.5 s each, through Loomy's film renderer.
+window.clip = async (each = 1.5) => {
+  const { renderFilm } = await import('../../../explainer/js/z3d/film.js');
+  const shots = SHOTS.map((build, i) => ({ start: i * each, end: (i + 1) * each, build }));
+  const total = SHOTS.length * each, sr = 48000;
+  const audio = new AudioBuffer({ numberOfChannels: 2, length: Math.ceil(total * sr), sampleRate: sr });
+  const blob = await renderFilm({ edit: { shots }, duration: total, audio });
+  return URL.createObjectURL(blob);
+};
 window.ready = true;
 </script>
 </body>
