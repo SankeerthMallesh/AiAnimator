@@ -29,7 +29,7 @@ function getDetector() {
   return detectorP;
 }
 
-function seek(video, t) {
+export function seek(video, t) {
   return new Promise((resolve) => {
     const done = () => { video.removeEventListener('seeked', done); resolve(); };
     video.addEventListener('seeked', done);

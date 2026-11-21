@@ -69,9 +69,35 @@ export class ClipPainter {
     const a = this.area || { x0: 0, x1: 1, y0: 0, y1: 1 };
     const ax = a.x0 * fw, ay = a.y0 * fh0, vw = (a.x1 - a.x0) * fw, vh = (a.y1 - a.y0) * fh0;
     const vertical = vw / vh < 0.75;
-    if (this.mode === 'crop' || vertical) return { kind: 'crop', headY: 210, capY: Math.round(H * 0.66), ax, ay, vw, vh, fw };
-    const fh = Math.round(W * vh / vw), top = Math.round((H - fh) / 2) - 40;
-    return { kind: 'fit', top, fh, headY: Math.max(150, top - 230), capY: Math.min(H - 260, top + fh + 170), ax, ay, vw, vh, fw };
+    let L;
+    if (this.mode === 'crop' || vertical) L = { kind: 'crop', headY: 210, capY: Math.round(H * 0.66), ax, ay, vw, vh, fw };
+    else {
+      const fh = Math.round(W * vh / vw), top = Math.round((H - fh) / 2) - 40;
+      L = { kind: 'fit', top, fh, headY: Math.max(150, top - 230), capY: Math.min(H - 260, top + fh + 170), ax, ay, vw, vh, fw };
+    }
+    return this.avoidBurned(L, fh0);
+  }
+
+  // Captions already burned into the source: where they land in the 9:16 frame, and Loomy's own
+  // captions moved to the other band when the two would overlap.
+  avoidBurned(L, fh0) {
+    const b = this.opts.burned;
+    L.emojiDy = -300;
+    if (!b || !b.found || this.opts.captions === false) return L;
+    const toOut = (y) => {
+      const py = y * fh0;
+      if (L.kind === 'fit') return L.top + (py - L.ay) / L.vh * L.fh;
+      const cropW = Math.min(L.vw, L.vh * W / H), cropH = cropW * H / W, sy = L.ay + (L.vh - cropH) / 2;
+      return (py - sy) / cropH * H;
+    };
+    L.burned = [toOut(b.y0), toOut(b.y1)];
+    const [y0, y1] = L.burned, pad = 40, half = 70;
+    if (y0 - pad < L.capY + half && y1 + pad > L.capY - half) {
+      L.capFrom = L.capY;
+      if ((y0 + y1) / 2 > H / 2) { L.capY = Math.round(Math.min(H * 0.30, y0 - pad - half)); L.emojiDy = 300; }
+      else L.capY = Math.round(Math.max(H * 0.80, y1 + pad + half));
+    }
+    return L;
   }
 
   drawVideo(t, L) {
@@ -139,7 +165,13 @@ export class ClipPainter {
     const move = ease((lt - 3.0) / 0.45);
     const big = this.boldLines(112), small = this.boldLines(Math.round(112 * 0.68));
     const hBig = big.lines.length * big.size * 1.08, hSmall = small.lines.length * small.size * 1.08;
-    const yBig = H * 0.48, ySmall = L.headY + hSmall / 2;
+    let yBig = H * 0.48;
+    const ySmall = L.headY + hSmall / 2;
+    // Never cover captions burned into the source: sit just above or below them instead.
+    if (L.burned && L.burned[0] - 30 < yBig + hBig / 2 && L.burned[1] + 30 > yBig - hBig / 2) {
+      yBig = (L.burned[0] + L.burned[1]) / 2 > yBig ? L.burned[0] - 30 - hBig / 2 : L.burned[1] + 30 + hBig / 2;
+      yBig = Math.max(H * 0.25, Math.min(H * 0.75, yBig));
+    }
     return { lt, move, y: yBig + (ySmall - yBig) * move, size: big.size + (small.size - big.size) * move, lines: big.lines };
   }
 
@@ -256,7 +288,7 @@ export class ClipPainter {
       const fade = d > 1.05 ? 1 - (d - 1.05) / 0.25 : 1;
       g.save();
       g.globalAlpha = Math.max(0, fade);
-      g.translate(i % 2 ? W * 0.24 : W * 0.76, L.capY - 300);
+      g.translate(i % 2 ? W * 0.24 : W * 0.76, L.capY + L.emojiDy);
       g.rotate((i % 2 ? -1 : 1) * 0.12);
       g.scale(pop, pop);
       g.font = '210px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';

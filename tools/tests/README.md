@@ -16,3 +16,10 @@ Live tests (real AI on the deployed site) need `live.txt`: a Netscape cookie fil
     node clipe2e.cjs cliptest/wide.webm auto live
     node livevid.cjs "Some topic" out.mp4
     node livecheck.cjs
+
+Clips switches (environment variables for clipe2e.cjs):
+
+    COUNT=3                      # how many clips
+    HEADSTYLE=pill               # the white-pill heading instead of the Bold default (S20)
+    CAPSOFF=1                    # after the run, press "Turn Loomy's captions off" and re-make clip 1 (N22)
+    node clipe2e.cjs cliptest/burned-mid.webm crop   # a source with captions burned in on Loomy's caption line

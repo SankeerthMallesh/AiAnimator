@@ -68,6 +68,20 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
     if (man) require('fs').writeFileSync(`cliptest/out_${framing}_${i}.loomy-manifest.json`, JSON.stringify(man, null, 1));
   }
   await p.screenshot({ path: `cliptest/page_${framing}.png`, fullPage: true });
+  if (process.env.CAPSOFF) {
+    // N22: the offer to turn Loomy's captions off, then re-make clip 1 without them.
+    await p.click('#capsOff');
+    console.log('captions box after the offer:', await p.isChecked('#optCaptions'));
+    const card = p.locator('.card').first();
+    const old = await card.locator('.dl').getAttribute('href');
+    await card.locator('.redo').click();
+    await p.waitForFunction((o) => { const a = document.querySelector('.card .dl'); return a && a.href !== o && !a.hidden; }, old, { timeout: 600000 });
+    const h = await card.locator('.dl').getAttribute('href');
+    const b64 = await p.evaluate(async u => { const a = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode.apply(null, a.subarray(i, i + 32768)); return btoa(s); }, h);
+    require('fs').writeFileSync(`cliptest/out_${framing}_0_capsoff.mp4`, Buffer.from(b64, 'base64'));
+    const man = await p.evaluate(() => (window.loomyClipManifests || [])[0] || null);
+    if (man) require('fs').writeFileSync(`cliptest/out_${framing}_0_capsoff.loomy-manifest.json`, JSON.stringify(man, null, 1));
+  }
   console.log('cards:', JSON.stringify(await p.$$eval('.card', l => l.map(c => ({ score: c.querySelector('.score').textContent, when: c.querySelector('.when').textContent, heading: c.querySelector('input').value, why: c.querySelector('.why').textContent }))), null, 1));
   console.log('errors:', errs);
   await b.close();

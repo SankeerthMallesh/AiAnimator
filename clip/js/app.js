@@ -9,7 +9,8 @@ import { levelChannels } from '../../shared/level.js';
 import { parseWav } from './wav.js';
 import { extractAudio, transcribePieces } from './transcribe.js';
 import { findMoments } from './moments.js';
-import { trackSpeaker, activeArea } from './track.js';
+import { trackSpeaker, activeArea, seek } from './track.js';
+import { burnedCaptions } from './burned.js';
 import { ClipPainter, exportClip, canExport } from './render.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -250,18 +251,25 @@ async function renderCard(card, o, signal) {
   const { src, off, owned } = await sourceFor(clip, ff, path);
   const local = { ...clip, s: clip.s - off, e: clip.e - off, emoji: clip.emoji.map(x => ({ ...x, t: x.t - off })) };
   const words = state.transcript.words.map(w => ({ ...w, s: w.s - off, e: w.e - off }));
-  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 }, area = null;
+  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 }, area = null, burned = null;
   {
     const tv = await freshPlayer(src);
     try {
       area = await activeArea(tv, local.s, local.e).catch(() => null);
       if (area && (area.x0 > 0 || area.x1 < 1 || area.y0 > 0 || area.y1 < 1)) log(`Left out flat bars at the edges of the picture (${Math.round((1 - (area.x1 - area.x0)) * 100)}% of the width, ${Math.round((1 - (area.y1 - area.y0)) * 100)}% of the height).`);
+      burned = await burnedCaptions(tv, local.s, local.e, seek).catch(() => null);
+      if (burned?.found) {
+        log(`This video already has captions burned in (bright text at ${Math.round(burned.y0 * 100)}-${Math.round(burned.y1 * 100)}% of the height in ${burned.frames} of ${burned.sampled} frames).`);
+        offerCaptionsOff(burned);
+      }
       if (o.framing === 'auto') track = await trackSpeaker(tv, local.s, local.e, { log });
     } finally { tv.remove(); }
   }
   const video = await freshPlayer(src);
   try {
-    const painter = new ClipPainter(video, local, words, track, { ...o, area });
+    const painter = new ClipPainter(video, local, words, track, { ...o, area, burned });
+    const L = painter.layout();
+    if (L.capFrom != null) log(`Loomy's captions moved from ${Math.round(L.capFrom / 19.2)}% to ${Math.round(L.capY / 19.2)}% of the height, clear of the burned-in captions.`);
     painter.log = new RenderLog({ tab: 'clips', style: o.framing });
     card.setStatus('Making the clip… keep this tab open', 0);
     const blob = await exportClip(painter, audio, { signal, onProgress: (f) => card.setStatus(`Making the clip… ${pct(f)}`, f) });
@@ -272,6 +280,13 @@ async function renderCard(card, o, signal) {
     m.script = { title: clip.heading, lines: [spoken.map(w => w.w).join(' ')], characters: [] };
     m.voice = { engine: 'source', maxPlaybackRate: 1, wordsSpoken: spoken.length, wpm: Math.round(spoken.length / Math.max(1, clip.e - clip.s) * 60), spokenText: [] };
     m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, headingStyle: o.heading === false ? 'off' : o.headStyle, headingKey: painter.headKey(), headingPos: painter.headTrack(), emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
+    m.clip.burnedCaptions = burned ? {
+      found: burned.found, framesWithText: burned.frames, sampled: burned.sampled, versions: burned.kinds || 0,
+      band: burned.found ? [burned.y0, burned.y1] : null,
+      bandInClipPct: L.burned ? L.burned.map(y => Math.round(y / 19.2 * 10) / 10) : null,
+      action: !burned.found ? 'none' : o.captions === false ? 'loomy-captions-off' : L.capFrom != null ? 'moved' : 'no-overlap',
+      captionYPct: o.captions === false ? null : { from: Math.round((L.capFrom ?? L.capY) / 19.2 * 10) / 10, to: Math.round(L.capY / 19.2 * 10) / 10 },
+    } : null;
     const a = measureAudio(audio);
     m.audio = { targetLufs: CLIP_LUFS, measuredLufs: a.lufs, truePeak: a.peakDb, normalizePath: audio.normalizePath || 'none' };
     card.manifest = m;
@@ -293,7 +308,7 @@ function makeCard(clip, i) {
       <div class="row"><span class="score"></span><span class="when"></span></div>
       <label class="head-edit"><span>Heading</span><input type="text" maxlength="70"></label>
       <p class="why"></p>
-      <div class="btns"><a class="btn primary dl" hidden>Download MP4</a><button class="btn ghost redo" type="button" hidden>Re-make with this heading</button><button class="btn ghost copy" type="button">Copy heading</button></div>
+      <div class="btns"><a class="btn primary dl" hidden>Download MP4</a><button class="btn ghost redo" type="button" hidden>Re-make this clip</button><button class="btn ghost copy" type="button">Copy heading</button></div>
     </div>`;
   el.querySelector('.score').textContent = `${clip.score}/10`;
   el.querySelector('.score').dataset.level = clip.score >= 8 ? 'hot' : clip.score >= 6 ? 'good' : 'ok';
@@ -351,6 +366,19 @@ const SITE_HELP = {
   tiktok: 'TikTok does not let other sites download its videos. Save your own video from the TikTok app (Share → Save video), then drop the file here.',
   other: 'That site does not let other sites download its videos. Download your video from the site first, then drop the file here.',
 };
+// Offered once per video: Loomy's captions on top of the video's own are usually too much.
+function offerCaptionsOff(b) {
+  if (state.burnOffered === state.file || !$('#optCaptions').checked) return;
+  state.burnOffered = state.file;
+  note(`This video already has captions burned in (seen in ${b.frames} of ${b.sampled} frames), so Loomy keeps its captions clear of them. <button class="btn ghost" id="capsOff" type="button">Turn Loomy's captions off</button>`);
+  $('#capsOff').addEventListener('click', () => {
+    $('#optCaptions').checked = false;
+    note('');
+    for (const r of document.querySelectorAll('#results .card')) { const v = r.querySelector('video'); if (v && v.src) r.querySelector('.redo').hidden = state.running; }
+    toast(state.running ? "Loomy's captions are off for the clips still to come." : `Loomy's captions are off. Press "Re-make this clip" to make a clip again without them.`);
+  });
+}
+
 function note(html) { const n = $('#linkNote'); n.innerHTML = html; n.hidden = !html; }
 $('#linkForm').addEventListener('submit', async (e) => {
   e.preventDefault();

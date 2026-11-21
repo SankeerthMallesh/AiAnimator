@@ -17,3 +17,5 @@ tools/tests/proof/out/
 tools/tests/cliptest/barred200.mp4
 tools/tests/cliptest/vorbis*.webm
 tools/tests/cliptest/loud.webm
+tools/tests/cliptest/burned.webm
+tools/tests/cliptest/burned-mid.webm
