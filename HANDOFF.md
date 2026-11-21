@@ -17,7 +17,9 @@ work if this one runs out of usage. Everything named here is committed in this r
 > yourself before calling it done. The user is in EST: give every time in EST. No paid services by
 > default; never copy Roblox, Zack D. Films, toy-brick or other brands or IP into Loomy; credit the
 > CC-BY Renderpeople models. Never ask for API keys in chat. Keep the user posted in short, plain
-> messages and send them images or clips of the results.
+> messages and send them images or clips of the results. Ship each finished step to the live site
+> by following "Deploying to Loomy" in HANDOFF.md (stamp versions, test, push to `main`, then confirm
+> the new version stamp on https://loomy-app.pages.dev), and tell the user when it is live.
 
 ## What the user wants
 
@@ -58,7 +60,7 @@ slow, about 5-15 s a frame).
   with v3 when `ELEVEN_KEY` is set (then Gemini, then Aura). Unit test `tools/tests/unit/l1-voice.test.mjs`.
   Not yet verified: one mocked full-video run (`tools/tests/cleanmaster.cjs`) timed out on a disabled
   button while three renders loaded the CPU; re-run it on an idle machine, and `clean3dmaster.cjs`.
-  The user must add `ELEVEN_KEY` as a Cloudflare Pages secret for site-wide use.
+  The site's `ELEVEN_KEY` Cloudflare secret is already set (`/api/config` says `voice: elevenlabs`).
 - **Render speed** (`a8b0a41`): `createEngine({ perf: { msaa, aoSamples, shadowMax } })`.
 - **L2 started** (`85b0962`, not wired in): `explainer/js/z3d/auto3d.js` (places, shot kinds, camera moves,
   effects, cast mapping, `planShots`, `buildShot`, `captionsFrom`) and `explainer/js/drawn.js`
@@ -94,6 +96,40 @@ slow, about 5-15 s a frame).
    shots for the Cartoons tab; captions off by default with a switch.
 5. Editor E2-E5 (text and captions, music and sound, speed/zoom/transitions, an Edit button on Loomy videos);
    see `editor/js/model.js`. TaleTok reference: the user never sent screenshots.
+
+## Deploying to Loomy (the live site)
+
+Deploying is automatic: **every push to `main` deploys** through `.github/workflows/deploy.yml`
+(GitHub Actions runs `wrangler pages deploy` to the Cloudflare Pages project in the repo variable
+`LOOMY_PROJECT`, i.e. https://loomy-app.pages.dev). The repo secrets (`CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`) are already set; the agent needs no Cloudflare login.
+
+Steps for every change that should go live:
+
+1. `python3 tools/stamp-version.py`: bumps the `?v=` stamps in every page's import map, so browsers
+   load the new files. A new JS module only loads if it appears in the importing page's import map, and
+   this script adds it. Run it after adding or changing any JS/CSS file.
+2. Run the checks: `node tools/tests/unit/run.mjs` and the mocked tests in `tools/tests` (see README),
+   plus `node --input-type=module --check < file.js` on edited modules.
+3. Commit (one fix per commit), then push:
+   `git remote set-url origin https://github.com/SankeerthMallesh/AiAnimator.git && git -c push.negotiate=true push -q origin main`
+4. Wait about 1-2 minutes, then verify the live site. It is locked behind an access code, so use the
+   saved cookie file `tools/tests/live.txt` (git-ignored; if missing, ask the user to export a
+   `loomy_pass` cookie after entering an access code on the site, see `tools/tests/README.md`):
+   - `curl -s -b tools/tests/live.txt https://loomy-app.pages.dev/explainer/ | grep -o 'v=2026[0-9]*' | head -1`
+     must print the stamp you just made.
+   - `curl -s -b tools/tests/live.txt https://loomy-app.pages.dev/api/config` shows which writer and voice
+     the server uses (on 2026-11-21: `"writer":"groq","voice":"elevenlabs"`, so the site's `ELEVEN_KEY` is set).
+   - Live end-to-end checks: `node tools/tests/livecheck.cjs`, `node tools/tests/livevid.cjs "topic" out.mp4`
+     (they spend real AI allowance: respect the daily limits below).
+5. If the live stamp does not change, the deploy workflow failed: check the run with the GitHub MCP
+   tools (`actions_list` / `get_job_logs` for workflow `deploy.yml` on `SankeerthMallesh/AiAnimator`) and
+   fix it, or re-run it with `actions_run_trigger` (`workflow_dispatch` is enabled).
+
+Server-side secrets (Cloudflare Pages, Settings, Environment variables) are set by the user in the
+Cloudflare dashboard, never by the agent and never pasted into chat: `ELEVEN_KEY` (set), `GEMINI_KEY`,
+`GROQ_KEY`, optional `ELEVEN_MODEL` (default `eleven_v3`), `ELEVEN_VOICE_M` / `ELEVEN_VOICE_F`.
+Changes in `functions/api/[[path]].js` deploy with the same push.
 
 ## Rules the user set
 
