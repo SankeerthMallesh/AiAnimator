@@ -409,10 +409,7 @@ export class Stage {
       if (gag === 'zzz') a.feel = 'happy';
       else if (gag === 'juggle') a.pose = 'cheer';
       else if (gag === 'fly' && cyc > 2.4 && cyc < 2.9) { a.pose = 'wave'; a.poseT = cyc - 2.4; }
-      else if (gag === 'sneeze') {
-        if (cyc > 1.6 && cyc < 2.3) { a.pose = 'think'; a.feel = 'shocked'; }
-        else if (cyc >= 2.3 && cyc < 2.9) { a.pose = 'shock'; a.poseT = cyc - 2.3; }
-      } else if (gag === 'balloon' || gag === 'phone' || gag === 'coffee' || gag === 'popcorn') a.pose = 'idle';
+      else if (gag === 'balloon' || gag === 'phone' || gag === 'coffee' || gag === 'popcorn') a.pose = 'idle';
       a.gagT = local + i * 0.9;
     });
   }
@@ -513,27 +510,6 @@ export class Stage {
         if (p < 0.6) {
           const kx = Math.sin(p * 5) * 0.4 * u, ky = -0.8 * u - Math.sin((p / 0.6) * Math.PI) * 1.4 * u;
           ctx.beginPath(); ctx.arc(kx, ky, 0.15 * u, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        }
-        break;
-      }
-      case 'sneeze': {
-        if (cyc >= 2.3 && cyc < 3.1) {
-          const p = (cyc - 2.3) / 0.8;
-          ctx.translate(hx + f * 2.1 * u, hy - 1.0 * u);
-          ctx.rotate(f * -0.12);
-          ctx.scale(0.7 + p * 0.5, 0.7 + p * 0.5);
-          ctx.globalAlpha = 1 - Math.max(0, p - 0.7) / 0.3;
-          ctx.font = `900 ${u * 0.95}px Montserrat, Arial, sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.lineWidth = u * 0.22; ctx.strokeStyle = '#FFFFFF';
-          ctx.strokeText('ACHOO!', 0, 0); ctx.fillStyle = '#E85D4C'; ctx.fillText('ACHOO!', 0, 0);
-          ctx.fillStyle = 'rgba(190,230,255,0.9)';
-          for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(-f * (1.2 + k * 0.25) * u, (k - 2) * 0.25 * u + p * 0.3 * u, 0.1 * u, 0, Math.PI * 2); ctx.fill(); }
-        } else if (cyc > 1.6 && cyc < 2.3) {
-          ctx.font = `900 ${u * 0.6}px Montserrat, Arial, sans-serif`;
-          ctx.textAlign = 'center'; ctx.lineWidth = u * 0.14; ctx.strokeStyle = '#FFFFFF';
-          const txt = cyc < 1.95 ? 'ah…' : 'ah-ah…';
-          ctx.strokeText(txt, hx + f * 1.7 * u, hy - 1.4 * u); ctx.fillStyle = Ink.INK; ctx.fillText(txt, hx + f * 1.7 * u, hy - 1.4 * u);
         }
         break;
       }
