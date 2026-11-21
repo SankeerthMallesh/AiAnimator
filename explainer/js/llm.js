@@ -255,7 +255,7 @@ First, follow the creator's request EXACTLY: topic, angle, tone, point of view, 
 
 Then make it great:
 1. ACCURACY for anything factual — every fact is correct and mainstream-verifiable (textbooks, encyclopedias, scientific consensus). Dates, names, numbers and places are exact. If a popular belief is a myth or misconception, say so and tell the real story. Never invent quotes, statistics or events. When something is uncertain, say "historians think", "about", "probably". Fiction can be imaginative but stays internally consistent.
-2. RETENTION — the first line is a scroll-stopping hook under 12 words (a surprising claim, a question, or an "imagine" moment). Open curiosity loops and pay them off. Short punchy sentences. No filler like "In this video" or "Let's dive in", no "like and subscribe". End on a satisfying payoff, twist or mind-blowing final fact. Write for the ear, like an upbeat narrator talking to a friend: contractions, varied sentence lengths, a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits, so the voice never sounds flat.
+2. RETENTION — the first line is a scroll-stopping hook under 12 words (a surprising claim, a question, or an "imagine" moment). Open curiosity loops and pay them off. Short punchy sentences. No filler like "In this video" or "Let's dive in", no "like and subscribe". End on the consequence or a twist, in a short, plain line: never a moral or a lesson ("Remember...", "The lesson is..."). Never use these words or phrases: beckons, embrace, dance of, testament to, "Remember,", "In the end,", journey. Write for the ear, like an upbeat narrator talking to a friend: contractions, varied sentence lengths, a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits, so the voice never sounds flat.
 3. CINEMATOGRAPHY — every scene is ONE clear shot that literally shows what the narration says at that moment, directed like a high-end 3D animated film.
 
 Rules for the visual prompts:
@@ -357,6 +357,22 @@ function findScript(raw, depth = 0) {
   return null;
 }
 
+// Story-short narration stays plain: no flowery phrases or morals ("beckons", "a testament to",
+// "Remember, ..."), and Blocky stories never name the look ("blocky", "pixel", "voxel").
+const PLAIN = [
+  [/^\s*(Remember|In the end|Ultimately|In conclusion),\s*/i, ''], [/\bbeckon(s|ed|ing)?\b/gi, 'call$1'], [/\bembrac(e|es|ed|ing)\b/gi, (m) => ({ embrace: 'welcome', embraces: 'welcomes', embraced: 'welcomed', embracing: 'welcoming' })[m.toLowerCase()] || 'welcome'],
+  [/\ba dance of\b/gi, 'a mix of'], [/\bthe dance of\b/gi, 'the play of'], [/\bdance of\b/gi, 'mix of'], [/\b(is|was|stands as|stand as) a testament to\b/gi, 'shows'], [/\ba testament to\b/gi, 'proof of'], [/\btestament to\b/gi, 'proof of'],
+  [/\bjourneys\b/gi, 'trips'], [/\bjourney\b/gi, 'trip'],
+];
+export function plainLine(line, style = '') {
+  let t = String(line || '');
+  if (!['story-3d', 'blocky', 'cgi-short', 'cinematic-3d'].includes(style)) return t;
+  for (const [re, to] of PLAIN) t = t.replace(re, to);
+  if (style === 'blocky') t = t.replace(/\b(blocky|pixelated|pixel|pixels|voxels?)\s+/gi, '').replace(/\s+(blocky|pixelated|voxel)\b/gi, '');
+  t = t.replace(/\s{2,}/g, ' ').trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 export function normalizeScript(raw, options) {
   raw = findScript(raw);
   if (!raw || !Array.isArray(raw.scenes) || raw.scenes.length === 0) {
@@ -365,7 +381,7 @@ export function normalizeScript(raw, options) {
   const scenes = raw.scenes
     .map((s, i) => ({
       id: `s${i}_${Math.random().toString(36).slice(2, 7)}`,
-      narration: cleanText(s.narration || s.text || s.voiceover, 900),
+      narration: plainLine(cleanText(s.narration || s.text || s.voiceover, 900), options?.style),
       visual: cleanText(s.visual || s.image || s.imagePrompt || s.narration, 1200),
       onScreenText: cleanText(s.onScreenText || s.label || '', 40),
       keywords: (Array.isArray(s.keywords) ? s.keywords : []).map(k => cleanText(k, 40)).filter(Boolean).slice(0, 3),
