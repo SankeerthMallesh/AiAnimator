@@ -62,3 +62,19 @@ export const tests = [
     assert.equal(off.capFrom, undefined);
   } },
 ];
+
+// S20 follow-up: text under the Bold heading's first 3 s, even in one frame, is avoided.
+tests.push(
+  { name: 'heading window: text in 1 of 6 frames counts when need is 1 (and a still caption counts)', fn: () => {
+    const runs = Array.from({ length: 6 }, (_, i) => textRuns(frame(i === 0 ? { text: [0.46, 0.52], seed: 3 } : {}), w, h));
+    assert.equal(captionBand(runs).found, false);
+    const b = captionBand(runs, 1, 8, 1);
+    assert.ok(b.found && Math.abs(b.y0 - 0.46) < 0.01, JSON.stringify(b));
+  } },
+  { name: 'heading-window text moves only the heading, not Loomy\'s captions', fn: () => {
+    const L = { kind: 'crop', headY: 210, capY: Math.round(H * 0.66), ax: 0, ay: 0, vw: 1280, vh: 720, fw: 1280 };
+    const out = ClipPainter.prototype.avoidBurned.call({ opts: { burned: { found: false }, headBurned: { found: true, y0: 0.46, y1: 0.52 } } }, { ...L }, 720);
+    assert.ok(out.headAvoid && Math.abs(out.headAvoid[0] - 0.46 * H) < 2, JSON.stringify(out.headAvoid));
+    assert.equal(out.capFrom, undefined); assert.equal(out.capY, Math.round(H * 0.66));
+  } },
+);

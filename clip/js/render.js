@@ -81,15 +81,18 @@ export class ClipPainter {
   // Captions already burned into the source: where they land in the 9:16 frame, and Loomy's own
   // captions moved to the other band when the two would overlap.
   avoidBurned(L, fh0) {
-    const b = this.opts.burned;
+    const b = this.opts.burned, hb = this.opts.headBurned;
     L.emojiDy = -300;
-    if (!b || !b.found || this.opts.captions === false) return L;
     const toOut = (y) => {
       const py = y * fh0;
       if (L.kind === 'fit') return L.top + (py - L.ay) / L.vh * L.fh;
       const cropW = Math.min(L.vw, L.vh * W / H), cropH = cropW * H / W, sy = L.ay + (L.vh - cropH) / 2;
       return (py - sy) / cropH * H;
     };
+    // The Bold heading keeps clear of any text under its first 3 s, captions or not.
+    const forHead = b && b.found ? b : hb && hb.found ? hb : null;
+    if (forHead) L.headAvoid = [toOut(forHead.y0), toOut(forHead.y1)];
+    if (!b || !b.found || this.opts.captions === false) return L;
     L.burned = [toOut(b.y0), toOut(b.y1)];
     const [y0, y1] = L.burned, pad = 40, half = 70;
     if (y0 - pad < L.capY + half && y1 + pad > L.capY - half) {
@@ -168,8 +171,11 @@ export class ClipPainter {
     let yBig = H * 0.48;
     const ySmall = L.headY + hSmall / 2;
     // Never cover captions burned into the source: sit just above or below them instead.
-    if (L.burned && L.burned[0] - 30 < yBig + hBig / 2 && L.burned[1] + 30 > yBig - hBig / 2) {
-      yBig = (L.burned[0] + L.burned[1]) / 2 > yBig ? L.burned[0] - 30 - hBig / 2 : L.burned[1] + 30 + hBig / 2;
+    // Captions in the source pop up a little higher or lower than where they were seen, so the
+    // band is widened by 5% of the height each side.
+    const av = L.headAvoid && [L.headAvoid[0] - H * 0.05, L.headAvoid[1] + H * 0.05];
+    if (av && av[0] - 30 < yBig + hBig / 2 && av[1] + 30 > yBig - hBig / 2) {
+      yBig = (av[0] + av[1]) / 2 > yBig ? av[0] - 30 - hBig / 2 : av[1] + 30 + hBig / 2;
       yBig = Math.max(H * 0.25, Math.min(H * 0.75, yBig));
     }
     return { lt, move, y: yBig + (ySmall - yBig) * move, size: big.size + (small.size - big.size) * move, lines: big.lines };

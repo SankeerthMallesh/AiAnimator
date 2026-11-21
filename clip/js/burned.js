@@ -49,7 +49,7 @@ export function textRuns(L, w, h, P = TEXT) {
 // Runs from each sampled frame -> the band seen in the most frames, if in 3 or more.
 const meanDiff = (a, b) => { let d = 0; for (let i = 0; i < a.length; i++) d += Math.abs(a[i] - b[i]); return d / a.length; };
 
-export function captionBand(framesRuns, need = 3, changed = 8) {
+export function captionBand(framesRuns, need = 3, changed = 8, minKinds = 2) {
   const all = framesRuns.flatMap((runs, f) => runs.map(r => ({ ...r, f, c: (r.y0 + r.y1) / 2 })));
   let best = null;
   for (const a of all) {
@@ -61,23 +61,25 @@ export function captionBand(framesRuns, need = 3, changed = 8) {
     if (!best || frames > best.frames) best = { frames, kinds: kinds.length, y0: Math.min(...near.map(b => b.y0)), y1: Math.max(...near.map(b => b.y1)) };
   }
   const sampled = framesRuns.length;
-  if (!best || best.frames < need || best.kinds < 2) return { found: false, frames: best ? best.frames : 0, kinds: best ? best.kinds : 0, sampled };
+  if (!best || best.frames < need || best.kinds < minKinds) return { found: false, frames: best ? best.frames : 0, kinds: best ? best.kinds : 0, sampled };
   return { found: true, frames: best.frames, kinds: best.kinds, sampled, y0: Math.round(best.y0 * 1000) / 1000, y1: Math.round(best.y1 * 1000) / 1000 };
 }
 
-// Samples 8 frames between s and e of a <video> and looks for burned-in captions.
-export async function burnedCaptions(video, s, e, seek) {
+// Samples `frames` frames between s and e of a <video> and looks for burned-in captions: by default
+// the same band in 3 of 8 frames with changing words. The Bold heading's first 3 s use 6 frames and
+// any text at all (need 1), since even one caption under it there would be covered.
+export async function burnedCaptions(video, s, e, seek, { frames = 8, need = 3, minKinds = 2 } = {}) {
   const w = SAMPLE_W, h = Math.max(2, Math.round(w * video.videoHeight / video.videoWidth));
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d', { willReadFrequently: true });
   const L = new Uint8ClampedArray(w * h), runs = [];
-  for (let k = 0; k < 8; k++) {
-    await seek(video, s + (e - s) * (k + 0.5) / 8);
+  for (let k = 0; k < frames; k++) {
+    await seek(video, s + (e - s) * (k + 0.5) / frames);
     if (video.error) break;
     g.drawImage(video, 0, 0, w, h);
     const d = g.getImageData(0, 0, w, h).data;
     for (let i = 0; i < w * h; i++) L[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
     runs.push(textRuns(L, w, h));
   }
-  return captionBand(runs);
+  return captionBand(runs, need, 8, minKinds);
 }

@@ -258,7 +258,7 @@ async function renderCard(card, o, signal) {
   const { src, off, owned } = await sourceFor(clip, ff, path);
   const local = { ...clip, s: clip.s - off, e: clip.e - off, emoji: clip.emoji.map(x => ({ ...x, t: x.t - off })) };
   const words = state.transcript.words.map(w => ({ ...w, s: w.s - off, e: w.e - off }));
-  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 }, area = null, burned = null;
+  let track = { mode: o.framing === 'crop' ? 'crop' : 'fit', at: () => 0.5 }, area = null, burned = null, headBurned = null;
   {
     const tv = await freshPlayer(src);
     try {
@@ -269,12 +269,16 @@ async function renderCard(card, o, signal) {
         log(`This video already has captions burned in (bright text at ${Math.round(burned.y0 * 100)}-${Math.round(burned.y1 * 100)}% of the height in ${burned.frames} of ${burned.sampled} frames).`);
         offerCaptionsOff(burned);
       }
+      if (o.heading !== false && o.headStyle !== 'pill' && !burned?.found) {
+        headBurned = await burnedCaptions(tv, local.s, Math.min(local.e, local.s + 3.2), seek, { frames: 6, need: 1, minKinds: 1 }).catch(() => null);
+        if (headBurned?.found) log(`Text in the video under the heading's first 3 s (${Math.round(headBurned.y0 * 100)}-${Math.round(headBurned.y1 * 100)}% of the height): the heading sits clear of it.`);
+      }
       if (o.framing === 'auto') track = await trackSpeaker(tv, local.s, local.e, { log });
     } finally { tv.remove(); }
   }
   const video = await freshPlayer(src);
   try {
-    const painter = new ClipPainter(video, local, words, track, { ...o, area, burned });
+    const painter = new ClipPainter(video, local, words, track, { ...o, area, burned, headBurned });
     const L = painter.layout();
     if (L.capFrom != null) log(`Loomy's captions moved from ${Math.round(L.capFrom / 19.2)}% to ${Math.round(L.capY / 19.2)}% of the height, clear of the burned-in captions.`);
     painter.log = new RenderLog({ tab: 'clips', style: o.framing });
@@ -286,7 +290,7 @@ async function renderCard(card, o, signal) {
     const spoken = state.transcript.words.filter(w => w.s >= clip.s && w.e <= clip.e);
     m.script = { title: clip.heading, lines: [spoken.map(w => w.w).join(' ')], characters: [] };
     m.voice = { engine: 'source', maxPlaybackRate: 1, wordsSpoken: spoken.length, wpm: Math.round(spoken.length / Math.max(1, clip.e - clip.s) * 60), spokenText: [] };
-    m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, headingStyle: o.heading === false ? 'off' : o.headStyle, headingKey: painter.headKey(), headingPos: painter.headTrack(), emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
+    m.clip = { sourceStart: clip.s, sourceEnd: clip.e, payoffEnd: clip.payoffEnd ?? null, heading: clip.heading, headingStyle: o.heading === false ? 'off' : o.headStyle, headingKey: painter.headKey(), headingPos: painter.headTrack(), headingAvoids: L.headAvoid ? L.headAvoid.map(y => Math.round(y / 19.2 * 10) / 10) : null, emoji: o.emoji === false ? [] : clip.emoji, cropActiveRect: painter.area ? [painter.area.x0, painter.area.y0, painter.area.x1, painter.area.y1] : [0, 0, 1, 1] };
     m.clip.burnedCaptions = burned ? {
       found: burned.found, framesWithText: burned.frames, sampled: burned.sampled, versions: burned.kinds || 0,
       band: burned.found ? [burned.y0, burned.y1] : null,
