@@ -683,17 +683,20 @@ export class Stage {
     const bare = (w) => {
       const keep = [];
       const x = String(w || '').replace(/[’‘]/g, "'").replace(/\$?\d[\d.,]*(?:\/\d+)?(?:°[FC]?|%)?/g, (m) => { keep.push(m.replace(/[.,]$/, '')); return `\u0004${keep.length - 1}\u0005`; });
-      return x.replace(/[—–-]/g, ' ').replace(/[^\p{L}\p{N}' \u0004\u0005]/gu, '').replace(/\u0004(\d+)\u0005/g, (_, k) => keep[+k]).replace(/(^|\s)'+|'+(\s|$)/g, '$1$2').replace(/\s+/g, ' ').trim();
+      // Case and end punctuation stay as written (names keep their capitals; . , ? ! end a caption).
+      const end = (/[.,?!]+["')\]]*$/.exec(x)?.[0] || '').replace(/["')\]]/g, '').slice(0, 2);
+      const core = x.replace(/[—–-]/g, ' ').replace(/[^\p{L}\p{N}' \u0004\u0005]/gu, '').replace(/\u0004(\d+)\u0005/g, (_, k) => keep[+k]).replace(/(^|\s)'+|'+(\s|$)/g, '$1$2').replace(/\s+/g, ' ').trim();
+      return core ? core + end : '';
     };
     for (let i = 0; i < (words || []).length;) {
       const a = words[i];
       const b = words[i + 1];
       const short = (w) => bare(w.text).length > 0 && bare(w.text).length <= 7;
-      if (b && short(a) && short(b)) {
-        out.push({ text: `${bare(a.text)} ${bare(b.text)}`.toLowerCase(), start: a.start, end: b.end });
+      if (b && short(a) && short(b) && !/[.?!,]$/.test(bare(a.text))) {
+        out.push({ text: `${bare(a.text)} ${bare(b.text)}`, start: a.start, end: b.end });
         i += 2;
       } else {
-        const text = bare(a.text).toLowerCase();
+        const text = bare(a.text);
         if (text) out.push({ text, start: a.start, end: a.end });
         i += 1;
       }
@@ -752,8 +755,9 @@ export class Stage {
     const c = chunks.find(w => local >= w.start && local <= w.end + 0.04);
     if (!c) return;
     const portrait = H >= W;
-    // Matched to the reference Shorts: medium-size white words at about 70% height.
-    let size = Math.round(W * (portrait ? 0.074 : 0.046));
+    // Matched to the reference Shorts: white words centred at 71% of the height, a drawn line of
+    // 4% of the height.
+    let size = Math.round(portrait ? H * 0.0436 : W * 0.046);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
@@ -764,7 +768,7 @@ export class Stage {
     // Pop in from 80% with a small overshoot, never from nothing, so no frame shows a tiny word.
     const k = Math.min(1, Math.max(0, age / 0.16));
     const pop = 0.8 + 0.2 * Ink.back(k);
-    const y = H * (portrait ? 0.7 : 0.8) + (1 - k) * size * 0.12;
+    const y = H * (portrait ? 0.71 : 0.8) + (1 - k) * size * 0.12;
     // Numbers get a yellow highlight; everything else stays white like the references.
     const hot = /\d/.test(c.text);
     ctx.save();
