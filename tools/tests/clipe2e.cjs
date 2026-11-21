@@ -37,8 +37,9 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
     const body = JSON.parse(route.request().postData());
     const times = [...body.messages[1].content.matchAll(/\[(\d+\.\d)\]/g)].map(m => +m[1]);
     const a = times[0], z = times[times.length - 1];
-    const clips = [{ start: a + 3, end: Math.min(z, a + 38), heading: 'He Tried To Break It 💀', score: 9, why: 'Big reaction and a payoff.', highlight: ['indestructible', 'insane', 'fire'], emoji: [{ t: a + 8, e: '💀' }, { t: a + 16, e: '😳' }] },
-                   { start: a + 60, end: Math.min(z, a + 92), heading: 'It Survived EVERYTHING', score: 7, why: 'Suspense then a surprise.', highlight: ['survived'], emoji: [{ t: a + 70, e: '🔥' }] }];
+    const clips = [{ start: a + 3, end: Math.min(z, a + 38), payoffEnd: Math.min(z, a + 24.6), heading: 'He Tried To Break It 💀', score: 9, why: 'Big reaction and a payoff.', highlight: ['indestructible', 'insane', 'fire'], emoji: [{ t: a + 8, e: '💀' }, { t: a + 16, e: '😳' }] },
+                   { start: a + 60, end: Math.min(z, a + 92), payoffEnd: Math.min(z, a + 81.3), heading: 'It Survived EVERYTHING', score: 7, why: 'Suspense then a surprise.', highlight: ['survived'], emoji: [{ t: a + 70, e: '🔥' }] },
+                   { start: a + 100, end: Math.min(z, a + 125), payoffEnd: Math.min(z, a + 119.2), heading: 'Chat Called It First', score: 6, why: 'A callback.', highlight: [], emoji: [] }];
     await route.fulfill({ json: { ok: true, text: JSON.stringify({ clips }) } });
   });
   }

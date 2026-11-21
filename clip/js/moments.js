@@ -8,7 +8,7 @@ const SYSTEM = `You are the best short-form video editor on TikTok, YouTube Shor
 A great clip:
 - starts on a hook in the first 2 seconds: a bold claim, a question, a reaction, conflict, a funny or shocking line. Never start mid-thought or on filler ("so", "um", "anyway").
 - is self-contained: someone who never saw the stream understands it.
-- has a payoff: a punchline, reveal, twist, strong reaction or satisfying ending, and ends right after it.
+- has a payoff: a punchline, reveal, twist, strong reaction or satisfying ending, and ends right after it. Shorter is better than padded: 12 to 30 seconds is ideal.
 - has no dead air or slow setup.
 Score honestly from 1 to 10 for how likely it is to go viral. Most moments are 4-6; give 8+ only to genuinely great ones.
 The heading is the text on screen above the video, and it decides whether people stop scrolling: 3 to 7 words that create curiosity, tension or emotion about THIS clip, true to it (no lying clickbait), no hashtags, no quotes, at most one emoji.
@@ -42,42 +42,48 @@ async function ask(messages, signal) {
   return null;
 }
 
-// Snap a proposed clip to word boundaries and the length range.
+// Snap a proposed clip to word boundaries. It ends on its payoff (the punchline or reaction), at
+// most 1.5 s after it, and is never stretched past it to reach a length: a clip longer than the
+// maximum starts later instead, one shorter than 12 s is dropped.
 function snap(c, words, minLen, maxLen, duration) {
   let s = Number(c.start), e = Number(c.end);
   if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
-  const inRange = words.filter(w => w.s >= s - 1.5 && w.e <= e + 2.5);
+  const pay = Number.isFinite(Number(c.payoffEnd)) && Number(c.payoffEnd) > s ? Math.min(Number(c.payoffEnd), e + 1) : e;
+  const inRange = words.filter(w => w.s >= s - 1.5 && w.e <= pay + 1.5);
   if (inRange.length < 4) return null;
   const first = inRange.find(w => w.s >= s - 0.6) || inRange[0];
   s = Math.max(0, first.s - 0.12);
-  let last = [...inRange].reverse().find(w => w.e <= e + 0.8) || inRange[inRange.length - 1];
-  e = last.e + 0.35;
+  // The last word of the payoff: the last one ending by the payoff time (small tolerance).
+  const last = [...inRange].reverse().find(w => w.e <= pay + 0.15) || inRange[inRange.length - 1];
+  e = Math.min(last.e + 0.35, Math.max(pay, last.e) + 1.5);
   if (e - s > maxLen) {
-    const cut = inRange.filter(w => w.e <= s + maxLen);
-    // end on a sentence end if one is near the limit
-    const enders = cut.filter(w => /[.!?]["')]?$/.test(w.w));
-    last = enders.length && enders[enders.length - 1].e > s + minLen ? enders[enders.length - 1] : cut[cut.length - 1];
-    if (!last) return null;
-    e = last.e + 0.35;
+    // Keep the payoff: start later, on the first word of a sentence if one is close.
+    const from = e - maxLen;
+    const starts = words.filter((w, i) => w.s >= from && w.s < from + 6 && (i === 0 || /[.!?]["')]?$/.test(words[i - 1].w)));
+    const st = starts[0] || words.find(w => w.s >= from);
+    if (!st) return null;
+    s = Math.max(0, st.s - 0.12);
   }
-  // Too short: carry on through the next whole sentences until the clip reaches the minimum length.
-  if (e - s < minLen) {
-    const after = words.filter(w => w.s >= e - 0.3 && w.e <= s + maxLen);
-    let best = null;
-    for (const w of after) {
-      if (w.e - s >= minLen && (/[.!?]["')]?$/.test(w.w) || w.e - s >= minLen + 8)) { best = w; break; }
-    }
-    if (!best && after.length) best = after[after.length - 1];
-    if (best && best.e > e) e = best.e + 0.35;
-  }
-  if (e - s < Math.min(minLen, 10)) return null;
+  if (e - s < Math.min(minLen, 12)) return null;
   // Never past the end of the video (a cut-off file can have speech timed beyond it).
   if (duration) {
     if (s >= duration - 3) return null;
     e = Math.min(e, duration - 0.05);
-    if (e - s < Math.min(minLen, 8)) return null;
+    if (e - s < Math.min(minLen, 12)) return null;
   }
-  return { s, e };
+  return { s, e, payoffEnd: Math.min(pay, e) };
+}
+
+// A clip that says the same thing over and over (a loop, a chant, a transcription glitch) is not a
+// moment: rejected when more than half of its 4-word runs appear twice inside it.
+function repeats(words, s, e) {
+  const w = words.filter(x => x.s >= s && x.e <= e).map(x => x.w.toLowerCase().replace(/[^\p{L}\p{N}']/gu, '')).filter(Boolean);
+  if (w.length < 8) return false;
+  const grams = [];
+  for (let i = 0; i + 4 <= w.length; i++) grams.push(w.slice(i, i + 4).join(' '));
+  const count = new Map();
+  for (const g of grams) count.set(g, (count.get(g) || 0) + 1);
+  return grams.filter(g => count.get(g) > 1).length / grams.length > 0.5;
 }
 
 const EMOJI_RE = /\p{Extended_Pictographic}/u;
@@ -101,7 +107,7 @@ export async function findMoments(transcript, { count = 5, minLen = 20, maxLen =
     log?.(`Looking for the best moments (${i + 1} of ${windows.length})…`);
     const out = await ask([
       { role: 'system', content: SYSTEM },
-      { role: 'user', content: `Transcript (each line starts with its time in seconds):\n${text}\n\nFind up to ${perWindow} of the best clips in this part, each ${minLen} to ${maxLen} seconds long. Use the line times for start and end.\nFor each clip also give "highlight": 3 to 8 single words from the clip worth highlighting in the captions (the punchiest words), and "emoji": 0 to 3 reaction emoji at moments where they fit, each with its time in seconds (like 💀 for something funny, 😳 shocking, 🔥 hype).\nReturn JSON only:\n{"clips":[{"start":0.0,"end":0.0,"heading":"","score":7,"why":"one short line on why it works","highlight":["word"],"emoji":[{"t":0.0,"e":"💀"}]}]}` },
+      { role: 'user', content: `Transcript (each line starts with its time in seconds):\n${text}\n\nFind up to ${perWindow} of the best clips in this part, each about ${minLen} to ${maxLen} seconds long (shorter if the moment is over sooner). Use the line times for start and end, and give "payoffEnd": the time the punchline or reaction ends; the clip ends there.\nFor each clip also give "highlight": 3 to 8 single words from the clip worth highlighting in the captions (the punchiest words), and "emoji": 0 to 3 reaction emoji at moments where they fit, each with its time in seconds (like 💀 for something funny, 😳 shocking, 🔥 hype).\nReturn JSON only:\n{"clips":[{"start":0.0,"end":0.0,"payoffEnd":0.0,"heading":"","score":7,"why":"one short line on why it works","highlight":["word"],"emoji":[{"t":0.0,"e":"💀"}]}]}` },
     ], signal);
     for (const c of out?.clips || []) found.push(c);
     onProgress?.((i + 1) / windows.length);
@@ -110,6 +116,7 @@ export async function findMoments(transcript, { count = 5, minLen = 20, maxLen =
   for (const c of found.sort((x, y) => (Number(y.score) || 0) - (Number(x.score) || 0))) {
     const span = snap(c, words, minLen, maxLen, end);
     if (!span) continue;
+    if (repeats(words, span.s, span.e)) { log?.('Skipped a moment that repeats itself.'); continue; }
     // Skip moments that overlap one already chosen by more than a third.
     if (clips.some(k => Math.min(k.e, span.e) - Math.max(k.s, span.s) > (span.e - span.s) / 3)) continue;
     clips.push({
