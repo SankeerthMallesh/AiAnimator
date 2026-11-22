@@ -1,0 +1,180 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/addons/": "../../../vendor/three/addons/",
+  "three/examples/jsm/": "../../../vendor/three/addons/"
+}}
+</script>
+<title>Loomy stress test</title></head>
+<body><pre id="out">loading…</pre>
+<script type="module">
+// Stress test (T1): random writer output, from tidy to broken, through every tab's script cleanup,
+// timeline, shot plan, captions and film-sound plan; a sample of the plans is also built and drawn
+// by the engine at a small size. Each run checks invariants and records every failure with its seed.
+//   window.run(tab, n, buildEvery) -> { tab, n, ok, rejected, fails: [...], built, frames, ms }
+import { normalizeScript } from '../../../explainer/js/llm.js';
+import { buildTimeline as tl3d } from '../../../explainer/js/audio.js';
+import { castFor as cast3d, planShots as plan3d } from '../../../explainer/js/z3d/plan.js';
+import { captions3d, captionsBlocky } from '../../../explainer/js/z3d/captions.js';
+import { cueSheet, scoreSections } from '../../../shared/filmsound.js';
+import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES } from '../../../explainer/js/z3d/vocab.js';
+import { Script } from '../../../cartoon/js/script.js';
+import { buildTimeline as tlCartoon } from '../../../cartoon/js/audio.js';
+import { townShots } from '../../../cartoon/js/town.js';
+
+const rnd = (seed) => { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
+const WORDS = 'the a bee flew over frozen lake and Kai said wait what happens if you jump into ice water heart blood breath snow fort giant plow shovel flag tower bridge soldiers march river two feet deep swing push rhythm minute hour hypothermia gasp float kick roll ice cold slow fast never ever again 1831 74 1,500 3.5 ½ km 100% $20'.split(' ');
+const ODD = ['😀', '🐝🍯', 'naïve', 'café', '東京', 'Привет', '<b>bold</b>', '"quoted"', "it's", '—', '…', '\n', '\t', '   ', '!!!', '???', 'supercalifragilisticexpialidocious', 'A'.repeat(60), '#hashtag', '@name', 'C++', '3/4', '1/2', 'e.g.', 'Dr.', 'U.S.A.'];
+function line(r, maxWords = 18) {
+  const n = 1 + Math.floor(r() * maxWords);
+  const ws = []; for (let i = 0; i < n; i++) ws.push(r() < 0.12 ? ODD[Math.floor(r() * ODD.length)] : WORDS[Math.floor(r() * WORDS.length)]);
+  let s = ws.join(' ');
+  s = s[0] ? s[0].toUpperCase() + s.slice(1) : s;
+  return s + ['.', '!', '?', '', ',', '...'][Math.floor(r() * 6)];
+}
+const pick = (r, a) => a[Math.floor(r() * a.length)];
+const maybe = (r, p, v, alt) => (r() < p ? v : alt);
+const JUNK = [undefined, null, '', 42, 'banana', ['x'], { a: 1 }, true];
+function sceneCount(r) { const x = r(); return x < 0.05 ? 1 : x < 0.1 ? 2 : x < 0.85 ? 3 + Math.floor(r() * 12) : x < 0.97 ? 15 + Math.floor(r() * 25) : 40 + Math.floor(r() * 41); }
+
+function raw3d(r) {
+  const names = ['Kai', 'Maya', 'Eric', 'Zoë', 'Dr. Lee', '', 'X Æ A-12'];
+  const chars = Array.from({ length: Math.floor(r() * 5) }, () => ({ name: pick(r, names), look: pick(r, ['woman in her 30s', 'tall man, red shirt', 'girl', '', 'robot', 'she wears a hat']) }));
+  const n = sceneCount(r);
+  const scenes = Array.from({ length: n }, () => {
+    if (r() < 0.02) return pick(r, ['just a string', 7, null]);
+    return {
+      narration: r() < 0.03 ? pick(r, ['', '   ', null]) : line(r, r() < 0.05 ? 120 : 18),
+      delivery: maybe(r, 0.8, pick(r, ['tense', 'calm', 'excited', 'deadpan', 'whispering']), pick(r, JUNK)),
+      set: maybe(r, 0.8, pick(r, SETS), pick(r, JUNK)),
+      frame: maybe(r, 0.7, pick(r, SHOT_KINDS), pick(r, JUNK)),
+      who: maybe(r, 0.7, chars.slice(0, 1 + Math.floor(r() * 3)).map(c => c.name), pick(r, JUNK)),
+      act: maybe(r, 0.7, pick(r, POSE_NAMES), pick(r, JUNK)),
+      camera: maybe(r, 0.7, pick(r, CAMERA_MOVES), pick(r, JUNK)),
+      effect: maybe(r, 0.6, pick(r, ['pulse', 'shockwave', 'sparks', 'snow', 'rain', 'glow', 'bubbles', 'dust', 'embers', 'smoke', 'speed', 'none']), pick(r, JUNK)),
+      icon: maybe(r, 0.4, pick(r, ['❄️', '❤️', '🔥', '⏱️', 'snow', '']), pick(r, JUNK)),
+      keywords: maybe(r, 0.8, [pick(r, WORDS)], pick(r, JUNK)),
+      thing: maybe(r, 0.3, pick(r, ['ball', 'phone', 'cup', 'box', 'nonsense']), undefined),
+      visual: line(r, 10), onScreenText: maybe(r, 0.2, line(r, 3), ''),
+    };
+  });
+  return r() < 0.03 ? pick(r, [{}, { scenes: [] }, { scenes: 'oops' }, null, 'not json']) : { title: line(r, 6), characters: chars, scenes, teaser: Math.floor(r() * n * 1.5) - 1 };
+}
+function rawCartoon(r) {
+  const ids = ['a', 'b', 'c', 'd'];
+  const cast = ids.slice(0, 1 + Math.floor(r() * 4)).map((id, i) => ({ id: maybe(r, 0.9, id, pick(r, JUNK)), name: pick(r, ['Mabel', 'Gus', 'Zoë', '', 'A'.repeat(40)]), color: maybe(r, 0.8, '#3E8FE0', 'blue'), hat: pick(r, ['cap', 'hardhat', '', 'crown', 'xx']), hair: 'short', costume: 'shirt' }));
+  const n = sceneCount(r);
+  const scenes = Array.from({ length: n }, () => r() < 0.02 ? pick(r, ['just a string', 7, null]) : ({
+    line: r() < 0.03 ? '' : line(r, r() < 0.05 ? 80 : 16), bg: line(r, 6), set: pick(r, ['city', 'temple', 'deck', 'sea', 'desert', 'night', 'lab', 'bridge', '', 'mars']),
+    cam: pick(r, ['push', 'pan', 'zoom', 'x']), cut: pick(r, ['whip', 'cut', 'zoom', 'zzz']), say: pick(r, [...ids, 'q']), read: pick(r, ['curious', 'tense', 'x', '']),
+    who: Array.from({ length: Math.floor(r() * 4) }, () => ({ id: pick(r, [...ids, 'z']), x: r() < 0.9 ? r() : 'left', pose: pick(r, ['point', 'shrug', 'wave', 'run', 'bogus']), feel: pick(r, ['happy', 'smug', 'scared', 'neutral', '??']), face: pick(r, [1, -1, 0]), hold: pick(r, ['', 'wrench', 'map', 'banana']) })),
+    icon: pick(r, ['', '🌉', 'x']), props: [{ id: 'p', kind: pick(r, ['earth', 'moon', 'bulb', 'nothing']), x: r() }], acts: r() < 0.5 ? [{ t: r(), id: 'a', do: pick(r, ['walk', 'jump', 'fly']), x: r() }] : [],
+  }));
+  return { title: line(r, 5), cast, scenes, teaser: Math.floor(r() * n) - 1 };
+}
+
+// ---------- invariants ----------
+function checkSpecs(specs, total, label) {
+  const bad = [];
+  if (!Array.isArray(specs) || !specs.length) return [`${label}: no shots`];
+  specs.forEach((s, i) => {
+    if (!(Number.isFinite(s.start) && Number.isFinite(s.end))) bad.push(`${label}: shot ${i} time NaN`);
+    else if (s.end - s.start < 0.2) bad.push(`${label}: shot ${i} only ${(s.end - s.start).toFixed(2)} s`);
+    if (i && Math.abs(s.start - specs[i - 1].end) > 0.051) bad.push(`${label}: gap/overlap before shot ${i} (${specs[i - 1].end.toFixed(2)} -> ${s.start.toFixed(2)})`);
+    if (s.kind && !SHOT_KINDS.includes(s.kind)) bad.push(`${label}: shot ${i} unknown kind ${s.kind}`);
+  });
+  if (Math.abs(specs[0].start) > 0.05) bad.push(`${label}: first shot starts at ${specs[0].start}`);
+  if (specs[specs.length - 1].end < total - 0.05) bad.push(`${label}: last shot ends ${specs[specs.length - 1].end.toFixed(2)} before the end ${total.toFixed(2)}`);
+  return bad.slice(0, 3);
+}
+function checkCaps(caps, total, maxWords, label) {
+  const bad = [];
+  caps.forEach((c, i) => {
+    const [s, text, e] = c;
+    if (!(Number.isFinite(s) && Number.isFinite(e)) || e <= s) bad.push(`${label}: caption ${i} bad time ${s}-${e}`);
+    const t = String(text || '').replace(/\*/g, '').trim();
+    if (!t) bad.push(`${label}: caption ${i} empty`);
+    if (t.split(/\s+/).length > maxWords) bad.push(`${label}: caption ${i} has ${t.split(/\s+/).length} words "${t.slice(0, 40)}"`);
+    if (/undefined|null|NaN|\[object/.test(t)) bad.push(`${label}: caption ${i} shows "${t.slice(0, 40)}"`);
+    if (i && s < caps[i - 1][0] - 0.001) bad.push(`${label}: caption ${i} out of order`);
+    if (e > total + 1.5) bad.push(`${label}: caption ${i} after the end`);
+  });
+  return bad.slice(0, 3);
+}
+function checkCues(cues, total, label) {
+  const bad = [];
+  (cues || []).forEach((c, i) => { const t = c.t ?? c.time ?? c.at; if (!Number.isFinite(t) || t < -0.01 || t > total + 1) bad.push(`${label}: cue ${i} (${c.kind}) at ${t}`); });
+  return bad.slice(0, 2);
+}
+
+// ---------- engines for the build sample ----------
+let E = null;
+async function engines() {
+  if (E) return E;
+  const { createEngine } = await import('../../../explainer/js/z3d/engine.js');
+  const A3 = await import('../../../explainer/js/z3d/auto3d.js');
+  const AB = await import('../../../explainer/js/z3d/autoblocky.js');
+  const people = await A3.loadCast(['nathan', 'carla', 'eric', 'sophia', 'claudia', 'manuel']);
+  const engine = createEngine({ width: 108, height: 192, perf: { msaa: 0, aoSamples: 4, shadowMax: 512 } });
+  return (E = { engine, A3, AB, people });
+}
+
+window.run = async (tab, n = 1000, buildEvery = 10, seed0 = 1) => {
+  const t0 = performance.now();
+  const res = { tab, n, ok: 0, rejected: 0, fails: [], built: 0, frames: 0, maxShots: 0, maxScenes: 0 };
+  const fail = (seed, what) => { if (res.fails.length < 400) res.fails.push({ seed, what: String(what).slice(0, 300) }); };
+  for (let k = 0; k < n; k++) {
+    const seed = seed0 + k * 7919, r = rnd(seed);
+    let bad = [];
+    try {
+      if (tab === 'cartoon') {
+        const raw = rawCartoon(r);
+        let script;
+        try { script = Script.normalize(raw, { topic: 'test', duration: 60, pace: 'normal', format: '9:16' }); }
+        catch (e) { res.rejected++; (res.why ||= []).length < 8 && res.why.push(seed + ': ' + e.message); continue; }
+        const tl = tlCartoon(script.scenes, script.scenes.map(() => null));
+        const { specs, shots } = townShots(tl, script);
+        bad.push(...checkSpecs(specs, tl.total, 'plan'));
+        shots.forEach((s, i) => { if (!s.place || !Number.isFinite(s.start)) bad.push(`town shot ${i} has no place/time`); });
+        res.maxShots = Math.max(res.maxShots, specs.length); res.maxScenes = Math.max(res.maxScenes, script.scenes.length);
+      } else {
+        const style = tab === 'blocky' ? 'drawn-blocky' : 'drawn-3d';
+        const raw = raw3d(r);
+        let script;
+        try { script = normalizeScript(raw, { style, topic: 'test', duration: 60, pace: 'normal', format: '9:16' }); }
+        catch (e) { if (/without scenes|came back empty|no scenes/i.test(e.message)) { res.rejected++; (res.why ||= []).length < 8 && res.why.push(seed + ': ' + e.message + ' | scenes=' + (Array.isArray(raw?.scenes) ? raw.scenes.length : typeof raw?.scenes)); continue; } throw e; }
+        const tl = tl3d(script.scenes, script.scenes.map(() => null));
+        let specs;
+        if (tab === 'blocky') { const { AB } = await engines(); specs = AB.planShots(tl.scenes, AB.castFor(script.characters || [])); }
+        else specs = plan3d(tl.scenes, cast3d(script.characters || []));
+        bad.push(...checkSpecs(specs, tl.total, 'plan'));
+        const caps = tab === 'blocky' ? captionsBlocky(tl.scenes) : captions3d(tl.scenes);
+        bad.push(...checkCaps(caps, tl.total, tab === 'blocky' ? 4 : 3, 'captions'));
+        bad.push(...checkCues(cueSheet(specs, tl.total), tl.total, 'sound'));
+        const secs = scoreSections(specs, tl.total);
+        if (!Array.isArray(secs) || !secs.length) bad.push('sound: no score sections');
+        res.maxShots = Math.max(res.maxShots, specs.length); res.maxScenes = Math.max(res.maxScenes, script.scenes.length);
+        // Build and draw a sample: every shot of the plan, two moments each.
+        if (buildEvery && k % buildEvery === 0) {
+          const { engine, A3, AB, people } = await engines();
+          const shots = specs.map(spec => ({ start: spec.start, end: spec.end, build: (ctx) => (tab === 'blocky' ? AB.buildShot(spec, ctx) : A3.buildShot(spec, people, ctx)) }));
+          engine.setEdit({ shots });
+          for (const s of shots) for (const f of [0.15, 0.85]) {
+            const t = s.start + (s.end - s.start) * f;
+            engine.renderAt(t); res.frames++;
+            const px = new Uint8Array(4); const gl = engine.renderer.getContext(); gl.readPixels(54, 96, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          }
+          res.built++;
+        }
+      }
+      if (bad.length) fail(seed, bad.join(' | ')); else res.ok++;
+    } catch (e) { fail(seed, `CRASH ${e.message} @ ${(e.stack || '').split('\n')[1]?.trim()}`); }
+  }
+  res.ms = Math.round(performance.now() - t0);
+  return res;
+};
+window.ready = true;
+document.getElementById('out').textContent = 'ready';
+</script></body></html>
