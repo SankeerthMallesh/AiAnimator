@@ -5,7 +5,7 @@
 const { chromium } = require('playwright'); const fs = require('fs');
 const tab = process.argv[2] === 'blocky' ? 'blocky' : '3d';
 const name = process.argv[3] || `out/drawn-${tab}`;
-const script = JSON.parse(fs.readFileSync(`proof/drawn-${tab}.json`, 'utf8'));
+const script = JSON.parse(fs.readFileSync(`proof/${process.env.SCRIPT || `drawn-${tab}.json`}`, 'utf8'));
 script.youtubeTitle = script.title; script.description = 'Test.'; script.hashtags = ['#test'];
 (async () => {
   const b = await chromium.launch({ args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
