@@ -106,7 +106,14 @@ export function buildShot(spec, { makeStage, W, H }) {
   const head = (a) => { a.object.updateMatrixWorld(true); return a.head.getWorldPosition(new THREE.Vector3()); };
   const chest = (a) => head(a).add(V(0, -0.45, 0.1));
   // A pose that starts from standing and settles in, with the face's talk flaps while speaking.
-  const act = (a, name, t, { onset = 0.25, talking = false } = {}) => a.pose(t < onset ? 'stand' : poseOf(name), t, { talking });
+  // Close shots (react, talk): the blocky think pose lifts a fist to the chin, straight across the face
+  // at that distance; there the hand rests beside the chin instead.
+  const close = spec.kind === 'react' || spec.kind === 'talk';
+  const act = (a, name, t, { onset = 0.25, talking = false } = {}) => {
+    const now = t < onset ? 'stand' : poseOf(name);
+    a.pose(now, t, { talking });
+    if (close && now === 'think') a.armR.rotation.set(-1.75, 0, -0.15);
+  };
 
   return { scene, camera: c, update(t) {
     const k = easeInOut(range(t, 0, dur));
