@@ -40,13 +40,17 @@ export function drawCaption(g, W, H, text) {
 // outline, one key word in capitals. text may mark the key word as *word*.
 export function drawCaptionBlocky(g, W, H, text) {
   if (!text) return;
-  const size = Math.round(H * 0.039);
+  let size = Math.round(H * 0.039);
   g.save();
   g.font = `600 ${size}px ${CAPTION_FONT}`;
   g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineJoin = 'round';
   const words = text.split(' ').map(w => /^\*.*\*$/.test(w) ? { t: w.slice(1, -1).toUpperCase(), key: true } : { t: w, key: false });
+  const measure = () => words.reduce((n, w) => n + g.measureText(w.t).width, 0) + g.measureText(' ').width * (words.length - 1);
+  // A long line shrinks to fit 88% of the width (outline included), so it is never cut at the edges.
+  const fit = (W * 0.88) / (measure() + size * 0.22);
+  if (fit < 1) { size = Math.floor(size * fit); g.font = `600 ${size}px ${CAPTION_FONT}`; }
   const sp = g.measureText(' ').width;
-  const width = words.reduce((n, w) => n + g.measureText(w.t).width, 0) + sp * (words.length - 1);
+  const width = measure();
   let x = (W - width) / 2; const y = H * 0.23;
   for (const w of words) {
     g.lineWidth = size * 0.22; g.strokeStyle = 'rgba(0,0,0,.9)';
