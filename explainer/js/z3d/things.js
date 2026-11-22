@@ -150,11 +150,14 @@ export function thingAction(g, act, t, { spot, hand = null, camPos = null, scale
       break;
     }
     case 'drop': {
-      // Falls from 2.2 m above the spot, lands at 0.55 s with a squash and two small bounces.
-      const k = t / 0.55, y = k < 1 ? (1 - k * k) * 2.2 : Math.abs(Math.sin((t - 0.55) * 9)) * 0.12 * Math.exp(-(t - 0.55) * 5);
+      // Falls in from just above the frame (1.1 m), lands at 0.4 s with a squash and two small bounces.
+      // From 2.2 m a close-up showed an empty stand for half a second (as the very first frame when it
+      // was the cold open). A flat thing lands facing the lens.
+      const k = t / 0.4, y = k < 1 ? (1 - k * k) * 1.1 : Math.abs(Math.sin((t - 0.4) * 9)) * 0.1 * Math.exp(-(t - 0.4) * 5);
       g.position.set(spot.x, spot.y + y, spot.z);
-      const sq = k >= 1 ? 1 - 0.18 * Math.exp(-(t - 0.55) * 12) : 1;
-      g.scale.set(s / Math.sqrt(sq), s * sq, s / Math.sqrt(sq)); g.rotation.y = k < 1 ? k * 1.2 : 1.2;
+      const sq = k >= 1 ? 1 - 0.18 * Math.exp(-(t - 0.4) * 12) : 1;
+      g.scale.set(s / Math.sqrt(sq), s * sq, s / Math.sqrt(sq));
+      g.rotation.y = g.userData.flat ? turn(0) + (1 - Math.min(1, k)) * 0.8 : Math.min(1, k) * 1.2;
       break;
     }
     case 'grow': g.position.copy(spot); g.scale.setScalar(s * easeOutBack((t - 0.1) / 0.5) * 1.0 + 0.0001); g.rotation.y = turn(0.5); break;
