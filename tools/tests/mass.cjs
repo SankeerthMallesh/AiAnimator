@@ -333,7 +333,9 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
     let res;
     try { res = await run(GPU_SECTIONS.has(SECTIONS[n % SECTIONS.length]) ? gpu : sw, n); } catch (e) { res = { n, ok: false, error: 'harness: ' + e.message }; }
     // A video that passed every check is not kept (the sheet and render log stay); KEEP=1 keeps all.
-    if (res.ok && !process.env.KEEP) for (const o of res.outputs || []) fs.rmSync(path.join(DIR, o.file), { force: true });
+    // Failed videos are kept for a look, up to MAXKEEP (default 20) in the folder, so a bad batch cannot fill the disk.
+    const kept = () => fs.readdirSync(DIR).filter(f => /^\d+-.*\.mp4$/.test(f)).length;
+    if ((res.ok && !process.env.KEEP) || (!res.ok && kept() > (+process.env.MAXKEEP || 20))) for (const o of res.outputs || []) fs.rmSync(path.join(DIR, o.file), { force: true });
     fs.appendFileSync(path.join(DIR, 'results.jsonl'), JSON.stringify(res) + '\n');
     const o = (res.outputs || []).map(x => `${x.info ? `${x.info.w}x${x.info.h}@${x.info.fps} ${x.info.dur}s ${x.info.lufs}LUFS Y${x.info.meanY} frz${x.info.frozen} blur${x.info.blurMed} cuts${x.info.cuts}` : ''} ${x.problems.join('; ')}`).join(' | ');
     console.log(`${res.ok ? 'PASS' : 'FAIL'} #${n} ${res.section} ${Math.round(res.ms / 1000)}s ${o} ${res.error || ''} ${(res.errors || []).join(' ')}`);
