@@ -15,6 +15,7 @@ import { exportVideo } from './encoder.js';
 import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { FORMATS, PACES, MOODS, formatOf } from './presets.js';
 import { TownRenderer, townShots } from './town.js';
+import { markTownWeak } from './gpu.js';
 import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
 import { hookCues } from '../../shared/hooks.js';
 
@@ -499,6 +500,13 @@ export class Pipeline {
       p.manifest = this.fillLog(renderer.log);
       publishLog(p.manifest, slugName(p.script.title));
       return p.video;
+    } catch (e) {
+      // A town render that breaks (the graphics card gave up) moves this computer to painted sets.
+      if (this.town && e?.name !== 'AbortError') {
+        markTownWeak();
+        throw new Error(`The 3D cartoon town was too heavy for this computer's graphics (${e?.message || e}). Switch Look to painted sets and export again.`);
+      }
+      throw e;
     } finally {
       renderer.dispose();
     }
