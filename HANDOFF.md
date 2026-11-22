@@ -237,6 +237,25 @@ Tests: v14-object-shots, v14-space-rooms, v14-town-style (unit).
   us.aws.cdn.hf.co, cdn.jsdelivr.net on the network).
 Tests: v2-ideas, v2-curiosity-moods, v2-voice-characters, v2-feedback, v2-speed (unit).
 
+## Loomy 1.6 (2026-11-22)
+
+- **T4/T5** Thumbnails: the Upload kit section is `.thumbkit` (the old `.thumb` collided with the storyboard's
+  168 px `.thumb`, hiding most of it in every tab); frames come from one hidden video with time limits; the
+  cartoon title is drawn once, at the very start (not again after a teaser cold open).
+- **TH1** Red and white Liquid Glass theme (theme.css "Loomy 1.6" section, index.html shell); red icons.
+- **BL1** Blocky = "In this town" stories only (`STYLES.blocky.direction`), 240 rules in `shared/townideas.js`;
+  `attachIdeas(mount, onPick, { ideas, label })` takes a list per tab.
+- **CAP1** Captions always on (no Off option; old 'off' moved back on; town and Clips always caption).
+- **VIS1/VIS2** Eight new Cartoons places (battlefield, castle, hospital, museum, stadium, kitchen, jungle,
+  volcano) in worlds.js + `guessSet`; topic icons on by default (glass badge; settings v11); sword and shield
+  things for the drawn looks.
+- **EV1** Real voices: `REAL_VOICES` (shared/voicechars.js) = `ELEVEN_VOICES` (functions/api), 14 premade
+  ElevenLabs voices by name; Auto by character/narrator; Expression expressive (v3 stability 0, feeling from
+  punctuation, up to 3 gasps/chuckles/sighs) | natural | steady. Requests carry `eleven` and `expression`.
+- **SPEED2** Exports yield with message-channel tasks (`shared/yieldtask.js`), so a background tab no longer
+  slows them; the ElevenLabs read runs 3 lines at a time with 429 retries.
+Tests: v16-town, v16-visuals, v16-voices, v16-speed (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
