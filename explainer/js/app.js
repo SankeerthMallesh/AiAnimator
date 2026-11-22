@@ -932,7 +932,8 @@ renderHistory();
 function preloadModels() {
   if (navigator.connection?.saveData) return;
   if (settings.ttsEngine === 'kokoro') warmNarrator(getNarrator(settings)).catch(() => {});
-  if (settings.depth3d !== 'off') preloadDepth();
+  // Drawn looks (the Blocky tab's default) never use depth: don't download its model for them.
+  if (settings.depth3d !== 'off' && !STYLES[$('#style')?.value]?.drawn) preloadDepth();
   if (settings.imageProvider !== 'none') preloadSafety();
 }
 (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(preloadModels, { timeout: 4000 });

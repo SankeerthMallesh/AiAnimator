@@ -106,7 +106,14 @@ export function buildShot(spec, { makeStage, W, H }) {
   const head = (a) => { a.object.updateMatrixWorld(true); return a.head.getWorldPosition(new THREE.Vector3()); };
   const chest = (a) => head(a).add(V(0, -0.45, 0.1));
   // A pose that starts from standing and settles in, with the face's talk flaps while speaking.
-  const act = (a, name, t, { onset = 0.25, talking = false } = {}) => a.pose(t < onset ? 'stand' : poseOf(name), t, { talking });
+  // Close shots (react, talk): the blocky think pose lifts a fist to the chin, straight across the face
+  // at that distance; there the hand rests beside the chin instead.
+  const close = spec.kind === 'react' || spec.kind === 'talk';
+  const act = (a, name, t, { onset = 0.25, talking = false } = {}) => {
+    const now = t < onset ? 'stand' : poseOf(name);
+    a.pose(now, t, { talking });
+    if (close && now === 'think') a.armR.rotation.set(-1.75, 0, -0.15);
+  };
 
   return { scene, camera: c, update(t) {
     const k = easeInOut(range(t, 0, dur));
@@ -121,11 +128,13 @@ export function buildShot(spec, { makeStage, W, H }) {
         const h = thing?.userData.h || 0.2;
         tScale = (h < 0.12 ? 2.4 : h > 0.5 ? 1 : 1.6) * 1.2;
         spot = V(0, 0.9, 0);
-        if (A) { at(A, tall ? 0.55 : 0.9, -1.6, -0.35); act(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { onset: 0.3 }); }
-        target = V(0, 0.9 + h * tScale * 0.5, 0);
+        // The speaker stands behind, inside the frame; the lens looks a little down on the thing, so its
+        // stand stays a small base at the bottom instead of a wall across the lower half.
+        if (A) { at(A, tall ? 0.36 : 0.75, -1.6, -0.35); act(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { onset: 0.3 }); }
+        target = V(0, 0.9 + h * tScale * 0.62, 0);
         const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
         const span = Math.max(big.x, big.y, big.z, 0.12) * tScale;
-        frameCam(c, target, { dist: Math.max(0.8, span * (tall ? 4.4 : 2.6)) * near, height: span * 0.45, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        frameCam(c, target, { dist: Math.max(0.8, span * (tall ? 4.4 : 2.6)) * near, height: span * 1.1, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
         eff = target.clone(); break;
       }
       case 'talk': {
@@ -159,7 +168,10 @@ export function buildShot(spec, { makeStage, W, H }) {
         eff = chest(A); break;
       }
       case 'walk': {
-        const z = lerp(-3.5, -0.4, t / Math.max(dur, 0.1));
+        // Indoors the back wall stands 3 m back: start in front of it (from 3.5 m the walker was
+        // hidden behind it for the first part of the shot, a blank frame).
+        const z0 = spec.set === 'room' || spec.set === 'lab' ? -2.5 : -3.5;
+        const z = lerp(z0, -0.4, t / Math.max(dur, 0.1));
         at(A, 0, z, 0); A.pose('walk', t);
         target = V(0, 1.55, z);
         frameCam(c, target, { dist: 3.8 * near, height: 0.2, yaw: 0.25 }, 'static', k, t, spec.seed, fov0);

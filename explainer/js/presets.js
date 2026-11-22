@@ -179,8 +179,14 @@ export function pickLook(text) {
   const things = (t.match(THINGS) || []).length;
   // "What would happen if you..." is a person's story even when it names a thing.
   const youStory = /\bwhat (would|will) happen (to you )?if you\b|\bif you (fell|jumped|fall|jump|were|got|lived|stopped|ate|swallowed|held)\b/i.test(t);
+  // A person doing something out in the world (falling into ice water, getting lost at sea) is acted by
+  // people even when the line names the body; swallowing or eating something stays inside it (pictures).
+  const outsideStory = /\bif you (fell|fall|jumped|jump|dove|dived|slipped|got (stuck|lost|stranded|trapped)|were (stuck|lost|stranded|trapped)|walked|ran|climbed)\b/i.test(t) && !/\b(swallow|swallowed|ate|eat|drank|drink|inhaled|breath)\b/i.test(t);
   // Places the drawn sets cannot build (space, the deep sea, volcanoes, the ancient world) need pictures too.
   if (/\b(black holes?|outer space|in space|planets?|the moon|mars|the sun|galaxy|volcano(es)?|lava|underwater|deep sea|ocean floor|dinosaurs?|ancient|rome|roman|egypt|pyramids?)\b/i.test(t)) return 'story-3d';
+  // "What happens to your body if you fall into ice water" is acted by a person (the hand-made
+  // "frozen lake" film): the drawn people show it, with effects for the heart and breath.
+  if (outsideStory) return 'drawn-3d';
   // Inside the body (organs, blood, bones) only pictures can show it, whoever the story is about.
   if (/\byour body\b|\b(stomach|organs?|brain|heart|lungs|blood|bones?|muscles?|cells?|veins?)\b/i.test(t)) return 'story-3d';
   return youStory || people > things ? 'drawn-3d' : 'story-3d';

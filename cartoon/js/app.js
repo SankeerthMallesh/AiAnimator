@@ -10,6 +10,7 @@ import { hubRows, capabilities } from './router.js';
 import { loadCrew, saveCrew, addToCrew } from './storage.js';
 import { loadSettings, saveSettings, loadHistory, saveProjectToHistory, deleteFromHistory, DEFAULT_SETTINGS } from './storage.js';
 import { Pipeline, STEPS, newProject } from './pipeline.js';
+import { strongGraphics, markTownWeak } from './gpu.js';
 import { decodeUserMusic } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
 import { animateImage, videoProvider, videoProviderLabel, motionPrompt, openShotPack } from './videoai.js';
@@ -162,6 +163,15 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  // Look: the 3D cartoon town (the best look) on a computer whose graphics can draw it, painted sets
+  // on a weaker one; whatever the person picks themselves is kept.
+  const look = $('#look');
+  if (look) {
+    const gpu = strongGraphics();
+    look.value = settings.look === 'town3d' || settings.look === 'painted' ? settings.look : gpu.ok ? 'town3d' : 'painted';
+    if (!gpu.ok) look.title = `Painted sets suit this computer (${gpu.why}). The 3D town needs a strong graphics card.`;
+    look.addEventListener('change', () => { settings.look = look.value; saveSettings(settings); });
+  }
 
   $$('#formatSeg button').forEach(b => b.addEventListener('click', () => {
     ui.format = b.dataset.format;

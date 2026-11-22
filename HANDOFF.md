@@ -36,6 +36,30 @@ work if this one runs out of usage. Everything named here is committed in this r
 > long renders in background jobs and resume them, never restart finished pieces. When all the
 > remaining work is done and live, delete your scheduled tasks and send me a final summary.
 
+## Automatic check-ins (stopped 2026-11-22: the list is done)
+
+A scheduled task named **"Loomy keep going"** (`trig_01CKtm7fnptK4aLUbNEpMpPQ`) wakes the cloud session
+`session_01HYd8vcMBU6u8sYFgZBDMLc` ("LoomyDashboard") every 2 hours at :22 EST
+(`CRON_TZ=America/New_York 22 */2 * * *`, first run 2026-11-22 12:22 AM EST). Each check-in fetches and
+merges `main`, does the next unfinished step from this file, tests, deploys, updates this file and sends
+the user a short update. It deletes itself when nothing is left. **Do not create a second one**; if you
+take over in another session, check `list_triggers` first. To stop it, the user says "stop the check-ins"
+in that session, or delete it with `delete_trigger`.
+
+## Test run of 2026-11-22 (finished about 4:30 AM EST)
+
+1. Stress test (`node fuzz.cjs 1000 10`, page tools/tests/fuzz/): 1,000 random writer outputs per tab, 0 failures after
+   fixes T1a, T1b, T1c (junk scenes, blank captions, Cartoons crash on a blank scene).
+2. Full mocked videos (`drawnmaster.cjs`, `cartoonmaster.cjs`): 15 of 15 passed (5 per tab). Fixes from watching them:
+   N1 (night scenes too dark), C1 (Cartoons "fast.." captions).
+3. Real videos on the live site (`livetab.cjs`): all three tabs made a video with no errors. Fixes: A1 (Auto gave the
+   old picture look to "what happens to your body if you fall into ice water"; now drawn people), V2 (the server says
+   why ElevenLabs failed, in X-Loomy-Note).
+   Finding: the site's ELEVEN_KEY account is out of characters (`401 quota_exceeded`), so the live voice falls back to
+   Gemini until that account resets or the user swaps the Cloudflare secret. Not a code bug.
+   Not re-checked live after A1: the user allows 3 Gemini voice reads a day and the three live videos used them.
+The automatic 2-hourly check-in ("Loomy keep going") was deleted when this run finished: nothing is left on the list.
+
 ## What the user wants
 
 "Make sure my tool does this": Loomy itself should make videos like the three films below, from a
@@ -138,7 +162,7 @@ autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editor
 - **U1 upload kit** (`shared/upload.js`): hashtags are lowercase (`#hello`), and the YouTube title is
   short and compact (3-7 words, under 45 characters asked of the writer; `compactTitle` drops filler
   openings and long tails and caps it at 56). All tabs.
-- **C1 cut parts out** (`shared/cuts.js`, `shared/cutter.js`, `shared/mp4read.js`): a bar under the
+- **CUT1 cut parts out** (`shared/cuts.js`, `shared/cutter.js`, `shared/mp4read.js`): a bar under the
   player on the export page of the 3D, Blocky and Cartoons tabs. It shows the sound as soon as the
   export starts (cuts can be marked while it runs; a click there plays 2 s of the sound). Drag a part,
   or Start/End at the player's time, then "Cut it out"; "Find long pauses" marks voice lags. The player

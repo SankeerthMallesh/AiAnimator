@@ -46,13 +46,19 @@ export const tests = [
     for (let i = 1; i < shots.length; i++) assert.ok(Math.abs(shots[i].start - shots[i - 1].end) < 1e-9);
     assert.ok(shots[shots.length - 1].end >= timeline.total);
   } },
-  { name: 'the Cartoons composer opens on painted sets; the town is opt-in, marked heavy, captions off unless ticked', fn: () => {
+  { name: 'the Cartoons composer opens on the town only where the graphics are strong, else painted sets; captions off unless ticked', fn: () => {
     const html = readFileSync(new URL('../../../cartoon/index.html', import.meta.url), 'utf8');
-    assert.match(html, /<select id="look"><option value="painted" selected>/);
-    assert.match(html, /<option value="town3d">[^<]*heavy/);
+    // Without scripts (or before the check runs) the page shows painted sets, the safe look.
+    assert.match(html, /<option value="painted" selected>/);
+    assert.match(html, /<option value="town3d">[^<]*needs a strong graphics card/);
+    const app = readFileSync(new URL('../../../cartoon/js/app.js', import.meta.url), 'utf8');
+    assert.match(app, /settings\.look === 'town3d' \|\| settings\.look === 'painted' \? settings\.look : gpu\.ok \? 'town3d' : 'painted'/);
+    const gpu = readFileSync(new URL('../../../cartoon/js/gpu.js', import.meta.url), 'utf8');
+    for (const w of ['failIfMajorPerformanceCaveat', 'swiftshader', 'llvmpipe', 'MAX_TEXTURE_SIZE', 'deviceMemory', 'loomy.townWeak']) assert.ok(gpu.includes(w), w);
     assert.match(html, /<input type="checkbox" id="townCaptions">/);
     const pipe = readFileSync(new URL('../../../cartoon/js/pipeline.js', import.meta.url), 'utf8');
     assert.match(pipe, /captions: !!this\.p\.options\.townCaptions/);
+    assert.match(pipe, /if \(this\.town && e\?\.name !== 'AbortError'\) \{\s*markTownWeak\(\);/, 'a failed town render moves the computer to painted sets');
   } },
   { name: 'old projects without a look keep the painted sets', fn: () => {
     const pipe = readFileSync(new URL('../../../cartoon/js/pipeline.js', import.meta.url), 'utf8');

@@ -450,9 +450,11 @@ async function speakAll(request, env) {
   const text = lines.join('\n\n');
   if (text.length > 6000) return json({ ok: false, error: 'Script too long for one read' });
   const speaker = AURA_SPEAKERS.has(body.speaker) ? body.speaker : 'arcas';
-  // ElevenLabs first when the site has its key (the most human voice); Gemini if it fails or runs out.
+  // ElevenLabs first when the site has its key (the most human voice); Gemini if it fails or runs out
+  // (the reason goes back in X-Loomy-Note, so a silent fallback can be seen).
+  let elevenWhy = '';
   if (env.ELEVEN_KEY) {
-    try { return await elevenAll(env, lines, deliveries, speaker); } catch (e) { if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
+    try { return await elevenAll(env, lines, deliveries, speaker); } catch (e) { elevenWhy = String(e?.message || e).replace(/[^\x20-\x7E]/g, ' ').slice(0, 160); if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: elevenWhy }); }
   }
   let v;
   try { v = await geminiVoice(env, text, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
@@ -504,7 +506,7 @@ async function speakAll(request, env) {
   // can bring every model to the same Shorts pace.
   const talk = words[words.length - 1].e - words[0].s - words.slice(1).reduce((n, w, i) => n + Math.max(0, w.s - words[i].e - 0.35), 0);
   const wpm = Math.round(words.length / Math.max(1, talk) * 60);
-  return new Response(v.bytes, { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini', 'X-Loomy-Cuts': JSON.stringify(cuts.map(c => Math.round(c * 1000) / 1000)), 'X-Loomy-Match': String(Math.round(matched * 100)), 'X-Loomy-Wpm': String(wpm), ...(wordsHeader.length < 14000 ? { 'X-Loomy-Words': wordsHeader } : {}) } });
+  return new Response(v.bytes, { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'gemini', ...(elevenWhy ? { 'X-Loomy-Note': `ElevenLabs: ${elevenWhy}` } : {}), 'X-Loomy-Cuts': JSON.stringify(cuts.map(c => Math.round(c * 1000) / 1000)), 'X-Loomy-Match': String(Math.round(matched * 100)), 'X-Loomy-Wpm': String(wpm), ...(wordsHeader.length < 14000 ? { 'X-Loomy-Words': wordsHeader } : {}) } });
 }
 
 async function speak(request, env) {
@@ -536,7 +538,7 @@ async function speak(request, env) {
   } catch (e) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300) });
+    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300), ...(elevenNote ? { tried: elevenNote.slice(0, 240) } : {}) });
   }
 }
 

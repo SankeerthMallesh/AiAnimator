@@ -92,7 +92,7 @@ const SKY = {
 };
 export function stageFor(set) {
   const base = { shadowSize: 7, sun: 2.6, sunDir: [-6, 6, 7], sunColor: 0xfff1e0, hemi: 0.85, rimLight: 1.6, rimDir: [6, 4, -6], shadowMap: 2048, fog: [22, 130], sky: SKY[set] ?? null };
-  if (set === 'night') return { ...base, sun: 0.28, sunColor: 0x9fb4ff, hemi: 0.1, rimLight: 0.7, rimDir: [5, 5, -6], fog: [14, 80] };
+  if (set === 'night') return { ...base, sun: 0.3, sunColor: 0x9fb4ff, hemi: 0.18, rimLight: 1.0, rimDir: [5, 5, -6], fog: [14, 80] };
   if (set === 'room' || set === 'lab') return { ...base, sun: 2.0, sunDir: [-4, 5, 6], hemi: 1.0, rimLight: 1.0, fog: null };
   if (set === 'desert') return { ...base, sun: 3.1, sunColor: 0xffe2b8, fog: [30, 160] };
   if (set === 'beach') return { ...base, sun: 2.9, fog: [30, 170] };
@@ -133,7 +133,13 @@ export function buildSet(scene, set, seed = 1) {
     for (let x = -50; x < 50;) { const w = 6 + r() * 6, h = 8 + r() * 18; const b = building(w, h, 8, cols[Math.floor(r() * cols.length)], r, lit); b.position.set(x + w / 2, 0, -14 - r() * 3); scene.add(b); x += w + 0.6; }
     // Lamps sit off-centre so no pole stands behind the people at x = 0; at night one lights them.
     for (let x = -22; x <= 26; x += 8) { const l = lamp(lit); l.position.set(x, 0, -1.8); scene.add(l); }
-    if (lit) { const f = new THREE.PointLight(0xffd59a, 7, 9, 2); f.position.set(1.6, 3.2, 1.2); scene.add(f); }
+    if (lit) {
+      const f = new THREE.PointLight(0xffd59a, 9, 11, 2); f.position.set(1.6, 3.2, 1.2); scene.add(f);
+      // Moonlight on the people: a soft, cool spot from above and in front, so a wide or walking shot at
+      // night still shows them (only the street around them stays dark).
+      const moon = new THREE.SpotLight(0xbfd0ff, 30, 22, 0.75, 0.9, 1.4); moon.position.set(-1.5, 6, 6); moon.target.position.set(0, 1, -1.5);
+      scene.add(moon, moon.target);
+    }
     return;
   }
   if (set === 'room' || set === 'lab') {
@@ -182,14 +188,17 @@ export async function loadCast(ids) {
 // ---------- camera ----------
 export function frameCam(c, target, { dist, height = 0, yaw = 0, side = 0 }, move, k, t, seed, fov0) {
   let d = dist, y = yaw, tx = target.x, ty = target.y, tz = target.z, f = fov0, lat = side;
+  // Sideways and up-down moves are sized for a medium shot (3 m away) and shrink with the shot: on a
+  // close-up a fixed 45 cm tilt swung the frame off the subject onto whatever stood below it.
+  const m = Math.max(0.25, Math.min(1, dist / 3));
   switch (move) {
     case 'push-in': d *= lerp(1.14, 0.9, k); break;
     case 'pull-out': d *= lerp(0.88, 1.16, k); break;
     case 'orbit': y += lerp(-0.32, 0.32, k); break;
-    case 'pan-left': lat += lerp(0.5, -0.5, k); break;
-    case 'pan-right': lat += lerp(-0.5, 0.5, k); break;
-    case 'tilt-up': ty += lerp(-0.45, 0.15, k); break;
-    case 'tilt-down': ty += lerp(0.35, -0.2, k); break;
+    case 'pan-left': lat += lerp(0.5, -0.5, k) * m; break;
+    case 'pan-right': lat += lerp(-0.5, 0.5, k) * m; break;
+    case 'tilt-up': ty += lerp(-0.45, 0.15, k) * m; break;
+    case 'tilt-down': ty += lerp(0.35, -0.2, k) * m; break;
     case 'impact': d *= k < 0.3 ? 1.08 : lerp(1.08, 0.78, easeOut((k - 0.3) / 0.08)); break;
     case 'vertigo': d *= lerp(1.35, 0.85, k); f = fov0 * lerp(0.78, 1.18, k); break;
     default: d *= lerp(1.03, 0.97, k);
@@ -317,12 +326,17 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         const h = thing?.userData.h || 0.2;
         tScale = h < 0.12 ? 1.7 : h > 0.5 ? 0.7 : 1;
         spot = V(0, 0.9, 0);
-        if (A) { at(A, tall ? 0.45 : 0.8, -1.5, -0.35); poseNow(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { talk, from: 'stand', seed: spec.seed }); }
-        target = V(0, 0.9 + h * tScale * 0.5, 0);
+        // The speaker stands inside the frame behind the thing. The lens aims at the middle of the
+        // thing (lifted when it floats for a spin) and looks a little down on it, so the stand is a
+        // small base at the bottom, not a table top across the lower half with the thing cut off above.
+        // In a tall frame the lens looks down on the thing, which leaves no room above it for a speaker
+        // behind (their head was cut off at the top, near or far): the tall close-up is the thing alone.
+        if (A && !tall) { at(A, 0.7, -1.5, -0.35); poseNow(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { talk, from: 'stand', seed: spec.seed }); }
+        target = V(0, 0.9 + (spec.do === 'spin' ? 0.15 : 0) + h * tScale * 0.55, 0);
         // Far enough that the thing's widest side fills about 40 % of the frame's width.
         const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
         const span = Math.max(big.x, big.y, big.z, 0.12) * tScale;
-        focusD = frameCam(c, target, { dist: Math.max(0.6, span * (tall ? 4.4 : 2.6)) * near, height: span * 0.45, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        focusD = frameCam(c, target, { dist: Math.max(0.6, span * (tall ? 4.4 : 2.6)) * near, height: span * 1.1, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
         ap = 0.005; eff = target.clone(); break;
       }
       case 'talk': {
@@ -397,7 +411,7 @@ export function buildShot(spec, people, { makeStage, W, H }) {
     }
     if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.55, 0.55, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
     if (fx && eff) fx(t, eff, c.position);
-    return { bloom: spec.set === 'night' ? 0.6 : 0.25, ao: icon || spec.effect === 'glow' ? 0 : 0.7, exposure: spec.set === 'night' ? 0.85 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
+    return { bloom: spec.set === 'night' ? 0.6 : 0.25, ao: icon || spec.effect === 'glow' ? 0 : 0.7, exposure: spec.set === 'night' ? 0.95 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
   } };
 }
 
