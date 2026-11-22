@@ -213,3 +213,20 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .cut-chip:hover { background: rgba(229, 56, 59, .2); }
 .cutter .progress { margin-top: 8px; }
 .cut-help { margin: 8px 0 0; }
+
+/* 1.1: the thumbnail maker in the Upload kit. */
+.thumb { margin: 4px 0 12px; }
+.thumb .hidden { display: none; }
+.thumb-view { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line-2); background: #000; }
+.thumb-frames { display: flex; gap: 6px; margin: 8px 0 6px; overflow-x: auto; }
+.thumb-frame { flex: 0 0 auto; padding: 0; border: 2px solid transparent; border-radius: 7px; background: none; cursor: pointer; line-height: 0; overflow: hidden; }
+.thumb-frame canvas { width: 48px; height: auto; display: block; }
+.thumb-frame.on { border-color: #FFD60A; }
+.thumb-now { margin-bottom: 4px; }
+.thumb-opts { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+.thumb .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; }
+.thumb .seg button { padding: 6px 10px; border: 0; background: transparent; color: var(--muted); font: 600 12.5px/1 var(--sans, Inter, sans-serif); cursor: pointer; }
+.thumb .seg button + button { border-left: 1px solid var(--line-2); }
+.thumb .seg button.on { background: var(--hover); color: var(--ink); }
+.thumb .seg button:disabled { opacity: .4; cursor: default; }
+.thumb-dl { display: flex; justify-content: center; text-decoration: none; }

@@ -721,6 +721,7 @@ export class Script {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
       youtubeTitle: compactTitle(Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90)),
       description: String(raw.description || '').trim().slice(0, 1500),
+      thumbText: Script.clean(raw.thumbText || raw.thumbnailText || '', 40).split(' ').slice(0, 4).join(' '),
       hashtags: Script.hashtags(raw.hashtags, `${raw.title || ''} ${options.topic || ''}`),
       cast,
       scenes,
@@ -960,7 +961,7 @@ export class Script {
 TOPIC (follow it, keep real facts accurate): """${topic}"""
 ${options.extra ? `NOTES: ${options.extra}\n` : ''}About ${plan.words} spoken words across exactly ${plan.scenes} scenes (about ${plan.wordsPerScene} words each).
 ${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the set-up). Later parts continue the story.\n` : ''}Story beats, in order: 1) HOOK in scene 1 (the first 3 seconds): a named hero doing something surprising, or a sharp question. Never a passive fact ("X is a Y", "Have you ever wondered"). 2) SET-UP: who the hero is and what they want. 3) CONFLICT: a rival stands in the way. 4) ESCALATION: it gets bigger or worse. 5) TWIST: a surprising turn that reveals the real fact. 6) BUTTON: one short last line that lands the point or the joke. The real facts drive the story, and the story delivers exactly what the title promises (never contradict the title).
-Upload kit: "youtubeTitle" is a short, compact curiosity-gap title: 3-7 words, under 45 characters, with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"), no filler like "The Shocking Truth About". "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 lowercase tags: #shorts plus specific ones for this topic (like #trains, not #Trains).
+Upload kit: "youtubeTitle" is a short, compact curiosity-gap title: 3-7 words, under 45 characters, with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"), no filler like "The Shocking Truth About". "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "thumbText" is 2-4 thumbnail words in capitals, the most intriguing idea, not the title (e.g. "IT HEALS ITSELF"). "hashtags" is 8 lowercase tags: #shorts plus specific ones for this topic (like #trains, not #Trains).
 Facts: dates, names and numbers must be right. If a popular belief is a myth, say so and give the real version. Never state a myth as fact. Uncertain claims use "about" or "historians think".
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
@@ -979,7 +980,7 @@ bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
 Stay compact so the answer is never cut off: "bg" is 3 to 8 words of scenery for that scene (things and places only, no people, no words or numbers), at most 2 acts per scene, short names, no extra keys.
 Output ONLY compact JSON on one line:
-{"title":"","youtubeTitle":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","read":"curious","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"title":"","youtubeTitle":"","thumbText":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","read":"curious","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   // Parts 2..n of a long video: more scenes with the same cast, continuing the story.

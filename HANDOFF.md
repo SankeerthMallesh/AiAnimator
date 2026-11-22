@@ -146,6 +146,13 @@ autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editor
   MP4 reader) and re-encodes the kept frames with the soundtrack cut to match (soft joins), always
   from the full video, so saving again loses nothing. Download and the editor hand-off use the cut
   video (words moved to match). Tests: v11-cuts, v11-upload-kit (unit); cutmaster.cjs (page).
+- **T1 thumbnails** (`shared/thumbnail.js`): in each tab's Upload kit once the video is made. Frames
+  from the finished video at the best moments (`pickMoments`: reactions, impacts, objects in use;
+  never the first 3 s, where the headline sits), colour boosted and dark frames lifted, 2-4 huge
+  words (the writer's new `thumbText`, else `hookText`, else the title) with a black outline and one
+  yellow word. Layouts Split / Big text / Label; Wide 1280x720 or Tall 1080x1920 (zoomed so the
+  video's captions fall outside); "Use the player's frame" takes any moment. JPEG under 2 MB.
+  Tests: v11-thumbnail (unit); cutmaster.cjs checks it too.
 
 ## Remaining work
 

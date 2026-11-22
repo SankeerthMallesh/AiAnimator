@@ -1,6 +1,7 @@
 // UI controller for Storyforge.
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
+import { attachThumbnail } from '../../shared/thumbnail.js';
 import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
@@ -333,7 +334,7 @@ function openProject(p, { render }) {
   $('#board').innerHTML = '';
   $('#factNotes').classList.add('hidden');
   $('#metaCard').classList.add('hidden');
-  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden'); cutter().hide(); if (project) project.cut = null;
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden'); cutter().hide(); thumbs().reset(); if (project) project.cut = null;
   $('#renderProg').classList.add('hidden');
   const ratio = FORMATS[formatOf(p.options)].ratio;
   $('#stage').style.aspectRatio = String(ratio);
@@ -446,6 +447,16 @@ function setDownload(video, cut = null) {
 }
 
 // 1.1: cut parts out (a lagging voice, a long pause) right here on the export page.
+// 1.1: a thumbnail for every video, in the Upload kit (made from the finished video's best moments).
+function thumbs() {
+  return thumbs.ui ||= attachThumbnail({
+    card: document.getElementById('metaCard'),
+    before: document.getElementById('musicFile')?.closest('.field'),
+    player: document.getElementById('outVideo'),
+    toast: (m, bad) => toast(m, bad),
+  });
+}
+
 // Made on first use (a function, so the page's earlier code can call it at any time).
 function cutter() {
   return cutter.ui ||= attachCutter({
@@ -471,6 +482,7 @@ async function doRender(pl = pipeline) {
   const video = await pl.render().catch((e) => { cutter().hide(); throw e; });
   setDownload(video);
   cutter().ready(video, fps);
+  thumbs().ready({ url: video.url, name: slug(project.script.title), script: project.script, scenes: project.timeline?.scenes || [], total: project.timeline?.total || 0, wideVideo: video.width > video.height }).catch(() => {});
   $('#btnEdit')?.classList.remove('hidden');
   const v = $('#outVideo');
   v.src = video.url;

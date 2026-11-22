@@ -306,6 +306,7 @@ Return JSON with this exact shape:
   "hashtags": ["5-8 relevant hashtags, all lowercase like #history"],${part ? `
   "chapter": "2-5 word title of this chapter (it opens with a title card)",` : ''}
   "hookText": "2-6 word on-screen headline for the first 3 seconds that teases the payoff without giving it away (not the title, not the first narration line), e.g. 'THIS WALL IS 2,000 YEARS OLD' or 'HE HAD 10 MINUTES'",
+  "thumbText": "2-4 word thumbnail text in capitals: the most intriguing idea, not the title or the hookText (e.g. 'IT HEALS ITSELF', '13 DAYS OF PANIC')",
   "teaser": index of the most dramatic later scene (a reveal, an impact, a big reaction), flashed for one second before the story starts,
 ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: hair = an ordinary person in everyday stories, cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "the main character's short name (a real historical person only if the story is about them)", "look": "specific age, build, hair, face and clothing colours, e.g. 'stocky man in his 40s, short black hair, stubble, red t-shirt, blue jeans'"}],
   "scenes": [
@@ -462,6 +463,7 @@ export function normalizeScript(raw, options) {
     title: cleanText(raw.title || options.topic, 60),
     youtubeTitle: compactTitle(cleanText(raw.youtubeTitle || raw.title || options.topic, 100)),
     description: String(raw.description || '').trim().slice(0, 3000),
+    thumbText: cleanText(raw.thumbText || raw.thumbnailText || '', 40).split(' ').slice(0, 4).join(' '),
     hookText: cleanText(raw.hookText || raw.hook_text || raw.onScreenHook || '', 60).split(' ').slice(0, 6).join(' '),
     teaser: Number.isInteger(Number(raw.teaser)) && Number(raw.teaser) >= 1 && Number(raw.teaser) < scenes.length ? Number(raw.teaser) : null,
     hashtags: lowerTags((Array.isArray(raw.hashtags) ? raw.hashtags : []).map(h => cleanText(h, 40))),
