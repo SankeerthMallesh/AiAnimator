@@ -132,7 +132,9 @@ export function warmNarrator(n) {
 
 async function elevenSpeak(text, s, speedMul, delivery = '') {
   const voice = (s.elevenVoice || 'JBFqnCBsd6RMkjVDRZzb').trim();
-  const model = s.elevenModel || V3;
+  // v3 (delivery tags, word timings) unless a different model was set on purpose; the old stored
+  // default (multilingual v2) was never a choice anyone made.
+  const model = !s.elevenModel || s.elevenModel === 'eleven_multilingual_v2' ? V3 : s.elevenModel;
   if (model !== V3) return elevenSpeakOld(text, s, speedMul, model);
   // v3 reads with a delivery tag and sends its character timings, so captions follow the real voice.
   const { res, data } = await fetchTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}/with-timestamps?output_format=pcm_24000`, {

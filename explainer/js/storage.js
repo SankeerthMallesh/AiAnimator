@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS = {
   quality: '1080',                // 720 | 1080 | 1440
   depth3d: 'auto',                // auto | off
   atmosphere: false,
-  elevenKey: '', elevenVoice: '', elevenModel: 'eleven_multilingual_v2',
+  elevenKey: '', elevenVoice: '', elevenModel: 'eleven_v3',
   fps: 30,
   captionStyle: 'classic',        // word | classic | bold | box | minimal | off
   showTitle: false,
