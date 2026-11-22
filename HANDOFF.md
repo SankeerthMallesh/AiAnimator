@@ -212,6 +212,14 @@ Tests: v12-cartoon-objects, v12-auto-look, v12-chapters, v12-style-cast, v12-nar
   `setLooks` in `tools/c3d-src/src/cast.ts` (rebuilt `cartoon/js/c3d/cartoon3d.js`); nervous -> think.
 Tests: v14-object-shots, v14-space-rooms, v14-town-style (unit).
 
+## Loomy 1.5 (2026-11-22)
+
+- **TOON1** every Cartoons video draws the 3D town's characters: `tools/c3d-src/src/toon2d.ts` builds the
+  town's drawing alone (no three.js) into `cartoon/js/c3d/toon2d.js`; `cartoon/js/toonrig.js` maps a
+  character's look (`outfitFor`), feeling/talking (`exprFor`) and pose (`optsFor`) to `bodyFront`, caches
+  the drawings, and draws held things at the hand `bodyFront` now returns. `Stage.world` uses it unless
+  `settings.toonCast === false` ("Town-style characters" in More). Test: v15-town-cast.
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
