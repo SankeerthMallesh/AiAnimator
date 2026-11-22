@@ -1,0 +1,370 @@
+{
+ "title": "How One Wrong Turn Started WW1",
+ "youtubeTitle": "One Wrong Turn Started WW1 \ud83d\ude33",
+ "thumbText": "ONE WRONG TURN",
+ "description": "A wrong turn in Sarajevo, a web of alliances, and four years in the trenches: World War One in 60 seconds.\n\nSources: Wikipedia (Assassination of Archduke Franz Ferdinand; Christmas truce; Armistice of 11 November 1918; Treaty of Versailles), Imperial War Museums.",
+ "hashtags": [
+  "#shorts",
+  "#ww1",
+  "#history",
+  "#worldwarone",
+  "#christmastruce",
+  "#historyfacts",
+  "#learnontiktok",
+  "#didyouknow"
+ ],
+ "cast": [
+  {
+   "id": "f",
+   "name": "Franz",
+   "color": "#D9C9A3",
+   "hat": "tophat",
+   "hair": "black",
+   "costume": "coat"
+  },
+  {
+   "id": "t",
+   "name": "Tommy",
+   "color": "#8A7A4A",
+   "hat": "cap",
+   "hair": "brown",
+   "costume": "coat"
+  },
+  {
+   "id": "h",
+   "name": "Hans",
+   "color": "#6E7B76",
+   "hat": "cap",
+   "hair": "blonde",
+   "costume": "coat"
+  },
+  {
+   "id": "g",
+   "name": "General",
+   "color": "#2C3E6B",
+   "hat": "officer",
+   "hair": "black",
+   "costume": "suit"
+  }
+ ],
+ "scenes": [
+  {
+   "line": "If you lived in 1914, one wrong turn by a car could drag you into a world war.",
+   "set": "city",
+   "say": "f",
+   "who": [
+    {
+     "id": "f",
+     "x": 0.4,
+     "pose": "idle",
+     "feel": "smug"
+    }
+   ],
+   "acts": [],
+   "icon": "\ud83d\ude97",
+   "props": [
+    {
+     "id": "car",
+     "kind": "car",
+     "x": 0.75
+    }
+   ]
+  },
+  {
+   "line": "June 28th, Sarajevo. Archduke Franz Ferdinand's driver takes the wrong street.",
+   "set": "road",
+   "say": "f",
+   "who": [
+    {
+     "id": "f",
+     "x": 0.5,
+     "pose": "drive",
+     "feel": "nervous"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": [
+    {
+     "id": "car",
+     "kind": "car",
+     "x": 0.5
+    }
+   ]
+  },
+  {
+   "line": "A young man named Gavrilo Princip is standing right there. Two shots!",
+   "set": "city",
+   "say": "f",
+   "who": [
+    {
+     "id": "f",
+     "x": 0.45,
+     "pose": "shock",
+     "feel": "shocked"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Austria-Hungary blames Serbia. Russia backs Serbia. Germany backs Austria.",
+   "set": "office",
+   "say": "g",
+   "who": [
+    {
+     "id": "g",
+     "x": 0.35,
+     "pose": "point",
+     "feel": "angry"
+    },
+    {
+     "id": "h",
+     "x": 0.7,
+     "pose": "idle",
+     "feel": "nervous"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Then France and Britain jump in. The alliances pull everyone in like dominoes.",
+   "set": "office",
+   "say": "g",
+   "who": [
+    {
+     "id": "g",
+     "x": 0.3,
+     "pose": "shrug",
+     "feel": "skeptical"
+    },
+    {
+     "id": "t",
+     "x": 0.7,
+     "pose": "idle",
+     "feel": "shocked"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Everyone says it will be over by Christmas.",
+   "set": "rails",
+   "say": "t",
+   "who": [
+    {
+     "id": "t",
+     "x": 0.4,
+     "pose": "cheer",
+     "feel": "happy"
+    },
+    {
+     "id": "h",
+     "x": 0.75,
+     "pose": "cheer",
+     "feel": "happy"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "But here is the catch: machine guns turned every charge into a disaster.",
+   "set": "field",
+   "say": "t",
+   "who": [
+    {
+     "id": "t",
+     "x": 0.4,
+     "pose": "shock",
+     "feel": "shocked"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "So both sides dug in. Trenches ran about 700 kilometers, from the sea to Switzerland.",
+   "set": "field",
+   "say": "h",
+   "who": [
+    {
+     "id": "h",
+     "x": 0.35,
+     "pose": "point",
+     "feel": "neutral"
+    },
+    {
+     "id": "t",
+     "x": 0.75,
+     "pose": "idle",
+     "feel": "skeptical"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Life down there? Mud, rats and lice, and almost no sleep.",
+   "set": "night",
+   "say": "t",
+   "who": [
+    {
+     "id": "t",
+     "x": 0.45,
+     "pose": "idle",
+     "feel": "sleepy"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Then, on Christmas 1914, something wild happened.",
+   "set": "night",
+   "say": "h",
+   "who": [
+    {
+     "id": "h",
+     "x": 0.4,
+     "pose": "think",
+     "feel": "nervous"
+    },
+    {
+     "id": "t",
+     "x": 0.75,
+     "pose": "idle",
+     "feel": "skeptical"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Enemies climbed out, swapped gifts, and in some places even kicked a football around.",
+   "set": "field",
+   "say": "t",
+   "who": [
+    {
+     "id": "t",
+     "x": 0.35,
+     "pose": "give",
+     "feel": "happy"
+    },
+    {
+     "id": "h",
+     "x": 0.68,
+     "pose": "laugh",
+     "feel": "happy"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "t",
+     "do": "give",
+     "hold": "coin",
+     "to": "h"
+    }
+   ],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Then the war came back, with gas, tanks and planes.",
+   "set": "field",
+   "say": "h",
+   "who": [
+    {
+     "id": "h",
+     "x": 0.45,
+     "pose": "shock",
+     "feel": "shocked"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "In 1917, America joined the fight.",
+   "set": "deck",
+   "say": "g",
+   "who": [
+    {
+     "id": "g",
+     "x": 0.45,
+     "pose": "point",
+     "feel": "smug"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "On November 11th, 1918, at 11 in the morning, the guns finally went quiet.",
+   "set": "field",
+   "say": "t",
+   "who": [
+    {
+     "id": "t",
+     "x": 0.4,
+     "pose": "think",
+     "feel": "sad"
+    },
+    {
+     "id": "h",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "sad"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Around 20 million people had died.",
+   "set": "night",
+   "say": "h",
+   "who": [
+    {
+     "id": "h",
+     "x": 0.45,
+     "pose": "cry",
+     "feel": "sad"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "And the peace treaty was so harsh, it helped set the stage for World War Two.",
+   "set": "office",
+   "say": "g",
+   "who": [
+    {
+     "id": "g",
+     "x": 0.4,
+     "pose": "idle",
+     "feel": "nervous"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  }
+ ]
+}
