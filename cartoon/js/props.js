@@ -257,7 +257,7 @@ export class PropKit {
 }
 
 export class SetKit {
-  static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'deck', 'space', 'water', 'field', 'night', 'desert', 'lab', ...RICH_SETS];
+  static IDS = ['sky', 'room', 'shop', 'office', 'road', 'rails', 'bridge', 'deck', 'space', 'water', 'field', 'night', 'desert', 'lab', 'cabin', 'control', 'bunks', 'cockpit', ...RICH_SETS];
   static RICH = RICH_SETS;
 
   // Lighten (amt > 0) or darken (amt < 0) a #RRGGBB colour.
@@ -326,14 +326,14 @@ export class SetKit {
     const sky = {
       sky: '#7EC8F2', room: '#F6E7A1', shop: '#F6E27A', office: '#E7EEF6', road: '#7EC8F2',
       rails: '#F08A3A', bridge: '#7EC8F2', space: '#1B2340', water: '#7EC8F2', field: '#7EC8F2',
-      night: '#243056', desert: '#F2C230', lab: '#E7F2F6',
+      night: '#243056', desert: '#F2C230', lab: '#E7F2F6', cabin: '#2B3550', control: '#1A2550', bunks: '#243066', cockpit: '#0A0F2A',
     }[set];
     const floor = {
       sky: '#8FD18B', room: '#E6D3A3', shop: '#F7F4EE', office: '#D5DDE6', road: '#67B35A',
       rails: '#C4A074', bridge: '#8FD18B', space: '#3A4158', water: '#2F8FBF', field: '#67B35A',
-      night: '#2A3148', desert: '#E2B56A', lab: '#F4F1EA',
+      night: '#2A3148', desert: '#E2B56A', lab: '#F4F1EA', cabin: '#E8E8E8', control: '#2C3B78', bunks: '#2A3366', cockpit: '#3A4260',
     }[set];
-    const horizon = set === 'space' ? 0.72 : set === 'shop' || set === 'room' || set === 'office' || set === 'lab' ? 0.58 : 0.46;
+    const horizon = set === 'space' ? 0.72 : ['shop', 'room', 'office', 'lab', 'cabin', 'control', 'bunks', 'cockpit'].includes(set) ? 0.58 : 0.46;
     return { set, sky, floor, horizon };
   }
 

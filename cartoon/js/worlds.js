@@ -636,13 +636,143 @@ P.school = (g, W, H, r) => {
   }
 };
 
+// ---------- 1.4: space-station rooms (lit like 3D cartoon shorts: cool panels, warm accents) ----------
+function panels(g, W, H, top, bottom, color, cols = 5, rows = 3) {
+  vGrad(g, -W, top - H, W * 3, bottom - top + H, [[0, shade(color, -0.25)], [1, shade(color, 0.04)]]);
+  g.save(); g.strokeStyle = shade(color, -0.35); g.lineWidth = Math.max(2, W * 0.004);
+  for (let c = -2; c <= cols + 2; c++) { const x = c * W / cols; g.beginPath(); g.moveTo(x, top - H); g.lineTo(x, bottom); g.stroke(); }
+  for (let r = 0; r <= rows; r++) { const y = top + (bottom - top) * r / rows; g.beginPath(); g.moveTo(-W, y); g.lineTo(W * 2, y); g.stroke(); }
+  g.fillStyle = shade(color, 0.25);
+  for (let c = -2; c <= cols + 2; c++) for (let r = 0; r < rows; r++) {
+    const x = c * W / cols, y = top + (bottom - top) * r / rows;
+    for (const [dx, dy] of [[0.06, 0.08], [0.94, 0.08], [0.06, 0.92], [0.94, 0.92]]) { g.beginPath(); g.arc(x + dx * W / cols, y + dy * (bottom - top) / rows, W * 0.0035, 0, TAU); g.fill(); }
+  }
+  g.restore();
+}
+function porthole(g, x, y, w, h, rad, earth = true) {
+  g.save();
+  g.fillStyle = '#5A6275'; g.beginPath(); g.roundRect(x - w * 0.06, y - w * 0.06, w * 1.12, h + w * 0.12, rad * 1.3); g.fill();
+  g.beginPath(); g.roundRect(x, y, w, h, rad); g.clip();
+  vGrad(g, x, y, w, h, [[0, '#03050F'], [1, '#0B1030']]);
+  const r = rng(Math.round(x + y));
+  g.fillStyle = '#FFFFFF';
+  for (let k = 0; k < 60; k++) { g.globalAlpha = 0.4 + r() * 0.6; g.beginPath(); g.arc(x + r() * w, y + r() * h, Math.max(0.8, w * 0.004 * r()), 0, TAU); g.fill(); }
+  g.globalAlpha = 1;
+  if (earth) {
+    const R = w * 1.3, cx = x + w * 0.42, cy = y + h + R * 0.8;
+    const eg = g.createRadialGradient(cx - R * 0.2, cy - R * 0.2, R * 0.2, cx, cy, R);
+    eg.addColorStop(0, '#5FD0FF'); eg.addColorStop(0.85, '#2F7FD8'); eg.addColorStop(1, '#1C4FA0');
+    g.fillStyle = eg; g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let k = 0; k < 9; k++) { const a = -Math.PI / 2 + (r() - 0.5) * 1.1, d = R * (0.86 + r() * 0.12); g.beginPath(); g.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d, w * (0.05 + r() * 0.08), w * 0.018, a + Math.PI / 2, 0, TAU); g.fill(); }
+    glow(g, cx, cy - R, w * 0.5, 'rgba(140,210,255,0.55)');
+  }
+  g.restore();
+  g.save(); g.strokeStyle = '#2A2F3C'; g.lineWidth = w * 0.03; g.beginPath(); g.roundRect(x, y, w, h, rad); g.stroke(); g.restore();
+}
+function checker(g, W, H, hz, a = '#F2F2F2', b = '#151515') {
+  // A checkered floor in perspective.
+  const n = 10;
+  for (let row = 0; row < 8; row++) {
+    const y0 = hz + (H - hz) * Math.pow(row / 8, 1.6), y1 = hz + (H - hz) * Math.pow((row + 1) / 8, 1.6) + 1;
+    const s0 = 0.35 + 0.65 * (row / 8), s1 = 0.35 + 0.65 * ((row + 1) / 8);
+    for (let c = -n; c < n; c++) {
+      g.fillStyle = (row + c) % 2 ? a : b;
+      const xa = W / 2 + c * W * 0.16 * s0 * 1.6, xb = W / 2 + (c + 1) * W * 0.16 * s0 * 1.6, xc = W / 2 + (c + 1) * W * 0.16 * s1 * 1.6, xd = W / 2 + c * W * 0.16 * s1 * 1.6;
+      g.beginPath(); g.moveTo(xa, y0); g.lineTo(xb, y0); g.lineTo(xc, y1); g.lineTo(xd, y1); g.closePath(); g.fill();
+    }
+  }
+  vGrad(g, -W, hz, W * 3, H * 0.06, [[0, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0)']]);
+}
+
+P.cabin = (g, W, H, r) => {
+  const hz = H * 0.6;
+  panels(g, W, H, H * 0.02, hz, '#2B3550', 4, 3);
+  porthole(g, W * 0.12, H * 0.08, W * 0.76, H * 0.28, W * 0.09, true);
+  // A wooden ledge under the window, a little plant, a pole and a light strip.
+  box(g, -W * 0.1, H * 0.385, W * 1.2, H * 0.014, '#8A5A3A', { top: H * 0.01, topColor: '#A8714A' });
+  const px = W * 0.8, py = H * 0.385;
+  box(g, px - W * 0.02, py - H * 0.022, W * 0.04, H * 0.022, '#F4F1EA');
+  for (let k = 0; k < 4; k++) { g.fillStyle = '#4FB062'; g.beginPath(); g.ellipse(px + (k - 1.5) * W * 0.008, py - H * 0.035, W * 0.004, H * 0.016, (k - 1.5) * 0.3, 0, TAU); g.fill(); }
+  g.fillStyle = '#E07B2C'; g.fillRect(W * 0.93, -H * 0.1, W * 0.016, hz + H * 0.1);
+  glow(g, W * 0.938, H * 0.25, W * 0.12, 'rgba(255,170,90,0.35)');
+  g.fillStyle = '#9FE7FF'; g.fillRect(-W, H * 0.015, W * 3, H * 0.006); glow(g, W * 0.5, H * 0.02, W * 0.6, 'rgba(150,220,255,0.25)');
+  checker(g, W, H, hz);
+};
+
+P.control = (g, W, H, r) => {
+  const hz = H * 0.62;
+  vGrad(g, -W, -H, W * 3, hz + H, [[0, '#1A2550'], [1, '#26356E']]);
+  // Ceiling grid and a cyan light strip.
+  g.save(); g.strokeStyle = 'rgba(160,190,255,0.35)'; g.lineWidth = Math.max(1, W * 0.002);
+  for (let k = -6; k <= 6; k++) { g.beginPath(); g.moveTo(W / 2 + k * W * 0.12, -H * 0.1); g.lineTo(W / 2 + k * W * 0.3, H * 0.1); g.stroke(); }
+  g.restore();
+  g.fillStyle = '#8FEFFF'; g.fillRect(-W, H * 0.105, W * 3, H * 0.007); glow(g, W * 0.5, H * 0.11, W * 0.7, 'rgba(120,230,255,0.3)');
+  // The big screen: a header bar with clocks, a ring and a big number.
+  const sx = W * 0.04, sy = H * 0.16, sw = W * 0.92, sh = H * 0.3;
+  box(g, sx - W * 0.015, sy - W * 0.015, sw + W * 0.03, sh + W * 0.03, '#11182F');
+  vGrad(g, sx, sy, sw, sh, [[0, '#1C2A52'], [1, '#142040']]);
+  g.fillStyle = '#0B1126'; g.fillRect(sx, sy, sw, sh * 0.16);
+  g.fillStyle = '#FFC93C'; g.font = `700 ${Math.round(sh * 0.08)}px "JetBrains Mono", monospace`; g.textBaseline = 'middle';
+  ['0:12:04:17', '16:41:59', '12:02'].forEach((txt, i) => g.fillText(txt, sx + sw * (0.04 + i * 0.34), sy + sh * 0.08));
+  g.strokeStyle = 'rgba(255,201,60,0.9)'; g.lineWidth = sh * 0.025; g.beginPath(); g.arc(sx + sw * 0.5, sy + sh * 0.58, sh * 0.26, -Math.PI / 2, Math.PI * 0.9); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(sx + sw * 0.03, sy + sh * 0.2, sw * 0.4, sh * 0.006);
+  // Side monitors with lines.
+  for (const mx of [-0.02, 0.84]) { box(g, W * mx, H * 0.48, W * 0.18, H * 0.1, '#11182F'); g.strokeStyle = '#7BE38A'; g.lineWidth = W * 0.003; g.beginPath(); for (let k = 0; k <= 10; k++) g.lineTo(W * (mx + 0.01 + k * 0.016), H * (0.54 + Math.sin(k * 1.7 + mx * 9) * 0.015)); g.stroke(); }
+  // Consoles in front, with buttons.
+  vGrad(g, -W, hz, W * 3, H, [[0, '#2C3B78'], [1, '#1D2754']]);
+  g.save(); g.fillStyle = 'rgba(255,255,255,0.12)'; for (let k = 0; k < 160; k++) { g.fillRect(r() * W * 1.4 - W * 0.2, hz + r() * (H - hz), W * 0.004, W * 0.004); } g.restore();
+  for (const cx of [0.02, 0.62]) {
+    box(g, W * cx, hz - H * 0.02, W * 0.36, H * 0.05, '#E9EDF5', { top: H * 0.015, topColor: '#FFFFFF' });
+    box(g, W * cx, hz + H * 0.03, W * 0.36, H * 0.08, '#3A4466');
+    g.fillStyle = cx < 0.5 ? '#3EE08A' : '#FFD23C'; g.beginPath(); g.ellipse(W * (cx + 0.27), hz - H * 0.025, W * 0.035, H * 0.012, 0, 0, TAU); g.fill();
+    glow(g, W * (cx + 0.27), hz - H * 0.03, W * 0.08, cx < 0.5 ? 'rgba(80,255,160,0.5)' : 'rgba(255,220,80,0.5)');
+  }
+};
+
+P.bunks = (g, W, H, r) => {
+  const hz = H * 0.62;
+  panels(g, W, H, H * 0.0, hz, '#243066', 4, 4);
+  // A purple-blue wash, a small window, a sleeping bag on the wall and a drawing pinned up.
+  vGrad(g, -W, -H, W * 3, hz + H, [[0, 'rgba(90,60,200,0.18)'], [1, 'rgba(40,60,160,0)']]);
+  porthole(g, W * 0.08, H * 0.3, W * 0.22, H * 0.18, W * 0.05, false);
+  g.fillStyle = '#5CC46A'; g.beginPath(); g.roundRect(W * 0.52, H * 0.16, W * 0.3, H * 0.4, W * 0.08); g.fill();
+  g.strokeStyle = '#2E7D3A'; g.lineWidth = W * 0.008; g.stroke();
+  g.fillStyle = '#7FDB8A'; g.beginPath(); g.roundRect(W * 0.55, H * 0.19, W * 0.24, H * 0.12, W * 0.05); g.fill();
+  box(g, W * 0.08, H * 0.12, W * 0.18, H * 0.1, '#FFFFFF');
+  g.fillStyle = '#5CB85C'; g.fillRect(W * 0.08, H * 0.2, W * 0.18, H * 0.02);
+  g.strokeStyle = '#333'; g.lineWidth = W * 0.003; g.beginPath(); g.moveTo(W * 0.12, H * 0.2); g.lineTo(W * 0.15, H * 0.15); g.lineTo(W * 0.18, H * 0.2); g.stroke();
+  g.fillStyle = '#FFC93C'; g.beginPath(); g.arc(W * 0.22, H * 0.145, W * 0.012, 0, TAU); g.fill();
+  vGrad(g, -W, hz, W * 3, H, [[0, '#2A3366'], [1, '#1B2147']]);
+  glow(g, W * 0.6, H * 0.05, W * 0.5, 'rgba(255,230,190,0.25)');
+};
+
+P.cockpit = (g, W, H, r) => {
+  const hz = H * 0.66;
+  vGrad(g, -W, -H, W * 3, H * 2, [[0, '#03050F'], [1, '#0A0F2A']]);
+  const rr = rng(77);
+  g.fillStyle = '#FFFFFF';
+  for (let k = 0; k < 220; k++) { g.globalAlpha = 0.35 + rr() * 0.65; g.beginPath(); g.arc(rr() * W * 1.4 - W * 0.2, rr() * hz, Math.max(0.8, W * 0.003 * rr()), 0, TAU); g.fill(); }
+  g.globalAlpha = 1;
+  // The windshield frame: a trapezoid of struts, lit at the edges.
+  g.fillStyle = '#2B3148';
+  g.beginPath(); g.moveTo(-W, -H); g.lineTo(W * 2, -H); g.lineTo(W * 2, H * 0.06); g.lineTo(W * 0.78, H * 0.1); g.lineTo(W * 0.22, H * 0.1); g.lineTo(-W, H * 0.06); g.closePath(); g.fill();
+  for (const [x0, x1] of [[0.22, -0.05], [0.78, 1.05]]) { g.strokeStyle = '#3A4260'; g.lineWidth = W * 0.05; g.beginPath(); g.moveTo(W * x0, H * 0.1); g.lineTo(W * x1, hz); g.stroke(); g.strokeStyle = 'rgba(160,200,255,0.5)'; g.lineWidth = W * 0.006; g.stroke(); }
+  // Hanging handles.
+  for (const x of [0.4, 0.6]) { g.strokeStyle = '#8A93A8'; g.lineWidth = W * 0.008; g.beginPath(); g.moveTo(W * x, H * 0.1); g.lineTo(W * x, H * 0.2); g.stroke(); g.fillStyle = '#F2A65A'; g.fillRect(W * x - W * 0.01, H * 0.2, W * 0.02, H * 0.04); }
+  // The control panel along the bottom.
+  vGrad(g, -W, hz, W * 3, H, [[0, '#3A4260'], [1, '#1E2338']]);
+  g.fillStyle = '#AEB6C8'; g.fillRect(-W, hz - H * 0.01, W * 3, H * 0.012);
+  for (let k = 0; k < 18; k++) { const c = ['#3EE08A', '#FFD23C', '#FF5A5A', '#5AC8FF'][k % 4]; g.fillStyle = c; g.fillRect(W * (0.04 + k * 0.053), hz + H * 0.025 + (k % 3) * H * 0.012, W * 0.024, H * 0.008); }
+};
+
 // The colours to paint beyond the world's edges, for camera pans and whips.
 const EDGE = {
   sky: ['#5FB2EC', '#3F8E3F'], field: ['#5FB2EC', '#3F8E3F'], road: ['#5AAFEA', '#3F8B3B'], rails: ['#4F9BE0', '#8C6544'],
   sea: ['#4FA6E8', '#C48A45'], water: ['#4FA6E8', '#C48A45'], desert: ['#5FA9E4', '#C48A45'], mountains: ['#4C9DE3', '#367F3A'],
   snow: ['#8EC1EA', '#D6E3F0'], forest: ['#8CCB74', '#4E7F33'], city: ['#5AA9E8', '#5D6470'], night: ['#0E1636', '#171A30'],
   space: ['#070A1C', '#6D6F7C'], temple: ['#4FA3E6', '#B69D62'], room: ['#E8D0A2', '#A9784A'], shop: ['#EDDB98', '#C9C6BE'],
-  office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], school: ['#E8E2C8', '#B98C5E'], wall: ['#5AA9E6', '#3C8040'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
+  office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], cabin: ['#2B3550', '#151515'], control: ['#1A2550', '#1D2754'], bunks: ['#243066', '#1B2147'], cockpit: ['#03050F', '#1E2338'], school: ['#E8E2C8', '#B98C5E'], wall: ['#5AA9E6', '#3C8040'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
 };
 export const WORLD_IDS = Object.keys(P);
 
@@ -665,7 +795,7 @@ function still(id, W, H) {
 // ---------- what moves ----------
 function animate(ctx, W, H, id, t) {
   const r = rng(id.length * 131 + 5);
-  const outdoor = !['room', 'shop', 'office', 'lab', 'school', 'underwater', 'space', 'night'].includes(id);
+  const outdoor = !['room', 'shop', 'office', 'lab', 'school', 'underwater', 'space', 'night', 'cabin', 'control', 'bunks', 'cockpit'].includes(id);
   if (outdoor && id !== 'forest') {
     for (let k = 0; k < 3; k++) { const s = W * (0.08 + r() * 0.07), y = H * (0.04 + r() * 0.2), sp = 0.008 + r() * 0.01; const x = (((r() + t * sp) % 1.4) - 0.2) * W; cloud(ctx, x, y, s, 0.95); }
     // A pair of birds crossing now and then.
@@ -691,6 +821,19 @@ function animate(ctx, W, H, id, t) {
     ctx.fillStyle = '#FFFFFF';
     for (let k = 0; k < 70; k++) { const x = r() * W, y = r() * H * (id === 'space' ? 0.6 : 0.45), s = W * (0.001 + r() * 0.0025); ctx.globalAlpha = 0.35 + 0.65 * Math.abs(Math.sin(t * (1 + r() * 2) + k)); ctx.beginPath(); ctx.arc(x, y, s, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
+  }
+  if (id === 'cockpit') {
+    // Stars streaming past the windshield.
+    ctx.fillStyle = '#FFFFFF';
+    for (let k = 0; k < 40; k++) { const a = r() * TAU, d = ((r() + t * (0.08 + r() * 0.1)) % 1), x = W / 2 + Math.cos(a) * d * W * 0.8, y = H * 0.36 + Math.sin(a) * d * H * 0.35; if (y > H * 0.62) continue; ctx.globalAlpha = d; ctx.beginPath(); ctx.arc(x, y, W * 0.002 * (1 + d * 2), 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+  if (id === 'control') {
+    // The big number counts down on the screen.
+    const n = 3 - (Math.floor(t) % 4);
+    ctx.save(); ctx.fillStyle = '#FFF4C2'; ctx.shadowColor = 'rgba(255,220,120,0.9)'; ctx.shadowBlur = W * 0.03;
+    ctx.font = `800 ${Math.round(H * 0.13)}px Montserrat, Arial, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(n), W * 0.5, H * (0.16 + 0.3 * 0.58)); ctx.restore();
   }
   if (id === 'forest') {
     ctx.fillStyle = 'rgba(255,250,200,0.8)';

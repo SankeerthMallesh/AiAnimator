@@ -488,7 +488,7 @@ export class Script {
       let set = Script.oneOf(SetKit.IDS, s.set || s.place, '');
       // A missing or generic set is replaced by what this line is actually about, then by the topic.
       if (!set || set === 'sky' || set === 'field' || set === 'temple') {
-        const byLine = Script.guessSet(narration + ' ' + (s.bg || ''));
+        const byLine = Script.guessSet(narration + ' ' + (s.bg || ''), options.topic || raw.title || '');
         set = byLine !== 'sky' ? byLine : (set && set !== 'sky' ? set : Script.guessSet(options.topic || ''));
       }
       const about = (narration + ' ' + (s.bg || '')).toLowerCase();
@@ -780,8 +780,14 @@ export class Script {
     return t || 'bright open landscape';
   }
 
-  static guessSet(text) {
+  static guessSet(text, context = '') {
     const t = text.toLowerCase();
+    // 1.4: inside a spacecraft: mission control, the cockpit, the bunks, the station cabin.
+    const spacey = /astronaut|space station|\biss\b|in orbit|spacecraft|nasa|in space/.test(`${t} ${String(context).toLowerCase()}`);
+    if (/mission control|countdown|launch control|houston|ground control/.test(t)) return 'control';
+    if (/cockpit|capsule|shuttle|spacecraft|docking|\bdock\b|windshield/.test(t)) return 'cockpit';
+    if (spacey && /\b(sleep\w*|asleep|bunk|bed|nap|dream\w*)\b/.test(t)) return 'bunks';
+    if (/space station|\biss\b|airlock|\bmodule\b/.test(t) || (spacey && /toilet|bathroom|flush|window|cabin|inside|room|drink|food|eat/.test(t))) return 'cabin';
     if (/titanic|ocean liner|\bliner\b|\bdeck\b|cruise|voyage|lifeboat|iceberg|captain|on board|aboard/.test(t)) return 'deck';
     if (/eclipse|lunar|moonlight|starry|stars? at night|\bmoon\b/.test(t)) return 'night';
     if (/egypt|syene|alexandria|pyramid|camel|nile|\bwell\b|stick|noon/.test(t)) return 'desert';

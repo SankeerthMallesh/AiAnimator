@@ -46,7 +46,7 @@ export class Stage {
     Stage.lastShot = null; Stage.lastBox = null; Stage.lastFace = null;
     Stage.world(ctx, W, H, view, scene, local, shot);
     // Finish: warm light from the top left and a gentle vignette tie every set together.
-    const dark = /night|space|underwater|sea/.test(scene.set || ''), glow = view.settings?.glow !== false;
+    const dark = /night|space|underwater|sea|cabin|control|bunks|cockpit/.test(scene.set || ''), glow = view.settings?.glow !== false;
     const finishKey = `${W}x${H}|${glow}|${dark}`;
     if (!this._finish || this._finishKey !== finishKey) {
       const f = document.createElement('canvas'); f.width = W; f.height = H;
