@@ -164,6 +164,8 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  const tighten = document.getElementById('autoTighten');
+  if (tighten) { tighten.checked = settings.autoTighten !== false; tighten.addEventListener('change', (e) => { settings.autoTighten = e.target.checked; saveSettings(settings); }); }
   // Look: the 3D cartoon town (the best look) on a computer whose graphics can draw it, painted sets
   // on a weaker one; whatever the person picks themselves is kept.
   const look = $('#look');
@@ -514,7 +516,9 @@ async function doRender(pl = pipeline) {
   const video = await pl.render().catch((e) => { cutter().hide(); throw e; });
   setDownload(video);
   refreshChapters();
-  cutter().ready(video, fps);
+  // 1.2: long voice pauses are tightened straight away unless switched off (the chapter cards stay).
+  const cards = (project.timeline?.scenes || []).filter(sc => sc.chapter?.title).map(sc => ({ a: sc.start - 0.2, b: sc.start + 2.6 }));
+  cutter().ready(video, fps, { tighten: settings.autoTighten !== false, protect: cards }).catch(() => {});
   thumbs().ready({ url: video.url, name: slug(project.script.title), script: project.script, scenes: project.timeline?.scenes || [], total: project.timeline?.total || 0, wideVideo: video.width > video.height }).catch(() => {});
   $('#btnEdit')?.classList.remove('hidden');
   const v = $('#outVideo');

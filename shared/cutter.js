@@ -238,7 +238,8 @@ export function attachCutter({ after, player, toast = () => {}, onSaved = () => 
     render();
     toast(`Marked ${found.length} long pause${found.length > 1 ? 's' : ''} in red. Click a chip below the bar to put one back.`);
   });
-  $('save').addEventListener('click', async () => {
+  $('save').addEventListener('click', () => save());
+  async function save(done = null) {
     if (!st.video || st.busy) return;
     if (!st.cuts.length) { useFull(); return; }
     st.busy = true; render();
@@ -251,7 +252,7 @@ export function attachCutter({ after, player, toast = () => {}, onSaved = () => 
       st.saved = { blob: r.blob, url: URL.createObjectURL(r.blob), cuts, duration: r.duration, mapTime: (t) => mapTime(t, cuts), mapForward: (t) => mapForward(t, cuts) };
       st.savedKey = key();
       onSaved(st.saved);
-      toast(`Cut video saved: ${clock(r.duration)} long. Hit Download.`);
+      toast(done ? done(r) : `Cut video saved: ${clock(r.duration)} long. Hit Download.`);
     } catch (e) {
       if (e?.name !== 'AbortError') toast(`Could not cut the video: ${e.message}`, true);
     } finally {
@@ -259,7 +260,7 @@ export function attachCutter({ after, player, toast = () => {}, onSaved = () => 
       $('prog').classList.add('hidden');
       render();
     }
-  });
+  }
   function useFull() {
     if (st.saved?.url) URL.revokeObjectURL(st.saved.url);
     st.saved = null; st.savedKey = '';
@@ -291,13 +292,26 @@ export function attachCutter({ after, player, toast = () => {}, onSaved = () => 
       render();
     },
     // The video is made.
-    ready(video, fps) {
+    // The video is made. tighten (1.2): cut the long pauses straight away and save, keeping clear of
+    // `protect` ranges (chapter title cards, which sit over quiet on purpose).
+    ready(video, fps, { tighten = false, protect = [] } = {}) {
       if (!canEncode() || video?.ext !== 'mp4') { el.classList.add('hidden'); return; }
       st.video = video; if (fps) st.fps = fps;
       if (!st.audio) { st.duration = video.duration || player.duration || 0; decodeSound(video.blob).then(a => { st.audio = a; st.duration = a.duration; st.peaks = peaksOf(a); render(); }).catch(() => {}); }
       st.cuts = normalizeCuts(st.cuts, st.duration, st.fps);
       el.classList.remove('hidden');
       render();
+      if (tighten && st.audio) {
+        const clear = (c) => !protect.some(r => c.a < r.b && c.b > r.a);
+        const found = findPauses(channelsOf(st.audio), st.audio.sampleRate, { from: 0.9 }).filter(clear);
+        if (found.length) {
+          st.cuts = normalizeCuts([...st.cuts, ...found], st.duration, st.fps);
+          render();
+          const n = found.length, gone = removed(st.cuts);
+          return save(() => `Tightened ${n} long pause${n > 1 ? 's' : ''} (${gone.toFixed(1)} s shorter). "Back to the full video" undoes it.`);
+        }
+      }
+      return Promise.resolve();
     },
     hide() { st.abort?.abort(); el.classList.add('hidden'); },
     get saved() { return st.saved; },
