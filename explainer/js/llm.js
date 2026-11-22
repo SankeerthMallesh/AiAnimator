@@ -8,6 +8,7 @@ import { fetchTimeout } from './net.js';
 import { HATS, POSES, EMOTIONS, SIDES } from './mascot.js';
 import { PROPS } from './props.js';
 import { DELIVERIES } from '../../shared/voicefx.js';
+import { SETS, SHOT_KINDS, POSE_NAMES, EFFECTS3D, effect3d } from './z3d/vocab.js';
 
 const WORDS_PER_SECOND = 2.55;
 
@@ -302,7 +303,11 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
       "transition": one of ${JSON.stringify(TRANSITIONS)},
       "highlight": true or false (true only when the narration points at one specific object or body part),
       "icon": "one emoji for a measurable thing in this scene (weight, time, speed, money...) or '' for none",
-      "effect": one of ${JSON.stringify(EFFECTS)}${style.mascot ? `,
+      "effect": one of ${JSON.stringify(style.drawn ? EFFECTS3D : EFFECTS)}${style.drawn ? `,
+      "set": one of ${JSON.stringify(SETS)} (the place; keep it until the story moves),
+      "frame": one of ${JSON.stringify(SHOT_KINDS)},
+      "who": ["the names of the characters in this shot"],
+      "act": one of ${JSON.stringify(POSE_NAMES)}` : ''}${style.mascot ? `,
       "prop": one of ${JSON.stringify(PROPS)},
       "shot": "wide" or "close",
       "pose": one of ${JSON.stringify(POSES)},
@@ -368,11 +373,26 @@ const PLAIN = [
 ];
 export function plainLine(line, style = '') {
   let t = String(line || '');
-  if (!['story-3d', 'blocky', 'cgi-short', 'cinematic-3d'].includes(style)) return t;
+  if (!['drawn-3d', 'story-3d', 'blocky', 'cgi-short', 'cinematic-3d'].includes(style)) return t;
   for (const [re, to] of PLAIN) t = t.replace(re, to);
   if (style === 'blocky') t = t.replace(/\b(blocky|pixelated|pixel|pixels|voxels?)\s+/gi, '').replace(/\s+(blocky|pixelated|voxel)\b/gi, '');
   t = t.replace(/\s{2,}/g, ' ').trim();
   return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+// The shot a drawn look plays each scene with (z3d/vocab.js words). Anything else is dropped, so the
+// shot planner picks its own: a wide first shot, then a rotation of talk, react, two and point.
+function drawnFields(s, i) {
+  const low = (v) => String(v || '').toLowerCase().trim();
+  const who = (Array.isArray(s.who) ? s.who : typeof s.who === 'string' ? s.who.split(/,|\band\b/) : [])
+    .map(n => cleanText(n, 40)).filter(Boolean).slice(0, 3);
+  return {
+    set: SETS.includes(low(s.set)) ? low(s.set) : '',
+    frame: SHOT_KINDS.includes(low(s.frame)) ? low(s.frame) : '',
+    act: POSE_NAMES.includes(low(s.act)) ? low(s.act) : '',
+    who,
+    effect: effect3d(low(s.effect)),
+  };
 }
 
 export function normalizeScript(raw, options) {
@@ -399,6 +419,7 @@ export function normalizeScript(raw, options) {
       highlight: s.highlight === true || s.highlight === 'true',
       icon: (() => { const m = /\p{Extended_Pictographic}\uFE0F?/u.exec(String(s.icon || '')); return m ? m[0] : ''; })(),
       seed: Math.floor(Math.random() * 1e9),
+      ...(STYLES[options?.style]?.drawn ? drawnFields(s, i) : {}),
     }))
     .filter(s => s.narration);
   if (!scenes.length) throw new Error('The script came back empty.');

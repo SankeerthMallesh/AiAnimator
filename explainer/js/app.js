@@ -73,10 +73,17 @@ function refreshVoiceSelect() {
   else fillSelect(sel, VOICES.map(([v, l]) => [v, l.split(' — ')[0]]), settings.voice);
 }
 
+// The 3D tab opens on 3D people drawn in code; the AI-picture looks stay in the list. Any
+// ?style= opens that style.
+function defaultStyle() {
+  const q = new URLSearchParams(location.search).get('style');
+  return STYLES[q] ? q : 'drawn-3d';
+}
+
 function initComposer() {
   // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
-  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), STYLES[new URLSearchParams(location.search).get('style')] ? new URLSearchParams(location.search).get('style') : 'story-3d');
+  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), defaultStyle());
   // The Blocky tab opens this page with ?style=blocky: give it its own heading.
   if (new URLSearchParams(location.search).get('style') === 'blocky') {
     const badge = document.querySelector('.hero-badge b'), h = document.querySelector('.view.home .headline'), lede = document.querySelector('.view.home .lede');
@@ -679,6 +686,25 @@ function updateThumb(i) {
   copyThumbToClip(i);
 }
 
+// Looks drawn in code have no pictures: each scene's thumbnail is a frame from the middle of its shot.
+function drawnThumbs(renderer) {
+  const scenes = project?.timeline?.scenes || [];
+  scenes.forEach((sc, i) => {
+    const card = $(`#board .scene[data-id="${sc.id}"]`);
+    const thumb = card && $('.thumb', card);
+    if (!thumb) return;
+    renderer.drawFrame(sc.start + Math.min(sc.dur * 0.5, 1.6));
+    $('.shimmer', thumb)?.remove();
+    thumb.querySelector('canvas')?.remove();
+    const c = document.createElement('canvas');
+    const k = 320 / Math.max(renderer.W, renderer.H);
+    c.width = Math.round(renderer.W * k); c.height = Math.round(renderer.H * k);
+    c.getContext('2d').drawImage(renderer.canvas, 0, 0, c.width, c.height);
+    thumb.prepend(c);
+    copyThumbToClip(i);
+  });
+}
+
 // ---------------- preview player ----------------
 const player = { renderer: null, ctx: null, src: null, startAt: 0, offset: 0, raf: 0, playing: false };
 
@@ -693,6 +719,7 @@ async function setupPreview() {
   await loadFonts();
   player.renderer?.dispose();
   player.renderer = pipeline.makeRenderer($('#preview'));
+  if (player.renderer.ready) { await player.renderer.ready; drawnThumbs(player.renderer); }
   player.offset = 0;
   $('#stageEmpty').classList.add('hidden');
   if (!project.video) showStage('canvas');

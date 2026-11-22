@@ -8,6 +8,7 @@ import { finishLine } from '../../shared/voicefx.js';
 import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Renderer, loadFonts } from './renderer.js';
+import { DrawnRenderer } from './drawn.js';
 import { exportVideo } from './encoder.js';
 import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { estimateDepth, onDepthProgress } from './depth.js';
@@ -65,7 +66,9 @@ export class Pipeline {
   get signal() { return this.abort.signal; }
   log(m) { this.h.log?.(m); }
   get pace() { return PACES[this.p.options.pace] || PACES.normal; }
-  get use3d() { return this.s.depth3d !== 'off'; }
+  get use3d() { return this.s.depth3d !== 'off' && !this.drawn; }
+  // A look drawn in code ('3d' or 'blocky'): no AI pictures, depth or clips, only the voice.
+  get drawn() { return STYLES[this.p.options.style]?.drawn || null; }
 
   async ensureScript() {
     const p = this.p;
@@ -293,6 +296,12 @@ export class Pipeline {
       this.h.step('voice', silent && this.s.ttsEngine !== 'none' ? 'warn' : 'done', silent ? 'No voice — captions only' : this.voiceSummary());
     };
 
+    if (this.drawn) {
+      for (const id of ['visuals', 'depth', 'motion']) this.h.step(id, 'skip', 'Drawn in code, no pictures needed');
+      await voiceJob();
+      if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      return;
+    }
     if (!this.use3d) this.h.step('depth', 'skip', 'Off in settings');
     await Promise.all([visualJob(), voiceJob(), this.clipJob()]);
     await depthChain;
@@ -394,8 +403,15 @@ export class Pipeline {
     }
   }
 
-  makeRenderer(canvas) {
+  makeRenderer(canvas, size = null) {
     const p = this.p;
+    if (this.drawn) {
+      // The preview canvas keeps its page size; the export passes the output size.
+      // The live preview renders at half size (fast on any computer); the export at the output size.
+      const out = outputSize(p.options, this.s), even = (n) => Math.round(n / 2) * 2;
+      const { width, height } = size || { width: even(out.width / 2), height: even(out.height / 2) };
+      return new DrawnRenderer(canvas, { timeline: p.timeline, script: p.script, kind: this.drawn, W: width, H: height, perf: this.drawnPerf(size), captions: this.s.captionStyle !== 'off' });
+    }
     const entries = p.script.scenes.map(s => p.images.get(s.id));
     return new Renderer(canvas, {
       timeline: p.timeline,
@@ -407,6 +423,11 @@ export class Pipeline {
       script: p.script,
       meta: entries.map(e => ({ prompt: e?.prompt || '', seed: e?.seed ?? null })),
     });
+  }
+
+  // Render speed for drawn looks: the export uses full quality; the live preview is lighter.
+  drawnPerf(size) {
+    return size ? {} : { msaa: 0, aoSamples: 4, shadowMax: 1024 };
   }
 
   // The render log's script, voice and sound sections.
@@ -434,8 +455,9 @@ export class Pipeline {
     const { width, height } = outputSize(p.options, this.s);
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
-    const renderer = this.makeRenderer(canvas);
-    renderer.log = new RenderLog({ tab: p.options.style === 'blocky' ? 'blocky' : '3d', style: p.options.style });
+    const renderer = this.makeRenderer(canvas, { width, height });
+    if (renderer.ready) { this.h.step('render', 'active', 'Building the 3D shots…'); await renderer.ready; }
+    renderer.log = new RenderLog({ tab: p.options.style === 'blocky' || this.drawn === 'blocky' ? 'blocky' : '3d', style: p.options.style });
     const t0 = performance.now();
     const fps = Number(p.options.fps || this.s.fps) || 30;
     try {
@@ -448,7 +470,8 @@ export class Pipeline {
       });
       const secs = ((performance.now() - t0) / 1000).toFixed(1);
       this.h.step('render', 'done', `${width}×${height} · ${fps}fps · ${(out.blob.size / 1048576).toFixed(1)} MB · ${secs}s`);
-      this.log(`Encoded with ${out.codec}${renderer.gl ? ' · 3D camera on' : ' · 2D camera'}`);
+      this.log(`Encoded with ${out.codec}${this.drawn ? ' · drawn in code' : renderer.gl ? ' · 3D camera on' : ' · 2D camera'}`);
+      if (renderer.describe) this.log(`Shots: ${renderer.describe().join(' | ')}`);
       if (p.video?.url) URL.revokeObjectURL(p.video.url);
       p.video = { ...out, url: URL.createObjectURL(out.blob), width, height };
       p.manifest = this.fillLog(renderer.log);

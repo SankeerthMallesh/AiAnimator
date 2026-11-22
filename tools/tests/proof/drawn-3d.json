@@ -1,0 +1,14 @@
+{
+  "title": "Falling Through Ice",
+  "characters": [{ "name": "Mia", "look": "woman in her 20s, red winter coat" }, { "name": "Leo", "look": "man in his 30s, blue jacket" }],
+  "scenes": [
+    { "narration": "What would happen if you fell through the ice?", "set": "snow", "frame": "wide", "who": ["Mia"], "act": "stand", "camera": "push-in", "effect": "snow", "icon": "" },
+    { "narration": "Mia steps onto the frozen lake.", "set": "snow", "frame": "walk", "who": ["Mia"], "act": "stand", "camera": "static", "effect": "snow", "icon": "" },
+    { "narration": "Crack! The cold hits her like a wall.", "set": "snow", "frame": "react", "who": ["Mia"], "act": "surprised", "camera": "impact", "effect": "shockwave", "icon": "" },
+    { "narration": "Your heart rate jumps in one second.", "set": "studio", "frame": "point", "who": ["Leo"], "act": "point", "camera": "orbit", "effect": "pulse", "icon": "⏱️" },
+    { "narration": "Leo tells her to stay calm and breathe.", "set": "snow", "frame": "two", "who": ["Leo", "Mia"], "act": "talk", "camera": "pan-left", "effect": "none", "icon": "" },
+    { "narration": "You have about ten minutes of useful movement.", "set": "lab", "frame": "talk", "who": ["Leo"], "act": "think", "camera": "push-in", "effect": "glow", "icon": "" },
+    { "narration": "At night it gets even harder to find the hole.", "set": "night", "frame": "wide", "who": ["Mia"], "act": "flinch", "camera": "pull-out", "effect": "snow", "icon": "" },
+    { "narration": "Then everyone cheers. She made it out.", "set": "park", "frame": "group", "who": ["Mia", "Leo"], "act": "cheer", "camera": "orbit", "effect": "sparks", "icon": "" }
+  ]
+}

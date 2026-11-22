@@ -6,11 +6,12 @@ import { composeFrame } from './z3d/film.js';
 import * as A3 from './z3d/auto3d.js';
 
 export class DrawnRenderer {
-  constructor(canvas, { timeline, script, kind = '3d', W, H, perf = {} }) {
+  constructor(canvas, { timeline, script, kind = '3d', W, H, perf = {}, captions = true }) {
     this.canvas = canvas; this.W = W; this.H = H;
     canvas.width = W; canvas.height = H;
     this.g = canvas.getContext('2d');
     this.kind = kind;
+    this.showCaptions = captions; // the Captions: Off setting
     this.ready = this.init(timeline, script, perf);
   }
 
@@ -40,7 +41,7 @@ export class DrawnRenderer {
 
   drawFrame(t) {
     if (!this.engine) return;
-    composeFrame(this.engine, this.g, this.W, this.H, t, { captions: this.captions, captionStyle: this.captionStyle });
+    composeFrame(this.engine, this.g, this.W, this.H, t, { captions: this.showCaptions ? this.captions : [], captionStyle: this.captionStyle });
   }
 
   dispose() { this.engine?.dispose(); this.engine = null; }

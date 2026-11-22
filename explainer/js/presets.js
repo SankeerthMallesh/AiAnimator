@@ -1,6 +1,13 @@
 // Visual styles, music moods, voices and example prompts shared by the UI and the pipeline.
 
 export const STYLES = {
+  'drawn-3d': {
+    label: '3D people, drawn in code',
+    hint: 'Realistic 3D people and places built in code, like the hand-made 3D shorts (no AI pictures)',
+    drawn: '3d',
+    direction: 'Direct it like a fast 3D explainer Short: open with a second-person hook ("What would happen if you fell through the ice?"), then follow ONE or two people through it, cutting every 3 to 4 seconds, and end on the consequence in a short, plain line, never a moral. Describe the main character once in "characters" (name and a short look, saying man or woman). Every scene is played by realistic 3D people in a place built in code, so pick for each scene: "set" (the place), "frame" (the shot: talk = one person talking to camera, two = two people, react = a close-up reaction, wide = an establishing shot, walk = someone walking in, point = pointing at a thing, group = three people), "who" (the names in the shot) and "act" (the pose). Start with a wide shot, use react for surprises, point when the narration shows one object (with an "icon"), and change the set only when the story moves. Give scenes about a measurable thing an "icon" emoji (⚖️ ⏱️ 💨 🌡️ 💰 📏).',
+    character: true,
+  },
   'story-3d': {
     label: '3D story short',
     hint: 'Bright 3D renders with one recurring character, like popular 3D story Shorts',
