@@ -63,6 +63,13 @@ export const soldier = (v = 0, extra: Partial<Outfit> = {}): Outfit => {
   return { ...o, ...extra };
 };
 
+/** Viking-era townsfolk: wool tunics in earth colours, a round steel helmet, beards on most. */
+export const vikingfolk = (v = 0): Outfit => {
+  const tunics = ["#8c3b2e", "#3f5f7a", "#5d6b3a", "#7a5a3a", "#6a4a7a", "#a0703a"];
+  const o: Outfit = { jacket: tunics[v % 6], pants: "#4e4234", boots: "#3e2c1e", belt: "#6b4a2b", skin: SKINS[v % 4], hat: "viking" };
+  return v % 3 === 2 ? { ...o, hat: "hair", hair: ["#c9a24a", "#8a5a2b", "#d8b76a"][v % 3] } : { ...o, moustache: ["#c9a24a", "#8a5a2b", "#5a3b22"][v % 3] };
+};
+
 export const townsfolk = (v = 0): Outfit => {
   const coats = ["#3f6fb5", "#8c3b4a", "#5d7a3a", "#b5653f", "#2f5f6a", "#7b5ac9"];
   const o: Outfit = { jacket: coats[v % 6], pants: "#3b3f52", boots: "#4a3426", skin: SKINS[v % 4] };
@@ -404,6 +411,17 @@ const hatOn = (p: Pen, o: Outfit, hp: P2[], H: Blob, cx: number, hc: number, lig
         p.ell(px, py, 32 * u, 0.06 * HH, shade(col, 0.8), ow, 0, 180, deg);
       }
     }
+  } else if (o.hat === "viking") {
+    // a round steel cap with a brow band and a nose guard (real Viking helmets had no horns)
+    const yb = crown + 0.36 * HH, ht = 0.42 * HH, wb = 0.5 * W;
+    const dome: P2[] = [];
+    for (let i = 0; i <= 16; i++) { const t = Math.PI * (i / 16); dome.push([cx - wb * Math.cos(t), yb - ht * Math.sin(t)]); }
+    const body = R(dome);
+    p.shadedFill(body, "#a7afb8", "#6f7780", light, wb, 0.45);
+    p.poly(body, null, ow);
+    p.band(R([[cx - wb - 2 * u, yb - 0.02 * HH], [cx + wb + 2 * u, yb - 0.02 * HH]]), "#8c7a5b", 0.07 * HH, 1.4 * u);
+    if (!side) p.band(R([[cx + 2 * u * facing, yb - 0.04 * HH], [cx + 2 * u * facing, yb + 0.2 * HH]]), "#8f98a3", 7 * u, 1.4 * u);
+    else p.band(R([[cx + 30 * u, yb - 0.04 * HH], [cx + 30 * u, yb + 0.16 * HH]]), "#8f98a3", 6 * u, 1.4 * u);
   } else if (o.hat === "tophat") {
     const yb = crown + 0.22 * HH, ht = 0.8 * HH, wb = 0.31 * W, wt = 0.33 * W, col = "#2e2a36";
     const body = R([...sag(yb, wb).reverse(), [cx - wt, yb - ht], [cx + wt, yb - ht]]);

@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import {
   Pen, bodyFront, bodySide, swingKid, soldier, townsfolk, OFFICER, KID, PARENT, fxNote, fxBurst, fxSplash, fxStars, fxCreak, fxRing, fxBlob, fxShadow, fxContact, fxPlank, fxDrum,
-  Outfit, Expr, FrontOpts, SideOpts,
+  Outfit, Expr, FrontOpts, SideOpts, vikingfolk,
 } from "./toon";
 import {
   FPS, D0, FILES, ROW_GAP, COUNT, PARK, SHOTS, SNAP, DROP0, DROP1, DROP_H, V3, front, marchPhase, stomp, deckY, dropW, dropU, shapeZ,
@@ -127,7 +127,11 @@ const hh = (i: number, s = 0) => { const v = Math.sin(i * 127.1 + s * 311.7) * 4
 const q = (v: number, n = 120) => Math.round(v * n) / n;
 const SOLDIER = [0, 1, 2, 3].map((v) => soldier(v));
 const BARE = [0, 1, 2, 3].map((v) => soldier(v, { hat: null }));
-const FOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
+const TOWNFOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
+const VIKINGFOLK = [0, 1, 2, 3, 4, 5].map((v) => vikingfolk(v));
+let FOLK = TOWNFOLK;
+/** the era the town's people dress for: "town" (the 1800s) or "viking" */
+export const setTheme = (t: string) => { FOLK = t === "viking" ? VIKINGFOLK : TOWNFOLK; };
 const vOf = (i: number) => (i * 7 + (i >> 2)) % 4;
 /** head-shape seed: 7 shapes, so marching soldiers in step still share canvases */
 const seedOf = (i: number) => ((i * 5 + 3) % 7) + 1;
@@ -497,7 +501,7 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
   findSun(cam, SUN);
   people.forEach((m, i) => {
     const o = m.kid ? KID : FOLK[((m.look % 6) + 6) % 6];
-    const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : `f${((m.look % 6) + 6) % 6}` };
+    const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : `${FOLK === VIKINGFOLK ? "v" : "f"}${((m.look % 6) + 6) % 6}` };
     const walking = m.walk != null;
     const fo: FrontOpts = { mode: walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0, expr: m.expr, blink: lidAt(t, 500 + i * 7),
       wave: m.wave == null ? undefined : q(m.wave, 30), facing: m.facing ?? 0 };

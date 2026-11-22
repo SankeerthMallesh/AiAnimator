@@ -8,9 +8,11 @@ import { World, loadKit } from "./world";
 import { InkPass, noInkFallback } from "./ink";
 import { LensBlur } from "./lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "./grade";
-import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt } from "./story";
+import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt, D0 } from "./story";
 import { frameAt, aerialAt, TSpec, PLACE_NAMES } from "./tmpl";
-import { setCardMax } from "./cast";
+import { setCardMax, setTheme } from "./cast";
+import { longship, themeFor } from "./viking";
+export { themeFor };
 export { PLACE_NAMES };
 export { setStaticBase } from "./shim/remotion";
 export { TOTAL, SHOTS };
@@ -88,12 +90,20 @@ class View {
 // draws the frame at time t; a 6-frame dip through white marks a change of place (the film's crossfade feel).
 // perf: the browser defaults are lighter than the film's offline settings (which can stall a weaker graphics
 // card): MSAA 2, a 2048 shadow map, character drawings at most 1080 px wide.
-export async function createTemplated({ width = 1080, height = 1920, shots = [] as TSpec[], perf = {} as { msaa?: number; shadow?: number; cardMax?: number } } = {}) {
+export async function createTemplated({ width = 1080, height = 1920, shots = [] as TSpec[], perf = {} as { msaa?: number; shadow?: number; cardMax?: number }, theme = "town" } = {}) {
   const kit = await loadKit();
   setCardMax(perf.cardMax ?? 1080);
   const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
   const g = canvas.getContext("2d", { alpha: false })!;
+  setTheme(theme);
   const view = new View(kit, width, height, { msaa: perf.msaa ?? 2, shadow: perf.shadow ?? 2048 });
+  if (theme === "viking") {
+    // two longships on the river in view of the bank and the bridge
+    // beached on the quay behind the people, as Vikings drew their ships up the shore on a raid (the river
+    // itself sits below the embankment walls, out of the bank shots)
+    const a = longship(); a.position.set(-0.5, D0 + 0.05, -29.9); a.rotation.y = 0.22; a.scale.setScalar(0.82); view.world.root.add(a);
+    const b = longship(); b.position.set(-12, D0 + 0.05, -29.2); b.rotation.y = -0.18; b.scale.setScalar(0.74); view.world.root.add(b);
+  }
   const list = [...shots].sort((a, b) => a.start - b.start);
   const at = (t: number) => list.find((s) => t >= s.start && t < s.end) ?? list[list.length - 1];
   return {
