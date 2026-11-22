@@ -215,7 +215,8 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .cut-help { margin: 8px 0 0; }
 
 /* 1.1: the thumbnail maker in the Upload kit. */
-.thumb { margin: 4px 0 12px; }
+.thumb { margin: 22px 0 12px; }
+.thumb > .sect-title { margin-top: 0; }
 .thumb .hidden { display: none; }
 .thumb-view { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line-2); background: #000; }
 .thumb-frames { display: flex; gap: 6px; margin: 8px 0 6px; overflow-x: auto; }

@@ -257,7 +257,13 @@ export function attachThumbnail({ card, before, player, toast = () => {} }) {
       return b;
     }));
   }
-  $('text').addEventListener('input', (e) => { st.text = e.target.value.toUpperCase(); paint(); });
+  $('text').addEventListener('input', (e) => {
+    // Shown in capitals as typed, like on the thumbnail.
+    const box = e.target, at = box.selectionStart;
+    box.value = box.value.toUpperCase();
+    try { box.setSelectionRange(at, at); } catch { /* not focused */ }
+    st.text = box.value; paint();
+  });
   $('layout').addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (v && !e.target.disabled) { st.layout = v; paint(); } });
   $('shape').addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (v) { st.shape = v; paint(); } });
   $('now').addEventListener('click', () => {
