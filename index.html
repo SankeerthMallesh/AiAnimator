@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Loomy">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="Loomy 1.0: make cartoon, 3D and blocky videos from a prompt, shorts or long form, with hooks, narration, music and captions. Free, in your browser.">
+<meta name="description" content="Loomy 1.1: make cartoon, 3D and blocky videos from a prompt, shorts or long form, with hooks, narration, music and captions. Free, in your browser.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233D8BFF'/%3E%3Ccircle cx='16' cy='11' r='4.5' fill='%23fff'/%3E%3Cpath d='M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,7 +83,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
   .account:not([hidden]) + .share { display: none; }
 }
 @media (max-width: 370px) { .tabs { gap: 4px; } .tab { padding: 8px 10px; } }
-/* What's new in 1.0: a card shown once per browser (and from the 1.0 badge). */
+/* What's new: a card shown once per browser for each version (and from the version badge). */
 .news { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
 .news[hidden] { display: none; }
 .news-card { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #0E0E10; border: 1px solid #2A2A2A; border-radius: 18px; padding: 24px; box-shadow: 0 30px 80px -20px rgba(99,102,241,.45); color: var(--ink); }
@@ -100,7 +100,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 <header class="top">
   <div class="brand">
     <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset=".55" stop-color="#3B82F6"/><stop offset="1" stop-color="#22D3EE"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><circle cx="16" cy="11" r="4.5" fill="#fff"/><path d="M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
-    <span>Loomy</span><button type="button" class="ver" id="verBtn" title="What's new in Loomy 1.0" aria-haspopup="dialog">1.0</button>
+    <span>Loomy</span><button type="button" class="ver" id="verBtn" title="What's new in Loomy 1.1" aria-haspopup="dialog">1.1</button>
   </div>
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button class="tab" role="tab" id="tab-cartoon" data-view="cartoon" aria-controls="view-cartoon"><svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M12 9v7M8 12h8M12 16l-3 5M12 16l3 5"/></svg><span>Cartoons</span></button>
@@ -115,8 +115,14 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 <main class="views" id="views"></main>
 <div class="news" id="news" role="dialog" aria-modal="true" aria-labelledby="newsTitle" hidden>
   <div class="news-card">
-    <h2 id="newsTitle">Welcome to Loomy 1.0</h2>
-    <p class="sub">The biggest update yet. Here is what changed.</p>
+    <h2 id="newsTitle">What's new in Loomy 1.1</h2>
+    <p class="sub">Small things that make every video quicker to finish.</p>
+    <ul>
+      <li><span><b>Cut parts out, right where you export.</b> Drag across the sound bar to cut a lagging voice or a long pause, or let Loomy find the long pauses for you. Mark cuts while the video is still exporting.</span></li>
+      <li><span><b>Short, compact titles.</b> Upload titles are now a few punchy words.</span></li>
+      <li><span><b>Lowercase hashtags.</b> #history, not #History.</span></li>
+    </ul>
+    <p class="sub">New in 1.0:</p>
     <ul>
       <li><span><b>Hooks in the first seconds.</b> Every video opens on its most dramatic moment, a headline that teases the payoff, and a sound hit.</span></li>
       <li><span><b>Real 3D objects.</b> In 3D and Blocky, people hold, show, drop, spin and break 26 objects, from bricks to atoms.</span></li>
@@ -209,16 +215,16 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
   }
   (window.LoomyAccount?.ready || Promise.resolve()).catch(() => {}).then(boot);
 
-  // What's new in 1.0: once per browser, and from the 1.0 badge.
+  // What's new: once per browser for each version, and from the version badge.
   const news = document.getElementById('news');
   const openNews = () => { news.hidden = false; document.getElementById('newsOk').focus(); };
-  const closeNews = () => { news.hidden = true; try { localStorage.setItem('loomy-news', '1.0'); } catch { /* private mode */ } };
+  const closeNews = () => { news.hidden = true; try { localStorage.setItem('loomy-news', '1.1'); } catch { /* private mode */ } };
   document.getElementById('verBtn').addEventListener('click', openNews);
   document.getElementById('newsOk').addEventListener('click', closeNews);
   news.addEventListener('click', (e) => { if (e.target === news) closeNews(); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape' && !news.hidden) closeNews(); });
   let seen = null; try { seen = localStorage.getItem('loomy-news'); } catch { /* private mode */ }
-  if (seen !== '1.0' && !/[?&]test=1/.test(location.search) && !navigator.webdriver) setTimeout(openNews, 600);
+  if (seen !== '1.1' && !/[?&]test=1/.test(location.search) && !navigator.webdriver) setTimeout(openNews, 600);
   addEventListener('hashchange', () => {
     const h = location.hash.slice(1);
     if (h.startsWith('board:')) { boot(); return; }
