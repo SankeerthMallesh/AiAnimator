@@ -409,7 +409,22 @@ export function buildShot(spec, people, { makeStage, W, H }) {
       }
       thingAction(thing, spec.do, t + (spec.teaser ? 1.2 : 0), { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: tScale });
     }
-    if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.55, 0.55, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
+    if (icon && spec.kind !== 'point') {
+      // In a two shot the icon floats above and between the two heads (one points at the other, so a
+      // spot past the hand landed on the other person's head). Someone striking the point pose alone
+      // points at it: it appears just past their hand once the arm has settled. Otherwise it sits at
+      // the speaker's top right.
+      const pointer = spec.pose === 'point' && spec.kind !== 'two' ? A : null;
+      let fade = range(t, 0.2, 0.6);
+      if (spec.kind === 'two' && A && B) icon.position.copy(lookAt(A).lerp(lookAt(B), 0.5)).add(V(0, 0.42, 0));
+      else if (pointer && pointer.object.parent) {
+        const hp = pointer.handWorld('r', new THREE.Vector3()), dir = hp.clone().sub(chest(pointer)).setY(0);
+        if (dir.lengthSq() > 1e-4) icon.position.copy(hp).addScaledVector(dir.normalize(), 0.32).add(V(0, 0.12, 0));
+        else icon.position.copy(target).add(V(0.55, 0.55, 0.1));
+        fade = range(t, 0.7, 1.0);
+      } else icon.position.copy(target).add(V(0.55, 0.55, 0.1));
+      icon.material.opacity = easeOut(fade);
+    }
     if (fx && eff) fx(t, eff, c.position);
     return { bloom: spec.set === 'night' ? 0.6 : 0.25, ao: icon || spec.effect === 'glow' ? 0 : 0.7, exposure: spec.set === 'night' ? 0.95 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
   } };
