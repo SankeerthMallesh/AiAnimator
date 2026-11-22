@@ -247,3 +247,35 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .ib-none { color: var(--muted); font-size: 13px; }
 .ib-more { margin-top: 10px; }
 .ib-more.hidden { display: none; }
+
+/* Feedback: letter grades for how good the video will be. */
+.feedback { padding: 4px 14px 12px; border-top: 1px solid var(--line); }
+.feedback.hidden { display: none; }
+.fb-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fb-head .sect-title { margin-bottom: 2px; }
+.fb-sub { margin: 0; }
+.fb-grade { min-width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font: 800 26px/1 var(--sans, Inter, sans-serif); color: #0b0b0b; }
+.g-a { background: #34d399; color: #04231a; }
+.g-b { background: #a3e635; color: #1a2604; }
+.g-c { background: #fbbf24; color: #2a1d02; }
+.g-d { background: #f87171; color: #2b0606; }
+.fb-rows { list-style: none; margin: 10px 0 8px; padding: 0; display: grid; gap: 8px; }
+.fb-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "name pill" "bar bar" "tip tip"; gap: 3px 8px; }
+.fb-name { grid-area: name; font: 600 12.5px/1.3 var(--sans, Inter, sans-serif); color: var(--ink); }
+.fb-pill { grid-area: pill; min-width: 30px; text-align: center; padding: 1px 6px; border-radius: 6px; font: 700 12px/1.4 var(--sans, Inter, sans-serif); }
+.fb-bar { grid-area: bar; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.fb-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
+.fb-tip { grid-area: tip; margin: 0; }
+.fb-fix { width: 100%; justify-content: center; }
+.fb-fix.hidden { display: none; }
+.fb-note { margin: 8px 0 0; }
+
+/* Phones and tablets (big upgrade): every tap target at least about 36 px. */
+@media (pointer: coarse), (max-width: 1180px) {
+  .lt-brand { min-width: 44px; min-height: 44px; }
+  .del { min-height: 36px; padding-left: 12px; padding-right: 12px; }
+  .thumb-tools button, .thumb-tools label { min-width: 36px; min-height: 36px; }
+  #swatches button { width: 34px; height: 34px; }
+  input[type=checkbox] { width: 22px; height: 22px; }
+  label:has(> input[type=checkbox]) { min-height: 36px; display: inline-flex; align-items: center; gap: 8px; }
+}

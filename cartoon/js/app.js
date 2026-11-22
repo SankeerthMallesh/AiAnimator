@@ -3,6 +3,8 @@ import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
 import { CHARACTERS } from '../../shared/voicechars.js';
+import { reviewVideo, quickFixes, revisePrompt } from '../../shared/feedback.js';
+import { attachFeedback } from '../../shared/feedbackui.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
 import { chapterLines, withChapters } from '../../shared/upload.js';
 import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits, autoLook } from './presets.js';
@@ -166,6 +168,20 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  // Speed (big upgrade): one choice sets the size, the frame rate and the effects.
+  const speedSel = document.getElementById('speed');
+  if (speedSel) {
+    speedSel.value = ['fast', 'balanced', 'best'].includes(settings.speed) ? settings.speed : 'balanced';
+    speedSel.addEventListener('change', () => {
+      const v = speedSel.value, set = { fast: ['720', 30], balanced: ['1080', 30], best: ['1080', 60] }[v];
+      settings.speed = v;
+      $('#quality').value = set[0]; $('#fps').value = String(set[1]);
+      settings.quality = set[0]; settings.fps = set[1];
+      if ('glow' in settings) { settings.glow = v !== 'fast'; const g = document.getElementById('glow'); if (g) g.checked = settings.glow; }
+      saveSettings(settings);
+      toast(v === 'fast' ? 'Fast: about twice as quick to make, a little less polish.' : v === 'best' ? 'Best: smoothest motion, takes longer.' : 'Balanced: full HD at 30 fps.');
+    });
+  }
   // Narrator characters (big upgrade): a personality on top of the voice.
   const charSel = document.getElementById('character');
   if (charSel) {
@@ -380,7 +396,7 @@ function openProject(p, { render }) {
   $('#board').innerHTML = '';
   $('#factNotes').classList.add('hidden');
   $('#metaCard').classList.add('hidden');
-  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden'); cutter().hide(); thumbs().reset(); if (project) project.cut = null;
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden'); cutter().hide(); thumbs().reset(); feedback().hide(); if (project) project.cut = null;
   $('#renderProg').classList.add('hidden');
   const ratio = FORMATS[formatOf(p.options)].ratio;
   $('#stage').style.aspectRatio = String(ratio);
@@ -546,6 +562,7 @@ async function doRender(pl = pipeline) {
   v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(0.8, v.duration / 2); } catch { /* ignore */ } }, { once: true });
   showStage('video');
   $('#renderText').textContent = `Done · ${video.width}×${video.height}`;
+  checkVideo('video');
   toast('Your video is ready. Hit Download.');
 }
 
@@ -566,8 +583,39 @@ $('#btnCancel').addEventListener('click', () => { pipeline?.cancel(); });
 $('#btnApply').addEventListener('click', () => { if (!running) run({ render: false }); });
 
 // ---------------- script + storyboard ----------------
+// Feedback (big upgrade): letter grades for how good the video will be, and "Fix it for me".
+function feedback() {
+  return feedback.ui ||= attachFeedback({ before: document.getElementById('metaCard'), onFix: (r) => fixWithAI(r) });
+}
+function checkVideo(stage = 'script') {
+  if (!project?.script) return;
+  feedback().update(reviewVideo({ script: project.script, timeline: stage === 'video' ? project.timeline : null, options: project.options, settings }), { stage });
+}
+async function fixWithAI(report) {
+  if (blockedForViewer() || running || !project?.script) return;
+  feedback().busy(true);
+  let next = quickFixes(project.script);
+  try {
+    const { chat, normalizeScript, parseJSONLoose } = await import('./llm.js');
+    const { value } = await chat([
+      { role: 'system', content: 'You improve scripts for short videos so they go viral. Reply with the JSON script only.' },
+      { role: 'user', content: revisePrompt(next, report) },
+    ], settings, { temperature: 0.5, validate: (t) => normalizeScript(parseJSONLoose(t), { ...project.options, topic: project.topic }) });
+    next = quickFixes(value);
+    toast('The AI rewrote the weak parts. Making the video again…');
+  } catch (e) {
+    toast('The AI writer is busy, so only the title, thumbnail words and hashtags were fixed. Making the video again…', true);
+  } finally {
+    feedback().busy(false);
+  }
+  project.script = next;
+  onScriptReady();
+  run({ render: true });
+}
+
 function onScriptReady() {
   const s = project.script;
+  checkVideo('script');
   $('#projTitle').textContent = s.title;
   $('#ytTitle').value = s.youtubeTitle || s.title;
   {
