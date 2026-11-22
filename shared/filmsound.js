@@ -86,7 +86,8 @@ function noise(ctx, nb, t, dur, dest, { type = 'bandpass', f = 1000, q = 1, f2 =
   const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true;
   const fl = ctx.createBiquadFilter(); fl.type = type; fl.Q.value = q; fl.frequency.setValueAtTime(f, t);
   if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
-  s.connect(fl).connect(dest); s.start(t, (t * 7.31) % 0.5); // a different stretch of noise each time, the same every render s.stop(t + dur + 0.05); return fl;
+  // A different stretch of noise each time, the same every render.
+  s.connect(fl).connect(dest); s.start(t, (t * 7.31) % 0.5); s.stop(t + dur + 0.05); return fl;
 }
 const pan = (ctx, p, dest) => { const n = ctx.createStereoPanner(); n.pan.value = p; n.connect(dest); return n; };
 
