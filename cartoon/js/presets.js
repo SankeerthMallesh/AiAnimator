@@ -64,6 +64,14 @@ export const MOODS = {
   curious:    { label: 'Curious',    root: 52, scale: 'major', bpm: 104, pulse: true, prog: [0, 4, 5, 3] },
   chill:      { label: 'Chill',      root: 48, scale: 'major', bpm: 80, pulse: false, prog: [0, 5, 3, 4] },
   dark:       { label: 'Dark',       root: 43, scale: 'minor', bpm: 72, pulse: true,  prog: [0, 1, 5, 4] },
+  // Curiosity scores (big upgrade): each adds its own layer under the music.
+  mysterybox: { label: 'Mystery box (music box + swells)', root: 50, scale: 'minor', bpm: 86, pulse: false, prog: [0, 5, 3, 4], flavor: ['musicbox', 'riser'] },
+  tickingclock: { label: 'Ticking clock', root: 45, scale: 'minor', bpm: 96, pulse: true, prog: [0, 5, 2, 6], flavor: ['tick', 'riser'] },
+  detective: { label: 'Detective (pizzicato)', root: 48, scale: 'minor', bpm: 108, pulse: true, prog: [0, 3, 4, 0], flavor: ['pizz', 'tick'] },
+  heartbeat: { label: 'Heartbeat suspense', root: 43, scale: 'minor', bpm: 76, pulse: false, prog: [0, 1, 5, 4], flavor: ['heartbeat', 'riser'] },
+  wonder: { label: 'Wonder (twinkly reveal)', root: 55, scale: 'major', bpm: 88, pulse: false, prog: [0, 4, 5, 3], flavor: ['musicbox', 'riser'] },
+  countdown: { label: 'Countdown (clock + heartbeat)', root: 45, scale: 'minor', bpm: 118, pulse: true, prog: [0, 5, 3, 4], flavor: ['tick', 'heartbeat', 'riser'] },
+  lofi: { label: 'Lo-fi curious', root: 50, scale: 'major', bpm: 78, pulse: true, prog: [0, 5, 3, 4], flavor: ['lofi', 'pizz'] },
   none:       { label: 'No music' },
 };
 

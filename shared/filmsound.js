@@ -206,9 +206,66 @@ export async function filmScore(total, { mood = { root: 52, scale: 'major', bpm:
     if (s.kind === 'payoff') INST.cymbal(ctx, out, nb, s.start, 0.7);
     if (s.kind === 'outro') INST.glock(ctx, out, mtof(deg(0, 2)), s.start + 0.1, 0.55);
   }
+  // Curiosity layers (the newer moods): a ticking clock, a heartbeat, pizzicato, a music box, risers
+  // into each turn, and lo-fi vinyl. They sit under the voice like the rest of the score.
+  curiosityLayers(ctx, out, nb, { flavor: mood.flavor || [], total, secs, beat, bar, deg, chordAt, r });
   // Fade out over the last second.
   out.gain.setValueAtTime(0.9, Math.max(0, total - 1.2)); out.gain.linearRampToValueAtTime(0.0001, total + 0.3);
   return ctx.startRendering();
+}
+
+// Flavours a mood can ask for: 'tick', 'heartbeat', 'pizz', 'musicbox', 'riser', 'lofi'.
+export const FLAVORS = ['tick', 'heartbeat', 'pizz', 'musicbox', 'riser', 'lofi'];
+function curiosityLayers(ctx, out, nb, { flavor, total, secs, beat, bar, deg, chordAt, r }) {
+  const has = (f) => flavor.includes(f);
+  const tensionAt = (t) => secs.some(s => s.kind === 'tension' && t >= s.start && t < s.end);
+  if (has('tick')) {
+    // Tick, tock: a dry click every beat, twice as fast in the tension.
+    for (let t = 0.4, k = 0; t < total - 0.3; k++) {
+      noise(ctx, nb, t, 0.03, env(ctx, t, k % 2 ? 0.16 : 0.22, 0.001, 0.03, pan(ctx, k % 2 ? 0.25 : -0.25, out)), { type: 'bandpass', f: k % 2 ? 2600 : 3400, q: 6 });
+      t += tensionAt(t) ? beat / 2 : beat;
+    }
+  }
+  if (has('heartbeat')) {
+    // Lub-dub, low and soft, about 70 a minute (faster in the tension).
+    for (let t = 0.6; t < total - 0.5;) {
+      for (const [dt, v] of [[0, 0.5], [0.22, 0.35]]) { const o = osc(ctx, 'sine', 62, t + dt, 0.25, env(ctx, t + dt, v, 0.005, 0.22, out)); o.frequency.exponentialRampToValueAtTime(38, t + dt + 0.2); }
+      t += tensionAt(t) ? 0.62 : 0.86;
+    }
+  }
+  if (has('pizz')) {
+    // Tiptoeing pizzicato on the beat: root, fifth, octave, fifth.
+    const walk = [0, 4, 7, 4];
+    for (let t = 0.2, k = 0; t < total - 0.3; t += beat, k++) {
+      const f = mtof(deg(chordAt(t) + walk[k % 4], -1));
+      const d = pan(ctx, k % 2 ? 0.15 : -0.15, out);
+      osc(ctx, 'triangle', f, t, 0.22, env(ctx, t, 0.32, 0.003, 0.18, d));
+      osc(ctx, 'sine', f * 2, t, 0.12, env(ctx, t, 0.1, 0.002, 0.1, d));
+    }
+  }
+  if (has('musicbox')) {
+    // High, sparse music-box notes, like a secret being opened.
+    for (let t = 0.5, k = 0; t < total - 0.6; t += beat * (k % 3 === 2 ? 1.5 : 0.75), k++) {
+      if (r() < 0.25) continue;
+      INST.glock(ctx, out, mtof(deg(chordAt(t) + [0, 4, 2, 7, 4, 9][k % 6], 3)), t, 0.22, k % 2 ? 0.4 : -0.4);
+    }
+  }
+  if (has('riser')) {
+    // A rising swell (tone + air) into every new section: the "wait for it" before a turn.
+    for (const s of secs) {
+      if (s.start < 1.5) continue;
+      const a = Math.max(0, s.start - 1.6);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, a); g.gain.exponentialRampToValueAtTime(0.22, s.start - 0.02); g.gain.linearRampToValueAtTime(0.0001, s.start + 0.05); g.connect(out);
+      const o = osc(ctx, 'sawtooth', 180, a, 1.7, g); o.frequency.exponentialRampToValueAtTime(900, s.start);
+      noise(ctx, nb, a, 1.6, g, { type: 'bandpass', f: 600, f2: 6000, q: 0.8 });
+    }
+  }
+  if (has('lofi')) {
+    // Vinyl crackle and a soft hiss the whole way through.
+    const hiss = ctx.createGain(); hiss.gain.value = 0.035; hiss.connect(out);
+    noise(ctx, nb, 0, total, hiss, { type: 'lowpass', f: 3500 });
+    for (let t = 0.1; t < total; t += 0.05 + r() * 0.35) noise(ctx, nb, t, 0.008, env(ctx, t, 0.05 + r() * 0.08, 0.0005, 0.008, out), { type: 'highpass', f: 2500 });
+  }
 }
 
 // ---------- sound effects ----------
