@@ -178,6 +178,21 @@ autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editor
   video's captions fall outside); "Use the player's frame" takes any moment. JPEG under 2 MB.
   Tests: v11-thumbnail (unit); cutmaster.cjs checks it too.
 
+## Loomy 1.2 (2026-11-22, on the dev branch until the user says deploy)
+
+- **OBJ-C1 objects in Cartoons** (`cartoon/js/cast.js` `Cast.held`/`Cast.USES`, `stage.js`
+  `sampleActor`, `script.js` `USE_WORDS`): show (arm up, glow), drop (falls, dust, stays), grow, spin,
+  break (shake, comic burst, four pieces, gone). The writer may send them as actions on the thing in
+  "hold"; a line that says so ("it shattered", "she dropped the coin") adds one. Painted-sets look only.
+- **AUTO-C1 Auto look** (`cartoon/js/presets.js` `autoLook`): the Cartoons default. The 3D town when
+  `townFits(topic)` and `strongGraphics()`, else painted sets; a toast says which and why.
+- **CH1 chapters** (`shared/upload.js` `chapterLines`/`withChapters`): long videos get "Chapters" with
+  0:00 lines in the description (3+ chapters of 10 s+, else none); kept in step with cuts (`mapForward`).
+- **TIGHT1 auto-tighten** (`cutter.ready(..., { tighten, protect })`): after each export the long
+  voice pauses are cut and saved at once, chapter cards protected; "Back to the full video" undoes it;
+  the setting `autoTighten` (More panel) turns it off.
+Tests: v12-cartoon-objects, v12-auto-look, v12-chapters (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
