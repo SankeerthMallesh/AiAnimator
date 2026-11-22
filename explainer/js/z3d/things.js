@@ -69,6 +69,25 @@ const BUILD = {
     g.userData.h = 0.18; return g;
   },
   key() { const g = new THREE.Group(), m = std(0xd9b44a, { metalness: 0.85, roughness: 0.3 }); g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.008, 12, 28), m), 0, 0.12, 0)); g.add(at(cyl(0.006, 0.006, 0.09, m), 0, 0.05, 0)); for (const y of [0.01, 0.025]) g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.008, 0.006), m), 0.012, y, 0)); g.userData.h = 0.15; return g; },
+  // 1.6: war and battles.
+  sword() {
+    const g = new THREE.Group(), steel = std(0xd6dbe2, { metalness: 0.95, roughness: 0.18 }), gold = std(0xd9a93a, { metalness: 0.9, roughness: 0.3 });
+    g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.24, 0.006), steel), 0, 0.2, 0));
+    g.add(at(new THREE.Mesh(new THREE.ConeGeometry(0.0155, 0.035, 4), steel), 0, 0.337, 0));
+    g.add(at(rbox(0.1, 0.014, 0.02, 0.004, gold), 0, 0.075, 0));
+    g.add(at(cyl(0.009, 0.009, 0.06, std(0x5a3a22, { roughness: 0.8 })), 0, 0.038, 0));
+    g.add(at(sph(0.013, gold), 0, 0.004, 0));
+    g.userData.h = 0.36; return g;
+  },
+  shield() {
+    const g = new THREE.Group(), face = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.018, 40), std(0xc8102e, { roughness: 0.45 }));
+    face.rotation.x = Math.PI / 2; g.add(at(face, 0, 0.12, 0));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.008, 10, 40), std(0xbfc3c8, { metalness: 0.9, roughness: 0.25 })); g.add(at(rim, 0, 0.12, 0));
+    const bar = std(0xf4f1ea, { roughness: 0.5 });
+    g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.004), bar), 0, 0.12, 0.011)); g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.004), bar), 0, 0.12, 0.011));
+    g.add(at(sph(0.022, std(0xd9a93a, { metalness: 0.9, roughness: 0.3 })), 0, 0.12, 0.014));
+    g.userData.h = 0.24; return g;
+  },
   trophy() { const g = new THREE.Group(), m = std(0xe8b923, { metalness: 0.95, roughness: 0.22 }); g.add(at(rbox(0.12, 0.04, 0.12, 0.005, std(0x2b2b2b)), 0, 0.02, 0)); g.add(at(cyl(0.012, 0.02, 0.08, m), 0, 0.08, 0)); g.add(at(cyl(0.07, 0.03, 0.1, m), 0, 0.17, 0)); for (const x of [-0.075, 0.075]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.006, 10, 20), m), x, 0.17, 0)); g.userData.h = 0.22; return g; },
   gift() { const g = new THREE.Group(); g.add(at(rbox(0.2, 0.18, 0.2, 0.01, std(0x2f80d0)), 0, 0.09, 0)); const rib = std(0xf2c230); g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.205, 0.185, 0.03), rib), 0, 0.09, 0)); g.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.185, 0.205), rib), 0, 0.09, 0)); for (const r of [0.6, -0.6]) g.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.01, 8, 20), rib), 0, 0.2, 0, 0, r, 0)); g.userData.h = 0.22; return g; },
   apple() { const g = new THREE.Group(); const a = sph(0.045, std(0xc8202a, { roughness: 0.3 })); a.scale.set(1, 0.9, 1); a.position.y = 0.042; g.add(a); g.add(at(cyl(0.003, 0.003, 0.02, std(0x5a3a1a)), 0, 0.09, 0)); const leaf = sph(0.012, std(0x3a9a3a)); leaf.scale.set(1.6, 0.4, 0.8); leaf.position.set(0.012, 0.095, 0); g.add(leaf); g.userData.h = 0.1; return g; },

@@ -10,5 +10,5 @@ export const EFFECTS3D = ['none', 'pulse', 'shockwave', 'sparks', 'snow', 'rain'
 export const EFFECT_NEAREST = { embers: 'sparks', smoke: 'dust', speed: 'dust' };
 export const effect3d = (e) => (EFFECTS3D.includes(e) ? e : EFFECT_NEAREST[e] || 'none');
 // Things the drawn looks build in code (z3d/things.js) and what a scene does with one.
-export const THINGS = ['brick', 'wall', 'phone', 'book', 'laptop', 'mug', 'ball', 'globe', 'magnet', 'coins', 'clock', 'hourglass', 'bulb', 'key', 'trophy', 'gift', 'apple', 'bottle', 'scale', 'rocket', 'car', 'gem', 'atom', 'dna', 'ice', 'flame'];
+export const THINGS = ['brick', 'wall', 'phone', 'book', 'laptop', 'mug', 'ball', 'globe', 'magnet', 'coins', 'clock', 'hourglass', 'bulb', 'key', 'trophy', 'gift', 'apple', 'bottle', 'scale', 'rocket', 'car', 'gem', 'atom', 'dna', 'ice', 'flame', 'sword', 'shield'];
 export const THING_ACTIONS = ['hold', 'show', 'drop', 'grow', 'spin', 'break'];
