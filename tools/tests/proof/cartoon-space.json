@@ -1,0 +1,162 @@
+{
+ "title": "Why astronauts cannot flush",
+ "youtubeTitle": "Why You Can't Flush in Space \ud83d\udebd",
+ "thumbText": "IT COMES BACK UP",
+ "description": "Test.",
+ "hashtags": [
+  "#shorts",
+  "#space"
+ ],
+ "cast": [
+  {
+   "id": "a",
+   "name": "Rookie"
+  },
+  {
+   "id": "b",
+   "name": "Chief"
+  },
+  {
+   "id": "c",
+   "name": "Doc"
+  }
+ ],
+ "scenes": [
+  {
+   "line": "If you flushed a toilet in space, it would not go down. It would come back up!",
+   "set": "space",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "shocked"
+    },
+    {
+     "id": "b",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": []
+  },
+  {
+   "line": "Up here there is no gravity, so nothing falls. Not even that.",
+   "set": "night",
+   "say": "b",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "skeptical"
+    },
+    {
+     "id": "a",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": []
+  },
+  {
+   "line": "So the toilet uses air. A fan sucks everything away, fast.",
+   "set": "lab",
+   "say": "c",
+   "who": [
+    {
+     "id": "c",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "smug",
+     "hold": "phone"
+    },
+    {
+     "id": "a",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "c",
+     "do": "show",
+     "hold": "phone"
+    }
+   ]
+  },
+  {
+   "line": "But here is the catch: miss the timing, and it floats around the cabin.",
+   "set": "space",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "nervous"
+    },
+    {
+     "id": "b",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": []
+  },
+  {
+   "line": "The new guy found out the hard way. He was asleep.",
+   "set": "night",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "sleepy"
+    },
+    {
+     "id": "b",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": []
+  },
+  {
+   "line": "And the water they get back? They drink it again!",
+   "set": "lab",
+   "say": "b",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "shocked",
+     "hold": "cup"
+    },
+    {
+     "id": "a",
+     "x": 0.72,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "b",
+     "do": "break",
+     "hold": "cup"
+    }
+   ]
+  }
+ ]
+}

@@ -149,3 +149,11 @@ export function townFits(topic) {
   if (/\b(vikings?|norse|norsemen|longships?|danelaw)\b/i.test(t)) return true;
   return !ELSEWHERE.test(t);
 }
+
+// 1.2 Auto look: the 3D town when the story happens in a modern town and this computer can draw it,
+// painted sets otherwise. -> { look, why } (why is said to the person in a toast).
+export function autoLook(topic, gpu = { ok: false }) {
+  if (!townFits(topic)) return { look: 'painted', why: 'painted sets can show this place' };
+  if (!gpu?.ok) return { look: 'painted', why: 'painted sets run smoothly on this computer' };
+  return { look: 'town3d', why: 'the 3D town fits this story' };
+}

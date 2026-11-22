@@ -32,3 +32,30 @@ export function compactTitle(text, max = 56) {
   s = s.replace(/[\s,;:\-–—]+$/, '');
   return emoji ? `${s} ${emoji}` : s;
 }
+
+// 1.2: YouTube chapters for a long video, from the timeline's chapter starts ({ start, chapter: { n,
+// title } } scenes). YouTube shows chapters when the list starts at 0:00, has 3 or more, and each
+// lasts 10 s or more; otherwise this gives none. map(t) moves a time into a cut video (or null when t
+// was cut out: the chapter then starts where the video picks up again, which map gives for the cut's end).
+export function chapterLines(scenes = [], total = 0, map = (t) => t) {
+  const starts = scenes.filter(sc => sc?.chapter?.title && Number.isFinite(sc.start)).map(sc => ({ t: sc.start, title: String(sc.chapter.title).trim() }));
+  if (starts.length < 3) return [];
+  const list = starts.map(c => ({ ...c, t: map(c.t) })).filter(c => c.t != null).sort((a, b) => a.t - b.t);
+  if (!list.length) return [];
+  list[0].t = 0; // YouTube needs the first chapter at 0:00 (the cold open belongs to chapter 1)
+  const end = map(total) ?? total;
+  const ok = list.filter((c, i) => (list[i + 1]?.t ?? end) - c.t >= 10);
+  if (ok.length < 3 || ok[0] !== list[0]) return [];
+  return ok.map(c => `${stamp(c.t)} ${c.title}`);
+}
+
+function stamp(t) {
+  const s = Math.floor(t), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`;
+}
+
+// The description with its chapter list replaced (or added at the end, or removed when there is none).
+export function withChapters(desc, lines) {
+  const bare = String(desc || '').replace(/\n*Chapters\n(?:\d+:\d{2}(?::\d{2})? [^\n]*\n?)+/g, '').replace(/\s+$/, '');
+  return lines.length ? `${bare}\n\nChapters\n${lines.join('\n')}` : bare;
+}

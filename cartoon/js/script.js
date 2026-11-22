@@ -105,7 +105,15 @@ export function literalTrigger(word, narration) {
 }
 
 // Story objects a character can hold, and the words that name them in a line.
-export const HOLD_WORDS = [
+export // 1.2: words that say what happens to a thing in hand.
+const USE_WORDS = [
+  ['break', /\b(break|breaks|broke|broken|shatter\w*|smash\w*|crack(s|ed)?|snap(s|ped)?)\b/],
+  ['drop', /\b(drop(s|ped)?|let go|falls? (out|from|to)|fell (out|from|to))\b/],
+  ['spin', /\b(spin(s|ning)?|spun|rotat\w+|twirl\w*)\b/],
+  ['grow', /\b(grow(s|ing)?|grew|bigger|expand\w*|swell\w*|inflat\w+)\b/],
+  ['show', /\b(look at (this|it)|here (it )?is|here's|behold|this little|check (this|it) out|meet the)\b/],
+];
+const HOLD_WORDS = [
   ['ticket', /\btickets?\b/], ['money', /\b(money|cash|dollars?|coins?|paid|pay|wages?|price|cost|costs|bill|bribe|fare)\b/], ['phone', /\b(phones?|called|calls?|texted)\b/],
   ['map', /\b(maps?|route|directions)\b/], ['letter', /\b(letters?|note|envelope|telegram|message|mail)\b/], ['key', /\b(keys?|locked|unlocked)\b/],
   ['book', /\b(books?|diary|notebook|rulebook|manual|records?|ledger)\b/], ['lantern', /\b(lanterns?|lamps?|torch|candles?)\b/], ['cup', /\b(cups?|coffee|tea|mug)\b/],
@@ -183,7 +191,7 @@ export function propTrigger(p, narration) {
 export class Script {
   static CAMS = ['hold', 'push', 'pull', 'pan', 'tilt', 'punch'];
   static CUTS = ['cut', 'whip', 'zoom'];
-  static ACTIONS = ['idle', 'walk', 'enter', 'exit', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'turn'];
+  static ACTIONS = ['idle', 'walk', 'enter', 'exit', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'turn', ...Cast.USES];
 
   static plan(options) {
     // Up to 15 minutes: long videos are written in parts and told in chapters (llm.js writeScriptInParts).
@@ -417,6 +425,28 @@ export class Script {
       if (c.hair === 'none') c.hair = ['brown', 'black', 'blonde', 'red'][i % 4];
       if (c.hat === 'none' && i % 2 === 1) c.hat = ['cap', 'beanie', 'fedora'][i % 3];
     });
+    // 1.2: outfits that fit the story when the writer gave none (crews in jumpsuits and headsets,
+    // scientists in lab coats), and never two people in the same outfit and hat.
+    {
+      const topic = `${options.topic || ''} ${raw.title || ''}`.toLowerCase();
+      const crew = /\b(astronaut|space|nasa|rocket|orbit|station|mission control|pilot|flight|crew|launch)\w*/.test(topic);
+      const lab = /\b(scien\w*|lab|chemist\w*|doctor|hospital|experiment|research\w*|physic\w*|biolog\w*)\b/.test(topic);
+      cast.forEach((c, i) => {
+        const given = castIn[i] || {};
+        if (!given.costume && crew) c.costume = i === 2 ? 'labcoat' : 'jumpsuit';
+        else if (!given.costume && lab) c.costume = i % 2 ? 'vest' : 'labcoat';
+        if (!given.hat && crew) c.hat = ['hair', 'officer', 'bun', 'headset'][i % 4];
+      });
+      const seen = new Set();
+      const hats = ['hair', 'cap', 'beanie', 'headset', 'bun', 'officer', 'fedora'];
+      const outfits = ['vest', 'jumpsuit', 'shirt', 'coat', 'labcoat'];
+      cast.forEach((c) => {
+        let k = `${c.costume}|${c.hat}`;
+        for (let j = 0; seen.has(k) && j < hats.length; j++) { c.hat = hats.find(h => !seen.has(`${c.costume}|${h}`)) || c.hat; k = `${c.costume}|${c.hat}`; }
+        if (seen.has(k)) { c.costume = outfits.find(o => !seen.has(`${o}|${c.hat}`)) || c.costume; k = `${c.costume}|${c.hat}`; }
+        seen.add(k);
+      });
+    }
     if (cast.length < 2) {
       const extras = [
         { id: 'a', name: 'June', color: '#2A9D8F', hat: 'cap', hair: 'brown', costume: 'vest' },
@@ -596,7 +626,7 @@ export class Script {
         if (a.x != null) act.x = InkClamp(Script.num(a.x, 0.5), -0.4, 1.4);
         if (a.feel) act.feel = Script.oneOf(Cast.FEELS, a.feel, '');
         if (a.face) act.face = a.face === 'left' || a.face === -1 ? -1 : 1;
-        if (PropKit.KINDS.includes(String(a.hold || ''))) act.hold = String(a.hold);
+        if (PropKit.KINDS.includes(String(a.hold || '')) || Cast.HOLDS.includes(String(a.hold || ''))) act.hold = String(a.hold);
         if (a.to && known.has(String(a.to).toLowerCase())) act.to = String(a.to).toLowerCase();
         if (a.dur != null) act.dur = InkClamp(Script.num(a.dur, 1), 0.2, 4);
         acts.push(act);
@@ -938,6 +968,14 @@ export class Script {
       const hit = HOLD_WORDS.find(([k, re]) => re.test(low) && !FIGURATIVE_HOLD.test(low) && literalTrigger(propTrigger({ kind: k }, sc.narration), sc.narration));
       if (hit) sp.hold = hit[0];
     }
+    // 1.2: a thing in hand is used when the line says so (shown, dropped, broken, spun, grown).
+    for (const sc of scenes) {
+      const sp = sc.who.find(w => w.id === sc.say) || sc.who[0];
+      if (!sp?.hold || (sc.acts || []).some(a => a.id === sp.id && Cast.USES.includes(a.do))) continue;
+      const low = sc.narration.toLowerCase();
+      const use = USE_WORDS.find(([, re]) => re.test(low))?.[0];
+      if (use) (sc.acts ||= []).push({ t: 0.6, id: sp.id, do: use, hold: sp.hold });
+    }
     // Feelings: at least four different ones across the video (neutral, angry, smug, shocked...).
     const feels = new Set(scenes.flatMap(sc => sc.who.map(w => w.feel)));
     if (feels.size < 4) {
@@ -964,17 +1002,18 @@ export class Script {
     return `Write a ${where}, ${plan.seconds}s, ${pace} comedy-explainer told as a story.
 TOPIC (follow it, keep real facts accurate): """${topic}"""
 ${options.extra ? `NOTES: ${options.extra}\n` : ''}About ${plan.words} spoken words across exactly ${plan.scenes} scenes (about ${plan.wordsPerScene} words each).
-${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the set-up). Later parts continue the story.\n` : ''}Story beats, in order: 1) HOOK in scene 1 (the first 3 seconds): a named hero doing something surprising, or a sharp question. Never a passive fact ("X is a Y", "Have you ever wondered"). 2) SET-UP: who the hero is and what they want. 3) CONFLICT: a rival stands in the way. 4) ESCALATION: it gets bigger or worse. 5) TWIST: a surprising turn that reveals the real fact. 6) BUTTON: one short last line that lands the point or the joke. The real facts drive the story, and the story delivers exactly what the title promises (never contradict the title).
+${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the set-up). Later parts continue the story.\n` : ''}Story beats, in order: 1) HOOK in scene 1 (the first 3 seconds): a "you" line that drops the viewer into it ("If you...", "Right now..."), a named hero doing something surprising, or a sharp question. Never a passive fact ("X is a Y", "Have you ever wondered"). 2) SET-UP: who the hero is and what they want. 3) CONFLICT: a rival stands in the way. 4) ESCALATION: it gets bigger or worse. 5) TWIST: a surprising turn that reveals the real fact. 6) BUTTON: one short last line that lands the point or the joke. The real facts drive the story, and the story delivers exactly what the title promises (never contradict the title).
 Upload kit: "youtubeTitle" is a short, compact curiosity-gap title: 3-7 words, under 45 characters, with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"), no filler like "The Shocking Truth About". "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "thumbText" is 2-4 thumbnail words in capitals, the most intriguing idea, not the title (e.g. "IT HEALS ITSELF"). "hashtags" is 8 lowercase tags: #shorts plus specific ones for this topic (like #trains, not #Trains).
 Facts: dates, names and numbers must be right. If a popular belief is a myth, say so and give the real version. Never state a myth as fact. Uncertain claims use "about" or "historians think".
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
-poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
-props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
+poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}. Give every character a different outfit and headwear that fit their job (crews in jumpsuits with a headset or an officer's cap, scientists in lab coats), and change faces with the story (smug when they think they are right, shocked, sleepy, nervous with a sweat drop, skeptical).
+props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give show drop grow spin break (show/drop/grow/spin/break act on the thing in that character's \"hold\": show raises it to the camera, drop lets it fall, grow makes it swell, spin turns it, break smashes it; use them when the line does that to the thing).
 ${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, viking = Vikings and Norse warriors (with costume tunic), crown = royalty, tunic = clothes for Vikings, the Middle Ages and the ancient world, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
 Never pad a line to reach a word count (no filler like "today", "now", "really", "daily" at the end), and never tack an object's name onto a line: the "props", "hold" and "icon" fields carry the objects. Every line is a complete, grammatical sentence.
 Story objects: in at least half of the scenes the line names an object the speaker holds or uses (${Cast.HOLDS.join(' ')}), for example "Mabel slaps her wrench on the rail" or "Gus waves the rulebook": set "hold" on that character in "who". Never a thing the line does not name, and never say the word "prop".
+NARRATOR VOICE (for people scrolling fast): talk straight to the viewer as \"you\". The first line drops them into the situation or its strangest consequence, e.g. \"If you flushed a toilet in space, it would...\", \"Right now, 400 km above your head...\", \"You have been doing this wrong your whole life.\" Then keep a loop open every few lines (\"but that is not even the weird part\", \"here is the catch\", \"and that is when it gets worse\"), keep sentences short and punchy (mostly under 14 words), put one funny or absurd picture in every beat, and let the characters react to what the narrator says. Never open with \"Have you ever wondered\", \"In this video\" or \"Did you know\".
 "read" is how the narrator reads the line, one of ${DELIVERIES.slice(1).join(" ")}: match the beat (hook: curious or excited; conflict: tense or annoyed; twist: shocked or dramatic; button: amused, warm or deadpan), and vary it from line to line.
 Lines are narration read by one narrator, written the way a fun person talks to a friend, not like a textbook: contractions (it's, you'd, that's), short punchy sentences, a question now and then, numbers said simply ("about 70 million", not "70,000,000"; "one and a half", not "1 1/2"; "five kilometers", not "5 km"). Sound like an upbeat Shorts narrator, never flat: a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits. Do not start a line with a speaker name. The narrator tells the story and names the hero and the rival.
 Sets: pick the set that matches each line and CHANGE it when the story moves (temple = ancient Greece or Rome, deck = on board a ship, sea = the sea seen from the shore, desert = Egypt, night = the Moon, eclipses and stars, space, city, mountains, snow, forest, underwater, lab, room, road, rails, shop). Only use places that belong to this story (no lab or office unless the story is about science or work). Change the set when the story moves to a new place; 2 to 4 different sets that fit the story are plenty.

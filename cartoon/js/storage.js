@@ -5,6 +5,8 @@ const SETTINGS_KEY = 'storyforge.settings.v1';
 const HISTORY_KEY = 'storyforge.history.v1';
 
 export const DEFAULT_SETTINGS = {
+  autoTighten: true,              // 1.2: cut long voice pauses after each export
+  glow: true,                     // 1.2: bloom, sparkles and dust over Cartoons frames
   // Script writer (LLM)
   bgLook: '3d',                   // 3d (stylized 3D worlds) | flat (simple flat drawings)
   routeMode: 'auto',              // auto | best | free | cheap | fast | manual (the AI Model Router)

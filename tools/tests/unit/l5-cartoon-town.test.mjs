@@ -46,13 +46,14 @@ export const tests = [
     for (let i = 1; i < shots.length; i++) assert.ok(Math.abs(shots[i].start - shots[i - 1].end) < 1e-9);
     assert.ok(shots[shots.length - 1].end >= timeline.total);
   } },
-  { name: 'the Cartoons composer opens on the town only where the graphics are strong, else painted sets; captions off unless ticked', fn: () => {
+  { name: 'the Cartoons composer opens on Auto (1.2: the town only where it fits and the graphics are strong); captions off unless ticked', fn: () => {
     const html = readFileSync(new URL('../../../cartoon/index.html', import.meta.url), 'utf8');
-    // Without scripts (or before the check runs) the page shows painted sets, the safe look.
-    assert.match(html, /<option value="painted" selected>/);
+    // Auto is the default; it never gives the town to a weak computer (see v12-auto-look).
+    assert.match(html, /<option value="auto" selected>/);
     assert.match(html, /<option value="town3d">[^<]*needs a strong graphics card/);
     const app = readFileSync(new URL('../../../cartoon/js/app.js', import.meta.url), 'utf8');
-    assert.match(app, /settings\.look === 'town3d' \|\| settings\.look === 'painted' \? settings\.look : gpu\.ok \? 'town3d' : 'painted'/);
+    assert.match(app, /\['town3d', 'painted', 'auto'\]\.includes\(settings\.look\) \? settings\.look : 'auto'/);
+    assert.match(app, /autoLook\(topic, strongGraphics\(\)\)/);
     const gpu = readFileSync(new URL('../../../cartoon/js/gpu.js', import.meta.url), 'utf8');
     for (const w of ['failIfMajorPerformanceCaveat', 'swiftshader', 'llvmpipe', 'MAX_TEXTURE_SIZE', 'deviceMemory', 'loomy.townWeak']) assert.ok(gpu.includes(w), w);
     assert.match(html, /<input type="checkbox" id="townCaptions">/);

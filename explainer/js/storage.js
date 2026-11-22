@@ -5,6 +5,7 @@ const SETTINGS_KEY = 'explainer.settings.v1';
 const HISTORY_KEY = 'explainer.history.v1';
 
 export const DEFAULT_SETTINGS = {
+  autoTighten: true,              // 1.2: cut long voice pauses after each export
   // Script writer (LLM)
   routeMode: 'auto',              // auto | best | free | cheap | fast | manual (the AI Model Router)
   llmProvider: 'auto',            // auto | pollinations | gemini | groq | openrouter

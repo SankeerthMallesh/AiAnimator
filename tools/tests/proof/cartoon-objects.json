@@ -1,0 +1,159 @@
+{
+ "title": "The Vault Key",
+ "youtubeTitle": "The Vault Key \ud83d\udd11",
+ "description": "Test.",
+ "hashtags": [
+  "#shorts",
+  "#test"
+ ],
+ "cast": [
+  {
+   "id": "a",
+   "name": "Maya",
+   "color": "#E8A33D",
+   "hat": "cap",
+   "hair": "curly",
+   "costume": "shirt"
+  },
+  {
+   "id": "b",
+   "name": "Leo",
+   "color": "#3E8FE0",
+   "hat": "none",
+   "hair": "short",
+   "costume": "vest"
+  }
+ ],
+ "scenes": [
+  {
+   "line": "Look at this old brass key, it opens the museum vault.",
+   "set": "room",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.35,
+     "pose": "hold",
+     "hold": "key"
+    },
+    {
+     "id": "b",
+     "x": 0.72,
+     "pose": "idle"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "a",
+     "do": "show",
+     "hold": "key"
+    }
+   ]
+  },
+  {
+   "line": "Leo grabbed the coin and spun it on his thumb.",
+   "set": "shop",
+   "say": "b",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.35,
+     "pose": "hold",
+     "hold": "coin"
+    },
+    {
+     "id": "a",
+     "x": 0.72,
+     "pose": "idle"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "b",
+     "do": "spin",
+     "hold": "coin"
+    }
+   ]
+  },
+  {
+   "line": "Then the magic book began to grow in her hands!",
+   "set": "lab",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.35,
+     "pose": "hold",
+     "hold": "book"
+    },
+    {
+     "id": "b",
+     "x": 0.72,
+     "pose": "idle"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "a",
+     "do": "grow",
+     "hold": "book"
+    }
+   ]
+  },
+  {
+   "line": "He fumbled, and the cup slipped and shattered on the floor.",
+   "set": "room",
+   "say": "b",
+   "who": [
+    {
+     "id": "b",
+     "x": 0.35,
+     "pose": "hold",
+     "hold": "cup"
+    },
+    {
+     "id": "a",
+     "x": 0.72,
+     "pose": "idle"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "b",
+     "do": "break",
+     "hold": "cup"
+    }
+   ]
+  },
+  {
+   "line": "So she dropped the map and ran for the door.",
+   "set": "office",
+   "say": "a",
+   "who": [
+    {
+     "id": "a",
+     "x": 0.35,
+     "pose": "hold",
+     "hold": "map"
+    },
+    {
+     "id": "b",
+     "x": 0.72,
+     "pose": "idle"
+    }
+   ],
+   "acts": [
+    {
+     "t": 0.6,
+     "id": "a",
+     "do": "drop",
+     "hold": "map"
+    }
+   ]
+  }
+ ]
+}

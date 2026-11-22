@@ -31,6 +31,12 @@ export function mapTime(t, cuts) {
   return Math.max(0, t - gone);
 }
 
+// Like mapTime, but a time inside a cut moves to where the video picks up again.
+export function mapForward(t, cuts) {
+  const c = cuts.find(x => t >= x.a - 1e-6 && t < x.b - 1e-6);
+  return mapTime(c ? c.b : t, cuts);
+}
+
 // The cut that full-video time t is inside, or null.
 export const cutAt = (t, cuts) => cuts.find(c => t >= c.a - 1e-6 && t < c.b - 1e-6) || null;
 

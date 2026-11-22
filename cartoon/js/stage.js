@@ -5,6 +5,7 @@ import { Ink, Cast } from './cast.js';
 import { PropKit, SetKit } from './props.js';
 import { wordTimings } from './tts.js';
 import { drawChapterCard } from '../../shared/hooks.js';
+import { glare, gradeLayer } from '../../shared/glare.js';
 
 const BEAT = 3.15;
 
@@ -45,7 +46,9 @@ export class Stage {
     Stage.lastShot = null; Stage.lastBox = null; Stage.lastFace = null;
     Stage.world(ctx, W, H, view, scene, local, shot);
     // Finish: warm light from the top left and a gentle vignette tie every set together.
-    if (!this._finish || this._finish.width !== W || this._finish.height !== H) {
+    const dark = /night|space|underwater|sea/.test(scene.set || ''), glow = view.settings?.glow !== false;
+    const finishKey = `${W}x${H}|${glow}|${dark}`;
+    if (!this._finish || this._finishKey !== finishKey) {
       const f = document.createElement('canvas'); f.width = W; f.height = H;
       const fx = f.getContext('2d');
       const light = fx.createRadialGradient(W * 0.15, H * 0.05, 0, W * 0.15, H * 0.05, Math.hypot(W, H) * 0.7);
@@ -54,9 +57,13 @@ export class Stage {
       const vig = fx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.45, W / 2, H * 0.45, Math.hypot(W, H) * 0.62);
       vig.addColorStop(0, 'rgba(20,18,40,0)'); vig.addColorStop(1, 'rgba(20,18,40,0.15)');
       fx.fillStyle = vig; fx.fillRect(0, 0, W, H);
-      this._finish = f;
+      // 1.2: the glow's colour grade rides along in this layer (one full-frame draw, not two).
+      if (glow) fx.drawImage(gradeLayer(W, H, 1, dark), 0, 0, W, H);
+      this._finish = f; this._finishKey = finishKey;
     }
     ctx.drawImage(this._finish, 0, 0);
+    // 1.2: glow, sparkles, grade and dust (stronger on night, space and underwater sets).
+    if (glow) glare(ctx, W, H, t, { dark, seed: scene.index || 0, grade: false });
     if (shot.whip > 0) { Stage.smear(ctx, W, H, shot.whip * ((scene.index + (shot.setup?.k || 0)) % 2 ? 1 : -1)); Stage.speedLines(ctx, W, H, shot.whip); }
     if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot, Stage.lastBox, Stage.lastFace);
     if (view.settings?.captionStyle !== 'off') {
@@ -119,6 +126,14 @@ export class Stage {
     else if (su.kind === 'aerial') { z *= 1.1; panY = (1 - p) * 150; } // tilts down onto the scene
     else if (su.kind === 'truck') { z *= 1.06; panX = (p - 0.5) * ((scene.index || 0) % 2 ? -1.2 : 1.2); }
     else if (su.kind === 'cutaway') z *= 1 + 0.08 * p;
+    // 1.2: tilted (dutch) angles, like lit 3D cartoon shorts: on reactions, on a line's punch and on
+    // the low hero shot. Zoomed in just enough that the tilted frame never shows its corners.
+    const punch = /[!?]["')]?\s*$/.test(String(scene.narration || '').trim());
+    const side = (scene.index || 0) % 2 ? 1 : -1;
+    if (su.kind === 'reaction') rot = side * (0.055 + 0.01 * p);
+    else if (su.kind === 'low') rot = -side * 0.06;
+    else if (su.kind === 'close' && punch) rot = side * 0.045;
+    if (rot) z *= 1 + 1.9 * Math.abs(rot);
     // Breathing: barely visible, but it keeps every frame alive.
     z *= 1 + 0.006 * Math.sin(local * 0.9 + scene.index);
     panX += 0.02 * Math.sin(local * 0.6 + scene.index * 1.7);
@@ -329,6 +344,7 @@ export class Stage {
         hair: look.hair,
         costume: look.costume,
         hold: a.hold,
+        use: a.use,
       }, a.pose === 'drive' ? 'body' : 'all');
     }
     for (const a of actors) if (a.gag) Stage.gagDraw(ctx, a, W, u, ground, local);
@@ -593,6 +609,7 @@ export class Stage {
     let feel = who.feel || 'neutral';
     let face = who.face === -1 ? -1 : 1;
     let hold = who.hold || '';
+    let use = null;
     let poseT = local;
     const mine = (acts || []).filter(a => a.id === who.id).sort((a, b) => a.t - b.t);
     for (let i = 0; i < mine.length; i++) {
@@ -600,7 +617,19 @@ export class Stage {
       if (a.t > local) break;
       if (a.feel) feel = a.feel;
       if (a.face) face = a.face === -1 ? -1 : 1;
+      // A broken thing is gone; a dropped one stays on the ground.
+      if (use?.act === 'break') { hold = ''; use = null; }
+      if (use?.act !== 'drop' && a.do && a.do !== 'idle' && a.do !== 'turn') use = null;
       if (a.hold) hold = a.hold;
+      // 1.2: show / drop / grow / spin / break act on the held thing; the arm holds it out.
+      if (Cast.USES.includes(a.do)) {
+        if (!hold) continue;
+        use = { act: a.do, p: local - a.t };
+        pose = a.do === 'drop' && use.p > 0.3 ? (who.pose && who.pose !== 'hold' ? who.pose : 'idle') : a.do === 'break' && use.p > 1.5 ? 'shock' : a.do === 'show' ? 'show' : 'hold';
+        poseT = use.p;
+        if (a.x != null) x = a.x;
+        continue;
+      }
       const motion = a.do === 'walk' || a.do === 'enter' || a.do === 'exit' || a.do === 'drive';
       if (motion) {
         const dest = a.do === 'exit' ? (a.x ?? (face > 0 ? 1.2 : -0.2)) : (a.x ?? x);
@@ -628,7 +657,7 @@ export class Stage {
         poseT = local - a.t;
       }
     }
-    return { id: who.id, x: Ink.clamp(x, -0.15, 1.15), pose, feel, face, hold, poseT };
+    return { id: who.id, x: Ink.clamp(x, -0.15, 1.15), pose, feel, face, hold, poseT, use };
   }
 
   static props(scene, local) {

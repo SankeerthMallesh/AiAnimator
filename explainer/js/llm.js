@@ -292,6 +292,7 @@ CREATOR'S REQUEST (follow it exactly):
 """${topic}"""
 
 HOOK STACK: the first 3 seconds carry several hooks at once: the spoken first line (a surprising claim, a question or an "imagine" moment), the on-screen "hookText" that adds a second, different reason to stay, and a one-second flash of the "teaser" scene (so make that scene visually dramatic). The second scene must keep the promise moving: no slow setup.
+NARRATOR VOICE (for people scrolling fast): talk straight to the viewer as \"you\". The first line drops them into the situation or its strangest consequence, e.g. \"If you flushed a toilet in space, it would...\", \"Right now, 400 km above your head...\", \"You have been doing this wrong your whole life.\" Then keep a loop open every few lines (\"but that is not even the weird part\", \"here is the catch\", \"and that is when it gets worse\"), keep sentences short and punchy (mostly under 14 words), put one funny or absurd picture in every beat, and let the characters react to what the narrator says. Never open with \"Have you ever wondered\", \"In this video\" or \"Did you know\".
 TARGET LENGTH: about ${options.duration} seconds of narration = about ${plan.words} words total.
 SCENES: exactly ${plan.scenes} scenes, about ${plan.wordsPerScene} words of narration each (the hook scene can be shorter).
 ${part ? chapterNote(part, options) : ''}

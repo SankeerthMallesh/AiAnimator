@@ -178,6 +178,29 @@ autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editor
   video's captions fall outside); "Use the player's frame" takes any moment. JPEG under 2 MB.
   Tests: v11-thumbnail (unit); cutmaster.cjs checks it too.
 
+## Loomy 1.2 and 1.3 (2026-11-22, deployed together as 1.3)
+
+- **OBJ-C1 objects in Cartoons** (`cartoon/js/cast.js` `Cast.held`/`Cast.USES`, `stage.js`
+  `sampleActor`, `script.js` `USE_WORDS`): show (arm up, glow), drop (falls, dust, stays), grow, spin,
+  break (shake, comic burst, four pieces, gone). The writer may send them as actions on the thing in
+  "hold"; a line that says so ("it shattered", "she dropped the coin") adds one. Painted-sets look only.
+- **AUTO-C1 Auto look** (`cartoon/js/presets.js` `autoLook`): the Cartoons default. The 3D town when
+  `townFits(topic)` and `strongGraphics()`, else painted sets; a toast says which and why.
+- **CH1 chapters** (`shared/upload.js` `chapterLines`/`withChapters`): long videos get "Chapters" with
+  0:00 lines in the description (3+ chapters of 10 s+, else none); kept in step with cuts (`mapForward`).
+- **TIGHT1 auto-tighten** (`cutter.ready(..., { tighten, protect })`): after each export the long
+  voice pauses are cut and saved at once, chapter cards protected; "Back to the full video" undoes it;
+  the setting `autoTighten` (More panel) turns it off.
+Loomy 1.3 (same day; the user named it): everything above plus the reference style below.
+- **STYLE1-4, from the user's reference screenshots** (a lit 3D cartoon short about astronauts; the
+  channel is not named in Loomy): STYLE1 crew outfits in `cartoon/js/cast.js` (jumpsuit with collar,
+  flag and mission patches and a name tag; lab coat), headset, officer cap, hair bun, faces sleepy and
+  nervous (sweat drop), ring-eyed shock and a toothy smug grin; `Script.normalize` dresses space crews
+  and scientists when the writer gives no outfit and never dresses two people alike. STYLE2
+  `shared/glare.js`: bloom, sparkles on small lights, grade (in the stage's finish layer), dust;
+  setting `glow`. STYLE3 dutch tilts in `Stage.shot`. STYLE4 NARRATOR VOICE in both writers.
+Tests: v12-cartoon-objects, v12-auto-look, v12-chapters, v12-style-cast, v12-narrator (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min

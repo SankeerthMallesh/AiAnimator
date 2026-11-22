@@ -2,7 +2,8 @@
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
-import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits } from './presets.js';
+import { chapterLines, withChapters } from '../../shared/upload.js';
+import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits, autoLook } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
 import { creditText } from './wiki.js';
@@ -163,13 +164,18 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  const glowBox = document.getElementById('glow');
+  if (glowBox) { glowBox.checked = settings.glow !== false; glowBox.addEventListener('change', (e) => { settings.glow = e.target.checked; saveSettings(settings); }); }
+  const tighten = document.getElementById('autoTighten');
+  if (tighten) { tighten.checked = settings.autoTighten !== false; tighten.addEventListener('change', (e) => { settings.autoTighten = e.target.checked; saveSettings(settings); }); }
   // Look: the 3D cartoon town (the best look) on a computer whose graphics can draw it, painted sets
   // on a weaker one; whatever the person picks themselves is kept.
   const look = $('#look');
   if (look) {
     const gpu = strongGraphics();
-    look.value = settings.look === 'town3d' || settings.look === 'painted' ? settings.look : gpu.ok ? 'town3d' : 'painted';
-    if (!gpu.ok) look.title = `Painted sets suit this computer (${gpu.why}). The 3D town needs a strong graphics card.`;
+    // 1.2: Auto is the default; a look the person picked themselves is kept.
+    look.value = ['town3d', 'painted', 'auto'].includes(settings.look) ? settings.look : 'auto';
+    if (!gpu.ok) look.title = `Auto uses painted sets on this computer (${gpu.why}). The 3D town needs a strong graphics card.`;
     look.addEventListener('change', () => { settings.look = look.value; saveSettings(settings); });
   }
 
@@ -203,7 +209,12 @@ $('#voice').addEventListener('change', (e) => {
   });
   // The town is the default only where it can show the story; a person's own pick always wins.
   const lookFor = (topic) => {
-    const picked = $('#look')?.value || 'painted';
+    const picked = $('#look')?.value || 'auto';
+    if (picked === 'auto') {
+      const a = autoLook(topic, strongGraphics());
+      toast(`Auto look: ${a.look === 'town3d' ? '3D cartoon town' : 'painted sets'} (${a.why}).`);
+      return a.look;
+    }
     if (picked !== 'town3d' || settings.look === 'town3d' || townFits(topic)) return picked;
     toast('Painted sets for this one: the 3D town cannot build those places.');
     return 'painted';
@@ -464,6 +475,14 @@ function setDownload(video, cut = null) {
 }
 
 // 1.1: cut parts out (a lagging voice, a long pause) right here on the export page.
+// 1.2: a long video's chapters in the description (YouTube shows them), matching the cut video.
+function refreshChapters() {
+  const tl = project?.timeline, box = document.getElementById('ytDesc');
+  if (!tl || !box) return;
+  const cut = project.cut;
+  box.value = withChapters(box.value, chapterLines(tl.scenes || [], tl.total || 0, cut ? cut.mapForward : (t) => t));
+}
+
 // 1.1: a thumbnail for every video, in the Upload kit (made from the finished video's best moments).
 function thumbs() {
   return thumbs.ui ||= attachThumbnail({
@@ -480,7 +499,7 @@ function cutter() {
     after: document.querySelector('.render-actions'),
     player: document.getElementById('outVideo'),
     toast: (m, bad) => toast(m, bad),
-    onSaved: (cut) => { if (!project?.video) return; project.cut = cut; setDownload(project.video, cut); },
+    onSaved: (cut) => { if (!project?.video) return; project.cut = cut; setDownload(project.video, cut); refreshChapters(); },
   });
 }
 
@@ -498,7 +517,10 @@ async function doRender(pl = pipeline) {
   cutter().prepare(project.audio || null, fps);
   const video = await pl.render().catch((e) => { cutter().hide(); throw e; });
   setDownload(video);
-  cutter().ready(video, fps);
+  refreshChapters();
+  // 1.2: long voice pauses are tightened straight away unless switched off (the chapter cards stay).
+  const cards = (project.timeline?.scenes || []).filter(sc => sc.chapter?.title).map(sc => ({ a: sc.start - 0.2, b: sc.start + 2.6 }));
+  cutter().ready(video, fps, { tighten: settings.autoTighten !== false, protect: cards }).catch(() => {});
   thumbs().ready({ url: video.url, name: slug(project.script.title), script: project.script, scenes: project.timeline?.scenes || [], total: project.timeline?.total || 0, wideVideo: video.width > video.height }).catch(() => {});
   $('#btnEdit')?.classList.remove('hidden');
   const v = $('#outVideo');
