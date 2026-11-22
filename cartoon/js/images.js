@@ -114,7 +114,9 @@ const providers = {
     }
     // The no-key painter now asks for payment: after one refusal, or on a site with its own AI
     // (today's allowance used up), stop asking so the console stays clean.
-    if (anonRefused || cfSite) { const e = new Error('The free painter is not available'); e.status = 402; throw e; }
+    // The free painter is tried even on a site with its own AI whose daily allowance ran out (it works
+    // again, 2026-11-22); only a refusal (402) turns it off for the visit.
+    if (anonRefused) { const e = new Error('The free painter is not available'); e.status = 402; throw e; }
     const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), { signal }, IMAGE_TIMEOUT_MS, 'blob');
     if (!res.ok) { if ([401, 402, 403].includes(res.status)) anonRefused = true; const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
     return blobToBitmap(data, true);
@@ -241,7 +243,7 @@ export function scenePrompt(bg, set, topic = '', look = '3d') {
 
 export async function fetchPlate(prompt, opts, settings, { signal, timeout = 12000, log } = {}) {
   if (!settings || settings.imageProvider === 'none') return null;
-  const ms = Math.max(2000, Math.min(20000, timeout));
+  const ms = Math.max(2000, Math.min(35000, timeout));
   let bmp = await cloudflareImage(prompt, opts, signal);
   if (bmp) {
     if (!(await isSafeImage(bmp, prompt, log))) { bmp.close?.(); return null; }
@@ -257,7 +259,7 @@ export async function fetchPlate(prompt, opts, settings, { signal, timeout = 120
       const keyed = settings.pollinationsKey && !keyRejected;
       // The no-key painter now asks for payment (402). Once it has refused, or when this site has its
       // own AI (whose daily allowance just ran out), the drawn sets are used instead of red errors.
-      if (!keyed && (anonRefused || cfSite)) return null;
+      if (!keyed && anonRefused) return null;
       const url = pollinationsURL(prompt, opts, keyed ? settings : { ...settings, pollinationsKey: '' });
       const { res, data } = await fetchTimeout(url, { signal }, ms, 'blob');
       if (!res.ok) {

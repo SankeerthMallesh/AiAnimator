@@ -114,7 +114,9 @@ const providers = {
     }
     // The no-key painter now asks for payment: after one refusal, or on a site with its own AI
     // (today's allowance used up), stop asking so the console stays clean.
-    if (anonRefused || cfSite) { const e = new Error('The free painter is not available'); e.status = 402; throw e; }
+    // The free painter is tried even on a site with its own AI whose daily allowance ran out (it works
+    // again, 2026-11-22); only a refusal (402) turns it off for the visit.
+    if (anonRefused) { const e = new Error('The free painter is not available'); e.status = 402; throw e; }
     const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), { signal }, IMAGE_TIMEOUT_MS, 'blob');
     if (!res.ok) { if ([401, 402, 403].includes(res.status)) anonRefused = true; const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
     return blobToBitmap(data, true);
