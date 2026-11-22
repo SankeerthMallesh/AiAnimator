@@ -7712,7 +7712,7 @@ var bodyFront = (p, o, opts) => {
       p.poly([[hx - 8 * u, hy - 12 * u], [hx + 8 * u, hy - 12 * u], [hx, hy + 7 * u]], "#e0a35a", 1.8 * u);
       p.ell(hx, hy - 19 * u, 11 * u, 10 * u, "#f7c6d9", 2.2 * u);
       p.dot(hx, hy, 5.5 * u);
-    } else if (Array.isArray(prop2)) {
+    } else if (Array.isArray(prop2) && prop2[0] === "hammer") {
       const ang = rad(-70 + 105 * clamp(prop2[1], 0, 1));
       const Rh = (pts) => rotPts(pts, ang, hx, hy);
       p.band(Rh([[hx, hy + 12 * u], [hx, hy - 44 * u]]), "#8a5a34", 5 * u, 1.5 * u, "round");
@@ -7736,6 +7736,8 @@ var bodyFront = (p, o, opts) => {
   const brim = !!o.hat && o.hat !== "hair" && o.hat !== "bonnet" && o.hat !== "cap";
   faceFront(p, 300, hc, W, expr, facing, look, lid, brim, skin, o.moustache, o.build === "stout");
   p.rot = null;
+  const rh = arms[arms.length - 1]?.pts[2] ?? [300, hipY], lh = arms[0]?.pts[2] ?? [300, hipY];
+  return { hand: rh, left: lh, crown, headCenter: hc, sole };
 };
 var ik = (hip, ank, l1, l2) => {
   const dx = ank[0] - hip[0], dy = ank[1] - hip[1], d = clamp(Math.hypot(dx, dy), 1, l1 + l2 - 0.01);

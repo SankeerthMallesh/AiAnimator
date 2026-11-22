@@ -164,6 +164,8 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  const toonBox = document.getElementById('toonCast');
+  if (toonBox) { toonBox.checked = settings.toonCast !== false; toonBox.addEventListener('change', (e) => { settings.toonCast = e.target.checked; saveSettings(settings); }); }
   const glowBox = document.getElementById('glow');
   if (glowBox) { glowBox.checked = settings.glow !== false; glowBox.addEventListener('change', (e) => { settings.glow = e.target.checked; saveSettings(settings); }); }
   const tighten = document.getElementById('autoTighten');

@@ -442,7 +442,7 @@ const hatOn = (p: Pen, o: Outfit, hp: P2[], H: Blob, cx: number, hc: number, lig
 // ---------------- bodies ----------------
 export type Arms = [P2[], P2[]];
 /** held prop; for the hammer the number is the strike 0 (raised) .. 1 (struck) */
-export type Prop = null | "icecream" | "shako" | ["hammer", number];
+export type Prop = null | "icecream" | "shako" | ["hammer", number] | ["reach", number];
 
 const BUILD: Record<Build, { a: number; torso: number; legs: number; tw: number }> = {
   adult: { a: 118, torso: 1.1, legs: 1.4, tw: 0.8 },
@@ -595,7 +595,7 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
       p.poly([[hx - 8 * u, hy - 12 * u], [hx + 8 * u, hy - 12 * u], [hx, hy + 7 * u]], "#e0a35a", 1.8 * u);
       p.ell(hx, hy - 19 * u, 11 * u, 10 * u, "#f7c6d9", 2.2 * u);
       p.dot(hx, hy, 5.5 * u);
-    } else if (Array.isArray(prop)) {
+    } else if (Array.isArray(prop) && prop[0] === "hammer") {
       const ang = rad(-70 + 105 * clamp(prop[1], 0, 1));
       const Rh = (pts: P2[]) => rotPts(pts, ang, hx, hy);
       p.band(Rh([[hx, hy + 12 * u], [hx, hy - 44 * u]]), "#8a5a34", 5 * u, 1.5 * u, "round");
@@ -620,6 +620,9 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   const brim = !!o.hat && o.hat !== "hair" && o.hat !== "bonnet" && o.hat !== "cap";
   faceFront(p, 300, hc, W, expr, facing, look, lid, brim, skin, o.moustache, o.build === "stout");
   p.rot = null;
+  // Loomy 1.5: where the hands and the head are (600 x 1000 design units), for things held in the hand.
+  const rh = arms[arms.length - 1]?.pts[2] ?? [300, hipY], lh = arms[0]?.pts[2] ?? [300, hipY];
+  return { hand: rh as P2, left: lh as P2, crown, headCenter: hc, sole };
 };
 
 export type SideOpts = {

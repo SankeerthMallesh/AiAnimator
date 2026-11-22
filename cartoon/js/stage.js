@@ -2,6 +2,7 @@
 // whip and zoom cuts, and one-or-two-word captions locked to the voice.
 
 import { Ink, Cast, PropMini } from './cast.js';
+import { drawToon } from './toonrig.js';
 import { PropKit, SetKit } from './props.js';
 import { wordTimings } from './tts.js';
 import { drawChapterCard } from '../../shared/hooks.js';
@@ -368,9 +369,11 @@ export class Stage {
       }
     }
     Stage.gagSetup(actors, talkId, scene, local);
+    // 1.5: the 3D town's people (toonrig.js) unless the setting asks for the classic painted cast.
+    const drawPerson = view.settings?.toonCast === false ? Cast.draw : drawToon;
     for (const a of actors) {
       const look = cast.get(a.id) || {};
-      Cast.draw(ctx, {
+      drawPerson(ctx, {
         x: a.x * W,
         ground,
         u,
@@ -406,7 +409,7 @@ export class Stage {
     if (driving) {
       for (const a of actors.filter(x => x.pose === 'drive')) {
         const look = cast.get(a.id) || {};
-        Cast.draw(ctx, {
+        drawPerson(ctx, {
           x: a.x * W, ground, u, pose: 'drive', poseT: a.poseT, feel: a.feel, face: a.face,
           talk: a.id === talkId ? talk : 0, t: local, phase: 1,
           color: look.color, hat: look.hat, hair: look.hair, costume: look.costume, hold: '',

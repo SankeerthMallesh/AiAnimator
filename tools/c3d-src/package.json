@@ -2,6 +2,12 @@
   "name": "loomy-cartoon3d",
   "private": true,
   "description": "Source of cartoon/js/c3d/cartoon3d.js: the cartoon-3d-short engine (MIT, claude-animated-shorts bridge template) with a browser driver. Build: npm install && npm run build",
-  "scripts": { "build": "esbuild src/driver.ts --bundle --format=esm --external:three --outfile=../../cartoon/js/c3d/cartoon3d.js" },
-  "devDependencies": { "esbuild": "0.24.0", "postprocessing": "6.36.4", "three": "0.169.0" }
+  "scripts": {
+    "build": "esbuild src/driver.ts --bundle --format=esm --external:three --outfile=../../cartoon/js/c3d/cartoon3d.js && esbuild src/toon2d.ts --bundle --format=esm --outfile=../../cartoon/js/c3d/toon2d.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "postprocessing": "6.36.4",
+    "three": "0.169.0"
+  }
 }
