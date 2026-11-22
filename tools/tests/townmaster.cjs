@@ -55,7 +55,7 @@ const script = { title: 'The Day the Bridge Fell', youtubeTitle: 'The Day the Br
   const log = await f.locator('#log').textContent().catch(() => '');
   console.log('shots:', (log.match(/Shots: [^\n]*/) || [''])[0].slice(0, 700));
   const fails = [];
-  if (look !== 'painted') fails.push('default look ' + look);
+  if (!['painted', 'auto'].includes(look)) fails.push('default look ' + look); // 1.3: Auto picks the town only where it can be drawn
   if (images.length) fails.push(`${images.length} picture requests`);
   if (!steps.some(s => s.startsWith('plates:') && /3D cartoon town/.test(s))) fails.push('backgrounds not skipped');
   if (!steps.some(s => s.startsWith('sound:') && /film score/.test(s) && /sound effects/.test(s))) fails.push('no film sound');
