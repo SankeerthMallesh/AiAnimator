@@ -538,7 +538,7 @@ async function speak(request, env) {
   } catch (e) {
     const msg = String(e?.message || e);
     const used = /quota|limit|neuron|exceed|4006|capacity|daily/i.test(msg);
-    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300) });
+    return json({ ok: false, used, error: used ? 'The free daily voice allowance is used up.' : msg.slice(0, 200), detail: msg.slice(0, 300), ...(elevenNote ? { tried: elevenNote.slice(0, 240) } : {}) });
   }
 }
 
