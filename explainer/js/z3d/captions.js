@@ -23,7 +23,13 @@ export function captions3d(scenes) {
     const ws = joinMarks((sc.words || []).map(w => ({ text: String(w.text ?? ''), s: sc.start + w.start, e: sc.start + w.end })));
     let cur = [];
     const flush = () => { if (!cur.length) return; caps.push([cur[0].s - 0.02, cur.map(w => w.text.replace(/[.,!?;:"]+$/g, '')).join(' '), cur[cur.length - 1].e + 0.12]); cur = []; };
-    ws.forEach((w) => { if (cur.length && (cur.length >= 3 || w.s - cur[cur.length - 1].e > 0.3)) flush(); cur.push(w); if (/[.,!?;:]$/.test(w.text) && cur.length >= 1) flush(); });
+    ws.forEach((w, k) => {
+      // A one- or two-letter word that ends the line or clause ("28 degrees F.", "at 11:40 pm.") stays
+      // with the words before it instead of flashing up alone.
+      const tail = w.text.replace(/[^\p{L}\p{N}]/gu, '').length <= 2 && (k === ws.length - 1 || /[.,!?;:]$/.test(w.text));
+      if (cur.length && ((cur.length >= 3 && !tail) || w.s - cur[cur.length - 1].e > 0.3)) flush();
+      cur.push(w); if (/[.,!?;:]$/.test(w.text) && cur.length >= 1) flush();
+    });
     flush();
   }
   for (let i = 0; i + 1 < caps.length; i++) caps[i][2] = Math.min(caps[i][2], caps[i + 1][0]);
