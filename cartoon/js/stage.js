@@ -72,7 +72,9 @@ export class Stage {
       if (this.log) this.log.caption(t, ctx, H, () => Stage.caption(ctx, W, H, scene, local, { punch }));
       else Stage.caption(ctx, W, H, scene, local, { punch });
     }
-    if (scene.index === 0 && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
+    // Only when the first scene opens the video: after a teaser cold open the headline already ran,
+    // and a second title a few seconds in would also land on thumbnail frames.
+    if (scene.index === 0 && !(scene.start > 0.5) && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
     // Long form: a title card opens each chapter (shared/hooks.js).
     if (scene.chapter && scene.chapter.n > 1) drawChapterCard(ctx, W, H, local, scene.chapter.n, scene.chapter.title);
   }
@@ -238,7 +240,7 @@ export class Stage {
     // one sticker for the line (and none on a close-up, where the face is the point).
     else if (pe?.bitmap && pe?.scene) props = fr.close ? [] : props.filter(p => p.kind === 'icon').slice(0, 1);
     // In the opening shot the hook title owns the top of the frame; floating props pop in after it.
-    if (scene.index === 0 && view.settings?.hookTitle !== false && (view.script?.youtubeTitle || view.script?.title)) {
+    if (scene.index === 0 && !(scene.start > 0.5) && view.settings?.hookTitle !== false && (view.script?.youtubeTitle || view.script?.title)) {
       props = props.map(p => ((p.kind === 'icon' || PropKit.TOONS.includes(p.kind)) ? { ...p, delay: 2.6 } : p));
     }
     if (fr.medium) {
