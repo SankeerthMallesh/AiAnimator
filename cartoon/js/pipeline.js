@@ -331,10 +331,10 @@ export class Pipeline {
       try { await deadline(warmNarrator(this.narrator), 90000, 'Voice download'); }
       catch (e) {
         if (this.signal.aborted) throw e;
-        this.log(`Built-in voice could not load (${e.message}). Captions will carry the film.`);
-        this.narrator.engine = 'none';
-        this.h.step('voice', 'warn', 'No voice — captions only');
-        return;
+        // Like the 3D tab: the site's own narrator (and then the cloud voice) still reads it.
+        // Captions-only is left for when those fail too (speak() returns null and says so).
+        this.log(`Built-in voice could not load (${e.message}); using the site's narrator voice.`);
+        this.narrator.engine = 'pollinations';
       }
     }
     // The whole script in one read when the site's narrator can do it; the loop below then only
