@@ -178,7 +178,8 @@ export function createEngine({ width = 1080, height = 1920, grain = false, perf 
       for (const k of [...built.keys()]) if (Math.abs(k - idx) > 1) { disposeScene(built.get(k).scene); built.delete(k); }
       return idx;
     },
-    dispose() { disposeShots(); composer.dispose?.(); rt.dispose(); envTex.dispose(); pmrem.dispose(); renderer.dispose(); },
+    // forceContextLoss: the browser frees the WebGL context now, not whenever it gets round to it.
+    dispose() { disposeShots(); composer.dispose?.(); rt.dispose(); envTex.dispose(); pmrem.dispose(); renderer.dispose(); renderer.forceContextLoss?.(); },
   };
 
   function disposeShots() { for (const s of built.values()) disposeScene(s.scene); built.clear(); }

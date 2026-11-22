@@ -56,25 +56,36 @@ export function townShots(timeline, script) {
 }
 
 export class TownRenderer {
-  constructor(canvas, { timeline, script, W, H, captions = false }) {
+  constructor(canvas, { timeline, script, W, H, captions = false, preview = false }) {
     this.canvas = canvas; this.W = W; this.H = H;
     canvas.width = W; canvas.height = H;
     this.g = canvas.getContext('2d', { alpha: false });
     this.timeline = timeline; this.captions = captions; this.log = null;
+    this.preview = preview; this.lastMs = 0; this.lastAt = -1e9;
     const { specs, shots } = townShots(timeline, script);
     this.specs = specs; this.shots = shots;
     this.ready = (async () => {
       const { createTemplated, setStaticBase } = await import('./c3d/cartoon3d.js');
       setStaticBase(new URL('../c3d-assets/', import.meta.url).href);
-      this.engine = await createTemplated({ width: W, height: H, shots });
+      const engine = await createTemplated({ width: W, height: H, shots });
+      if (this.disposed) engine.dispose(); else this.engine = engine; // disposed while it was building
     })();
   }
 
   describe() { return this.shots.map(s => `${s.start.toFixed(1)}-${s.end.toFixed(1)} ${s.kind} ${s.place} ${s.light} ${s.cast.join('+')} ${s.pose} ${s.camera}`); }
 
+  // The export waits a moment after each frame, so the graphics card finishes it before the next one is
+  // queued (a long unbroken queue can make a weaker card's driver reset).
+  async prepareFrame() { await new Promise(r => setTimeout(r, Math.min(40, 4 + this.lastMs * 0.25))); }
+
   drawFrame(t) {
     if (!this.engine) return;
+    // Playing the preview: a slow computer skips frames instead of freezing the page.
+    const now = performance.now();
+    if (this.preview && now - this.lastAt < this.lastMs * 2.5) return;
+    const t0 = performance.now();
     this.g.drawImage(this.engine.renderAt(t), 0, 0, this.W, this.H);
+    this.lastMs = performance.now() - t0; this.lastAt = performance.now();
     if (this.captions) {
       const scenes = this.timeline.scenes;
       const scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];
@@ -82,5 +93,5 @@ export class TownRenderer {
     }
   }
 
-  dispose() { this.engine?.dispose(); this.engine = null; }
+  dispose() { this.disposed = true; this.engine?.dispose(); this.engine = null; }
 }

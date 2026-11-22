@@ -370,6 +370,24 @@ export class World {
     return focus;
   }
 
+  /** shadow-map size (the film uses 4096; the browser templates a smaller one) */
+  setShadowSize(n: number) { this.sun.shadow.mapSize.set(n, n); this.sun.shadow.map?.dispose(); (this.sun.shadow as any).map = null; }
+
+  /** frees every geometry, material, texture and drawing of the world (GPU memory) */
+  dispose() {
+    const seen = new Set<any>();
+    this.root.traverse((o: any) => {
+      if (o.geometry && !seen.has(o.geometry)) { seen.add(o.geometry); o.geometry.dispose(); }
+      for (const m of [].concat(o.material || [])) {
+        if (!m || seen.has(m)) continue; seen.add(m);
+        for (const v of Object.values(m)) if ((v as any)?.isTexture && !seen.has(v)) { seen.add(v); (v as any).dispose(); }
+        m.dispose();
+      }
+    });
+    this.sun.shadow.map?.dispose();
+    this.pool.dispose();
+  }
+
   /** a Loomy template frame (tmpl.ts): the bridge stands rebuilt and at rest, no sign, no framing props */
   updateTemplate(fr: { cam: { pos: V3; look: V3; fov: number; roll: number }; light: "day" | "golden"; sun: [number, number, number]; people: TPerson[]; effects: TFx[] }, t: number, cam: THREE.PerspectiveCamera, scene: THREE.Scene) {
     const focus = this.view(fr.cam, fr.light, new THREE.Vector3(...fr.sun), t, cam, scene);

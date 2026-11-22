@@ -387,6 +387,8 @@ async function doRender(pl = pipeline) {
   $('#renderProg').classList.remove('hidden');
   $('#renderBar').style.width = '0%';
   $('#renderText').textContent = 'Starting…';
+  // A drawn look keeps a whole 3D engine for the preview: free it first, so only one runs during the export.
+  if (player.renderer?.ready) { player.renderer.dispose(); player.renderer = null; }
   const video = await pl.render();
   const a = $('#btnDownload');
   a.href = video.url;

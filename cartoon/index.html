@@ -12,9 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611220234">
-<script type="module" src="../shared/topbar.js?v=202611220234"></script>
-<link rel="stylesheet" href="../theme.css?v=202611220234">
+<link rel="stylesheet" href="css/app.css?v=202611220316">
+<script type="module" src="../shared/topbar.js?v=202611220316"></script>
+<link rel="stylesheet" href="../theme.css?v=202611220316">
 </head>
 <body>
 <div class="app" id="app">
@@ -78,7 +78,7 @@
               <label class="slot"><span class="lbl">Runtime</span><select id="duration"></select></label>
               <label class="slot"><span class="lbl">Pace</span><select id="pace"></select></label>
               <div class="slot voice-slot"><label class="lbl" for="voice">Narrator</label><div class="voice-row"><select id="voice"></select><button type="button" class="hear" id="btnHear" title="Hear this voice" aria-label="Hear this voice"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg></button></div></div>
-              <label class="slot"><span class="lbl">Look</span><select id="look"><option value="town3d" selected>3D cartoon town, drawn in code</option><option value="painted">Cartoon on painted sets</option></select></label>
+              <label class="slot"><span class="lbl">Look</span><select id="look"><option value="painted" selected>Cartoon on painted sets</option><option value="town3d">3D cartoon town, drawn in code (heavy: needs a strong graphics card)</option></select></label>
               <label class="slot"><span class="lbl">Score</span><select id="mood"></select></label>
               <button type="button" class="slot slot-btn" id="btnMore" aria-expanded="false"><span class="lbl">More</span><span>Quality, notes…</span></button>
             </div>
@@ -307,46 +307,46 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611220234",
-  "./js/audio.js": "./js/audio.js?v=202611220234",
-  "./js/c3d/cartoon3d.js": "./js/c3d/cartoon3d.js?v=202611220234",
-  "./js/cast.js": "./js/cast.js?v=202611220234",
-  "./js/demo.js": "./js/demo.js?v=202611220234",
-  "./js/encoder.js": "./js/encoder.js?v=202611220234",
-  "./js/images.js": "./js/images.js?v=202611220234",
-  "./js/llm.js": "./js/llm.js?v=202611220234",
-  "./js/net.js": "./js/net.js?v=202611220234",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611220234",
-  "./js/presets.js": "./js/presets.js?v=202611220234",
-  "./js/props.js": "./js/props.js?v=202611220234",
-  "./js/router.js": "./js/router.js?v=202611220234",
-  "./js/safety.js": "./js/safety.js?v=202611220234",
-  "./js/script.js": "./js/script.js?v=202611220234",
-  "./js/sets.js": "./js/sets.js?v=202611220234",
-  "./js/sharpen.js": "./js/sharpen.js?v=202611220234",
-  "./js/stage.js": "./js/stage.js?v=202611220234",
-  "./js/storage.js": "./js/storage.js?v=202611220234",
-  "./js/toons.js": "./js/toons.js?v=202611220234",
-  "./js/town.js": "./js/town.js?v=202611220234",
-  "./js/tts.js": "./js/tts.js?v=202611220234",
-  "./js/videoai.js": "./js/videoai.js?v=202611220234",
-  "./js/wiki.js": "./js/wiki.js?v=202611220234",
-  "./js/worlds.js": "./js/worlds.js?v=202611220234",
-  "../explainer/js/z3d/plan.js": "../explainer/js/z3d/plan.js?v=202611220234",
-  "../explainer/js/z3d/vocab.js": "../explainer/js/z3d/vocab.js?v=202611220234",
-  "three": "../vendor/three/three.module.min.js?v=202611220234",
+  "./js/app.js": "./js/app.js?v=202611220316",
+  "./js/audio.js": "./js/audio.js?v=202611220316",
+  "./js/c3d/cartoon3d.js": "./js/c3d/cartoon3d.js?v=202611220316",
+  "./js/cast.js": "./js/cast.js?v=202611220316",
+  "./js/demo.js": "./js/demo.js?v=202611220316",
+  "./js/encoder.js": "./js/encoder.js?v=202611220316",
+  "./js/images.js": "./js/images.js?v=202611220316",
+  "./js/llm.js": "./js/llm.js?v=202611220316",
+  "./js/net.js": "./js/net.js?v=202611220316",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611220316",
+  "./js/presets.js": "./js/presets.js?v=202611220316",
+  "./js/props.js": "./js/props.js?v=202611220316",
+  "./js/router.js": "./js/router.js?v=202611220316",
+  "./js/safety.js": "./js/safety.js?v=202611220316",
+  "./js/script.js": "./js/script.js?v=202611220316",
+  "./js/sets.js": "./js/sets.js?v=202611220316",
+  "./js/sharpen.js": "./js/sharpen.js?v=202611220316",
+  "./js/stage.js": "./js/stage.js?v=202611220316",
+  "./js/storage.js": "./js/storage.js?v=202611220316",
+  "./js/toons.js": "./js/toons.js?v=202611220316",
+  "./js/town.js": "./js/town.js?v=202611220316",
+  "./js/tts.js": "./js/tts.js?v=202611220316",
+  "./js/videoai.js": "./js/videoai.js?v=202611220316",
+  "./js/wiki.js": "./js/wiki.js?v=202611220316",
+  "./js/worlds.js": "./js/worlds.js?v=202611220316",
+  "../explainer/js/z3d/plan.js": "../explainer/js/z3d/plan.js?v=202611220316",
+  "../explainer/js/z3d/vocab.js": "../explainer/js/z3d/vocab.js?v=202611220316",
+  "three": "../vendor/three/three.module.min.js?v=202611220316",
   "three/examples/jsm/": "../vendor/three/addons/",
-  "../shared/encode.js": "../shared/encode.js?v=202611220234",
-  "../shared/filmsound.js": "../shared/filmsound.js?v=202611220234",
-  "../shared/handoff.js": "../shared/handoff.js?v=202611220234",
-  "../shared/level.js": "../shared/level.js?v=202611220234",
-  "../shared/renderlog.js": "../shared/renderlog.js?v=202611220234",
-  "../shared/speech.js": "../shared/speech.js?v=202611220234",
-  "../shared/topbar.js": "../shared/topbar.js?v=202611220234",
-  "../shared/voicefx.js": "../shared/voicefx.js?v=202611220234",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611220234"
+  "../shared/encode.js": "../shared/encode.js?v=202611220316",
+  "../shared/filmsound.js": "../shared/filmsound.js?v=202611220316",
+  "../shared/handoff.js": "../shared/handoff.js?v=202611220316",
+  "../shared/level.js": "../shared/level.js?v=202611220316",
+  "../shared/renderlog.js": "../shared/renderlog.js?v=202611220316",
+  "../shared/speech.js": "../shared/speech.js?v=202611220316",
+  "../shared/topbar.js": "../shared/topbar.js?v=202611220316",
+  "../shared/voicefx.js": "../shared/voicefx.js?v=202611220316",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611220316"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611220234"></script>
+<script type="module" src="./js/app.js?v=202611220316"></script>
 </body>
 </html>

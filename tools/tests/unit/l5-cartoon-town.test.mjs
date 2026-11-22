@@ -45,9 +45,10 @@ export const tests = [
     for (let i = 1; i < shots.length; i++) assert.ok(Math.abs(shots[i].start - shots[i - 1].end) < 1e-9);
     assert.ok(shots[shots.length - 1].end >= timeline.total);
   } },
-  { name: 'the Cartoons composer offers the town look first, with captions off unless ticked', fn: () => {
+  { name: 'the Cartoons composer opens on painted sets; the town is opt-in, marked heavy, captions off unless ticked', fn: () => {
     const html = readFileSync(new URL('../../../cartoon/index.html', import.meta.url), 'utf8');
-    assert.match(html, /<select id="look"><option value="town3d" selected>/);
+    assert.match(html, /<select id="look"><option value="painted" selected>/);
+    assert.match(html, /<option value="town3d">[^<]*heavy/);
     assert.match(html, /<input type="checkbox" id="townCaptions">/);
     const pipe = readFileSync(new URL('../../../cartoon/js/pipeline.js', import.meta.url), 'utf8');
     assert.match(pipe, /captions: !!this\.p\.options\.townCaptions/);

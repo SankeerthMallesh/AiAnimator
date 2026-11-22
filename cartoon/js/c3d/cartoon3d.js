@@ -8636,6 +8636,16 @@ var Pool = class {
     }
     this.reqs = [];
   }
+  /** frees every drawing and its GPU texture */
+  dispose() {
+    for (const e of [...this.live.values(), ...this.free]) {
+      e.tex.dispose();
+      e.cv.width = e.cv.height = 0;
+    }
+    this.live.clear();
+    this.free = [];
+    this.reqs = [];
+  }
 };
 var blank = (() => {
   const c = document.createElement("canvas");
@@ -8731,7 +8741,17 @@ var BARE = [0, 1, 2, 3].map((v) => soldier(v, { hat: null }));
 var FOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
 var vOf = (i) => (i * 7 + (i >> 2)) % 4;
 var seedOf = (i) => (i * 5 + 3) % 7 + 1;
-var tier = (d) => d < 3.2 ? [1800, 3e3, 3] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
+var tierFull = (d) => d < 3.2 ? [1800, 3e3, 3] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
+var CARD_MAX = 1800;
+var setCardMax = (w) => {
+  CARD_MAX = w;
+};
+var tier = (d) => {
+  const t = tierFull(d);
+  if (t[0] <= CARD_MAX) return t;
+  const k = CARD_MAX / t[0];
+  return [Math.round(t[0] * k), Math.round(t[1] * k), t[2] * k];
+};
 var SUN = new THREE6.Vector3(0.5, 0.75, -0.4).normalize();
 var tmp = new THREE6.Vector3();
 var LNAME = "day";
@@ -9590,6 +9610,33 @@ var World = class {
     this.cards(st, cam, s.light);
     return focus;
   }
+  /** shadow-map size (the film uses 4096; the browser templates a smaller one) */
+  setShadowSize(n) {
+    this.sun.shadow.mapSize.set(n, n);
+    this.sun.shadow.map?.dispose();
+    this.sun.shadow.map = null;
+  }
+  /** frees every geometry, material, texture and drawing of the world (GPU memory) */
+  dispose() {
+    const seen = /* @__PURE__ */ new Set();
+    this.root.traverse((o) => {
+      if (o.geometry && !seen.has(o.geometry)) {
+        seen.add(o.geometry);
+        o.geometry.dispose();
+      }
+      for (const m of [].concat(o.material || [])) {
+        if (!m || seen.has(m)) continue;
+        seen.add(m);
+        for (const v of Object.values(m)) if (v?.isTexture && !seen.has(v)) {
+          seen.add(v);
+          v.dispose();
+        }
+        m.dispose();
+      }
+    });
+    this.sun.shadow.map?.dispose();
+    this.pool.dispose();
+  }
   /** a Loomy template frame (tmpl.ts): the bridge stands rebuilt and at rest, no sign, no framing props */
   updateTemplate(fr, t, cam, scene) {
     const focus = this.view(fr.cam, fr.light, new THREE7.Vector3(...fr.sun), t, cam, scene);
@@ -10302,7 +10349,7 @@ var View = class {
   lens;
   grade;
   target = new THREE8.Vector3();
-  constructor(kit, w, h) {
+  constructor(kit, w, h, perf = {}) {
     const r = this.renderer = new THREE8.WebGLRenderer({ antialias: false, stencil: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
     r.setPixelRatio(1);
     r.setSize(w, h, false);
@@ -10313,7 +10360,8 @@ var View = class {
     this.camera = new THREE8.PerspectiveCamera(40, w / h, 0.2, 1500);
     this.world = new World(kit);
     this.scene.add(this.world.root);
-    this.composer = new EffectComposer(r, { multisampling: 4, frameBufferType: THREE8.HalfFloatType });
+    if (perf.shadow) this.world.setShadowSize(perf.shadow);
+    this.composer = new EffectComposer(r, { multisampling: perf.msaa ?? 4, frameBufferType: THREE8.HalfFloatType });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.ink = new InkPass(this.scene, this.camera);
     this.composer.addPass(this.ink);
@@ -10339,6 +10387,15 @@ var View = class {
     this.composer.render();
     return this.renderer.domElement;
   }
+  /** frees the GPU: the post chain, the world, the drawings and the WebGL context itself */
+  dispose() {
+    this.composer.dispose();
+    this.ink.dispose();
+    this.lens.dispose();
+    this.world.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+  }
   /** one frame of a Loomy template shot (tmpl.ts) */
   drawTemplate(s, t) {
     const cam = this.camera, local = t - s.start;
@@ -10361,13 +10418,14 @@ var View = class {
     return this.renderer.domElement;
   }
 };
-async function createTemplated({ width = 1080, height = 1920, shots = [] } = {}) {
+async function createTemplated({ width = 1080, height = 1920, shots = [], perf = {} } = {}) {
   const kit = await loadKit();
+  setCardMax(perf.cardMax ?? 1080);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const g = canvas.getContext("2d", { alpha: false });
-  const view = new View(kit, width, height);
+  const view = new View(kit, width, height, { msaa: perf.msaa ?? 2, shadow: perf.shadow ?? 2048 });
   const list = [...shots].sort((a, b) => a.start - b.start);
   const at = (t) => list.find((s) => t >= s.start && t < s.end) ?? list[list.length - 1];
   return {
@@ -10390,7 +10448,7 @@ async function createTemplated({ width = 1080, height = 1920, shots = [] } = {})
       return canvas;
     },
     dispose() {
-      view.renderer.dispose();
+      view.dispose();
     }
   };
 }

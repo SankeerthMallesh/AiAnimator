@@ -54,6 +54,11 @@ export class Pool {
     }
     this.reqs = [];
   }
+  /** frees every drawing and its GPU texture */
+  dispose() {
+    for (const e of [...this.live.values(), ...this.free]) { e.tex.dispose(); e.cv.width = e.cv.height = 0; }
+    this.live.clear(); this.free = []; this.reqs = [];
+  }
 }
 
 // ---------------- sprite meshes ----------------
@@ -127,8 +132,17 @@ const vOf = (i: number) => (i * 7 + (i >> 2)) % 4;
 /** head-shape seed: 7 shapes, so marching soldiers in step still share canvases */
 const seedOf = (i: number) => ((i * 5 + 3) % 7) + 1;
 /** drawing resolution by distance: [canvas w, h, scale from the 600 x 1000 design]; sized for the 1440 x 2560 final */
-const tier = (d: number): [number, number, number] =>
+const tierFull = (d: number): [number, number, number] =>
   d < 3.2 ? [1800, 3000, 3.0] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
+/** the largest character drawing allowed (width in px of the 600 x 1000 design); the film keeps 1800 */
+let CARD_MAX = 1800;
+export const setCardMax = (w: number) => { CARD_MAX = w; };
+const tier = (d: number): [number, number, number] => {
+  const t = tierFull(d);
+  if (t[0] <= CARD_MAX) return t;
+  const k = CARD_MAX / t[0];
+  return [Math.round(t[0] * k), Math.round(t[1] * k), t[2] * k];
+};
 
 // ---------------- light ----------------
 const SUN = new THREE.Vector3(0.5, 0.75, -0.4).normalize();

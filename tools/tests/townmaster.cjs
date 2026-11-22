@@ -34,6 +34,7 @@ const script = { title: 'The Day the Bridge Fell', youtubeTitle: 'The Day the Br
   const f = p.frameLocator('#view-cartoon');
   const look = await f.locator('#look').inputValue();
   console.log('default look:', look);
+  await f.locator('#look').selectOption('town3d'); // opt-in since the crash report: this test is about the town
   await f.locator('#btnMore').click().catch(() => {});
   await f.locator('#quality').selectOption('720'); await f.locator('#fps').selectOption('24');
   if (captions) await f.locator('#townCaptions').check();
@@ -54,7 +55,7 @@ const script = { title: 'The Day the Bridge Fell', youtubeTitle: 'The Day the Br
   const log = await f.locator('#log').textContent().catch(() => '');
   console.log('shots:', (log.match(/Shots: [^\n]*/) || [''])[0].slice(0, 700));
   const fails = [];
-  if (look !== 'town3d') fails.push('default look ' + look);
+  if (look !== 'painted') fails.push('default look ' + look);
   if (images.length) fails.push(`${images.length} picture requests`);
   if (!steps.some(s => s.startsWith('plates:') && /3D cartoon town/.test(s))) fails.push('backgrounds not skipped');
   if (!steps.some(s => s.startsWith('sound:') && /film score/.test(s) && /sound effects/.test(s))) fails.push('no film sound');
