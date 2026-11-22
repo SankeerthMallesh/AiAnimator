@@ -19,6 +19,9 @@ const { chromium } = require('playwright'); const fs = require('fs');
   await p.locator('#topic').fill(topic);
   const dur = p.locator('#duration');
   if (await dur.count()) { const opts = await dur.locator('option').evaluateAll(o => o.map(x => x.value)); const want = opts.reduce((a, v) => (Math.abs(+v - +secs) < Math.abs(+a - +secs) ? v : a), opts[0]); await dur.selectOption(want).catch(() => {}); }
+  // This test machine has no graphics chip: render at 720p 24 fps so a live video finishes in minutes.
+  await p.locator('#btnMore').click().catch(() => {});
+  await p.locator('#quality').selectOption('720').catch(() => {}); await p.locator('#fps').selectOption('24').catch(() => {});
   const t0 = Date.now();
   await p.locator('#btnGo').click();
   await p.locator('#btnDownload:not(.hidden)').waitFor({ timeout: 3000000 }).catch(() => msgs.push('TIMEOUT'));
