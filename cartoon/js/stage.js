@@ -67,8 +67,9 @@ export class Stage {
     if (shot.whip > 0) { Stage.smear(ctx, W, H, shot.whip * ((scene.index + (shot.setup?.k || 0)) % 2 ? 1 : -1)); Stage.speedLines(ctx, W, H, shot.whip); }
     if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot, Stage.lastBox, Stage.lastFace);
     if (view.settings?.captionStyle !== 'off') {
-      if (this.log) this.log.caption(t, ctx, H, () => Stage.caption(ctx, W, H, scene, local));
-      else Stage.caption(ctx, W, H, scene, local);
+      const punch = view.settings?.captionStyle === 'punch';
+      if (this.log) this.log.caption(t, ctx, H, () => Stage.caption(ctx, W, H, scene, local, { punch }));
+      else Stage.caption(ctx, W, H, scene, local, { punch });
     }
     if (scene.index === 0 && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
     // Long form: a title card opens each chapter (shared/hooks.js).
@@ -784,25 +785,27 @@ export class Stage {
     ctx.restore();
   }
 
-  static caption(ctx, W, H, scene, local) {
+  // punch (1.4): the big style, one or two words much larger and a little higher, with a heavier
+  // outline, like lit 3D cartoon shorts.
+  static caption(ctx, W, H, scene, local, { punch = false } = {}) {
     const chunks = Stage.chunks(scene.words);
     const c = chunks.find(w => local >= w.start && local <= w.end + 0.04);
     if (!c) return;
     const portrait = H >= W;
     // Matched to the reference Shorts: white words centred at 71% of the height, a drawn line of
     // 4% of the height.
-    let size = Math.round(portrait ? H * 0.0436 : W * 0.046);
+    let size = Math.round((portrait ? H * 0.0436 : W * 0.046) * (punch ? 1.55 : 1));
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
     const fit = () => { ctx.font = `900 ${size}px Montserrat, Arial, sans-serif`; };
     fit();
-    while (ctx.measureText(c.text).width > W * 0.9 && size > 28) { size -= 2; fit(); }
+    while (ctx.measureText(c.text).width > W * (punch ? 0.86 : 0.9) && size > 28) { size -= 2; fit(); }
     const age = local - c.start;
     // Pop in from 80% with a small overshoot, never from nothing, so no frame shows a tiny word.
     const k = Math.min(1, Math.max(0, age / 0.16));
     const pop = 0.8 + 0.2 * Ink.back(k);
-    const y = H * (portrait ? 0.71 : 0.8) + (1 - k) * size * 0.12;
+    const y = H * (punch ? (portrait ? 0.64 : 0.74) : (portrait ? 0.71 : 0.8)) + (1 - k) * size * 0.12;
     // Numbers get a yellow highlight; everything else stays white like the references.
     const hot = /\d/.test(c.text);
     ctx.save();
@@ -811,7 +814,7 @@ export class Stage {
     ctx.shadowColor = 'rgba(0,0,0,.5)';
     ctx.shadowBlur = size * 0.2;
     ctx.shadowOffsetY = size * 0.05;
-    ctx.lineWidth = Math.max(6, size * 0.2);
+    ctx.lineWidth = Math.max(6, size * (punch ? 0.24 : 0.2));
     ctx.strokeStyle = '#141414';
     ctx.strokeText(c.text, 0, 0);
     ctx.shadowColor = 'transparent';

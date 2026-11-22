@@ -28,7 +28,7 @@ export function glare(ctx, W, H, t, { strength = 1, dark = false, seed = 0, grad
   fg.clearRect(0, 0, sw, sh); fg.filter = 'blur(1.6px)'; fg.drawImage(small, 0, 0); fg.filter = 'none';
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  ctx.globalAlpha = Math.min(0.6, 0.26 * k);
+  ctx.globalAlpha = Math.min(0.45, 0.19 * k);
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(soft, 0, 0, W, H);
   ctx.restore();

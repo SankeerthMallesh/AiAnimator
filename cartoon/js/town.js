@@ -4,6 +4,7 @@
 // the encoder: canvas, W, H, drawFrame(t), dispose(), plus a ready promise. Captions are off unless asked for.
 import { planShots } from '../../explainer/js/z3d/plan.js';
 import { Stage } from './stage.js';
+import { glare } from '../../shared/glare.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt } from '../../shared/hooks.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
@@ -57,11 +58,11 @@ export function townShots(timeline, script) {
 }
 
 export class TownRenderer {
-  constructor(canvas, { timeline, script, W, H, captions = false, preview = false }) {
+  constructor(canvas, { timeline, script, W, H, captions = false, preview = false, punch = false, glow = true }) {
     this.canvas = canvas; this.W = W; this.H = H;
     canvas.width = W; canvas.height = H;
     this.g = canvas.getContext('2d', { alpha: false });
-    this.timeline = timeline; this.captions = captions; this.log = null;
+    this.timeline = timeline; this.captions = captions; this.log = null; this.punch = punch; this.glow = glow;
     this.headline = headlineText(script);
     this.preview = preview; this.lastMs = 0; this.lastAt = -1e9;
     const { specs, shots } = townShots(timeline, script);
@@ -88,10 +89,12 @@ export class TownRenderer {
     const t0 = performance.now();
     this.g.drawImage(this.engine.renderAt(t), 0, 0, this.W, this.H);
     this.lastMs = performance.now() - t0; this.lastAt = performance.now();
+    // 1.4: the 1.3 glow over the town too (bloom, sparkles, dust); the engine grades its own colour.
+    if (this.glow) glare(this.g, this.W, this.H, t, { grade: false, seed: 7 });
     if (this.captions) {
       const scenes = this.timeline.scenes;
       const scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];
-      if (scene) Stage.caption(this.g, this.W, this.H, scene, Math.max(0, t - scene.start));
+      if (scene) Stage.caption(this.g, this.W, this.H, scene, Math.max(0, t - scene.start), { punch: this.punch });
     }
     if (this.shots[0]?.teaser) drawCutFlash(this.g, this.W, this.H, t);
     drawHeadline(this.g, this.W, this.H, t, this.headline, { top: 0.13 });
