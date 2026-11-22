@@ -491,6 +491,11 @@ export class Script {
         const byLine = Script.guessSet(narration + ' ' + (s.bg || ''), options.topic || raw.title || '');
         set = byLine !== 'sky' ? byLine : (set && set !== 'sky' ? set : Script.guessSet(options.topic || ''));
       }
+      // 1.4: a story inside a spacecraft moves from the generic space, night or lab sets into its rooms.
+      if (['space', 'night', 'lab', 'room', 'office'].includes(set)) {
+        const room = Script.guessSet(narration + ' ' + (s.bg || ''), options.topic || raw.title || '');
+        if (['cabin', 'control', 'bunks', 'cockpit'].includes(room)) set = room;
+      }
       const about = (narration + ' ' + (s.bg || '')).toLowerCase();
       if (/rail|railroad|\btracks?\b|\btrain\b/.test(about) && (set === 'road' || set === 'sky')) set = 'rails';
       if (/\b(heart|lung|lungs|blood|organ|stomach)\b/.test(about) && (set === 'sky' || set === 'room')) set = 'lab';

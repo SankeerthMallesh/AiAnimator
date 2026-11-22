@@ -19,3 +19,11 @@ export const tests = [
     assert.notEqual(Script.guessSet('If you flush the toilet, it goes down.', 'How plumbing works'), 'cabin');
   } },
 ];
+tests.push({ name: 'a writer\'s generic space, night or lab set becomes the right room inside a spacecraft', fn: () => {
+  const s = Script.normalize({ title: 'Why astronauts cannot flush', cast: [{ id: 'a', name: 'A' }], scenes: [
+    { line: 'If you flushed a toilet in space, it would come back up.', set: 'space', say: 'a', who: [{ id: 'a' }] },
+    { line: 'The new guy was asleep.', set: 'night', say: 'a', who: [{ id: 'a' }] },
+    { line: 'Mission control starts the countdown.', set: 'lab', say: 'a', who: [{ id: 'a' }] },
+    { line: 'The view of Earth is amazing.', set: 'space', say: 'a', who: [{ id: 'a' }] }] }, { topic: 'Why astronauts cannot flush in space' });
+  assert.deepEqual(s.scenes.map(sc => sc.set), ['cabin', 'bunks', 'control', 'space']);
+} });
