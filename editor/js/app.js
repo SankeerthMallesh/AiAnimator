@@ -6,6 +6,7 @@ import { Preview } from './preview.js';
 import { Timeline, escapeHtml } from './timeline.js';
 import { exportProject } from './export.js';
 import { canEncode } from '../../shared/encode.js';
+import { takeFromHandoff, onHandoff } from '../../shared/handoff.js';
 
 document.title = 'Loomy · Edit';
 const $ = (s) => document.querySelector(s);
@@ -294,6 +295,31 @@ function toast(msg, bad = false) {
   t.textContent = msg; t.classList.toggle('bad', bad); t.hidden = false;
   clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, bad ? 6000 : 3000);
 }
+
+// E5: a video sent from a Loomy tab (Edit this video) comes in with its captions.
+async function takeLoomyVideo() {
+  const item = await takeFromHandoff();
+  if (!item?.blob) return;
+  const id = uid('v');
+  try {
+    toast(`Opening ${item.name}…`);
+    const info = await media.load(id, item.blob, { name: item.name });
+    let q = addSource(project, id, { ...info, kind: 'loomy' });
+    const r = addSegment(q, id);
+    q = item.words?.length ? setCaptions(r.project, id, item.words) : r.project;
+    // The video already shows its captions: the editable copy starts off, so they never show twice.
+    if (item.words?.length && item.captionsBurned !== false) q.captionStyle = { ...q.captionStyle, look: 'off' };
+    selected = null;
+    commit(q, { keepTime: false });
+    tl.fit();
+    await preview.show(timeline(project).find(e => e.seg.src === id)?.start || 0);
+    toast(!item.words?.length ? 'Your Loomy video is here.' : item.captionsBurned !== false
+      ? 'Your Loomy video is here. Its captions are in the picture; to restyle them here, export it from Loomy with Captions off, then switch them on under Captions.'
+      : 'Your Loomy video is here with its captions. Add text, music or trims, then Export.');
+  } catch (e) { toast(e.message, true); }
+}
+takeLoomyVideo();
+onHandoff(takeLoomyVideo);
 
 // For tests: the project as it stands.
 window.loomyEditor = { get project() { return project; }, preview, media };

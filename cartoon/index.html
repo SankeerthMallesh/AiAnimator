@@ -12,9 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611212311">
-<script type="module" src="../shared/topbar.js?v=202611212311"></script>
-<link rel="stylesheet" href="../theme.css?v=202611212311">
+<link rel="stylesheet" href="css/app.css?v=202611220031">
+<script type="module" src="../shared/topbar.js?v=202611220031"></script>
+<link rel="stylesheet" href="../theme.css?v=202611220031">
 </head>
 <body>
 <div class="app" id="app">
@@ -173,6 +173,7 @@
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Export MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
+              <button class="btn wide hidden" id="btnEdit" type="button">✂️ Edit this video: text, music, trims</button>
               <button class="btn wide hidden runway-btn" id="btnRunway" type="button">✨ Animate shots</button>
               <button class="btn wide hidden" id="btnShotPack" type="button">📤 Shot pack: animate free in Flow, Kling, Magic Hour…</button>
             </div>
@@ -304,39 +305,41 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611212311",
-  "./js/audio.js": "./js/audio.js?v=202611212311",
-  "./js/c3d/cartoon3d.js": "./js/c3d/cartoon3d.js?v=202611212311",
-  "./js/cast.js": "./js/cast.js?v=202611212311",
-  "./js/demo.js": "./js/demo.js?v=202611212311",
-  "./js/encoder.js": "./js/encoder.js?v=202611212311",
-  "./js/images.js": "./js/images.js?v=202611212311",
-  "./js/llm.js": "./js/llm.js?v=202611212311",
-  "./js/net.js": "./js/net.js?v=202611212311",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611212311",
-  "./js/presets.js": "./js/presets.js?v=202611212311",
-  "./js/props.js": "./js/props.js?v=202611212311",
-  "./js/router.js": "./js/router.js?v=202611212311",
-  "./js/safety.js": "./js/safety.js?v=202611212311",
-  "./js/script.js": "./js/script.js?v=202611212311",
-  "./js/sets.js": "./js/sets.js?v=202611212311",
-  "./js/sharpen.js": "./js/sharpen.js?v=202611212311",
-  "./js/stage.js": "./js/stage.js?v=202611212311",
-  "./js/storage.js": "./js/storage.js?v=202611212311",
-  "./js/toons.js": "./js/toons.js?v=202611212311",
-  "./js/tts.js": "./js/tts.js?v=202611212311",
-  "./js/videoai.js": "./js/videoai.js?v=202611212311",
-  "./js/wiki.js": "./js/wiki.js?v=202611212311",
-  "./js/worlds.js": "./js/worlds.js?v=202611212311",
-  "../shared/encode.js": "../shared/encode.js?v=202611212311",
-  "../shared/level.js": "../shared/level.js?v=202611212311",
-  "../shared/renderlog.js": "../shared/renderlog.js?v=202611212311",
-  "../shared/speech.js": "../shared/speech.js?v=202611212311",
-  "../shared/topbar.js": "../shared/topbar.js?v=202611212311",
-  "../shared/voicefx.js": "../shared/voicefx.js?v=202611212311",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611212311"
+  "./js/app.js": "./js/app.js?v=202611220031",
+  "./js/audio.js": "./js/audio.js?v=202611220031",
+  "./js/c3d/cartoon3d.js": "./js/c3d/cartoon3d.js?v=202611220031",
+  "./js/cast.js": "./js/cast.js?v=202611220031",
+  "./js/demo.js": "./js/demo.js?v=202611220031",
+  "./js/encoder.js": "./js/encoder.js?v=202611220031",
+  "./js/images.js": "./js/images.js?v=202611220031",
+  "./js/llm.js": "./js/llm.js?v=202611220031",
+  "./js/net.js": "./js/net.js?v=202611220031",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611220031",
+  "./js/presets.js": "./js/presets.js?v=202611220031",
+  "./js/props.js": "./js/props.js?v=202611220031",
+  "./js/router.js": "./js/router.js?v=202611220031",
+  "./js/safety.js": "./js/safety.js?v=202611220031",
+  "./js/script.js": "./js/script.js?v=202611220031",
+  "./js/sets.js": "./js/sets.js?v=202611220031",
+  "./js/sharpen.js": "./js/sharpen.js?v=202611220031",
+  "./js/stage.js": "./js/stage.js?v=202611220031",
+  "./js/storage.js": "./js/storage.js?v=202611220031",
+  "./js/toons.js": "./js/toons.js?v=202611220031",
+  "./js/tts.js": "./js/tts.js?v=202611220031",
+  "./js/videoai.js": "./js/videoai.js?v=202611220031",
+  "./js/wiki.js": "./js/wiki.js?v=202611220031",
+  "./js/worlds.js": "./js/worlds.js?v=202611220031",
+  "../shared/encode.js": "../shared/encode.js?v=202611220031",
+  "../shared/filmsound.js": "../shared/filmsound.js?v=202611220031",
+  "../shared/handoff.js": "../shared/handoff.js?v=202611220031",
+  "../shared/level.js": "../shared/level.js?v=202611220031",
+  "../shared/renderlog.js": "../shared/renderlog.js?v=202611220031",
+  "../shared/speech.js": "../shared/speech.js?v=202611220031",
+  "../shared/topbar.js": "../shared/topbar.js?v=202611220031",
+  "../shared/voicefx.js": "../shared/voicefx.js?v=202611220031",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611220031"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611212311"></script>
+<script type="module" src="./js/app.js?v=202611220031"></script>
 </body>
 </html>

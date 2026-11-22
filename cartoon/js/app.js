@@ -304,7 +304,7 @@ function openProject(p, { render }) {
   $('#board').innerHTML = '';
   $('#factNotes').classList.add('hidden');
   $('#metaCard').classList.add('hidden');
-  $('#btnDownload').classList.add('hidden');
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden');
   $('#renderProg').classList.add('hidden');
   const ratio = FORMATS[formatOf(p.options)].ratio;
   $('#stage').style.aspectRatio = String(ratio);
@@ -409,7 +409,7 @@ window.addEventListener('error', (ev) => { if (ev.message) log(`Unexpected probl
 
 async function doRender(pl = pipeline) {
   stopPreview();
-  $('#btnDownload').classList.add('hidden');
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden');
   $('#renderProg').classList.remove('hidden');
   $('#renderBar').style.width = '0%';
   $('#renderText').textContent = 'Starting…';
@@ -419,6 +419,7 @@ async function doRender(pl = pipeline) {
   a.download = `${slug(project.script.title)}.${video.ext}`;
   a.textContent = `Download ${video.ext.toUpperCase()} · ${(video.blob.size / 1048576).toFixed(1)} MB`;
   a.classList.remove('hidden');
+  $('#btnEdit')?.classList.remove('hidden');
   const v = $('#outVideo');
   v.src = video.url;
   v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(0.8, v.duration / 2); } catch { /* ignore */ } }, { once: true });
@@ -1114,4 +1115,16 @@ document.getElementById('btnSaveCast')?.addEventListener('click', () => {
   const names = addToCrew(cast);
   renderCrew();
   toast(names.length ? `Saved ${names.join(', ')} to My characters. They star in your next videos (Create → More).` : 'My characters is full (8). Delete one on the Create page first.', !names.length);
+});
+
+// E5: the finished video and its word-timed captions go to the Edit tab.
+document.getElementById('btnEdit')?.addEventListener('click', async () => {
+  const video = project?.video, tl = project?.timeline;
+  if (!video?.blob) return;
+  const words = (tl?.scenes || []).flatMap(sc => (sc.words || []).map(w => ({ text: w.text, start: sc.start + w.start, end: sc.start + w.end })));
+  try {
+    const { sendToEditor, openEditTab } = await import('../../shared/handoff.js');
+    await sendToEditor({ blob: video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: settings.captionStyle !== 'off', duration: tl?.total || 0, tab: 'cartoon' });
+    openEditTab();
+  } catch (e) { toast(`Could not open the editor: ${e.message}`, true); }
 });
