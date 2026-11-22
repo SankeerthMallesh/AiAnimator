@@ -112,13 +112,32 @@ Each step is one commit with its ID. Unit tests: `node tools/tests/unit/run.mjs`
   The bridge film renders pixel-identical after the engine refactor (checked on 6 frames).
 - End-to-end tests for the drawn looks: `tools/tests/drawnmaster.cjs 3d|blocky` (720p 24 fps, mocked AI).
 
+## Loomy 1.0 (2026-11-22)
+
+Everything above, plus (one commit each, all on `main`):
+- **Fixes after live use**: the pulse effect was a red disc on the chest (now rings beside the head);
+  the 3D cartoon town crashed a user's PC (now lighter: MSAA 2, 2048 shadow map, drawings capped at
+  1080 px; it frees its WebGL context; the preview's engine is freed before an export; frames are
+  paced) and Cartoons opens on painted sets again (the town is opt-in, marked heavy).
+- **Auto look** (3D tab default): `pickLook` in presets.js: drawn 3D people for stories, AI pictures for
+  things, places, history, space and the body.
+- **H1 hook stack** (`shared/hooks.js`): cold open on the teaser scene (0.9 s), headline from the
+  writer's `hookText`, a flash on the cut, a riser and boom. All looks.
+- **O1 3D objects** (`z3d/things.js`, 26 things; actions hold/show/drop/grow/spin/break; shot kind
+  `object`; pose `show`), in 3D and Blocky; the writer picks `thing` and `do`.
+- **1.0 look**: one accent gradient (theme.css), hero glow, "Made with Loomy" frames
+  (`shared/showcase/`), feature pills, a What's-new card (index.html, once per browser).
+- **LF1 long form**: up to 15 min in chapters (3D/Blocky `writeLongScript`, Cartoons parts), chapter
+  title cards, one-click long-form starters, lower bitrate for long exports. Styles are original
+  (cartoon history, game-world story, long 3D explainer): no channel or game names in Loomy.
+Tests added: h1-hooks, o1-things, l2b-auto-look, l4b-film-sound-nodes (unit); longmaster.cjs,
+autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editore2e2.cjs (page).
+
 ## Remaining work
 
-All of L2-L5 and E2-E5 are done, tested end to end (drawnmaster.cjs 3d and blocky, townmaster.cjs,
-editore2e.cjs, editore2e2.cjs, cleanmaster.cjs, clean3dmaster.cjs: all pass; 168 unit tests) and live.
-Not checked from the sandbox: the live site itself (its host is blocked here); the user was asked to make
-one video per tab. Ideas: more town places (inside a house, a shop street), props for `point` shots in
-the town, storyboard thumbnails for the town look (they still show the painted-set preview).
+- Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
+  render (hours on this CPU; minutes on a GPU). Ask the user to make one long video per tab.
+- Ideas: more town places, objects for the Cartoons tab, a chapter list in the YouTube description.
 
 ## Deploying to Loomy (the live site)
 

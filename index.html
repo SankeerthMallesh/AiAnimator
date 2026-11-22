@@ -28,7 +28,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 20px; letter-spacing: -.03em; white-space: nowrap; min-width: 0; }
 .brand svg { width: 28px; height: 28px; flex: none; }
 .brand small { font: 500 13.5px "Inter", sans-serif; color: var(--muted); letter-spacing: 0; padding-left: 12px; margin-left: 2px; border-left: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; }
-.brand small.ver { border: 0; margin-left: 0; padding: 3px 8px; border-radius: 999px; font: 700 11.5px/1 "Inter", sans-serif; color: #fff; background: linear-gradient(120deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
+.brand .ver { cursor: pointer; } .brand .ver:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.brand small.ver, .brand button.ver { border: 0; margin-left: 0; padding: 3px 8px; border-radius: 999px; font: 700 11.5px/1 "Inter", sans-serif; color: #fff; background: linear-gradient(120deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
 .tab[aria-selected="true"] { box-shadow: 0 6px 22px -10px rgba(99, 102, 241, .8); }
 .tabs { display: flex; gap: 8px; }
 .tab { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--pill-line); background: var(--pill); color: var(--ink); font: 500 14px/1 "Inter", sans-serif;
@@ -66,7 +67,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 @media (prefers-reduced-motion: reduce) { .views iframe { transition: none; } }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 9; background: #FAFAFA; color: #0A0A0A; border: 1px solid #FAFAFA; padding: 10px 14px; border-radius: 9px; }
 .toast[hidden] { display: none; }
-@media (max-width: 860px) { .brand small:not(.ver) { display: none; } .share span { display: none; } .tab { padding: 9px 12px; } }
+@media (max-width: 860px) { .brand small { display: none; } .share span { display: none; } .tab { padding: 9px 12px; } }
 @media (max-width: 560px) {
   .top { grid-template-columns: auto 1fr auto; gap: 8px; }
   .brand span { display: none; }
@@ -82,13 +83,24 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
   .account:not([hidden]) + .share { display: none; }
 }
 @media (max-width: 370px) { .tabs { gap: 4px; } .tab { padding: 8px 10px; } }
+/* What's new in 1.0: a card shown once per browser (and from the 1.0 badge). */
+.news { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.6); backdrop-filter: blur(4px); }
+.news[hidden] { display: none; }
+.news-card { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #0E0E10; border: 1px solid #2A2A2A; border-radius: 18px; padding: 24px; box-shadow: 0 30px 80px -20px rgba(99,102,241,.45); color: var(--ink); }
+.news-card h2 { margin: 0 0 4px; font: 700 22px/1.2 "Inter", sans-serif; letter-spacing: -.02em; }
+.news-card .sub { margin: 0 0 16px; color: var(--muted); }
+.news-card ul { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 12px; }
+.news-card li { display: grid; grid-template-columns: 10px 1fr; gap: 10px; line-height: 1.45; }
+.news-card li::before { content: ""; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: linear-gradient(120deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
+.news-card li b { color: #fff; font-weight: 600; }
+.news-card .ok { width: 100%; min-height: 44px; border: 0; border-radius: 10px; font: 600 15px "Inter", sans-serif; color: #fff; cursor: pointer; background: linear-gradient(120deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
 </style>
 </head>
 <body>
 <header class="top">
   <div class="brand">
     <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset=".55" stop-color="#3B82F6"/><stop offset="1" stop-color="#22D3EE"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><circle cx="16" cy="11" r="4.5" fill="#fff"/><path d="M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
-    <span>Loomy</span><small class="ver" title="Loomy 1.0: hooks in the first seconds, 3D objects, long-form videos">1.0</small>
+    <span>Loomy</span><button type="button" class="ver" id="verBtn" title="What's new in Loomy 1.0" aria-haspopup="dialog">1.0</button>
   </div>
   <nav class="tabs" role="tablist" aria-label="Sections">
     <button class="tab" role="tab" id="tab-cartoon" data-view="cartoon" aria-controls="view-cartoon"><svg viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M12 9v7M8 12h8M12 16l-3 5M12 16l3 5"/></svg><span>Cartoons</span></button>
@@ -101,6 +113,20 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
   <div class="right"><div class="account" id="account" hidden></div><button class="share" id="shareBtn" title="Copy the Loomy link"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.6M18.5 19a5.5 5.5 0 0 0-3-4.9"/></svg><span>Share</span></button></div>
 </header>
 <main class="views" id="views"></main>
+<div class="news" id="news" role="dialog" aria-modal="true" aria-labelledby="newsTitle" hidden>
+  <div class="news-card">
+    <h2 id="newsTitle">Welcome to Loomy 1.0</h2>
+    <p class="sub">The biggest update yet. Here is what changed.</p>
+    <ul>
+      <li><span><b>Hooks in the first seconds.</b> Every video opens on its most dramatic moment, a headline that teases the payoff, and a sound hit.</span></li>
+      <li><span><b>Real 3D objects.</b> In 3D and Blocky, people hold, show, drop, spin and break 26 objects, from bricks to atoms.</span></li>
+      <li><span><b>Long videos, in chapters.</b> Up to 15 minutes: cartoon history, 3D explainers and game-world stories, each chapter with its own title card.</span></li>
+      <li><span><b>The right look for the topic.</b> 3D picks drawn people for stories and AI pictures for places and history.</span></li>
+      <li><span><b>A better editor.</b> Text, captions, music, speed, zoom and transitions, plus Edit on every finished video.</span></li>
+    </ul>
+    <button type="button" class="ok" id="newsOk">Start creating</button>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="account.js?v=202611220348"></script>
 <script>
@@ -182,6 +208,17 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
     }
   }
   (window.LoomyAccount?.ready || Promise.resolve()).catch(() => {}).then(boot);
+
+  // What's new in 1.0: once per browser, and from the 1.0 badge.
+  const news = document.getElementById('news');
+  const openNews = () => { news.hidden = false; document.getElementById('newsOk').focus(); };
+  const closeNews = () => { news.hidden = true; try { localStorage.setItem('loomy-news', '1.0'); } catch { /* private mode */ } };
+  document.getElementById('verBtn').addEventListener('click', openNews);
+  document.getElementById('newsOk').addEventListener('click', closeNews);
+  news.addEventListener('click', (e) => { if (e.target === news) closeNews(); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && !news.hidden) closeNews(); });
+  let seen = null; try { seen = localStorage.getItem('loomy-news'); } catch { /* private mode */ }
+  if (seen !== '1.0' && !/[?&]test=1/.test(location.search) && !navigator.webdriver) setTimeout(openNews, 600);
   addEventListener('hashchange', () => {
     const h = location.hash.slice(1);
     if (h.startsWith('board:')) { boot(); return; }
