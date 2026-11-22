@@ -645,6 +645,8 @@ export class Cast {
 
 // Tiny props that sit in a hand. Kept here so the rig does not import the whole set library.
 class PropMini {
+  static KINDS = ['bag', 'book', 'camera', 'clipboard', 'coin', 'cup', 'hammer', 'heart', 'key', 'lantern', 'letter', 'lungs', 'magnet', 'map', 'money', 'newspaper', 'phone', 'rail', 'ruler', 'stomach', 'ticket', 'watch', 'wrench'];
+  static knows(kind) { return PropMini.KINDS.includes(kind); }
   static draw(ctx, kind) {
     ctx.lineWidth = 6;
     ctx.strokeStyle = Ink.INK;

@@ -1,11 +1,11 @@
 // Plays a storyboard on a canvas: code-drawn sets, props and a cast, with a camera,
 // whip and zoom cuts, and one-or-two-word captions locked to the voice.
 
-import { Ink, Cast } from './cast.js';
+import { Ink, Cast, PropMini } from './cast.js';
 import { PropKit, SetKit } from './props.js';
 import { wordTimings } from './tts.js';
 import { drawChapterCard } from '../../shared/hooks.js';
-import { glare, gradeLayer } from '../../shared/glare.js';
+import { glare, gradeLayer, sparkle } from '../../shared/glare.js';
 
 const BEAT = 3.15;
 
@@ -108,9 +108,46 @@ export class Stage {
     const n = dur < 2 ? 1 : Math.max(2, Math.min(3, Math.round(dur / 1.3)));
     const k = Math.min(n - 1, Math.floor((Math.max(0, local) / dur) * n));
     const a = (k * dur) / n, b = ((k + 1) * dur) / n;
-    const kind = k === 0 ? 'first' : Stage.SETUPS[((scene.index || 0) + k - 1) % Stage.SETUPS.length];
+    let kind = k === 0 ? 'first' : Stage.SETUPS[((scene.index || 0) + k - 1) % Stage.SETUPS.length];
+    // 1.4: a scene with a thing in it cuts to a big close-up of the thing: in place of the scenery
+    // cutaway, and as the last set-up of every other such scene.
+    if (k > 0 && Stage.thingOf(scene) && (kind === 'cutaway' || (k === n - 1 && (scene.index || 0) % 2 === 0))) kind = 'object';
     return { k, n, kind, a, b };
   }
+
+  // The thing a scene is about: what the speaker (or anyone) holds or uses, else its first real prop.
+  static thingOf(scene) {
+    const who = scene.who || [], acts = scene.acts || [];
+    const held = who.find(w => w.id === scene.say && w.hold)?.hold || who.find(w => w.hold)?.hold || acts.find(a => a.hold)?.hold;
+    if (held) return { kind: held };
+    const p = (scene.props || []).find(x => x.kind && x.kind !== 'icon' && !['house', 'bridge', 'counter', 'desk', 'tree', 'chair'].includes(x.kind));
+    return p ? { kind: p.kind, prop: p } : null;
+  }
+
+  // The close-up itself: the set dimmed behind, a glow, the thing big in the middle, floating and
+  // turning a little, with sparkles around it.
+  static objectShot(ctx, W, H, thing, lt, t) {
+    const S = Math.min(W, H) * 0.5, cx = W / 2, cy = H * 0.44;
+    ctx.save();
+    ctx.fillStyle = 'rgba(8,10,30,0.42)'; ctx.fillRect(0, 0, W, H);
+    const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, S * 1.1);
+    halo.addColorStop(0, 'rgba(255,236,170,0.5)'); halo.addColorStop(0.5, 'rgba(255,214,120,0.16)'); halo.addColorStop(1, 'rgba(255,214,120,0)');
+    ctx.fillStyle = halo; ctx.fillRect(0, 0, W, H);
+    const pop = 0.82 + 0.18 * Ink.back(Ink.clamp(lt / 0.3, 0, 1));
+    ctx.translate(cx, cy + Math.sin(lt * 2.1) * S * 0.035);
+    ctx.rotate(Math.sin(lt * 1.3) * 0.12);
+    ctx.scale(pop, pop);
+    const kind = thing.kind;
+    if (PropMini.knows(kind)) { ctx.scale(S / 70, S / 70); PropMini.draw(ctx, kind); }
+    else if (PropKit.TOONS.includes(kind)) PropKit.draw(ctx, { kind, x: 0, y: 0, scale: 1 }, S / 3.9, 0, t);
+    else PropKit.draw(ctx, { ...(thing.prop || {}), kind, x: 0 }, S / 3.2, S * 0.55, t);
+    ctx.restore();
+    [[-0.62, -0.5], [0.66, -0.34], [-0.5, 0.52], [0.58, 0.6]].forEach(([dx, dy], i) => {
+      const tw = 0.55 + 0.45 * Math.sin(lt * 4 + i * 1.9);
+      sparkle(ctx, cx + dx * S, cy + dy * S, S * 0.16 * tw, 0.9 * tw);
+    });
+  }
+
 
   static shot(scene, local) {
     const su = Stage.setupAt(scene, local);
@@ -126,7 +163,7 @@ export class Stage {
     else if (su.kind === 'low') { z *= 1.02 + 0.05 * p; rot = -0.012; }
     else if (su.kind === 'aerial') { z *= 1.1; panY = (1 - p) * 150; } // tilts down onto the scene
     else if (su.kind === 'truck') { z *= 1.06; panX = (p - 0.5) * ((scene.index || 0) % 2 ? -1.2 : 1.2); }
-    else if (su.kind === 'cutaway') z *= 1 + 0.08 * p;
+    else if (su.kind === 'cutaway' || su.kind === 'object') z *= 1 + 0.08 * p;
     // 1.2: tilted (dutch) angles, like lit 3D cartoon shorts: on reactions, on a line's punch and on
     // the low hero shot. Zoomed in just enough that the tilted frame never shows its corners.
     const punch = /[!?]["')]?\s*$/.test(String(scene.narration || '').trim());
@@ -184,7 +221,7 @@ export class Stage {
     // second half is a close-up (or back to wide), a reaction close-up on the listener, or a
     // scenery-only cutaway where the camera pushes into the world while the narration goes on.
     const su = photo ? { k: 0, n: 1, kind: 'first' } : (shot.setup || Stage.setupAt(scene, local));
-    const cutaway = su.kind === 'cutaway';
+    const cutaway = su.kind === 'cutaway' || su.kind === 'object';
     const second = su.k > 0;
     let framed = scene;
     {
@@ -258,7 +295,11 @@ export class Stage {
     }
     SetKit.draw(ctx, W, H, scene.set, scene.start + local, pe?.bitmap || null, { flip: !!pe?.flip, scene: !!pe?.scene || photo, blur: photo, vx: pe?.vx || 0, vz: pe?.vz || 1, tint: pe?.tint || null });
     ctx.restore();
-    if (cutaway) { ctx.restore(); return; } // scenery only: no cast, no props
+    if (cutaway) {
+      ctx.restore();
+      if (su.kind === 'object') Stage.objectShot(ctx, W, H, Stage.thingOf(scene), local - (su.a || 0), scene.start + local);
+      return; // scenery (or the thing) only: no cast, no props
+    }
     if (mv) Stage.applyMotion(mv, actors, scene, local, talkIdFor(scene, actors), bgX, W);
     Stage.keepInFrame(ctx, actors, fr, W, H, u, ground, cast);
     if (photo) {
