@@ -40,11 +40,7 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
         entries.append(f'  "{vendor}/mp4-muxer.mjs": "{vendor}/mp4-muxer.mjs?v={v}"')
     imap = '<script type="importmap">\n{"imports": {\n' + ',\n'.join(entries) + '\n}}\n</script>\n'
     s = re.sub(r'<script type="importmap">.*?</script>\n', '', s, flags=re.S)
-    s = re.sub(r'<script type="module" src="\./js/app\.js(\?v=[^"]*)?"></script>', f'<script type="module" src="./js/app.js?v={v}"></script>', s)
-    # MAP1: the import map must come before the page's first module script (the top bar loads in <head>);
-    # a map after it is ignored or refused, so the version stamps would not reach the modules.
-    i = s.find('<script type="module"')
-    s = s[:i] + imap + s[i:]
+    s = re.sub(r'<script type="module" src="\./js/app\.js(\?v=[^"]*)?"></script>', lambda m: imap + f'<script type="module" src="./js/app.js?v={v}"></script>', s)
     open('index.html', 'w').write(s)
 # The Loomy page itself loads account.js.
 os.chdir(root)
