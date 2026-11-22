@@ -23,7 +23,11 @@ const out = process.env.OUT || 'out/video';
     if (path.endsWith('/api/me')) return route.fulfill({ json: { user: null } });
     if (path.endsWith('/api/write')) {
       const body = JSON.parse(route.request().postData() || '{}'); const sys = JSON.stringify(body.messages || '');
-      const text = /fact-check|Check each line/i.test(sys) ? JSON.stringify({ notes: [], fixes: [], unverified: [] }) : JSON.stringify(script);
+      // A long-ish video is written in parts ("part k of n"): answer each part with its share of the scenes,
+      // not the whole script again (that played the story three times over).
+      const part = /part (\d+) of (\d+)/i.exec(sys);
+      const share = part ? (() => { const k = +part[1], n = +part[2], L = script.scenes.length; return { ...script, scenes: script.scenes.slice(Math.round((k - 1) * L / n), Math.round(k * L / n)) }; })() : script;
+      const text = /fact-check|Check each line/i.test(sys) ? JSON.stringify({ notes: [], fixes: [], unverified: [] }) : JSON.stringify(share);
       return route.fulfill({ json: { ok: true, text } });
     }
     return route.fulfill({ status: 503, json: { ok: false, error: 'not used for this video' } });
