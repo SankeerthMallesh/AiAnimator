@@ -30,7 +30,7 @@ export function attachFeedback({ before, onFix }) {
         li.innerHTML = `<span class="fb-name"></span><span class="fb-pill g-${tone(s.grade)}"></span><span class="fb-bar"><i style="width:${s.score}%"></i></span><span class="fb-tip fine"></span>`;
         li.querySelector('.fb-name').textContent = s.name;
         li.querySelector('.fb-pill').textContent = s.grade;
-        li.querySelector('.fb-tip').textContent = s.tips[0] || 'Looks good.';
+        li.querySelector('.fb-tip').textContent = s.score >= 90 ? 'Looks good.' : s.tips[0] || 'Looks good.';
         return li;
       }));
       const weak = report.overall.score < 85;
