@@ -1,6 +1,6 @@
 // UI controller for Storyforge.
 import { resetVoiceReport } from './tts.js';
-import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf } from './presets.js';
+import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
 import { creditText } from './wiki.js';
@@ -199,6 +199,13 @@ $('#voice').addEventListener('change', (e) => {
   $('#topic').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#composer').requestSubmit(); }
   });
+  // The town is the default only where it can show the story; a person's own pick always wins.
+  const lookFor = (topic) => {
+    const picked = $('#look')?.value || 'painted';
+    if (picked !== 'town3d' || settings.look === 'town3d' || townFits(topic)) return picked;
+    toast('Painted sets for this one: the 3D town cannot build those places.');
+    return 'painted';
+  };
   $('#composer').addEventListener('submit', (e) => {
     e.preventDefault();
     const topic = $('#topic').value.trim();
@@ -211,7 +218,7 @@ $('#voice').addEventListener('change', (e) => {
       format: ui.format,
       duration: Number($('#duration').value),
       style: 'cartoon',
-      look: $('#look')?.value || 'painted',
+      look: lookFor(topic || own),
       townCaptions: !!$('#townCaptions')?.checked,
       mood: $('#mood').value,
       pace: $('#pace').value,
