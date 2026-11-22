@@ -389,18 +389,9 @@ const SITE_HELP = {
   tiktok: 'TikTok does not let other sites download its videos. Save your own video from the TikTok app (Share → Save video), then drop the file here.',
   other: 'That site does not let other sites download its videos. Download your video from the site first, then drop the file here.',
 };
-// Offered once per video: Loomy's captions on top of the video's own are usually too much.
-function offerCaptionsOff(b) {
-  if (state.burnOffered === state.file || !$('#optCaptions').checked) return;
-  state.burnOffered = state.file;
-  note(`This video already has captions burned in (seen in ${b.frames} of ${b.sampled} frames), so Loomy keeps its captions clear of them. <button class="btn ghost" id="capsOff" type="button">Turn Loomy's captions off</button>`);
-  $('#capsOff').addEventListener('click', () => {
-    $('#optCaptions').checked = false;
-    note('');
-    for (const r of document.querySelectorAll('#results .card')) { const v = r.querySelector('video'); if (v && v.src) r.querySelector('.redo').hidden = state.running; }
-    toast(state.running ? "Loomy's captions are off for the clips still to come." : `Loomy's captions are off. Press "Re-make this clip" to make a clip again without them.`);
-  });
-}
+// 1.6: captions are always on. When a video already has captions burned in, Loomy keeps its own clear
+// of them (render.js moves them), so there is nothing to offer.
+function offerCaptionsOff() {}
 
 function note(html) { const n = $('#linkNote'); n.innerHTML = html; n.hidden = !html; }
 $('#linkForm').addEventListener('submit', async (e) => {

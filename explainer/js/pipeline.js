@@ -429,7 +429,7 @@ export class Pipeline {
       // The live preview renders at half size (fast on any computer); the export at the output size.
       const out = outputSize(p.options, this.s), even = (n) => Math.round(n / 2) * 2;
       const { width, height } = size || { width: even(out.width / 2), height: even(out.height / 2) };
-      return new DrawnRenderer(canvas, { timeline: p.timeline, script: p.script, kind: this.drawn, W: width, H: height, perf: this.drawnPerf(size), captions: this.s.captionStyle !== 'off' });
+      return new DrawnRenderer(canvas, { timeline: p.timeline, script: p.script, kind: this.drawn, W: width, H: height, perf: this.drawnPerf(size), captions: true });
     }
     const entries = p.script.scenes.map(s => p.images.get(s.id));
     return new Renderer(canvas, {

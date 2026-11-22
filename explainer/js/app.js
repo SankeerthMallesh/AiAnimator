@@ -1129,7 +1129,7 @@ document.getElementById('btnEdit')?.addEventListener('click', async () => {
     .filter(w => w.start != null && w.end != null);
   try {
     const { sendToEditor, openEditTab } = await import('../../shared/handoff.js');
-    await sendToEditor({ blob: cut?.blob || video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: settings.captionStyle !== 'off', duration: cut?.duration || tl?.total || 0, tab: '3d' });
+    await sendToEditor({ blob: cut?.blob || video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: true, duration: cut?.duration || tl?.total || 0, tab: '3d' });
     openEditTab();
   } catch (e) { toast(`Could not open the editor: ${e.message}`, true); }
 });

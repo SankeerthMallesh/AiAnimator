@@ -65,6 +65,8 @@ export function loadSettings() {
     for (const k of ['quality', 'fps', 'depth3d', 'atmosphere', 'captionStyle', 'showTitle', 'voice', 'voiceSpeed']) merged[k] = DEFAULT_SETTINGS[k];
     merged.settingsVersion = DEFAULT_SETTINGS.settingsVersion;
   }
+  // 1.6: captions are always on, in every tab.
+  if (!merged.captionStyle || merged.captionStyle === 'off') merged.captionStyle = DEFAULT_SETTINGS.captionStyle;
   if (merged.quality === 'hd') merged.quality = '1080';
   if (merged.quality === 'fast') merged.quality = '720';
   return merged;

@@ -271,7 +271,7 @@ $('#voice').addEventListener('change', (e) => {
       duration: Number($('#duration').value),
       style: 'cartoon',
       look: lookFor(topic || own),
-      townCaptions: !!$('#townCaptions')?.checked,
+      townCaptions: true, // 1.6: captions always on
       mood: $('#mood').value,
       pace: $('#pace').value,
       quality: $('#quality').value,
@@ -1304,7 +1304,7 @@ document.getElementById('btnEdit')?.addEventListener('click', async () => {
     .filter(w => w.start != null && w.end != null);
   try {
     const { sendToEditor, openEditTab } = await import('../../shared/handoff.js');
-    await sendToEditor({ blob: cut?.blob || video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: project.options?.look === 'town3d' ? !!project.options.townCaptions : settings.captionStyle !== 'off', duration: cut?.duration || tl?.total || 0, tab: 'cartoon' });
+    await sendToEditor({ blob: cut?.blob || video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: true, duration: cut?.duration || tl?.total || 0, tab: 'cartoon' });
     openEditTab();
   } catch (e) { toast(`Could not open the editor: ${e.message}`, true); }
 });

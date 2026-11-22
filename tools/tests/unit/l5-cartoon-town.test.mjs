@@ -46,7 +46,7 @@ export const tests = [
     for (let i = 1; i < shots.length; i++) assert.ok(Math.abs(shots[i].start - shots[i - 1].end) < 1e-9);
     assert.ok(shots[shots.length - 1].end >= timeline.total);
   } },
-  { name: 'the Cartoons composer opens on Auto (1.2: the town only where it fits and the graphics are strong); captions off unless ticked', fn: () => {
+  { name: 'the Cartoons composer opens on Auto (1.2: the town only where it fits and the graphics are strong); captions always on (1.6)', fn: () => {
     const html = readFileSync(new URL('../../../cartoon/index.html', import.meta.url), 'utf8');
     // Auto is the default; it never gives the town to a weak computer (see v12-auto-look).
     assert.match(html, /<option value="auto" selected>/);
@@ -56,9 +56,9 @@ export const tests = [
     assert.match(app, /autoLook\(topic, strongGraphics\(\)\)/);
     const gpu = readFileSync(new URL('../../../cartoon/js/gpu.js', import.meta.url), 'utf8');
     for (const w of ['failIfMajorPerformanceCaveat', 'swiftshader', 'llvmpipe', 'MAX_TEXTURE_SIZE', 'deviceMemory', 'loomy.townWeak']) assert.ok(gpu.includes(w), w);
-    assert.match(html, /<input type="checkbox" id="townCaptions">/);
+    assert.doesNotMatch(html, /id="townCaptions"/); // 1.6: no way to turn captions off
     const pipe = readFileSync(new URL('../../../cartoon/js/pipeline.js', import.meta.url), 'utf8');
-    assert.match(pipe, /captions: !!this\.p\.options\.townCaptions/);
+    assert.match(pipe, /TownRenderer\(canvas, \{[^}]*captions: true,/);
     assert.match(pipe, /if \(this\.town && e\?\.name !== 'AbortError'\) \{\s*markTownWeak\(\);/, 'a failed town render moves the computer to painted sets');
   } },
   { name: 'old projects without a look keep the painted sets', fn: () => {
