@@ -425,6 +425,28 @@ export class Script {
       if (c.hair === 'none') c.hair = ['brown', 'black', 'blonde', 'red'][i % 4];
       if (c.hat === 'none' && i % 2 === 1) c.hat = ['cap', 'beanie', 'fedora'][i % 3];
     });
+    // 1.2: outfits that fit the story when the writer gave none (crews in jumpsuits and headsets,
+    // scientists in lab coats), and never two people in the same outfit and hat.
+    {
+      const topic = `${options.topic || ''} ${raw.title || ''}`.toLowerCase();
+      const crew = /\b(astronaut|space|nasa|rocket|orbit|station|mission control|pilot|flight|crew|launch)\w*/.test(topic);
+      const lab = /\b(scien\w*|lab|chemist\w*|doctor|hospital|experiment|research\w*|physic\w*|biolog\w*)\b/.test(topic);
+      cast.forEach((c, i) => {
+        const given = castIn[i] || {};
+        if (!given.costume && crew) c.costume = i === 2 ? 'labcoat' : 'jumpsuit';
+        else if (!given.costume && lab) c.costume = i % 2 ? 'vest' : 'labcoat';
+        if (!given.hat && crew) c.hat = ['hair', 'officer', 'bun', 'headset'][i % 4];
+      });
+      const seen = new Set();
+      const hats = ['hair', 'cap', 'beanie', 'headset', 'bun', 'officer', 'fedora'];
+      const outfits = ['vest', 'jumpsuit', 'shirt', 'coat', 'labcoat'];
+      cast.forEach((c) => {
+        let k = `${c.costume}|${c.hat}`;
+        for (let j = 0; seen.has(k) && j < hats.length; j++) { c.hat = hats.find(h => !seen.has(`${c.costume}|${h}`)) || c.hat; k = `${c.costume}|${c.hat}`; }
+        if (seen.has(k)) { c.costume = outfits.find(o => !seen.has(`${o}|${c.hat}`)) || c.costume; k = `${c.costume}|${c.hat}`; }
+        seen.add(k);
+      });
+    }
     if (cast.length < 2) {
       const extras = [
         { id: 'a', name: 'June', color: '#2A9D8F', hat: 'cap', hair: 'brown', costume: 'vest' },
@@ -986,7 +1008,7 @@ Facts: dates, names and numbers must be right. If a popular belief is a myth, sa
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
-poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
+poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}. Give every character a different outfit and headwear that fit their job (crews in jumpsuits with a headset or an officer's cap, scientists in lab coats), and change faces with the story (smug when they think they are right, shocked, sleepy, nervous with a sweat drop, skeptical).
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give show drop grow spin break (show/drop/grow/spin/break act on the thing in that character's \"hold\": show raises it to the camera, drop lets it fall, grow makes it swell, spin turns it, break smashes it; use them when the line does that to the thing).
 ${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, viking = Vikings and Norse warriors (with costume tunic), crown = royalty, tunic = clothes for Vikings, the Middle Ages and the ancient world, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
 Never pad a line to reach a word count (no filler like "today", "now", "really", "daily" at the end), and never tack an object's name onto a line: the "props", "hold" and "icon" fields carry the objects. Every line is a complete, grammatical sentence.

@@ -76,11 +76,11 @@ export class Ink {
 }
 
 export class Cast {
-  static HATS = ['none', 'hair', 'cap', 'flatcap', 'conductor', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel', 'viking'];
-  static FEELS = ['neutral', 'happy', 'sad', 'angry', 'shocked', 'skeptical', 'smug'];
+  static HATS = ['none', 'hair', 'cap', 'flatcap', 'conductor', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel', 'viking', 'headset', 'officer', 'bun'];
+  static FEELS = ['neutral', 'happy', 'sad', 'angry', 'shocked', 'skeptical', 'smug', 'sleepy', 'nervous'];
   static POSES = ['idle', 'walk', 'turn', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'shock', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'enter', 'exit'];
   static HAIR = ['none', 'brown', 'black', 'blonde', 'red'];
-  static COSTUMES = ['vest', 'suit', 'shirt', 'coat', 'apron', 'tunic'];
+  static COSTUMES = ['vest', 'suit', 'shirt', 'coat', 'apron', 'tunic', 'jumpsuit', 'labcoat'];
   // Things a character can hold or use, drawn in the hand.
   static HOLDS = ['phone', 'money', 'coin', 'ticket', 'heart', 'magnet', 'map', 'letter', 'key', 'book', 'lantern', 'cup', 'bag', 'wrench', 'hammer', 'newspaper', 'clipboard', 'watch', 'camera', 'ruler', 'rail'];
   static PALETTE = ['#2A9D8F', '#E8B931', '#E85D4C', '#3D74E0', '#2C3E6B', '#F08A2A', '#7A4EBF', '#3E9A45'];
@@ -278,6 +278,37 @@ export class Cast {
       Ink.oval(ctx, 0, y + 0.16, 1.12, 0.34, '#8A6240', u, 0.12);
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       for (const fx of [-0.7, -0.35, 0, 0.35, 0.7]) { ctx.beginPath(); ctx.arc(fx * u, (y + 0.1) * u, 0.07 * u, 0, Math.PI * 2); ctx.fill(); }
+    } else if (costume === 'jumpsuit') {
+      // 1.2: a crew jumpsuit: polo collar, two buttons, a flag patch, a round mission patch, a name tag.
+      Ink.rrect(ctx, -1.02 * u, (y + 0.02) * u, 2.04 * u, (h + 0.1) * u, 0.5 * u);
+      ctx.fillStyle = color; ctx.fill();
+      Ink.shade(ctx, 0, y + h / 2, 1.02, h / 2, u, 0.2, () => Ink.rrect(ctx, -1.02 * u, (y + 0.02) * u, 2.04 * u, (h + 0.1) * u, 0.5 * u));
+      ctx.lineWidth = 0.15 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      Ink.poly(ctx, [[-0.5, y + 0.04], [0, y + 0.3], [-0.28, y + 0.42]], color, u, 0.09);
+      Ink.poly(ctx, [[0.5, y + 0.04], [0, y + 0.3], [0.28, y + 0.42]], color, u, 0.09);
+      ctx.fillStyle = '#FFFFFF';
+      for (const k of [0.45, 0.68]) { ctx.beginPath(); ctx.arc(0, (y + k) * u, 0.07 * u, 0, Math.PI * 2); ctx.fill(); ctx.lineWidth = 0.05 * u; ctx.stroke(); }
+      // flag patch
+      ctx.fillStyle = '#F4F1EA'; ctx.fillRect(-0.78 * u, (y + 0.42) * u, 0.36 * u, 0.24 * u);
+      ctx.fillStyle = '#C8312F'; for (const k of [0, 2, 4]) ctx.fillRect(-0.78 * u, (y + 0.42 + k * 0.048) * u, 0.36 * u, 0.03 * u);
+      ctx.fillStyle = '#2C3E6B'; ctx.fillRect(-0.78 * u, (y + 0.42) * u, 0.16 * u, 0.12 * u);
+      ctx.lineWidth = 0.04 * u; ctx.strokeRect(-0.78 * u, (y + 0.42) * u, 0.36 * u, 0.24 * u);
+      // mission patch
+      Ink.oval(ctx, 0.6, y + 0.62, 0.2, 0.2, '#203A6B', u, 0.05);
+      ctx.fillStyle = '#F2C230'; ctx.beginPath(); ctx.arc(0.6 * u, (y + 0.62) * u, 0.07 * u, 0, Math.PI * 2); ctx.fill();
+      // name tag
+      Ink.rrect(ctx, 0.25 * u, (y + 0.9) * u, 0.62 * u, 0.2 * u, 0.04 * u); ctx.fillStyle = '#F7F4EE'; ctx.fill(); ctx.lineWidth = 0.04 * u; ctx.stroke();
+      ctx.fillStyle = Ink.INK; ctx.fillRect(0.32 * u, (y + 0.99) * u, 0.48 * u, 0.03 * u);
+    } else if (costume === 'labcoat') {
+      // 1.2: a white lab coat, open over a coloured shirt, with an ID card on a lanyard.
+      Ink.rrect(ctx, -1.05 * u, y * u, 2.1 * u, (h + 0.25) * u, 0.48 * u);
+      ctx.fillStyle = '#F6F7F9'; ctx.fill();
+      Ink.shade(ctx, 0, y + h / 2, 1.05, h / 2, u, 0.16, () => Ink.rrect(ctx, -1.05 * u, y * u, 2.1 * u, (h + 0.25) * u, 0.48 * u));
+      ctx.lineWidth = 0.15 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      Ink.poly(ctx, [[-0.3, y + 0.04], [0.3, y + 0.04], [0.16, y + h], [-0.16, y + h]], color, u, 0.1);
+      ctx.beginPath(); ctx.moveTo(-0.3 * u, (y + 0.04) * u); ctx.lineTo(0, (y + 0.75) * u); ctx.lineTo(0.3 * u, (y + 0.04) * u); ctx.lineWidth = 0.04 * u; ctx.strokeStyle = '#2C3E6B'; ctx.stroke();
+      Ink.rrect(ctx, -0.12 * u, (y + 0.75) * u, 0.24 * u, 0.3 * u, 0.03 * u); ctx.fillStyle = '#FFFFFF'; ctx.fill(); ctx.lineWidth = 0.05 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.fillStyle = '#C8312F'; ctx.fillRect(-0.6 * u, (y + 0.4) * u, 0.18 * u, 0.12 * u);
     } else if (costume === 'suit' || costume === 'coat') {
       Ink.rrect(ctx, -1.05 * u, y * u, 2.1 * u, h * u, 0.48 * u);
       ctx.fillStyle = costume === 'suit' ? '#2C3E6B' : color;
@@ -311,9 +342,9 @@ export class Cast {
         ctx.stroke();
       }
     }
-    // Belt, so the hip is a costume and not a body.
+    // Belt, so the hip is a costume and not a body (a jumpsuit or lab coat has none).
     ctx.fillStyle = Ink.INK;
-    ctx.fillRect(-0.95 * u, (y + h - 0.28) * u, 1.9 * u, 0.16 * u);
+    if (costume !== 'jumpsuit' && costume !== 'labcoat') ctx.fillRect(-0.95 * u, (y + h - 0.28) * u, 1.9 * u, 0.16 * u);
     if (costume === 'apron') {
       // A work apron over the shirt: bib, straps and a pocket, in off-white.
       Ink.rrect(ctx, -0.62 * u, (y + 0.32) * u, 1.24 * u, (h + 0.2) * u, 0.16 * u);
@@ -379,6 +410,18 @@ export class Cast {
         ctx.lineWidth = 0.1 * u; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo((x - 0.22) * u, (eyeY - 0.01) * u); ctx.lineTo((x + 0.22) * u, (eyeY - 0.01) * u); ctx.stroke();
         return;
       }
+      if (feel === 'sleepy') {
+        // Heavy lids: two flat lines.
+        ctx.lineWidth = 0.12 * u; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo((x - 0.24) * u, eyeY * u); ctx.lineTo((x + 0.24) * u, eyeY * u); ctx.stroke();
+        return;
+      }
+      if (feel === 'shocked' && !blink) {
+        // 1.2: wide ring eyes with small pupils, the classic stunned look.
+        ctx.save(); ctx.beginPath(); ctx.arc(x * u, eyeY * u, 0.27 * u, 0, Math.PI * 2); ctx.fillStyle = '#FFFFFF'; ctx.fill();
+        ctx.lineWidth = 0.09 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+        ctx.fillStyle = Ink.INK; ctx.beginPath(); ctx.arc(x * u, eyeY * u, 0.1 * u, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        return;
+      }
       if (feel === 'happy' || st.pose === 'laugh') {
         ctx.lineWidth = 0.14 * u;
         ctx.lineCap = 'round';
@@ -407,6 +450,17 @@ export class Cast {
     else if (feel === 'sad' || st.pose === 'cry') { brow(-0.78, -0.32, -0.22, -0.55); brow(0.22, -0.55, 0.78, -0.32); }
     else if (feel === 'skeptical' || st.pose === 'think') { brow(-0.78, -0.48, -0.22, -0.38); brow(0.22, -0.28, 0.78, -0.58); }
     else if (feel === 'shocked') { brow(-0.78, -0.62, -0.22, -0.7); brow(0.22, -0.7, 0.78, -0.62); }
+    else if (feel === 'nervous') { brow(-0.78, -0.42, -0.22, -0.58); brow(0.22, -0.58, 0.78, -0.42); }
+    else if (feel === 'smug') { brow(-0.78, -0.5, -0.22, -0.36); brow(0.22, -0.36, 0.78, -0.5); }
+    else if (feel === 'sleepy') { brow(-0.72, -0.42, -0.26, -0.42); brow(0.26, -0.42, 0.72, -0.42); }
+    // A sweat drop for the sleepy and the nervous.
+    if (feel === 'sleepy' || feel === 'nervous') {
+      ctx.save(); ctx.fillStyle = '#8FD3F5'; ctx.lineWidth = 0.06 * u; ctx.strokeStyle = Ink.INK;
+      const dy = ((st.t || 0) * 0.35) % 0.25;
+      ctx.beginPath(); ctx.moveTo(1.05 * u, (hy - 0.95 + dy) * u); ctx.quadraticCurveTo(1.42 * u, (hy - 0.38 + dy) * u, 1.05 * u, (hy - 0.26 + dy) * u); ctx.quadraticCurveTo(0.68 * u, (hy - 0.38 + dy) * u, 1.05 * u, (hy - 0.95 + dy) * u); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.ellipse(0.98 * u, (hy - 0.45 + dy) * u, 0.05 * u, 0.09 * u, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore(); ctx.lineWidth = 0.11 * u; ctx.strokeStyle = Ink.INK;
+    }
     const my = hy + 0.48;
     ctx.fillStyle = Ink.INK;
     if (feel === 'happy' || st.pose === 'laugh' || st.pose === 'cheer') {
@@ -432,9 +486,21 @@ export class Cast {
       ctx.lineWidth = 0.045 * u; ctx.stroke();
       ctx.fillStyle = Ink.INK;
     } else if (feel === 'smug' && talk < 0.3) {
-      // A one-sided smirk.
-      ctx.lineWidth = 0.12 * u; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-0.3 * u, (my + 0.02) * u); ctx.quadraticCurveTo(0.1 * u, (my + 0.12) * u, 0.38 * u, (my - 0.14) * u); ctx.stroke();
+      // A sly, toothy grin, higher on one side.
+      const grin = () => { ctx.beginPath(); ctx.moveTo(-0.5 * u, (my - 0.1) * u); ctx.quadraticCurveTo(0.0 * u, (my - 0.02) * u, 0.55 * u, (my - 0.26) * u); ctx.quadraticCurveTo(0.2 * u, (my + 0.42) * u, -0.5 * u, (my - 0.1) * u); ctx.closePath(); };
+      grin(); ctx.fillStyle = Ink.INK; ctx.fill();
+      ctx.save(); grin(); ctx.clip(); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-0.55 * u, (my - 0.3) * u, 1.15 * u, 0.3 * u); ctx.restore();
+      ctx.lineWidth = 0.05 * u; ctx.strokeStyle = Ink.INK; ctx.beginPath(); for (const tx of [-0.2, 0.05, 0.3]) { ctx.moveTo(tx * u, (my - 0.22) * u); ctx.lineTo(tx * u, (my - 0.02) * u); } ctx.stroke();
+      grin(); ctx.lineWidth = 0.1 * u; ctx.stroke();
+      ctx.fillStyle = Ink.INK;
+    } else if (feel === 'sleepy' && talk < 0.3) {
+      ctx.lineWidth = 0.1 * u; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-0.12 * u, (my + 0.04) * u); ctx.lineTo(0.12 * u, (my + 0.04) * u); ctx.stroke();
+    } else if (feel === 'nervous' && talk < 0.3) {
+      // A wobbly line.
+      ctx.lineWidth = 0.1 * u; ctx.lineCap = 'round'; ctx.beginPath();
+      for (let k = 0; k <= 6; k++) { const xx = -0.36 + k * 0.12, yy = my + 0.04 + (k % 2 ? -0.06 : 0.05); if (k) ctx.lineTo(xx * u, yy * u); else ctx.moveTo(xx * u, yy * u); }
+      ctx.stroke();
     } else if ((feel === 'sad' || st.pose === 'cry') && talk < 0.2) {
       ctx.beginPath();
       ctx.arc(0, (my + 0.28) * u, 0.32 * u, 1.15 * Math.PI, 1.85 * Math.PI);
@@ -543,6 +609,32 @@ export class Cast {
       ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.ellipse(-0.42 * u, (cy - 0.62) * u, 0.22 * u, 0.12 * u, -0.5, 0, Math.PI * 2); ctx.fill();
       Ink.rrect(ctx, -1.2 * u, (cy - 0.14) * u, 2.4 * u, 0.3 * u, 0.1 * u); ctx.fillStyle = '#8C7A5B'; ctx.fill(); ctx.stroke();
       Ink.rrect(ctx, -0.075 * u, (cy - 0.2) * u, 0.15 * u, 0.9 * u, 0.05 * u); ctx.fillStyle = '#8F98A3'; ctx.fill(); ctx.stroke();
+    } else if (kind === 'headset') {
+      // 1.2: a headset over the hair: band, ear cup and a mic on a boom.
+      if (st.hair && st.hair !== 'none') Cast.hairBack(ctx, { ...st, hat: 'none' }, u, hy);
+      ctx.beginPath(); ctx.arc(0, (hy + 0.05) * u, 1.42 * u, Math.PI * 1.08, Math.PI * 1.92); ctx.lineWidth = 0.16 * u; ctx.strokeStyle = '#2A2D33'; ctx.stroke();
+      Ink.oval(ctx, 1.3, hy + 0.15, 0.32, 0.42, '#3A3F4B', u, 0.1);
+      ctx.beginPath(); ctx.moveTo(1.3 * u, (hy + 0.45) * u); ctx.quadraticCurveTo(1.1 * u, (hy + 0.95) * u, 0.45 * u, (hy + 0.78) * u); ctx.lineWidth = 0.08 * u; ctx.strokeStyle = '#2A2D33'; ctx.stroke();
+      Ink.oval(ctx, 0.4, hy + 0.78, 0.12, 0.1, '#2A2D33', u, 0.05);
+    } else if (kind === 'officer') {
+      // 1.2: a navy peaked cap with a gold star badge.
+      Ink.rrect(ctx, -1.05 * u, (top - 0.62) * u, 2.1 * u, 0.62 * u, 0.3 * u);
+      ctx.fillStyle = '#2E3F73'; ctx.fill(); ctx.lineWidth = 0.12 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      Ink.rrect(ctx, -1.0 * u, (top - 0.08) * u, 2.0 * u, 0.2 * u, 0.06 * u); ctx.fillStyle = '#1E2A4F'; ctx.fill(); ctx.stroke();
+      Ink.oval(ctx, 0.25, top + 0.2, 1.0, 0.16, '#1E2A4F', u, 0.1);
+      Ink.oval(ctx, 0, top - 0.32, 0.22, 0.22, '#F2C230', u, 0.06);
+      ctx.fillStyle = '#2E3F73'; ctx.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 0.06 : 0.14; ctx.lineTo(Math.cos(a) * r * u, (top - 0.32 + Math.sin(a) * r) * u); }
+      ctx.closePath(); ctx.fill();
+    } else if (kind === 'bun') {
+      // 1.2: hair in a bun on top, a headband, and a pencil stuck through the bun.
+      const col = { brown: '#8A5A32', black: '#2A2422', blonde: '#E2B656', red: '#C45A32' }[st.hair] || '#8A5A32';
+      Cast.hairBack(ctx, { ...st, hair: st.hair && st.hair !== 'none' ? st.hair : 'brown', hat: 'none' }, u, hy);
+      ctx.save(); ctx.translate(0.35 * u, (top - 0.5) * u); ctx.rotate(0.5);
+      Ink.rrect(ctx, -0.06 * u, -0.6 * u, 0.12 * u, 0.9 * u, 0.03 * u); ctx.fillStyle = '#F2C230'; ctx.fill(); ctx.lineWidth = 0.05 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.restore();
+      Ink.oval(ctx, 0, top - 0.32, 0.5, 0.45, col, u, 0.12);
+      ctx.beginPath(); ctx.arc(0, (hy + 0.15) * u, 1.32 * u, Math.PI * 1.12, Math.PI * 1.88); ctx.lineWidth = 0.17 * u; ctx.strokeStyle = '#8A5A32'; ctx.stroke();
     } else if (kind === 'helmet') {
       Ink.oval(ctx, 0, hy - 0.15, 1.48, 1.4, 'rgba(180,220,255,0.35)', u, 0.12);
     } else if (kind === 'hair') {
