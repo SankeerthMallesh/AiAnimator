@@ -97,6 +97,7 @@ export class Cast {
     const up = (arm, hand) => { arm[1] = [hand[0] * 0.55, sy - 0.15]; arm[2] = hand; };
     switch (pose) {
       case 'point': up(front, [2.55, sy - 0.55 + sw * 0.08]); break;
+      case 'show': front = [[0.95, sy], [1.75, sy - 0.6], [2.35, sy - 1.35 + sw * 0.05]]; break;
       case 'present':
       case 'hold':
       case 'give': up(front, [2.15, sy + 0.35]); break;
@@ -172,7 +173,7 @@ export class Cast {
       Cast.hand(ctx, back[2], u);
       Ink.line(ctx, front, u, 0.15);
       Cast.hand(ctx, front[2], u);
-      if (st.hold && parts === 'all') Cast.held(ctx, st.hold, front[2], u);
+      if (st.hold && parts === 'all') Cast.held(ctx, st.hold, front[2], u, st.use);
     }
     if (parts !== 'body') Cast.head(ctx, st, u, bob, front[2]);
     ctx.restore();
@@ -185,12 +186,79 @@ export class Cast {
     Ink.oval(ctx, pt[0], pt[1], 0.22, 0.22, '#fff', u, 0.12);
   }
 
-  static held(ctx, kind, pt, u) {
-    ctx.save();
-    ctx.translate(pt[0] * u, pt[1] * u);
-    ctx.scale(u / 70, u / 70);
-    PropMini.draw(ctx, kind);
-    ctx.restore();
+  // 1.2: what a character does with the thing in the hand (use = { act, p } with p in seconds since
+  // the act began): show (raised to the camera, bigger, with a glow), grow, spin, drop (falls to the
+  // ground and stays) and break (shakes, then flies apart in four pieces).
+  static USES = ['show', 'drop', 'grow', 'spin', 'break'];
+  static held(ctx, kind, pt, u, use = null) {
+    const e = use?.p ?? 0, act = use?.act || '';
+    const ease = (v) => 1 - Math.pow(1 - Ink.clamp(v, 0, 1), 3);
+    const back = (v) => { const c = 1.9; const x = Ink.clamp(v, 0, 1) - 1; return 1 + (c + 1) * x * x * x + c * x * x; };
+    // In use, a thing is drawn a bit bigger so the action reads at phone size.
+    let x = pt[0], y = pt[1], scale = act ? 1.45 : 1, rot = 0;
+    const draw = () => { ctx.save(); ctx.translate(x * u, y * u); ctx.rotate(rot); ctx.scale(scale * u / 70, scale * u / 70); PropMini.draw(ctx, kind); ctx.restore(); };
+    if (act === 'show') {
+      // The arm is raised (pose 'show'); the thing sits just above the hand and swells a little.
+      const k = ease(e / 0.45);
+      y = pt[1] - 0.45 * k; scale = 1.45 + 0.6 * k;
+      // A soft glow and turning rays behind the thing.
+      ctx.save(); ctx.translate(x * u, y * u); ctx.globalAlpha = 0.55 * k;
+      const r = 1.35 * u * scale;
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, 'rgba(255,236,150,0.95)'); g.addColorStop(1, 'rgba(255,236,150,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.rotate(e * 0.6); ctx.fillStyle = 'rgba(255,214,90,0.5)';
+      for (let i = 0; i < 10; i++) { ctx.rotate(Math.PI / 5); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r * 1.05, -r * 0.08); ctx.lineTo(r * 1.05, r * 0.08); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+      return draw();
+    }
+    if (act === 'grow') { scale = 1.2 + 1.7 * back(e / 0.8); return draw(); }
+    if (act === 'spin') { rot = 4 * Math.PI * ease(e / 1.1) + Math.max(0, e - 1.1) * 1.2; scale = 1.7; y -= 0.2; return draw(); }
+    if (act === 'drop') {
+      const T = 0.45, groundY = -0.32;
+      if (e < T) { const k = e / T; x = pt[0] + 0.45 * k; y = Ink.lerp(pt[1], groundY, k * k); rot = 1.3 * k; }
+      else {
+        const b = e - T; x = pt[0] + 0.45 + Math.min(b, 0.3) * 0.5; rot = 1.3 + Math.min(b, 0.3) * 0.8;
+        y = groundY - Math.max(0, Math.sin(Ink.clamp(b / 0.3, 0, 1) * Math.PI)) * 0.35;
+        if (b < 0.5) { // dust where it lands
+          ctx.save(); ctx.globalAlpha = 0.5 * (1 - b / 0.5); ctx.fillStyle = '#CFC6B4';
+          for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse((pt[0] + 0.45 + d * (0.35 + b)) * u, -0.08 * u, (0.28 + b * 0.4) * u, 0.12 * u, 0, 0, Math.PI * 2); ctx.fill(); }
+          ctx.restore();
+        }
+      }
+      return draw();
+    }
+    if (act === 'break') {
+      const crack = 0.35;
+      scale = 1.8; y -= 0.25;
+      if (e < crack) { x += Math.sin(e * 90) * 0.08; return draw(); }
+      const b = e - crack;
+      if (b > 1.1) return undefined; // gone
+      ctx.save(); ctx.globalAlpha = Ink.clamp(1.6 - b / 0.7, 0, 1);
+      // A white flash on the crack, then four pieces fly out and fall.
+      if (b < 0.3) {
+        // A comic burst on the crack.
+        ctx.save(); ctx.globalAlpha = 1 - b / 0.3; ctx.translate(x * u, y * u);
+        const R = (1.1 + b * 2) * u;
+        ctx.beginPath();
+        for (let k = 0; k < 16; k++) { const a = k / 16 * Math.PI * 2, r = k % 2 ? R * 0.5 : R; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+        ctx.closePath(); ctx.fillStyle = '#FFE14D'; ctx.fill(); ctx.lineWidth = 0.08 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+        ctx.restore();
+      }
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([dx, dy], i) => {
+        ctx.save();
+        ctx.translate((x + dx * b * 1.6) * u, (y + dy * b * 0.7 + b * b * 3.2) * u);
+        ctx.rotate(dx * b * (2 + i * 0.4));
+        const sc = scale * u / 70;
+        ctx.scale(sc, sc);
+        ctx.beginPath(); ctx.rect(dx < 0 ? -60 : 0, dy < 0 ? -60 : 0, 60, 60); ctx.clip();
+        ctx.translate(-dx * 4, -dy * 4);
+        PropMini.draw(ctx, kind);
+        ctx.restore();
+      });
+      ctx.restore();
+      return undefined;
+    }
+    return draw();
   }
 
   static body(ctx, st, u, bob, sit) {

@@ -329,6 +329,7 @@ export class Stage {
         hair: look.hair,
         costume: look.costume,
         hold: a.hold,
+        use: a.use,
       }, a.pose === 'drive' ? 'body' : 'all');
     }
     for (const a of actors) if (a.gag) Stage.gagDraw(ctx, a, W, u, ground, local);
@@ -593,6 +594,7 @@ export class Stage {
     let feel = who.feel || 'neutral';
     let face = who.face === -1 ? -1 : 1;
     let hold = who.hold || '';
+    let use = null;
     let poseT = local;
     const mine = (acts || []).filter(a => a.id === who.id).sort((a, b) => a.t - b.t);
     for (let i = 0; i < mine.length; i++) {
@@ -600,7 +602,19 @@ export class Stage {
       if (a.t > local) break;
       if (a.feel) feel = a.feel;
       if (a.face) face = a.face === -1 ? -1 : 1;
+      // A broken thing is gone; a dropped one stays on the ground.
+      if (use?.act === 'break') { hold = ''; use = null; }
+      if (use?.act !== 'drop' && a.do && a.do !== 'idle' && a.do !== 'turn') use = null;
       if (a.hold) hold = a.hold;
+      // 1.2: show / drop / grow / spin / break act on the held thing; the arm holds it out.
+      if (Cast.USES.includes(a.do)) {
+        if (!hold) continue;
+        use = { act: a.do, p: local - a.t };
+        pose = a.do === 'drop' && use.p > 0.3 ? (who.pose && who.pose !== 'hold' ? who.pose : 'idle') : a.do === 'break' && use.p > 1.5 ? 'shock' : a.do === 'show' ? 'show' : 'hold';
+        poseT = use.p;
+        if (a.x != null) x = a.x;
+        continue;
+      }
       const motion = a.do === 'walk' || a.do === 'enter' || a.do === 'exit' || a.do === 'drive';
       if (motion) {
         const dest = a.do === 'exit' ? (a.x ?? (face > 0 ? 1.2 : -0.2)) : (a.x ?? x);
@@ -628,7 +642,7 @@ export class Stage {
         poseT = local - a.t;
       }
     }
-    return { id: who.id, x: Ink.clamp(x, -0.15, 1.15), pose, feel, face, hold, poseT };
+    return { id: who.id, x: Ink.clamp(x, -0.15, 1.15), pose, feel, face, hold, poseT, use };
   }
 
   static props(scene, local) {

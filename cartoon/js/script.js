@@ -105,7 +105,15 @@ export function literalTrigger(word, narration) {
 }
 
 // Story objects a character can hold, and the words that name them in a line.
-export const HOLD_WORDS = [
+export // 1.2: words that say what happens to a thing in hand.
+const USE_WORDS = [
+  ['break', /\b(break|breaks|broke|broken|shatter\w*|smash\w*|crack(s|ed)?|snap(s|ped)?)\b/],
+  ['drop', /\b(drop(s|ped)?|let go|falls? (out|from|to)|fell (out|from|to))\b/],
+  ['spin', /\b(spin(s|ning)?|spun|rotat\w+|twirl\w*)\b/],
+  ['grow', /\b(grow(s|ing)?|grew|bigger|expand\w*|swell\w*|inflat\w+)\b/],
+  ['show', /\b(look at (this|it)|here (it )?is|here's|behold|this little|check (this|it) out|meet the)\b/],
+];
+const HOLD_WORDS = [
   ['ticket', /\btickets?\b/], ['money', /\b(money|cash|dollars?|coins?|paid|pay|wages?|price|cost|costs|bill|bribe|fare)\b/], ['phone', /\b(phones?|called|calls?|texted)\b/],
   ['map', /\b(maps?|route|directions)\b/], ['letter', /\b(letters?|note|envelope|telegram|message|mail)\b/], ['key', /\b(keys?|locked|unlocked)\b/],
   ['book', /\b(books?|diary|notebook|rulebook|manual|records?|ledger)\b/], ['lantern', /\b(lanterns?|lamps?|torch|candles?)\b/], ['cup', /\b(cups?|coffee|tea|mug)\b/],
@@ -183,7 +191,7 @@ export function propTrigger(p, narration) {
 export class Script {
   static CAMS = ['hold', 'push', 'pull', 'pan', 'tilt', 'punch'];
   static CUTS = ['cut', 'whip', 'zoom'];
-  static ACTIONS = ['idle', 'walk', 'enter', 'exit', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'turn'];
+  static ACTIONS = ['idle', 'walk', 'enter', 'exit', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'turn', ...Cast.USES];
 
   static plan(options) {
     // Up to 15 minutes: long videos are written in parts and told in chapters (llm.js writeScriptInParts).
@@ -596,7 +604,7 @@ export class Script {
         if (a.x != null) act.x = InkClamp(Script.num(a.x, 0.5), -0.4, 1.4);
         if (a.feel) act.feel = Script.oneOf(Cast.FEELS, a.feel, '');
         if (a.face) act.face = a.face === 'left' || a.face === -1 ? -1 : 1;
-        if (PropKit.KINDS.includes(String(a.hold || ''))) act.hold = String(a.hold);
+        if (PropKit.KINDS.includes(String(a.hold || '')) || Cast.HOLDS.includes(String(a.hold || ''))) act.hold = String(a.hold);
         if (a.to && known.has(String(a.to).toLowerCase())) act.to = String(a.to).toLowerCase();
         if (a.dur != null) act.dur = InkClamp(Script.num(a.dur, 1), 0.2, 4);
         acts.push(act);
@@ -938,6 +946,14 @@ export class Script {
       const hit = HOLD_WORDS.find(([k, re]) => re.test(low) && !FIGURATIVE_HOLD.test(low) && literalTrigger(propTrigger({ kind: k }, sc.narration), sc.narration));
       if (hit) sp.hold = hit[0];
     }
+    // 1.2: a thing in hand is used when the line says so (shown, dropped, broken, spun, grown).
+    for (const sc of scenes) {
+      const sp = sc.who.find(w => w.id === sc.say) || sc.who[0];
+      if (!sp?.hold || (sc.acts || []).some(a => a.id === sp.id && Cast.USES.includes(a.do))) continue;
+      const low = sc.narration.toLowerCase();
+      const use = USE_WORDS.find(([, re]) => re.test(low))?.[0];
+      if (use) (sc.acts ||= []).push({ t: 0.6, id: sp.id, do: use, hold: sp.hold });
+    }
     // Feelings: at least four different ones across the video (neutral, angry, smug, shocked...).
     const feels = new Set(scenes.flatMap(sc => sc.who.map(w => w.feel)));
     if (feels.size < 4) {
@@ -971,7 +987,7 @@ Safety: no nudity, no gore, no blood. People stay clothed. The human body is sho
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
-props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
+props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give show drop grow spin break (show/drop/grow/spin/break act on the thing in that character's \"hold\": show raises it to the camera, drop lets it fall, grow makes it swell, spin turns it, break smashes it; use them when the line does that to the thing).
 ${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, viking = Vikings and Norse warriors (with costume tunic), crown = royalty, tunic = clothes for Vikings, the Middle Ages and the ancient world, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
 Never pad a line to reach a word count (no filler like "today", "now", "really", "daily" at the end), and never tack an object's name onto a line: the "props", "hold" and "icon" fields carry the objects. Every line is a complete, grammatical sentence.
 Story objects: in at least half of the scenes the line names an object the speaker holds or uses (${Cast.HOLDS.join(' ')}), for example "Mabel slaps her wrench on the rail" or "Gus waves the rulebook": set "hold" on that character in "who". Never a thing the line does not name, and never say the word "prop".
