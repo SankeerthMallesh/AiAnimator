@@ -196,3 +196,20 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .long-start span { font: 500 12px/1.2 var(--sans, Inter, sans-serif); color: var(--muted); }
 .long-start:hover { border-color: #4A4A4A; background: var(--hover); }
 .long-start.on { border-color: transparent; box-shadow: 0 0 0 1px rgba(139, 92, 246, .7); background: rgba(139, 92, 246, .1); }
+
+/* 1.1: cut parts out, under the player on the export page. */
+.cutter { margin-top: 12px; padding: 10px 12px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--paper); }
+.cutter.hidden { display: none; }
+.cut-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cut-head .sect-title { margin: 2px 0 8px; }
+.cut-head .sect-title::before { display: none; }
+.cut-sum { font-variant-numeric: tabular-nums; }
+.cut-bar { display: block; width: 100%; height: 56px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); cursor: crosshair; touch-action: none; }
+.cut-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cut-row .btn { min-height: 34px; }
+.cut-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cut-chips:empty { display: none; }
+.cut-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(229, 56, 59, .6); background: rgba(229, 56, 59, .1); color: var(--ink); font: 500 12px/1.3 var(--mono, monospace); cursor: pointer; }
+.cut-chip:hover { background: rgba(229, 56, 59, .2); }
+.cutter .progress { margin-top: 8px; }
+.cut-help { margin: 8px 0 0; }

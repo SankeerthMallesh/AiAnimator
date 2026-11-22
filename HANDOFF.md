@@ -133,6 +133,20 @@ Everything above, plus (one commit each, all on `main`):
 Tests added: h1-hooks, o1-things, l2b-auto-look, l4b-film-sound-nodes (unit); longmaster.cjs,
 autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editore2e2.cjs (page).
 
+## Loomy 1.1 (2026-11-22, on the dev branch until the user says deploy)
+
+- **U1 upload kit** (`shared/upload.js`): hashtags are lowercase (`#hello`), and the YouTube title is
+  short and compact (3-7 words, under 45 characters asked of the writer; `compactTitle` drops filler
+  openings and long tails and caps it at 56). All tabs.
+- **C1 cut parts out** (`shared/cuts.js`, `shared/cutter.js`, `shared/mp4read.js`): a bar under the
+  player on the export page of the 3D, Blocky and Cartoons tabs. It shows the sound as soon as the
+  export starts (cuts can be marked while it runs; a click there plays 2 s of the sound). Drag a part,
+  or Start/End at the player's time, then "Cut it out"; "Find long pauses" marks voice lags. The player
+  skips cut parts at once. "Save the cut video" decodes the finished MP4 (WebCodecs, our own small
+  MP4 reader) and re-encodes the kept frames with the soundtrack cut to match (soft joins), always
+  from the full video, so saving again loses nothing. Download and the editor hand-off use the cut
+  video (words moved to match). Tests: v11-cuts, v11-upload-kit (unit); cutmaster.cjs (page).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min

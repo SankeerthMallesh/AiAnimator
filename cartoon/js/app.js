@@ -1,5 +1,6 @@
 // UI controller for Storyforge.
 import { resetVoiceReport } from './tts.js';
+import { attachCutter } from '../../shared/cutter.js';
 import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
@@ -332,7 +333,7 @@ function openProject(p, { render }) {
   $('#board').innerHTML = '';
   $('#factNotes').classList.add('hidden');
   $('#metaCard').classList.add('hidden');
-  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden');
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden'); cutter().hide(); if (project) project.cut = null;
   $('#renderProg').classList.add('hidden');
   const ratio = FORMATS[formatOf(p.options)].ratio;
   $('#stage').style.aspectRatio = String(ratio);
@@ -435,6 +436,26 @@ window.addEventListener('unhandledrejection', (ev) => {
 });
 window.addEventListener('error', (ev) => { if (ev.message) log(`Unexpected problem: ${ev.message}`); });
 
+// The Download button: the cut video once one is saved (1.1), otherwise the whole one.
+function setDownload(video, cut = null) {
+  const a = $('#btnDownload'), blob = cut?.blob || video.blob;
+  a.href = cut?.url || video.url;
+  a.download = `${slug(project.script.title)}${cut ? '-cut' : ''}.${video.ext}`;
+  a.textContent = `Download ${video.ext.toUpperCase()}${cut ? ' · cut' : ''} · ${(blob.size / 1048576).toFixed(1)} MB`;
+  a.classList.remove('hidden');
+}
+
+// 1.1: cut parts out (a lagging voice, a long pause) right here on the export page.
+// Made on first use (a function, so the page's earlier code can call it at any time).
+function cutter() {
+  return cutter.ui ||= attachCutter({
+    after: document.querySelector('.render-actions'),
+    player: document.getElementById('outVideo'),
+    toast: (m, bad) => toast(m, bad),
+    onSaved: (cut) => { if (!project?.video) return; project.cut = cut; setDownload(project.video, cut); },
+  });
+}
+
 async function doRender(pl = pipeline) {
   stopPreview();
   $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden');
@@ -443,12 +464,13 @@ async function doRender(pl = pipeline) {
   $('#renderText').textContent = 'Starting…';
   // A drawn look keeps a whole 3D engine for the preview: free it first, so only one runs during the export.
   if (player.renderer?.ready) { player.renderer.dispose(); player.renderer = null; }
-  const video = await pl.render();
-  const a = $('#btnDownload');
-  a.href = video.url;
-  a.download = `${slug(project.script.title)}.${video.ext}`;
-  a.textContent = `Download ${video.ext.toUpperCase()} · ${(video.blob.size / 1048576).toFixed(1)} MB`;
-  a.classList.remove('hidden');
+  // 1.1: the sound is ready before the pictures, so parts can be marked for cutting during the export.
+  const fps = Number(project.options.fps || settings.fps) || 24;
+  project.cut = null;
+  cutter().prepare(project.audio || null, fps);
+  const video = await pl.render().catch((e) => { cutter().hide(); throw e; });
+  setDownload(video);
+  cutter().ready(video, fps);
   $('#btnEdit')?.classList.remove('hidden');
   const v = $('#outVideo');
   v.src = video.url;
@@ -1154,10 +1176,13 @@ document.getElementById('btnSaveCast')?.addEventListener('click', () => {
 document.getElementById('btnEdit')?.addEventListener('click', async () => {
   const video = project?.video, tl = project?.timeline;
   if (!video?.blob) return;
-  const words = (tl?.scenes || []).flatMap(sc => (sc.words || []).map(w => ({ text: w.text, start: sc.start + w.start, end: sc.start + w.end })));
+  // A cut video (1.1) goes with its words moved to match; words in a cut part are left out.
+  const cut = project.cut, at = (t) => (cut ? cut.mapTime(t) : t);
+  const words = (tl?.scenes || []).flatMap(sc => (sc.words || []).map(w => ({ text: w.text, start: at(sc.start + w.start), end: at(sc.start + w.end) })))
+    .filter(w => w.start != null && w.end != null);
   try {
     const { sendToEditor, openEditTab } = await import('../../shared/handoff.js');
-    await sendToEditor({ blob: video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: project.options?.look === 'town3d' ? !!project.options.townCaptions : settings.captionStyle !== 'off', duration: tl?.total || 0, tab: 'cartoon' });
+    await sendToEditor({ blob: cut?.blob || video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: project.options?.look === 'town3d' ? !!project.options.townCaptions : settings.captionStyle !== 'off', duration: cut?.duration || tl?.total || 0, tab: 'cartoon' });
     openEditTab();
   } catch (e) { toast(`Could not open the editor: ${e.message}`, true); }
 });
