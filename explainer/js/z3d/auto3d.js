@@ -182,14 +182,17 @@ export async function loadCast(ids) {
 // ---------- camera ----------
 export function frameCam(c, target, { dist, height = 0, yaw = 0, side = 0 }, move, k, t, seed, fov0) {
   let d = dist, y = yaw, tx = target.x, ty = target.y, tz = target.z, f = fov0, lat = side;
+  // Sideways and up-down moves are sized for a medium shot (3 m away) and shrink with the shot: on a
+  // close-up a fixed 45 cm tilt swung the frame off the subject onto whatever stood below it.
+  const m = Math.max(0.25, Math.min(1, dist / 3));
   switch (move) {
     case 'push-in': d *= lerp(1.14, 0.9, k); break;
     case 'pull-out': d *= lerp(0.88, 1.16, k); break;
     case 'orbit': y += lerp(-0.32, 0.32, k); break;
-    case 'pan-left': lat += lerp(0.5, -0.5, k); break;
-    case 'pan-right': lat += lerp(-0.5, 0.5, k); break;
-    case 'tilt-up': ty += lerp(-0.45, 0.15, k); break;
-    case 'tilt-down': ty += lerp(0.35, -0.2, k); break;
+    case 'pan-left': lat += lerp(0.5, -0.5, k) * m; break;
+    case 'pan-right': lat += lerp(-0.5, 0.5, k) * m; break;
+    case 'tilt-up': ty += lerp(-0.45, 0.15, k) * m; break;
+    case 'tilt-down': ty += lerp(0.35, -0.2, k) * m; break;
     case 'impact': d *= k < 0.3 ? 1.08 : lerp(1.08, 0.78, easeOut((k - 0.3) / 0.08)); break;
     case 'vertigo': d *= lerp(1.35, 0.85, k); f = fov0 * lerp(0.78, 1.18, k); break;
     default: d *= lerp(1.03, 0.97, k);
