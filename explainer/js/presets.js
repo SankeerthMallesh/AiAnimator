@@ -8,6 +8,12 @@ export const STYLES = {
     direction: 'Direct it like a fast 3D explainer Short: open with a second-person hook ("What would happen if you fell through the ice?"), then follow ONE or two people through it, cutting every 3 to 4 seconds, and end on the consequence in a short, plain line, never a moral. Describe the main character once in "characters" (name and a short look, saying man or woman). Every scene is played by realistic 3D people in a place built in code, so pick for each scene: "set" (the place), "frame" (the shot: talk = one person talking to camera, two = two people, react = a close-up reaction, wide = an establishing shot, walk = someone walking in, point = pointing at a thing, group = three people), "who" (the names in the shot) and "act" (the pose). Start with a wide shot, use react for surprises, point when the narration shows one object (with an "icon"), and change the set only when the story moves. Give scenes about a measurable thing an "icon" emoji (⚖️ ⏱️ 💨 🌡️ 💰 📏).',
     character: true,
   },
+  'drawn-blocky': {
+    label: 'Blocky world, drawn in code',
+    hint: 'Blocky game-world characters and places built in code, like the hand-made blocky shorts (no AI pictures)',
+    drawn: 'blocky',
+    character: true,
+  },
   'story-3d': {
     label: '3D story short',
     hint: 'Bright 3D renders with one recurring character, like popular 3D story Shorts',
@@ -155,3 +161,6 @@ export const QUALITIES = { '720': 720, '1080': 1080, '1440': 1440 };
 export const TRANSITIONS = ['whip', 'zoom', 'fade', 'flash', 'slide', 'glitch'];
 // Moving effects drawn over a shot, so stills have real motion in them.
 export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', 'snow', 'smoke', 'pulse', 'shockwave', 'speed'];
+
+// The drawn Blocky look tells its story like the Blocky style and picks its shots from the library.
+STYLES['drawn-blocky'].direction = `${STYLES.blocky.direction.replace(/ Vary the camera:[^.]*\./, '').replace(/ Mark 2 to 3 scenes[^.]*\./, '')} Every scene is played by blocky avatars in a block world built in code, so pick for each scene: "set" (the place), "frame" (the shot: talk = the narrator talking to camera, two = two characters, react = a close-up reaction with a big face, wide = an establishing shot, walk = someone walking in, point = pointing at a thing, group = three characters), "who" (the names in the shot; the narrator is the first character) and "act" (the pose). Start with a wide shot, use react for the cliffhanger and the twist, point when the narration shows one thing (with an "icon" emoji), and use snow, park, street or night when the story moves.`;

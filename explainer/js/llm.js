@@ -373,9 +373,9 @@ const PLAIN = [
 ];
 export function plainLine(line, style = '') {
   let t = String(line || '');
-  if (!['drawn-3d', 'story-3d', 'blocky', 'cgi-short', 'cinematic-3d'].includes(style)) return t;
+  if (!['drawn-3d', 'drawn-blocky', 'story-3d', 'blocky', 'cgi-short', 'cinematic-3d'].includes(style)) return t;
   for (const [re, to] of PLAIN) t = t.replace(re, to);
-  if (style === 'blocky') t = t.replace(/\b(blocky|pixelated|pixel|pixels|voxels?)\s+/gi, '').replace(/\s+(blocky|pixelated|voxel)\b/gi, '');
+  if (style === 'blocky' || style === 'drawn-blocky') t = t.replace(/\b(blocky|pixelated|pixel|pixels|voxels?)\s+/gi, '').replace(/\s+(blocky|pixelated|voxel)\b/gi, '');
   t = t.replace(/\s{2,}/g, ' ').trim();
   return t.charAt(0).toUpperCase() + t.slice(1);
 }

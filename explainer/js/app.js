@@ -73,10 +73,11 @@ function refreshVoiceSelect() {
   else fillSelect(sel, VOICES.map(([v, l]) => [v, l.split(' — ')[0]]), settings.voice);
 }
 
-// The 3D tab opens on 3D people drawn in code; the AI-picture looks stay in the list. Any
-// ?style= opens that style.
+// The 3D tab opens on 3D people drawn in code, the Blocky tab (?style=blocky) on the drawn blocky
+// world; the AI-picture looks stay in the list. Any other ?style= opens that style.
 function defaultStyle() {
   const q = new URLSearchParams(location.search).get('style');
+  if (q === 'blocky') return 'drawn-blocky';
   return STYLES[q] ? q : 'drawn-3d';
 }
 

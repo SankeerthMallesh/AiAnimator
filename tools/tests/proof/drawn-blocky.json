@@ -1,0 +1,13 @@
+{
+  "title": "The Fort War",
+  "characters": [{ "name": "Me", "look": "girl, yellow striped shirt" }, { "name": "Kai", "look": "boy, blue jacket, red cap" }],
+  "scenes": [
+    { "narration": "The day Kai built the biggest fort on our street, I knew trouble was coming.", "set": "snow", "frame": "wide", "who": ["Me"], "act": "stand", "camera": "push-in", "effect": "snow", "keywords": ["fort"] },
+    { "narration": "He wouldn't let anyone in. Not even me!", "set": "snow", "frame": "two", "who": ["Kai", "Me"], "act": "shrug", "camera": "pan-left", "effect": "snow" },
+    { "narration": "So I grabbed my shovel and started digging.", "set": "snow", "frame": "walk", "who": ["Me"], "act": "stand", "camera": "static", "effect": "none" },
+    { "narration": "Then I saw it. The plow was heading straight for his fort.", "set": "snow", "frame": "point", "who": ["Me"], "act": "point", "camera": "push-in", "effect": "none", "icon": "🚜" },
+    { "narration": "Kai froze.", "set": "snow", "frame": "react", "who": ["Kai"], "act": "surprised", "camera": "impact", "effect": "shockwave" },
+    { "narration": "That night, we made a plan in my room.", "set": "night", "frame": "talk", "who": ["Me"], "act": "think", "camera": "push-in", "effect": "none" },
+    { "narration": "By morning, everyone on the street was helping.", "set": "park", "frame": "group", "who": ["Me", "Kai"], "act": "cheer", "camera": "orbit", "effect": "sparks" }
+  ]
+}
