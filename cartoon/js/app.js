@@ -741,7 +741,7 @@ function drawWave() {
   const buf = project?.audio;
   if (!buf) return;
   const data = buf.getChannelData(0), per = Math.max(1, Math.floor(data.length / w));
-  g.fillStyle = getComputedStyle(c).color || '#3D8BFF';
+  g.fillStyle = getComputedStyle(c).color || '#FF2D47';
   for (let x = 0; x < w; x++) {
     let peak = 0;
     for (let k = x * per, e = Math.min(data.length, k + per); k < e; k += 8) peak = Math.max(peak, Math.abs(data[k]));

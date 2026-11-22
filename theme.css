@@ -158,16 +158,16 @@ html:root .hear { width: 44px; height: 44px; }
 html:root .view.home .frames button, html:root .view.home .slot-grid select { min-height: 44px; }
 
 /* ---------- Loomy 1.0: one accent gradient, used sparingly; real frames under the composer ---------- */
-html:root { --grad: linear-gradient(120deg, #8B5CF6 0%, #3B82F6 55%, #22D3EE 100%); --glow: rgba(99, 102, 241, .22); }
+html:root { --grad: linear-gradient(120deg, #FF5A6B 0%, #FF2D47 55%, #D90F2B 100%); --glow: rgba(255, 45, 71, .22); }
 /* A soft violet-blue glow behind the hero (dark mode), fading out before the composer. */
-html:root:not([data-theme="light"]) .view.home .brief-col { background: radial-gradient(60% 42% at 18% 0%, var(--glow), transparent 70%), radial-gradient(40% 30% at 85% 8%, rgba(34, 211, 238, .10), transparent 70%); }
+html:root:not([data-theme="light"]) .view.home .brief-col { background: radial-gradient(60% 42% at 18% 0%, var(--glow), transparent 70%), radial-gradient(40% 30% at 85% 8%, rgba(255, 120, 130, .10), transparent 70%); }
 /* The headline: white into a pale violet; its badge says the version. */
-html:root:not([data-theme="light"]) .view.home .headline { background: linear-gradient(180deg, #FFFFFF 35%, #C7C2FF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html:root:not([data-theme="light"]) .view.home .headline { background: linear-gradient(180deg, #FFFFFF 35%, #FFC9CF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 html:root .view.home .hero-badge b { background: var(--grad); color: #fff; }
 /* The main button carries the gradient; the composer lights its border with it while typing. */
-html:root .view.home .go, html:root .go { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 8px 28px -10px rgba(99, 102, 241, .7); }
+html:root .view.home .go, html:root .go { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 8px 28px -10px rgba(255, 45, 71, .7); }
 html:root .view.home .go:hover, html:root .go:hover { background: var(--grad); filter: brightness(1.1); border-color: transparent; }
-html:root:not([data-theme="light"]) .view.home .sheet:focus-within { border-color: transparent; box-shadow: 0 0 0 1px rgba(139, 92, 246, .55), 0 18px 50px -24px rgba(99, 102, 241, .6); }
+html:root:not([data-theme="light"]) .view.home .sheet:focus-within { border-color: transparent; box-shadow: 0 0 0 1px rgba(255, 45, 71, .55), 0 18px 50px -24px rgba(255, 45, 71, .6); }
 html:root .view.home .sheet-tabs button.on, html:root .view.home .frames button.on { background: #FFFFFF; color: #0A0A0A; }
 html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-theme="light"] .view.home .frames button.on { background: #111; color: #fff; }
 
@@ -195,7 +195,7 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .long-start b { font: 600 13.5px/1.2 var(--sans, Inter, sans-serif); }
 .long-start span { font: 500 12px/1.2 var(--sans, Inter, sans-serif); color: var(--muted); }
 .long-start:hover { border-color: #4A4A4A; background: var(--hover); }
-.long-start.on { border-color: transparent; box-shadow: 0 0 0 1px rgba(139, 92, 246, .7); background: rgba(139, 92, 246, .1); }
+.long-start.on { border-color: transparent; box-shadow: 0 0 0 1px rgba(255, 45, 71, .7); background: rgba(255, 45, 71, .1); }
 
 /* 1.1: cut parts out, under the player on the export page. */
 .cutter { margin-top: 12px; padding: 10px 12px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--paper); }
@@ -243,7 +243,7 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .ib-btn:hover, .ib-more:hover, .ib-cat:hover, .ib-idea:hover { background: var(--hover); }
 .ib-cats { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 8px; scrollbar-width: thin; }
 .ib-cat { flex: 0 0 auto; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--muted); font: 500 13px var(--sans, Inter, sans-serif); cursor: pointer; min-height: 44px; }
-.ib-cat.on { color: var(--ink); border-color: transparent; box-shadow: 0 0 0 1px rgba(139, 92, 246, .7); background: rgba(139, 92, 246, .12); }
+.ib-cat.on { color: var(--ink); border-color: transparent; box-shadow: 0 0 0 1px rgba(255, 45, 71, .7); background: rgba(255, 45, 71, .12); }
 .ib-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .ib-idea { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 500 13px/1.35 var(--sans, Inter, sans-serif); cursor: pointer; min-height: 44px; }
 .ib-none { color: var(--muted); font-size: 13px; }
@@ -266,7 +266,7 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .fb-name { grid-area: name; font: 600 12.5px/1.3 var(--sans, Inter, sans-serif); color: var(--ink); }
 .fb-pill { grid-area: pill; min-width: 30px; text-align: center; padding: 1px 6px; border-radius: 6px; font: 700 12px/1.4 var(--sans, Inter, sans-serif); }
 .fb-bar { grid-area: bar; height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
-.fb-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
+.fb-bar i { display: block; height: 100%; background: linear-gradient(90deg, #FF5A6B, #FF2D47 55%, #D90F2B); }
 .fb-tip { grid-area: tip; margin: 0; }
 .fb-fix { width: 100%; justify-content: center; }
 .fb-fix.hidden { display: none; }
@@ -281,3 +281,115 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
   input[type=checkbox] { width: 22px; height: 22px; }
   label:has(> input[type=checkbox]) { min-height: 36px; display: inline-flex; align-items: center; gap: 8px; }
 }
+
+/* =====================================================================================================
+   Loomy 1.6: red and white, Liquid Glass.
+   One brand red, white type, and glass surfaces: a translucent fill, a bright top edge (the "specular"
+   rim), a soft inner shade at the bottom and a deep drop shadow. Floating bars, menus and dialogs blur
+   what is behind them; big work panes use the same look without the (costly) blur.
+   ===================================================================================================== */
+html:root {
+  --red: #FF2D47; --red-hi: #FF5A6B; --red-deep: #D90F2B; --red-soft: rgba(255, 45, 71, .14); --red-line: rgba(255, 45, 71, .45);
+  --grad: linear-gradient(135deg, #FF5A6B 0%, #FF2D47 48%, #D90F2B 100%); --glow: rgba(255, 45, 71, .22);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, .085), rgba(255, 255, 255, .035));
+  --glass-strong: linear-gradient(180deg, rgba(28, 28, 32, .72), rgba(16, 16, 18, .66));
+  --glass-line: rgba(255, 255, 255, .12);
+  --glass-rim: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(255, 255, 255, .03);
+  --glass-shadow: 0 18px 50px -24px rgba(0, 0, 0, .8);
+  --glass-blur: blur(22px) saturate(170%);
+}
+html:root:not([data-theme="light"]) {
+  --bg: #070708; --paper: #0E0E10; --panel: #141417; --line: #1E1E22; --line-2: #2C2C31;
+  --accent: #FF2D47; --accent-ink: #FF6B7A; --accent-soft: rgba(255, 45, 71, .14); --accent-tint: #2A0E13; --on-accent: #FFFFFF;
+  --value: #FFFFFF; --tag: #FF6B7A; --tag-bg: rgba(255, 45, 71, .14);
+}
+html:root[data-theme="light"] {
+  --bg: #F6F6F7; --paper: #FFFFFF; --panel: #FAFAFB;
+  --accent: #E0122E; --accent-ink: #C40F27; --accent-soft: rgba(224, 18, 46, .08); --accent-tint: #FDECEE; --on-accent: #FFFFFF;
+  --value: #C40F27; --tag: #C40F27; --tag-bg: rgba(224, 18, 46, .08);
+  --glass: linear-gradient(180deg, rgba(255, 255, 255, .86), rgba(255, 255, 255, .7));
+  --glass-strong: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(250, 250, 252, .74));
+  --glass-line: rgba(0, 0, 0, .08);
+  --glass-rim: inset 0 1px 0 #FFFFFF, inset 0 -1px 0 rgba(0, 0, 0, .03);
+  --glass-shadow: 0 16px 40px -22px rgba(60, 0, 10, .28);
+}
+/* The backdrop: two soft red lights, so the glass has colour to catch. */
+html:root body { background:
+  radial-gradient(1100px 620px at 88% -12%, rgba(255, 45, 71, .16), transparent 62%),
+  radial-gradient(900px 560px at -8% 108%, rgba(255, 45, 71, .09), transparent 60%), var(--bg) fixed; }
+html:root[data-theme="light"] body { background:
+  radial-gradient(1100px 620px at 88% -12%, rgba(255, 45, 71, .10), transparent 62%),
+  radial-gradient(900px 560px at -8% 108%, rgba(255, 45, 71, .06), transparent 60%), var(--bg) fixed; }
+::selection { background: rgba(255, 45, 71, .32); }
+:focus-visible { outline-color: var(--red); }
+
+/* Floating glass: bars, menus, dialogs, toasts (these blur what is behind them). */
+html:root .masthead, .loomy-topbar, html:root .dlg, html:root .library, html:root .toast {
+  background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-line); box-shadow: var(--glass-rim), var(--glass-shadow); }
+html:root .masthead { border-bottom: 1px solid var(--glass-line); box-shadow: var(--glass-rim); }
+html:root .toast { color: var(--ink); border: 1px solid var(--glass-line); border-radius: 14px; }
+html:root[data-theme="light"] .toast { color: #111; }
+
+/* Work surfaces: the same glass, no blur (they sit on the plain backdrop and redraw often). */
+html:root .pane, html:root .view.home .sheet, html:root .cutter, html:root .feedback, html:root .app:has(#drop) .panel, html:root .app:has(#drop) .card {
+  background: var(--glass), var(--paper); border-color: var(--glass-line); box-shadow: var(--glass-rim), var(--glass-shadow); }
+html:root .pane { border-radius: 18px; }
+html:root .view.home .sheet { border-radius: 22px; padding: 12px; }
+html:root:not([data-theme="light"]) .pane, html:root:not([data-theme="light"]) .pane-head { background: var(--glass), var(--paper); }
+html:root .pane-head { border-bottom-color: var(--glass-line); }
+html:root .view.home .sheet:focus-within, html:root:not([data-theme="light"]) .view.home .sheet:focus-within {
+  border-color: var(--red-line); box-shadow: var(--glass-rim), 0 0 0 1px var(--red-line), 0 22px 60px -28px rgba(255, 45, 71, .55); }
+
+/* The main action: a red glass pill with a lit rim. */
+html:root .view.home .go, html:root .go, html:root .btn.primary, html:root .runway-btn, html:root .news-card .ok {
+  background: var(--grad); border: 1px solid rgba(255, 255, 255, .18); color: #FFFFFF;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), inset 0 -1px 0 rgba(0, 0, 0, .18), 0 10px 30px -10px rgba(255, 45, 71, .75); }
+html:root .view.home .go:hover, html:root .go:hover, html:root .btn.primary:hover, html:root .runway-btn:hover {
+  background: var(--grad); filter: brightness(1.08); border-color: rgba(255, 255, 255, .26); }
+html:root[data-theme="light"] .view.home .go:hover, html:root[data-theme="light"] .btn.primary:hover, html:root[data-theme="light"] .go:hover { background: var(--grad); border-color: rgba(255, 255, 255, .26); }
+/* Secondary buttons: clear glass. */
+html:root .btn.ghost, html:root .view.home .sheet-foot .btn.ghost, html:root .masthead .nav-btn.primary {
+  background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--glass-rim); }
+html:root .btn.ghost:hover, html:root .masthead .nav-btn.primary:hover { background: var(--red-soft); border-color: var(--red-line); color: var(--ink); }
+
+/* Chosen chips, tabs and segments: solid red with white type. */
+html:root .view.home .sheet-tabs button.on, html:root .view.home .frames button.on,
+html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-theme="light"] .view.home .frames button.on,
+html:root .thumbkit .seg button.on, html:root .lt-tab[aria-current="page"] {
+  background: var(--grad); color: #FFFFFF; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 6px 18px -8px rgba(255, 45, 71, .7); }
+html:root .view.home .frames button:hover, html:root .view.home .sheet-tabs button:hover { border-color: var(--red-line); color: var(--ink); }
+html:root .board .scene.sel, html:root .history .item.on { border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+html:root .track li.active { box-shadow: 0 0 0 1px var(--red); }
+html:root .edit-shot:hover { background: var(--grad); border-color: transparent; color: #fff; }
+html:root .thumbkit .thumb-frame.on { border-color: var(--red); }
+html:root .long-start.on { box-shadow: 0 0 0 1px var(--red-line); background: var(--red-soft); }
+html:root input[type="range"] { accent-color: var(--red); }
+html:root input[type="checkbox"], html:root input[type="radio"] { accent-color: var(--red); }
+html:root progress, html:root .progress > i, html:root .bar > i { accent-color: var(--red); }
+
+/* Hero: white type with a red-tinted fade; the badge and dots are red. */
+html:root:not([data-theme="light"]) .view.home .headline { background: linear-gradient(180deg, #FFFFFF 40%, #FFC9CF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html:root:not([data-theme="light"]) .view.home .brief-col { background: radial-gradient(60% 42% at 18% 0%, rgba(255, 45, 71, .16), transparent 70%), radial-gradient(40% 30% at 85% 8%, rgba(255, 120, 130, .08), transparent 70%); }
+html:root .view.home .hero-badge b { background: var(--grad); color: #fff; }
+.feature-pills li { background: var(--glass); border-color: var(--glass-line); box-shadow: var(--glass-rim); }
+.feature-pills li::before { background: var(--red); box-shadow: 0 0 8px rgba(255, 45, 71, .8); }
+html:root .view.home .ideas button, html:root .view.home .ideas button:nth-child(3n+2), html:root .view.home .ideas button:nth-child(3n+3) { background: var(--glass), var(--paper); }
+html:root .view.home .ideas button:hover { background: linear-gradient(180deg, rgba(255, 45, 71, .1), rgba(255, 45, 71, .03)), var(--paper); }
+html:root .view.home .ideas button:hover::after { color: var(--red-hi); }
+html:root .view.home .how-list li::before { border-color: var(--red-line); color: var(--red-hi); }
+.showcase figure { box-shadow: var(--glass-rim), var(--glass-shadow); border-color: var(--glass-line); }
+.showcase figcaption { background: rgba(10, 10, 12, .5); -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%); border: 1px solid rgba(255, 255, 255, .14); }
+
+/* The topbar on pages opened on their own matches the shell. */
+.loomy-topbar { border-bottom: 1px solid var(--glass-line); }
+.lt-tab { background: var(--glass); border-color: var(--glass-line); }
+.lt-tab:hover { border-color: var(--red-line); }
+
+@media (prefers-reduced-transparency: reduce) {
+  html:root .masthead, .loomy-topbar, html:root .dlg, html:root .library, html:root .toast { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--paper); }
+}
+html:root[data-theme="light"] .lt-brand { color: #111114; }
+html:root[data-theme="light"] .lt-tab { color: #3A3A40; }
+html:root[data-theme="light"] .lt-tab:hover { color: #111114; }
+html:root[data-theme="light"] .lt-tab[aria-current="page"] { color: #FFFFFF; }

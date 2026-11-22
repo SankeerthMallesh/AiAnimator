@@ -1,7 +1,7 @@
 /* Loomy Clips. Same tokens as the other Loomy sections. */
 :root {
   --bg: #FFFFFF; --panel: #F4F5F7; --ink: #14171A; --muted: #5B6470; --faint: #8D96A1;
-  --line: #E6E8EC; --line-2: #D3D7DD; --accent: #1F5FE0; --accent-ink: #1A4FBC; --accent-soft: rgba(31, 95, 224, .08);
+  --line: #E6E8EC; --line-2: #D3D7DD; --accent: #D90F2B; --accent-ink: #B50C24; --accent-soft: rgba(217, 15, 43, .08);
   --on-accent: #FFFFFF; --ok: #1E8E5A; --warn: #B7791F; --err: #C6382D; --hot: #E5484D;
   --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;

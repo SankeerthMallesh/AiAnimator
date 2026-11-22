@@ -103,7 +103,7 @@ export function drawChapterCard(g, W, H, local, n, title, { font = '"Montserrat"
   g.fillStyle = grd; g.fillRect(0, cy - bandH / 2, W, bandH);
   g.translate((1 - ease) * -W * 0.06, 0);
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-  g.font = `800 ${small}px ${font}`; g.fillStyle = '#C7C2FF';
+  g.font = `800 ${small}px ${font}`; g.fillStyle = '#FFC9CF';
   g.fillText(`CHAPTER ${n}`, W / 2, cy - big * 0.85);
   let size = big; g.font = `900 ${size}px ${font}`;
   const text = String(title).toUpperCase();
@@ -112,7 +112,7 @@ export function drawChapterCard(g, W, H, local, n, title, { font = '"Montserrat"
   g.fillStyle = '#FFFFFF'; g.fillText(text, W / 2, cy + big * 0.15);
   const rw = Math.min(W * 0.4, g.measureText(text).width * 0.6) * ease;
   const rule = g.createLinearGradient(W / 2 - rw / 2, 0, W / 2 + rw / 2, 0);
-  rule.addColorStop(0, '#8B5CF6'); rule.addColorStop(0.55, '#3B82F6'); rule.addColorStop(1, '#22D3EE');
+  rule.addColorStop(0, '#FF5A6B'); rule.addColorStop(0.55, '#FF2D47'); rule.addColorStop(1, '#D90F2B');
   g.fillStyle = rule; g.fillRect(W / 2 - rw / 2, cy + big * 0.95, rw, Math.max(2, big * 0.08));
   g.restore();
 }

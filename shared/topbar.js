@@ -16,7 +16,7 @@ function mount() {
   const cur = current();
   const bar = document.createElement('header');
   bar.className = 'loomy-topbar';
-  bar.innerHTML = `<a class="lt-brand" href="/" aria-label="Loomy home"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ltg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset=".55" stop-color="#3B82F6"/><stop offset="1" stop-color="#22D3EE"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#ltg)"/><circle cx="16" cy="11" r="4.5" fill="#fff"/><path d="M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span>Loomy</span></a>
+  bar.innerHTML = `<a class="lt-brand" href="/" aria-label="Loomy home"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ltg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF5A6B"/><stop offset=".55" stop-color="#FF2D47"/><stop offset="1" stop-color="#D90F2B"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#ltg)"/><circle cx="16" cy="11" r="4.5" fill="#fff"/><path d="M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span>Loomy</span></a>
     <nav class="lt-tabs" aria-label="Sections">${TABS.map(([id, label, href]) => `<a class="lt-tab" href="${href}"${id === cur ? ' aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
   document.body.prepend(bar);
   document.documentElement.classList.add('has-topbar');

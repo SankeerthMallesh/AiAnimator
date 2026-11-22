@@ -135,7 +135,7 @@ export function attachCutter({ after, player, toast = () => {}, onSaved = () => 
     const g = bar.getContext('2d');
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const css = getComputedStyle(el);
-    const ink = css.getPropertyValue('--muted').trim() || '#888', accent = css.getPropertyValue('--accent').trim() || '#1F5FE0';
+    const ink = css.getPropertyValue('--muted').trim() || '#888', accent = css.getPropertyValue('--accent').trim() || '#D90F2B';
     g.clearRect(0, 0, w, h);
     const D = st.duration || 1, x = (t) => t / D * w;
     if (st.peaks) {

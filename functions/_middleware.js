@@ -122,17 +122,17 @@ function gate(back, error, status) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Loomy</title><meta name="robots" content="noindex">
 <link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="theme-color" content="#0D0D0D">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%233D8BFF%27/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Cdefs%3E%3ClinearGradient id=%27g%27 x1=%270%27 y1=%270%27 x2=%271%27 y2=%271%27%3E%3Cstop offset=%270%27 stop-color=%27%23FF5A6B%27/%3E%3Cstop offset=%271%27 stop-color=%27%23D90F2B%27/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27url(%23g)%27/%3E%3Ccircle cx=%2716%27 cy=%2711%27 r=%274.5%27 fill=%27%23fff%27/%3E%3Cpath d=%27M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5%27 stroke=%27%23fff%27 stroke-width=%272.2%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:radial-gradient(800px 380px at 50% -80px,rgba(61,139,255,.28),transparent 70%),#121212;color:#ECECEC;font:15px/1.5 Inter,ui-sans-serif,-apple-system,"Segoe UI",sans-serif}
-main{width:min(420px,100%);padding:28px;border-radius:20px;border:1px solid transparent;background:linear-gradient(#1B1B1B,#1B1B1B) padding-box,linear-gradient(135deg,rgba(61,139,255,.75),rgba(168,85,247,.45) 45%,rgba(255,255,255,.08)) border-box;box-shadow:0 40px 90px -40px rgba(61,139,255,.55)}
+body{margin:0;min-height:100vh;display:grid;place-items:center;padding:16px;background:radial-gradient(800px 380px at 50% -80px,rgba(255,45,71,.28),transparent 70%),#121212;color:#ECECEC;font:15px/1.5 Inter,ui-sans-serif,-apple-system,"Segoe UI",sans-serif}
+main{width:min(420px,100%);padding:28px;border-radius:20px;border:1px solid transparent;background:linear-gradient(#1B1B1B,#1B1B1B) padding-box,linear-gradient(135deg,rgba(255,45,71,.75),rgba(168,85,247,.45) 45%,rgba(255,255,255,.08)) border-box;box-shadow:0 40px 90px -40px rgba(255,45,71,.55)}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;letter-spacing:-.02em;margin-bottom:18px}
-.logo i{width:32px;height:32px;border-radius:9px;background:#3D8BFF;display:grid;place-items:center;font-style:normal}
+.logo i{width:32px;height:32px;border-radius:9px;background:#FF2D47;display:grid;place-items:center;font-style:normal}
 h1{font-size:20px;margin:0 0 6px}p{margin:0 0 18px;color:#A1A1A1}
 input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #383838;background:#222;color:#ECECEC;font:600 15px ui-monospace,Menlo,monospace;letter-spacing:.01em;text-transform:uppercase}
-input:focus{outline:none;border-color:#3D8BFF;box-shadow:0 0 0 3px rgba(61,139,255,.25)}
-button{width:100%;margin-top:12px;padding:13px;border:0;border-radius:12px;background:linear-gradient(135deg,#3D8BFF,#7C5CFF);color:#fff;font:600 15px inherit;font-family:inherit;cursor:pointer}
+input:focus{outline:none;border-color:#FF2D47;box-shadow:0 0 0 3px rgba(255,45,71,.25)}
+button{width:100%;margin-top:12px;padding:13px;border:0;border-radius:12px;background:linear-gradient(135deg,#FF2D47,#D90F2B);color:#fff;font:600 15px inherit;font-family:inherit;cursor:pointer}
 .err{margin:12px 0 0;color:#FF6B61;font-size:14px}
 small{display:block;margin-top:16px;color:#6C6C6C;font-size:12.5px}
 </style></head><body><main>
