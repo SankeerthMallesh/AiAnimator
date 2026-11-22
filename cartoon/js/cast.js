@@ -76,11 +76,11 @@ export class Ink {
 }
 
 export class Cast {
-  static HATS = ['none', 'hair', 'cap', 'flatcap', 'conductor', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel'];
+  static HATS = ['none', 'hair', 'cap', 'flatcap', 'conductor', 'hardhat', 'fedora', 'beanie', 'tophat', 'crown', 'chef', 'grad', 'helmet', 'bowler', 'laurel', 'viking'];
   static FEELS = ['neutral', 'happy', 'sad', 'angry', 'shocked', 'skeptical', 'smug'];
   static POSES = ['idle', 'walk', 'turn', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'shock', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'enter', 'exit'];
   static HAIR = ['none', 'brown', 'black', 'blonde', 'red'];
-  static COSTUMES = ['vest', 'suit', 'shirt', 'coat', 'apron'];
+  static COSTUMES = ['vest', 'suit', 'shirt', 'coat', 'apron', 'tunic'];
   // Things a character can hold or use, drawn in the hand.
   static HOLDS = ['phone', 'money', 'coin', 'ticket', 'heart', 'magnet', 'map', 'letter', 'key', 'book', 'lantern', 'cup', 'bag', 'wrench', 'hammer', 'newspaper', 'clipboard', 'watch', 'camera', 'ruler', 'rail'];
   static PALETTE = ['#2A9D8F', '#E8B931', '#E85D4C', '#3D74E0', '#2C3E6B', '#F08A2A', '#7A4EBF', '#3E9A45'];
@@ -198,7 +198,19 @@ export class Cast {
     const h = (st.costume === 'coat' ? 2.15 : 1.82) - (sit ? 0.1 : 0);
     const color = st.color || '#2A9D8F';
     const costume = st.costume || 'vest';
-    if (costume === 'suit' || costume === 'coat') {
+    if (costume === 'tunic') {
+      // A belted wool tunic with a fur collar: Vikings, the Middle Ages, the ancient world.
+      Ink.rrect(ctx, -1.02 * u, (y + 0.05) * u, 2.04 * u, (h + 0.12) * u, 0.42 * u);
+      ctx.fillStyle = color; ctx.fill();
+      Ink.shade(ctx, 0, y + h / 2, 1.02, h / 2, u, 0.22, () => Ink.rrect(ctx, -1.02 * u, (y + 0.05) * u, 2.04 * u, (h + 0.12) * u, 0.42 * u));
+      ctx.lineWidth = 0.15 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      // the hem, a little lighter
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(-0.98 * u, (y + h - 0.02) * u, 1.96 * u, 0.12 * u);
+      // fur over the shoulders
+      Ink.oval(ctx, 0, y + 0.16, 1.12, 0.34, '#8A6240', u, 0.12);
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      for (const fx of [-0.7, -0.35, 0, 0.35, 0.7]) { ctx.beginPath(); ctx.arc(fx * u, (y + 0.1) * u, 0.07 * u, 0, Math.PI * 2); ctx.fill(); }
+    } else if (costume === 'suit' || costume === 'coat') {
       Ink.rrect(ctx, -1.05 * u, y * u, 2.1 * u, h * u, 0.48 * u);
       ctx.fillStyle = costume === 'suit' ? '#2C3E6B' : color;
       ctx.fill();
@@ -455,6 +467,14 @@ export class Cast {
       Ink.oval(ctx, 0, top - 0.7, 0.5, 0.42, '#fff', u, 0.1);
     } else if (kind === 'grad') {
       Ink.poly(ctx, [[-1.3, top], [0, top - 0.45], [1.3, top], [0, top + 0.28]], '#222', u, 0.1);
+    } else if (kind === 'viking') {
+      // A Viking's round steel cap with a nose guard (real Viking helmets had no horns).
+      const cy = hy - 0.62; // the brim sits above the eyes
+      ctx.beginPath(); ctx.arc(0, cy * u, 1.1 * u, Math.PI, Math.PI * 2); ctx.closePath();
+      ctx.fillStyle = '#A3ABB5'; ctx.fill(); ctx.lineWidth = 0.13 * u; ctx.strokeStyle = Ink.INK; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.ellipse(-0.42 * u, (cy - 0.62) * u, 0.22 * u, 0.12 * u, -0.5, 0, Math.PI * 2); ctx.fill();
+      Ink.rrect(ctx, -1.2 * u, (cy - 0.14) * u, 2.4 * u, 0.3 * u, 0.1 * u); ctx.fillStyle = '#8C7A5B'; ctx.fill(); ctx.stroke();
+      Ink.rrect(ctx, -0.075 * u, (cy - 0.2) * u, 0.15 * u, 0.9 * u, 0.05 * u); ctx.fillStyle = '#8F98A3'; ctx.fill(); ctx.stroke();
     } else if (kind === 'helmet') {
       Ink.oval(ctx, 0, hy - 0.15, 1.48, 1.4, 'rgba(180,220,255,0.35)', u, 0.12);
     } else if (kind === 'hair') {

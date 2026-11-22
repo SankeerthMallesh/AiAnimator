@@ -218,11 +218,11 @@ export class Pipeline {
       let misses = 0;
       await cloudflareReady();
       // One picture per scene (plus one spare) is all a video uses: painting more just burns the daily allowance.
-      while (!this.paint.stop && pool.length < (cloudflareOn() ? Math.min(24, Math.max(6, (p.script?.scenes?.length || 9) + 1)) : 6) && misses < 12) {
+      while (!this.paint.stop && pool.length < (cloudflareOn() ? Math.min(24, Math.max(6, (p.script?.scenes?.length || 9) + 1)) : 8) && misses < 12) {
         if (this.signal.aborted) return;
         const job = next();
         if (!job) { await new Promise(r => setTimeout(r, 2000)); misses++; continue; }
-        const bmp = await fetchPlate(job.prompt, { ...size, seed: (Math.random() * 1e9) | 0 }, this.s, { signal: this.signal, timeout: 20000, log: (m) => this.log(m) }).catch(() => null);
+        const bmp = await fetchPlate(job.prompt, { ...size, seed: (Math.random() * 1e9) | 0 }, this.s, { signal: this.signal, timeout: cloudflareOn() ? 20000 : 35000, log: (m) => this.log(m) }).catch(() => null);
         if (bmp) { pool.push({ bitmap: bmp, set: job.set, scene: job.scene || null }); misses = 0; this.log(`Painted background ${pool.length}.`); }
         else { misses++; await new Promise(r => setTimeout(r, cloudflareOn() ? 1500 : 9000)); }
       }
@@ -289,10 +289,11 @@ export class Pipeline {
     if (!this.paint) { this.h.step('plates', 'skip', 'Drawn in code'); return; }
     const pool = this.paint.pool;
     const sets = [...new Set(scenes.map(x => x.set))];
-    const want = cloudflareOn() ? Math.min(24, scenes.length) : Math.min(4, Math.max(2, sets.length));
+    // The free painter is slower: still ask for a picture per place, up to 8, so scenes do not repeat one view.
+    const want = cloudflareOn() ? Math.min(24, scenes.length) : Math.min(8, Math.max(3, sets.length + 1));
     this.h.step('plates', 'active', pool.length ? `${pool.length} painted so far…` : 'Painting 3D scenes…');
-    // Keep painting while the voice records, up to 40 seconds, or until there are enough.
-    const deadline = performance.now() + (cloudflareOn() ? 90000 : 40000);
+    // Keep painting while the voice records (up to 90 s with the site allowance, 100 s with the free painter), or until there are enough.
+    const deadline = performance.now() + (cloudflareOn() ? 90000 : 100000);
     while (pool.length < want && performance.now() < deadline && !this.signal.aborted) {
       await new Promise(r => setTimeout(r, 1000));
       this.h.step('plates', 'active', `${pool.length} painted 3D scene${pool.length === 1 ? '' : 's'}…`);

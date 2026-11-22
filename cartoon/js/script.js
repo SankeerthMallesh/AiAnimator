@@ -910,7 +910,8 @@ export class Script {
     const usedHat = new Set();
     for (const c of cast) {
       if (c.hat === 'hardhat' && !building) c.hat = ERA.find(h => !usedHat.has(h) && !cast.some(o => o !== c && o.hat === h)) || 'flatcap';
-      if (usedHat.has(c.hat) && c.hat !== 'hair' && c.hat !== 'none') c.hat = ERA.find(h => !usedHat.has(h)) || c.hat;
+      // A band of Vikings shares its helmets; everyone else gets a hat of their own.
+      if (usedHat.has(c.hat) && !['hair', 'none', 'viking'].includes(c.hat)) c.hat = ERA.find(h => !usedHat.has(h)) || c.hat;
       usedHat.add(c.hat);
     }
     if (cast.length < 3 && !(options.crew?.length) && scenes.length >= 3) {
@@ -971,7 +972,7 @@ ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUM
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}.
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give.
-${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, crown = royalty, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
+${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, viking = Vikings and Norse warriors (with costume tunic), crown = royalty, tunic = clothes for Vikings, the Middle Ages and the ancient world, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
 Never pad a line to reach a word count (no filler like "today", "now", "really", "daily" at the end), and never tack an object's name onto a line: the "props", "hold" and "icon" fields carry the objects. Every line is a complete, grammatical sentence.
 Story objects: in at least half of the scenes the line names an object the speaker holds or uses (${Cast.HOLDS.join(' ')}), for example "Mabel slaps her wrench on the rail" or "Gus waves the rulebook": set "hold" on that character in "who". Never a thing the line does not name, and never say the word "prop".
 "read" is how the narrator reads the line, one of ${DELIVERIES.slice(1).join(" ")}: match the beat (hook: curious or excited; conflict: tense or annoyed; twist: shocked or dramatic; button: amused, warm or deadpan), and vary it from line to line.

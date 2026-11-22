@@ -138,3 +138,9 @@ export const QUALITIES = { '720': 720, '1080': 1080, '1440': 1440 };
 export const TRANSITIONS = ['whip', 'zoom', 'fade', 'flash', 'slide', 'glitch'];
 // Moving effects drawn over a shot, so stills have real motion in them.
 export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', 'snow', 'smoke', 'pulse', 'shockwave', 'speed'];
+
+// The town can build a park, a bank street, a bridge and its square. A topic set somewhere else (the
+// Vikings at sea, a castle, space, the jungle) looks wrong there, so it gets the painted sets instead,
+// unless the person picked the town themselves.
+const ELSEWHERE = /\b(vikings?|longships?|norse|knights?|castles?|medieval|kings?|queens?|empires?|ancient|romans?|rome|greeks?|egypt\w*|pharaohs?|pyramids?|aztecs?|samurai|pirates?|ships?|sail\w*|sea|seas|ocean\w*|underwater|islands?|space|planets?|moon|mars|stars?|galax\w*|astronauts?|rockets?|dinosaurs?|jungle|rainforest|deserts?|volcano\w*|arctic|antarctic\w*|polar|mountains?|everest|caves?|wars?|battles?|armies|army|invad\w*|invasion|conquer\w*|history)\b/i;
+export function townFits(topic) { return !ELSEWHERE.test(String(topic || '')); }
