@@ -36,6 +36,16 @@ work if this one runs out of usage. Everything named here is committed in this r
 > long renders in background jobs and resume them, never restart finished pieces. When all the
 > remaining work is done and live, delete your scheduled tasks and send me a final summary.
 
+## Automatic check-ins (already running)
+
+A scheduled task named **"Loomy keep going"** (`trig_01CKtm7fnptK4aLUbNEpMpPQ`) wakes the cloud session
+`session_01HYd8vcMBU6u8sYFgZBDMLc` ("LoomyDashboard") every 2 hours at :22 EST
+(`CRON_TZ=America/New_York 22 */2 * * *`, first run 2026-11-22 12:22 AM EST). Each check-in fetches and
+merges `main`, does the next unfinished step from this file, tests, deploys, updates this file and sends
+the user a short update. It deletes itself when nothing is left. **Do not create a second one**; if you
+take over in another session, check `list_triggers` first. To stop it, the user says "stop the check-ins"
+in that session, or delete it with `delete_trigger`.
+
 ## What the user wants
 
 "Make sure my tool does this": Loomy itself should make videos like the three films below, from a
