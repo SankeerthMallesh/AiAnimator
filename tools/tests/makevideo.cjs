@@ -1,7 +1,8 @@
 // Make a real Cartoons video from a written script (proof/<SCRIPT>), narrated by Loomy's free in-browser
-// Kokoro voice (downloaded from Hugging Face), with the page's own pipeline. No AI writer or picture
+// Kokoro voice (downloaded from Hugging Face; the network must allow huggingface.co, us.aws.cdn.hf.co and
+// cdn.jsdelivr.net), with the page's own pipeline. CHARACTER= and MOOD= pick a narrator character and a score. No AI writer or picture
 // service is called: the script is the one given, pictures fall back to Loomy's painted sets.
-//   SCRIPT=ww1.json OUT=out/ww1 node makevideo.cjs
+//   SCRIPT=ww1.json OUT=out/ww1 CHARACTER=storyteller MOOD=tickingclock node makevideo.cjs
 const { chromium } = require('playwright'); const fs = require('fs');
 const script = JSON.parse(fs.readFileSync('proof/' + (process.env.SCRIPT || 'ww1.json'), 'utf8'));
 const out = process.env.OUT || 'out/video';
@@ -12,7 +13,8 @@ const out = process.env.OUT || 'out/video';
   await ctx.addInitScript(() => {
     try {
       const k = 'storyforge.settings.v1', s = JSON.parse(localStorage.getItem(k) || '{}');
-      localStorage.setItem(k, JSON.stringify({ ...s, ttsEngine: 'kokoro-only', voice: s.voice || 'am_michael', captionStyle: 'punch', quality: '1080', fps: '30' }));
+      // settingsVersion matches the page's, so these choices are not reset to the defaults on load.
+      localStorage.setItem(k, JSON.stringify({ ...s, settingsVersion: 10, ttsEngine: 'kokoro', captionStyle: 'punch', quality: '1080', fps: 30, speed: 'balanced', reviewFirst: false }));
     } catch { /* storage off */ }
   });
   await ctx.route('**/api/**', async (route) => {
@@ -34,6 +36,8 @@ const out = process.env.OUT || 'out/video';
   await p.goto('http://127.0.0.1:8773/?test=1'); await p.waitForTimeout(2000);
   await p.click('#tab-cartoon').catch(() => {}); await p.waitForTimeout(1500);
   const f = p.frameLocator('#view-cartoon');
+  if (process.env.CHARACTER) await f.locator('#character').selectOption(process.env.CHARACTER);
+  if (process.env.MOOD) await f.locator('#mood').selectOption(process.env.MOOD);
   await f.locator('#topic').fill(script.title);
   const t0 = Date.now();
   await f.locator('#btnGo').click();
