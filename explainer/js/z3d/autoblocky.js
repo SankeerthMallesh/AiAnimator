@@ -161,7 +161,10 @@ export function buildShot(spec, { makeStage, W, H }) {
         eff = chest(A); break;
       }
       case 'walk': {
-        const z = lerp(-3.5, -0.4, t / Math.max(dur, 0.1));
+        // Indoors the back wall stands 3 m back: start in front of it (from 3.5 m the walker was
+        // hidden behind it for the first part of the shot, a blank frame).
+        const z0 = spec.set === 'room' || spec.set === 'lab' ? -2.5 : -3.5;
+        const z = lerp(z0, -0.4, t / Math.max(dur, 0.1));
         at(A, 0, z, 0); A.pose('walk', t);
         target = V(0, 1.55, z);
         frameCam(c, target, { dist: 3.8 * near, height: 0.2, yaw: 0.25 }, 'static', k, t, spec.seed, fov0);
