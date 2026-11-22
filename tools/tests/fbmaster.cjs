@@ -40,10 +40,13 @@ script.youtubeTitle = 'THE STORY OF THE MAN WHO FELL THROUGH THE ICE ON A COLD W
   await f.locator('#btnGo').click();
   const fails = [];
   await f.locator('.feedback:not(.hidden) .fb-row').first().waitFor({ timeout: 300000 }).catch(() => fails.push('no feedback after the script'));
+  const rowsText = async () => (await f.locator('.fb-row').allTextContents()).map(t => t.replace(/\s+/g, ' ').slice(0, 90)).join(' || ');
   const g1 = await f.locator('.fb-grade').textContent().catch(() => '');
+  if (process.env.SECTIONS) console.log('SCRIPT SECTIONS:', await rowsText());
   await f.locator('#btnDownload:not(.hidden)').waitFor({ timeout: 3600000 }).catch(() => fails.push('TIMEOUT 1'));
   await p.waitForTimeout(500);
   const g2 = await f.locator('.fb-grade').textContent();
+  if (process.env.SECTIONS) console.log('VIDEO SECTIONS:', await rowsText());
   const rows = await f.locator('.fb-row').count();
   const note = await f.locator('.fb-note').textContent();
   const fixShown = await f.locator('.fb-fix:not(.hidden)').count();
