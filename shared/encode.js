@@ -26,10 +26,10 @@ export async function audioConfig(sampleRate, ch) {
   return null;
 }
 
-// An encoder for one MP4: addFrame(canvas, seconds) as often as needed, then finish() -> Blob.
+// An encoder for one MP4: addFrame(canvas or VideoFrame, seconds) as often as needed, then finish() -> Blob.
 // The audio (an AudioBuffer) is encoded up front.
-export async function mp4Writer({ width, height, fps = 30, audio }) {
-  const v = await videoConfig(width, height, fps);
+export async function mp4Writer({ width, height, fps = 30, audio, bitrate }) {
+  const v = await videoConfig(width, height, fps, bitrate);
   const a = audio ? await audioConfig(audio.sampleRate, audio.numberOfChannels) : null;
   if (!v || (audio && !a)) throw new Error('This browser cannot make MP4 files. Please use Chrome or Edge on a computer.');
   const muxer = new Muxer({
