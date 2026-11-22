@@ -36,7 +36,7 @@ work if this one runs out of usage. Everything named here is committed in this r
 > long renders in background jobs and resume them, never restart finished pieces. When all the
 > remaining work is done and live, delete your scheduled tasks and send me a final summary.
 
-## Automatic check-ins (already running)
+## Automatic check-ins (stopped 2026-11-22: the list is done)
 
 A scheduled task named **"Loomy keep going"** (`trig_01CKtm7fnptK4aLUbNEpMpPQ`) wakes the cloud session
 `session_01HYd8vcMBU6u8sYFgZBDMLc` ("LoomyDashboard") every 2 hours at :22 EST
@@ -46,19 +46,19 @@ the user a short update. It deletes itself when nothing is left. **Do not create
 take over in another session, check `list_triggers` first. To stop it, the user says "stop the check-ins"
 in that session, or delete it with `delete_trigger`.
 
-## Testing in progress (2026-11-22, started about 11:50 PM EST)
+## Test run of 2026-11-22 (finished about 4:30 AM EST)
 
-The user asked to test every tab "1000 times". Done in three levels (tools/tests):
-1. Stress test `node fuzz.cjs 1000 10` (page `tools/tests/fuzz/`): 1,000 random writer outputs per tab through
-   cleanup, shot plan, captions and sound plan, a tenth built and drawn. DONE: 0 failures on all three tabs
-   after fixes T1a (one junk scene threw the whole script away), T1b (punctuation-only words made blank
-   captions) and T1c (Cartoons crashed on one blank scene). All live (stamp 202611220521).
-2. Full mocked videos: `SCRIPT=<proof file> node drawnmaster.cjs 3d|blocky out/l2/...` (drawn-3d, drawn-blocky,
-   drawn-fx, drawn-things, drawn-long) and `SCRIPT=... OUT=... node cartoonmaster.cjs` (bees, m5-script and
-   three random scripts in proof/out/). Outputs in tools/tests/out/l2/ (git-ignored). IN PROGRESS.
-3. One short real video per tab on the live site: `node livetab.cjs cartoon|3d|blocky "topic" out/live-<tab>.mp4 30`.
-   NOT STARTED. Spends real allowance (ElevenLabs ~3,000 characters left this month: keep them short).
-Then send the user a report with sample videos. If this session stops, a check-in continues from here.
+1. Stress test (`node fuzz.cjs 1000 10`, page tools/tests/fuzz/): 1,000 random writer outputs per tab, 0 failures after
+   fixes T1a, T1b, T1c (junk scenes, blank captions, Cartoons crash on a blank scene).
+2. Full mocked videos (`drawnmaster.cjs`, `cartoonmaster.cjs`): 15 of 15 passed (5 per tab). Fixes from watching them:
+   N1 (night scenes too dark), C1 (Cartoons "fast.." captions).
+3. Real videos on the live site (`livetab.cjs`): all three tabs made a video with no errors. Fixes: A1 (Auto gave the
+   old picture look to "what happens to your body if you fall into ice water"; now drawn people), V2 (the server says
+   why ElevenLabs failed, in X-Loomy-Note).
+   Finding: the site's ELEVEN_KEY account is out of characters (`401 quota_exceeded`), so the live voice falls back to
+   Gemini until that account resets or the user swaps the Cloudflare secret. Not a code bug.
+   Not re-checked live after A1: the user allows 3 Gemini voice reads a day and the three live videos used them.
+The automatic 2-hourly check-in ("Loomy keep going") was deleted when this run finished: nothing is left on the list.
 
 ## What the user wants
 
