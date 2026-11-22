@@ -201,6 +201,17 @@ Loomy 1.3 (same day; the user named it): everything above plus the reference sty
   setting `glow`. STYLE3 dutch tilts in `Stage.shot`. STYLE4 NARRATOR VOICE in both writers.
 Tests: v12-cartoon-objects, v12-auto-look, v12-chapters, v12-style-cast, v12-narrator (unit).
 
+## Loomy 1.4 (2026-11-22)
+
+- **CAP1** caption style `punch` (Stage.caption `{ punch }`, painted and town): 1-2 words, 1.55x, at 64%.
+- **OBJSHOT1** `Stage.thingOf` / `Stage.objectShot`: the scenery cutaway (and the last set-up of every
+  other scene with a thing) becomes a floating close-up of the held thing or the scene's prop.
+- **ROOMS1** `cartoon/js/worlds.js` P.cabin / control / bunks / cockpit; `Script.guessSet(text, topic)`
+  picks them inside a spacecraft; dark-set glow.
+- **TOWN1/TOWN2** glare over the town (`town.js`), `townLooks(cast)` -> `createTemplated({ looks })` ->
+  `setLooks` in `tools/c3d-src/src/cast.ts` (rebuilt `cartoon/js/c3d/cartoon3d.js`); nervous -> think.
+Tests: v14-object-shots, v14-space-rooms, v14-town-style (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
