@@ -220,6 +220,23 @@ Tests: v14-object-shots, v14-space-rooms, v14-town-style (unit).
   the drawings, and draws held things at the hand `bodyFront` now returns. `Stage.world` uses it unless
   `settings.toonCast === false` ("Town-style characters" in More). Test: v15-town-cast.
 
+## Loomy 1.55 (2026-11-22, "the biggest upgrade yet")
+
+- **T2** 9:16 videos get a 9:16 thumbnail first (`shared/thumbnail.js`).
+- **IDEAS1** 242 ideas in 20 categories (`shared/ideas.js`, panel `shared/ideabox.js`) under every composer.
+- **AUDIO1** seven curiosity scores with layers in `filmScore` (`curiosityLayers`: tick, heartbeat, pizz,
+  musicbox, riser, lofi); moods in both presets (`flavor`).
+- **VOICE-C1** eight narrator characters (`shared/voicechars.js`): voice, pace, delivery lean (acted out by
+  ElevenLabs v3 tags), sound (pure-JS filters); "Character" select; `settings.character`; in voice keys.
+- **FB1/FB2** Feedback (`shared/feedback.js` grades, `shared/feedbackui.js` card above the Upload kit):
+  8 sections A+ to F, from the script then the finished video; "Fix it for me" = `quickFixes` + the
+  tab's writer with `revisePrompt`, then the video is made again. Test: fbmaster.cjs.
+- **SPEED1** Speed (fast/balanced/best) sets size, fps, glow; defaults 1080p 30 fps; `FACT_WAIT`.
+- **DEV1** devicecheck.cjs: every page + both workspaces at 390/820/1180/1440 px; touch sizes in theme.css.
+- Real videos from a written script: `tools/tests/makevideo.cjs` (Kokoro voice; needs huggingface.co,
+  us.aws.cdn.hf.co, cdn.jsdelivr.net on the network).
+Tests: v2-ideas, v2-curiosity-moods, v2-voice-characters, v2-feedback, v2-speed (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
