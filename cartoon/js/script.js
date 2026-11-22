@@ -4,6 +4,7 @@
 
 import { splitSentences } from '../../shared/speech.js';
 import { DELIVERIES } from '../../shared/voicefx.js';
+import { lowerTags, compactTitle } from '../../shared/upload.js';
 import { PACES, formatOf } from './presets.js';
 import { Cast } from './cast.js';
 import { PropKit, SetKit } from './props.js';
@@ -718,7 +719,7 @@ export class Script {
     Script.storyPass(cast, scenes, options, raw);
     return {
       title: Script.clean(raw.title || options.topic || 'Untitled', 60),
-      youtubeTitle: Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90),
+      youtubeTitle: compactTitle(Script.clean(raw.youtubeTitle || raw.title || options.topic || 'Untitled', 90)),
       description: String(raw.description || '').trim().slice(0, 1500),
       hashtags: Script.hashtags(raw.hashtags, `${raw.title || ''} ${options.topic || ''}`),
       cast,
@@ -790,7 +791,7 @@ export class Script {
       for (const w of keep) { if (out.length >= 8) break; add(cap(w)); }
       for (const t of ['DidYouKnow', 'Facts', 'Explained', 'LearnOnShorts']) { if (out.length >= 8) break; add(t); }
     }
-    return out.filter(t => t.toLowerCase() !== '#topic').slice(0, 10);
+    return lowerTags(out);
   }
 
   // An emoji for the first common thing named in the text, or ''.
@@ -959,7 +960,7 @@ export class Script {
 TOPIC (follow it, keep real facts accurate): """${topic}"""
 ${options.extra ? `NOTES: ${options.extra}\n` : ''}About ${plan.words} spoken words across exactly ${plan.scenes} scenes (about ${plan.wordsPerScene} words each).
 ${part && part.count > 1 ? `This is part 1 of ${part.count} of a ${plan.seconds}s video: write only the first ${plan.scenes} scenes (the hook and the set-up). Later parts continue the story.\n` : ''}Story beats, in order: 1) HOOK in scene 1 (the first 3 seconds): a named hero doing something surprising, or a sharp question. Never a passive fact ("X is a Y", "Have you ever wondered"). 2) SET-UP: who the hero is and what they want. 3) CONFLICT: a rival stands in the way. 4) ESCALATION: it gets bigger or worse. 5) TWIST: a surprising turn that reveals the real fact. 6) BUTTON: one short last line that lands the point or the joke. The real facts drive the story, and the story delivers exactly what the title promises (never contradict the title).
-Upload kit: "youtubeTitle" is a viral, curiosity-gap title under 70 characters with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"). "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 tags: #shorts plus specific ones for this topic.
+Upload kit: "youtubeTitle" is a short, compact curiosity-gap title: 3-7 words, under 45 characters, with one emoji, the kind people must click (e.g. "Why Train Tracks Have Gaps 🤯", "The War That Lasted 13 Days 😳"), no filler like "The Shocking Truth About". "description" is 2 punchy sentences, then a line "Sources:" and 2 to 4 real sources (Wikipedia article names, books or museums). "hashtags" is 8 lowercase tags: #shorts plus specific ones for this topic (like #trains, not #Trains).
 Facts: dates, names and numbers must be right. If a popular belief is a myth, say so and give the real version. Never state a myth as fact. Uncertain claims use "about" or "historians think".
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.

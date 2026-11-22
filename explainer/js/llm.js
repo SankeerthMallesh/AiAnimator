@@ -8,6 +8,7 @@ import { fetchTimeout } from './net.js';
 import { HATS, POSES, EMOTIONS, SIDES } from './mascot.js';
 import { PROPS } from './props.js';
 import { DELIVERIES } from '../../shared/voicefx.js';
+import { lowerTags, compactTitle } from '../../shared/upload.js';
 import { SETS, SHOT_KINDS, POSE_NAMES, EFFECTS3D, THINGS, THING_ACTIONS, effect3d } from './z3d/vocab.js';
 
 const WORDS_PER_SECOND = 2.55;
@@ -299,10 +300,10 @@ VISUAL STYLE (do not repeat in prompts, it is added automatically): ${style.labe
 ${style.direction ? `DIRECTION: ${style.direction}\n` : ''}${options.extra ? `CREATOR NOTES: ${options.extra}\n` : ''}
 Return JSON with this exact shape:
 {
-  "title": "short on-screen title, max 6 words",
-  "youtubeTitle": "click-worthy but honest title, under 70 characters",
+  "title": "short on-screen title, max 5 words",
+  "youtubeTitle": "short, compact, honest title that makes people click: 3-7 words, under 45 characters, no filler like 'The Shocking Truth About'",
   "description": "2 short sentences describing the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
-  "hashtags": ["5-8 relevant hashtags"],${part ? `
+  "hashtags": ["5-8 relevant hashtags, all lowercase like #history"],${part ? `
   "chapter": "2-5 word title of this chapter (it opens with a title card)",` : ''}
   "hookText": "2-6 word on-screen headline for the first 3 seconds that teases the payoff without giving it away (not the title, not the first narration line), e.g. 'THIS WALL IS 2,000 YEARS OLD' or 'HE HAD 10 MINUTES'",
   "teaser": index of the most dramatic later scene (a reveal, an impact, a big reaction), flashed for one second before the story starts,
@@ -459,12 +460,11 @@ export function normalizeScript(raw, options) {
   }
   return {
     title: cleanText(raw.title || options.topic, 60),
-    youtubeTitle: cleanText(raw.youtubeTitle || raw.title || options.topic, 100),
+    youtubeTitle: compactTitle(cleanText(raw.youtubeTitle || raw.title || options.topic, 100)),
     description: String(raw.description || '').trim().slice(0, 3000),
     hookText: cleanText(raw.hookText || raw.hook_text || raw.onScreenHook || '', 60).split(' ').slice(0, 6).join(' '),
     teaser: Number.isInteger(Number(raw.teaser)) && Number(raw.teaser) >= 1 && Number(raw.teaser) < scenes.length ? Number(raw.teaser) : null,
-    hashtags: (Array.isArray(raw.hashtags) ? raw.hashtags : []).map(h => cleanText(h, 40)).filter(Boolean)
-      .map(h => (h.startsWith('#') ? h : '#' + h.replace(/\s+/g, ''))).slice(0, 10),
+    hashtags: lowerTags((Array.isArray(raw.hashtags) ? raw.hashtags : []).map(h => cleanText(h, 40))),
     host: {
       hat: HATS.includes(raw.host?.hat) ? raw.host.hat : 'none',
       color: /^#[0-9a-f]{6}$/i.test(raw.host?.color || '') ? raw.host.color : '#2F5DA8',
