@@ -793,8 +793,17 @@ export class Script {
     if (/cockpit|capsule|shuttle|spacecraft|docking|\bdock\b|windshield/.test(t)) return 'cockpit';
     if (spacey && /\b(sleep\w*|asleep|bunk|bed|nap|dream\w*)\b/.test(t)) return 'bunks';
     if (/space station|\biss\b|airlock|\bmodule\b/.test(t) || (spacey && /toilet|bathroom|flush|window|cabin|inside|room|drink|food|eat/.test(t))) return 'cabin';
-    // War on land: trenches and battlefields are fields, whatever else the line names ("from the sea to Switzerland").
-    if (/\btrench\w*|battlefield|no man'?s land|front line|the front\b|machine guns?|charge across|over the top/.test(t)) return /night|dark|sleep/.test(t) ? 'night' : 'field';
+    // War on land: trenches and battlefields are the battlefield, whatever else the line names ("from the sea to Switzerland").
+    if (/\btrench\w*|battlefield|no man'?s land|front line|the front\b|machine guns?|charge across|over the top/.test(t)) return 'battlefield';
+    // 1.6: more places, matched to the topic.
+    if (/\b(volcano\w*|lava|magma|erupt\w*|pompeii)\b/.test(t)) return 'volcano';
+    if (/\b(hospital|doctors?|nurses?|patients?|surgery|surgeons?|vaccines?|medicine|disease|illness|sick|virus)\b/.test(t)) return 'hospital';
+    if (/\b(museum|paintings?|painter|artists?|gallery|statues?|sculptures?|artifacts?|exhibit\w*|mona lisa)\b/.test(t)) return 'museum';
+    if (/\b(stadium|football|soccer|olympics?|olympic|world cup|athletes?|referee|tournament|championship|fans cheer\w*|scored? a goal)\b/.test(t)) return 'stadium';
+    if (/\b(kitchen|cook\w*|chefs?|recipes?|bak(e|ed|ing)|oven|stove|frying pan)\b/.test(t)) return 'kitchen';
+    if (/\b(jungle|rainforest|amazon|monkeys?|gorillas?|tigers?|parrots?|vines?)\b/.test(t)) return 'jungle';
+    if (/\b(castles?|knights?|kings?|queens?|kingdom|medieval|throne|royal|princes?|princess|dragons?|swords?)\b/.test(t)) return 'castle';
+    if (/\b(war|wars|battles?|soldiers?|army|armies|troops|invasion|invaded|bomb\w*|tanks|artillery|enemy|world war|ww1|ww2|wwi|wwii)\b/.test(t)) return 'battlefield';
     if (/titanic|ocean liner|\bliner\b|\bdeck\b|cruise|voyage|lifeboat|iceberg|captain|on board|aboard/.test(t)) return 'deck';
     if (/eclipse|lunar|moonlight|starry|stars? at night|\bmoon\b/.test(t)) return 'night';
     if (/egypt|syene|alexandria|pyramid|camel|nile|\bwell\b|stick|noon/.test(t)) return 'desert';

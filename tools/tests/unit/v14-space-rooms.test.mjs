@@ -27,8 +27,8 @@ tests.push({ name: 'a writer\'s generic space, night or lab set becomes the righ
     { line: 'The view of Earth is amazing.', set: 'space', say: 'a', who: [{ id: 'a' }] }] }, { topic: 'Why astronauts cannot flush in space' });
   assert.deepEqual(s.scenes.map(sc => sc.set), ['cabin', 'bunks', 'control', 'space']);
 } });
-tests.push({ name: 'trenches and battlefields are fields, even when the line names the sea', fn: () => {
-  assert.equal(Script.guessSet('So both sides dug in. Trenches ran about 700 kilometers, from the sea to Switzerland.'), 'field');
-  assert.equal(Script.guessSet('Machine guns turned every charge into a disaster.'), 'field');
+tests.push({ name: 'trenches and battlefields are the battlefield (1.6), even when the line names the sea', fn: () => {
+  assert.equal(Script.guessSet('So both sides dug in. Trenches ran about 700 kilometers, from the sea to Switzerland.'), 'battlefield');
+  assert.equal(Script.guessSet('Machine guns turned every charge into a disaster.'), 'battlefield');
   assert.equal(Script.guessSet('The ship sailed across the sea.'), 'sea');
 } });

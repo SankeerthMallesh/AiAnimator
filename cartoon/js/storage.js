@@ -38,14 +38,14 @@ export const DEFAULT_SETTINGS = {
   speed: 'balanced',              // fast | balanced | best
   captionStyle: 'word',           // word | classic | bold | box | minimal | off
   showTitle: false,
-  stickers: false,                // floating stickers/icons for things the narrator mentions (off: they read as clutter)
+  stickers: true,                 // 1.6: topic icons (a glass badge with the line's thing: a sword for war) are on by default
   showProgress: false,
   handle: '',
   factCheck: true,
   reviewFirst: false,
   musicVolume: 0.55,
   theme: 'system',                // system | light | dark
-  settingsVersion: 10,
+  settingsVersion: 11,
 };
 
 function safeGet(key) {
@@ -92,9 +92,11 @@ export function loadSettings() {
   const merged = { ...DEFAULT_SETTINGS, ...saved };
   // One-time move to the fast defaults for people who already have saved settings (keys are kept).
   if (saved.settingsVersion !== DEFAULT_SETTINGS.settingsVersion) {
-    for (const k of ['quality', 'fps', 'depth3d', 'atmosphere', 'captionStyle', 'showTitle', 'voice', 'voiceSpeed']) merged[k] = DEFAULT_SETTINGS[k];
+    for (const k of ['quality', 'fps', 'depth3d', 'atmosphere', 'captionStyle', 'showTitle', 'voice', 'voiceSpeed', 'stickers']) merged[k] = DEFAULT_SETTINGS[k];
     merged.settingsVersion = DEFAULT_SETTINGS.settingsVersion;
   }
+  // 1.6: captions are always on, in every tab.
+  if (!merged.captionStyle || merged.captionStyle === 'off') merged.captionStyle = DEFAULT_SETTINGS.captionStyle;
   if (merged.quality === 'hd') merged.quality = '1080';
   if (merged.quality === 'fast') merged.quality = '720';
   return merged;

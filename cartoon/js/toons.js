@@ -311,6 +311,18 @@ export function drawSticker(ctx, emoji, cx, cy, size, t) {
   ctx.rotate(tilt);
   ctx.scale(pop * sq, pop / sq);
   const d = size * (img.width / px) * 0.78;
-  ctx.drawImage(img, -d / 2, -d / 2, d, d);
+  // 1.6: the icon sits on a white glass disc with a red ring, so it reads on any picture.
+  const R = size * 0.56;
+  ctx.save();
+  ctx.shadowColor = 'rgba(10,10,20,0.35)'; ctx.shadowBlur = size * 0.18; ctx.shadowOffsetY = size * 0.05;
+  const face = ctx.createLinearGradient(0, -R, 0, R);
+  face.addColorStop(0, 'rgba(255,255,255,0.97)'); face.addColorStop(1, 'rgba(238,240,246,0.93)');
+  ctx.fillStyle = face; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+  ctx.restore();
+  ctx.lineWidth = size * 0.055; ctx.strokeStyle = '#FF2D47'; ctx.beginPath(); ctx.arc(0, 0, R - ctx.lineWidth / 2, 0, TAU); ctx.stroke();
+  // The glass rim: a bright arc along the top.
+  ctx.lineWidth = size * 0.02; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.arc(0, 0, R * 0.82, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+  const e = d * 0.86;
+  ctx.drawImage(img, -e / 2, -e / 2, e, e);
   ctx.restore();
 }

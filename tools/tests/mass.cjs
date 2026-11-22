@@ -283,7 +283,7 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       const cartoonish = section === 'cartoon' || section === 'town';
       // Settings-panel choices are saved the way the app saves them, before the page loads.
       const set = { quality: pick(['720', '1080', '1080', '1080', '1440']), fps: pick(['24', '30', '30', '60']), captionStyle: pick(['word', 'classic', 'bold', 'box', 'minimal', 'off']),
-        bgLook: pick(['3d', '3d', 'flat']), stickers: r() < 0.15, showTitle: r() < 0.3, factCheck: r() < 0.8, settingsVersion: cartoonish ? 10 : 7 };
+        bgLook: pick(['3d', '3d', 'flat']), stickers: r() < 0.15, showTitle: r() < 0.3, factCheck: r() < 0.8, settingsVersion: cartoonish ? 11 : 7 };
       if (set.quality === '1440' && set.fps === '60') set.fps = '30';
       // Proof renders: the app's defaults at 1080x1920, 30 fps (only the picture service may be off).
       if (process.env.FIXED) Object.assign(set, { quality: '1080', fps: '30', captionStyle: cartoonish ? 'word' : 'classic', bgLook: '3d', stickers: false, showTitle: false, factCheck: true });

@@ -14,7 +14,7 @@ const out = process.env.OUT || 'out/video';
     try {
       const k = 'storyforge.settings.v1', s = JSON.parse(localStorage.getItem(k) || '{}');
       // settingsVersion matches the page's, so these choices are not reset to the defaults on load.
-      localStorage.setItem(k, JSON.stringify({ ...s, settingsVersion: 10, ttsEngine: 'kokoro', captionStyle: 'punch', quality: '1080', fps: 30, speed: 'balanced', reviewFirst: false }));
+      localStorage.setItem(k, JSON.stringify({ ...s, settingsVersion: 11, ttsEngine: 'kokoro', captionStyle: 'punch', quality: '1080', fps: 30, speed: 'balanced', reviewFirst: false }));
     } catch { /* storage off */ }
   });
   await ctx.route('**/api/**', async (route) => {

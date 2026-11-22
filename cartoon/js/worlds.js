@@ -767,6 +767,137 @@ P.cockpit = (g, W, H, r) => {
   for (let k = 0; k < 18; k++) { const c = ['#3EE08A', '#FFD23C', '#FF5A5A', '#5AC8FF'][k % 4]; g.fillStyle = c; g.fillRect(W * (0.04 + k * 0.053), hz + H * 0.025 + (k % 3) * H * 0.012, W * 0.024, H * 0.008); }
 };
 
+// ---------- 1.6: more places for the narrator ----------
+// A battlefield: smoky sky, mud, craters, a sandbag trench line, barbed wire and broken trees.
+P.battlefield = (g, W, H, r) => {
+  const hz = H * 0.5;
+  vGrad(g, -W, -H, W * 3, hz + H, [[0, '#5D6168'], [0.55, '#8A8478'], [1, '#C9B79A']]);
+  glow(g, W * 0.72, H * 0.2, W * 0.5, 'rgba(255,190,120,0.35)');
+  for (let k = 0; k < 4; k++) { const x = W * (0.1 + k * 0.27 + r() * 0.08); g.save(); g.globalAlpha = 0.5; for (let j = 0; j < 6; j++) { const cx = x + (r() - 0.5) * W * 0.08, cy = hz - H * (0.04 + j * 0.05), rr = H * (0.04 + j * 0.012); const gr = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gr.addColorStop(0, 'rgba(70,68,66,0.8)'); gr.addColorStop(1, 'rgba(70,68,66,0)'); g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, rr, 0, TAU); g.fill(); } g.restore(); }
+  ridge(g, W, hz + H * 0.01, H * 0.05, '#6E6656', 71, { bottom: H * 2, bumps: 4 });
+  vGrad(g, -W, hz + H * 0.03, W * 3, H, [[0, '#6B5B45'], [1, '#3E3226']]);
+  // Craters, near ones bigger.
+  for (let k = 0; k < 9; k++) { const d = r(), x = r() * W, y = hz + H * (0.06 + d * d * 0.36), rx = W * (0.03 + d * 0.09), ry = rx * 0.28; g.fillStyle = '#2F271F'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, TAU); g.fill(); g.strokeStyle = '#7D6A50'; g.lineWidth = Math.max(1, rx * 0.12); g.beginPath(); g.ellipse(x, y - ry * 0.2, rx * 1.05, ry * 1.1, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke(); }
+  // Broken trees.
+  for (const [x, h] of [[0.12, 0.2], [0.83, 0.15], [0.62, 0.09]]) { const bx = W * x, by = hz + H * 0.08 + h * H * 0.4; g.fillStyle = '#2E2620'; g.beginPath(); g.moveTo(bx - W * 0.008, by); g.lineTo(bx - W * 0.004, by - H * h); g.lineTo(bx + W * 0.006, by - H * h * 0.82); g.lineTo(bx + W * 0.009, by); g.closePath(); g.fill(); g.strokeStyle = '#2E2620'; g.lineWidth = W * 0.004; g.beginPath(); g.moveTo(bx, by - H * h * 0.6); g.lineTo(bx + W * 0.03, by - H * h * 0.78); g.stroke(); }
+  // A sandbag wall across the foreground.
+  const sy = H * 0.86;
+  for (let row = 0; row < 3; row++) for (let k = -1; k < 14; k++) { const x = W * (k * 0.08 + (row % 2) * 0.04), y = sy - row * H * 0.028, w = W * 0.085, h = H * 0.032; const gr = g.createLinearGradient(0, y - h / 2, 0, y + h / 2); gr.addColorStop(0, '#C9B48A'); gr.addColorStop(1, '#8E7A55'); g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, w / 2, h / 2, 0, 0, TAU); g.fill(); }
+  // Barbed wire on posts.
+  g.strokeStyle = '#3A332C'; g.lineWidth = Math.max(1, W * 0.002);
+  for (let k = 0; k < 7; k++) { const x = W * (0.04 + k * 0.16), y = hz + H * 0.17; g.fillStyle = '#4A3A2A'; g.fillRect(x, y - H * 0.06, W * 0.006, H * 0.06); }
+  for (let line = 0; line < 2; line++) { g.beginPath(); for (let x = -W * 0.05; x < W * 1.05; x += W * 0.012) { const y = hz + H * (0.125 + line * 0.025) + Math.sin(x / W * 60) * H * 0.006; x < 0 ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke(); }
+};
+// A castle: stone walls, towers, red banners, a gate and a courtyard.
+P.castle = (g, W, H, r) => {
+  const hz = H * 0.56;
+  skyBand(g, W, H, hz, '#6FB6EC', '#DCEFFA', true, 0.82, 0.12);
+  ridge(g, W, hz, H * 0.06, mix('#6FAE73', '#DCEFFA', 0.45), 9, { bottom: H * 2, bumps: 3 });
+  const stone = '#B8B2A6';
+  // Wall and towers.
+  box(g, W * 0.05, H * 0.24, W * 0.9, hz - H * 0.24, stone);
+  for (let k = 0; k < 18; k++) { g.fillStyle = shade(stone, -0.05); g.fillRect(W * (0.05 + k * 0.05), H * 0.215, W * 0.03, H * 0.03); }
+  for (const x of [0.02, 0.8]) { box(g, W * x, H * 0.12, W * 0.18, hz - H * 0.12, shade(stone, 0.04)); g.fillStyle = '#8C2F39'; g.beginPath(); g.moveTo(W * (x - 0.01), H * 0.12); g.lineTo(W * (x + 0.09), H * 0.02); g.lineTo(W * (x + 0.19), H * 0.12); g.closePath(); g.fill(); g.fillStyle = '#3A3530'; g.fillRect(W * (x + 0.075), H * 0.2, W * 0.03, H * 0.06); }
+  // Stone courses.
+  g.strokeStyle = shade(stone, -0.14); g.lineWidth = Math.max(1, W * 0.0015);
+  for (let y = H * 0.27; y < hz; y += H * 0.035) { g.beginPath(); g.moveTo(W * 0.2, y); g.lineTo(W * 0.8, y); g.stroke(); }
+  // Gate.
+  g.fillStyle = '#3E2E22'; g.beginPath(); g.moveTo(W * 0.42, hz); g.lineTo(W * 0.42, H * 0.38); g.arc(W * 0.5, H * 0.38, W * 0.08, Math.PI, 0); g.lineTo(W * 0.58, hz); g.closePath(); g.fill();
+  g.strokeStyle = '#6B5640'; g.lineWidth = W * 0.006; for (let k = 1; k < 5; k++) { g.beginPath(); g.moveTo(W * (0.42 + k * 0.032), H * 0.33); g.lineTo(W * (0.42 + k * 0.032), hz); g.stroke(); }
+  // Red banners.
+  for (const x of [0.3, 0.66]) { g.fillStyle = '#C8102E'; g.beginPath(); g.moveTo(W * x, H * 0.27); g.lineTo(W * (x + 0.05), H * 0.27); g.lineTo(W * (x + 0.05), H * 0.42); g.lineTo(W * (x + 0.025), H * 0.39); g.lineTo(W * x, H * 0.42); g.closePath(); g.fill(); g.fillStyle = '#F2C230'; g.beginPath(); g.arc(W * (x + 0.025), H * 0.32, W * 0.012, 0, TAU); g.fill(); }
+  // Courtyard.
+  vGrad(g, -W, hz, W * 3, H, [[0, '#C8BBA0'], [1, '#9A8B6E']]);
+  rows(g, W, hz, H * 1.2, 9, 'rgba(90,75,55,0.35)', Math.max(1, W * 0.0015));
+};
+// A hospital room: pale walls, a bed, a heart monitor and a red cross.
+P.hospital = (g, W, H, r) => {
+  const hz = H * 0.58;
+  roomShell(g, W, H, '#E6F0F2', '#CFE0E3', hz);
+  box(g, W * 0.3, H * 0.12, W * 0.16, H * 0.16, '#FFFFFF'); g.fillStyle = '#E5242F'; g.fillRect(W * 0.365, H * 0.14, W * 0.03, H * 0.12); g.fillRect(W * 0.32, H * 0.185, W * 0.12, W * 0.03);
+  // Monitor on an arm.
+  box(g, W * 0.66, H * 0.14, W * 0.24, H * 0.14, '#2B3440'); vGrad(g, W * 0.675, H * 0.152, W * 0.21, H * 0.116, [[0, '#0E2A22'], [1, '#06150F']]);
+  g.fillStyle = '#8A96A3'; g.fillRect(W * 0.775, H * 0.28, W * 0.01, H * 0.1);
+  // Bed with a blanket.
+  box(g, W * 0.2, hz - H * 0.02, W * 0.6, H * 0.06, '#FFFFFF', { top: H * 0.03, topColor: '#F4F8FA' });
+  g.fillStyle = '#7FB3D9'; g.fillRect(W * 0.38, hz - H * 0.045, W * 0.42, H * 0.045);
+  box(g, W * 0.2, hz - H * 0.1, W * 0.04, H * 0.14, '#B7C3CC');
+  g.fillStyle = '#B7C3CC'; for (const x of [0.22, 0.78]) g.fillRect(W * x, hz + H * 0.04, W * 0.01, H * 0.07);
+  // A curtain rail.
+  g.fillStyle = '#9FB8C4'; g.fillRect(W * 0.02, H * 0.05, W * 0.96, H * 0.008);
+  for (let k = 0; k < 6; k++) { g.fillStyle = k % 2 ? '#9CCFD8' : '#8EC4CE'; g.fillRect(W * (0.02 + k * 0.025), H * 0.058, W * 0.025, H * 0.42); }
+  for (const x of [0.3, 0.7]) glow(g, W * x, 0, W * 0.3, 'rgba(235,250,255,0.6)');
+};
+// A museum hall: framed paintings, a statue on a plinth, rope barriers and spotlights.
+P.museum = (g, W, H, r) => {
+  const hz = H * 0.6;
+  roomShell(g, W, H, '#D9CBB4', '#8C6A4B', hz);
+  const frames = [[0.06, 0.16, 0.2, 0.18, ['#3E6FA8', '#E8C15A']], [0.4, 0.12, 0.2, 0.24, ['#7E4E9C', '#F08A5D']], [0.74, 0.16, 0.2, 0.18, ['#2F8F6A', '#F2E3A0']]];
+  for (const [x, y, w, h, [a, b]] of frames) { box(g, W * (x - 0.012), H * (y - 0.012), W * (w + 0.024), H * (h + 0.024), '#B8892F'); vGrad(g, W * x, H * y, W * w, H * h, [[0, a], [1, b]]); g.fillStyle = 'rgba(255,255,255,0.25)'; g.beginPath(); g.arc(W * (x + w * 0.6), H * (y + h * 0.4), W * w * 0.18, 0, TAU); g.fill(); glow(g, W * (x + w / 2), H * (y - 0.03), W * 0.18, 'rgba(255,240,200,0.55)'); }
+  // A plinth with a vase.
+  box(g, W * 0.44, hz - H * 0.1, W * 0.12, H * 0.12, '#F2EEE6', { top: H * 0.012, topColor: '#FFFFFF' });
+  g.fillStyle = '#C46A3A'; g.beginPath(); g.moveTo(W * 0.48, hz - H * 0.1); g.quadraticCurveTo(W * 0.455, hz - H * 0.15, W * 0.485, hz - H * 0.18); g.lineTo(W * 0.515, hz - H * 0.18); g.quadraticCurveTo(W * 0.545, hz - H * 0.15, W * 0.52, hz - H * 0.1); g.closePath(); g.fill();
+  // Rope barriers.
+  for (const x of [0.15, 0.35, 0.65, 0.85]) { g.fillStyle = '#C9A13B'; g.fillRect(W * x, hz + H * 0.02, W * 0.008, H * 0.07); }
+  g.strokeStyle = '#B0122A'; g.lineWidth = W * 0.006; for (const [a, b] of [[0.15, 0.35], [0.65, 0.85]]) { g.beginPath(); g.moveTo(W * a, hz + H * 0.03); g.quadraticCurveTo(W * (a + b) / 2, hz + H * 0.06, W * b, hz + H * 0.03); g.stroke(); }
+};
+// A stadium: stands full of people, floodlights and a striped pitch.
+P.stadium = (g, W, H, r) => {
+  const hz = H * 0.5;
+  vGrad(g, -W, -H, W * 3, hz + H, [[0, '#2A4F8F'], [1, '#86B7E8']]);
+  vGrad(g, -W, H * 0.16, W * 3, hz - H * 0.16, [[0, '#3B3F4E'], [1, '#575C6C']]);
+  for (let k = 0; k < 900; k++) { const x = r() * W * 1.2 - W * 0.1, y = H * (0.18 + r() * 0.3); g.fillStyle = ['#E5484D', '#FFFFFF', '#F0B429', '#3F7FD9', '#2E3440'][k % 5]; g.fillRect(x, y, W * 0.006, H * 0.006); }
+  for (let k = 0; k < 5; k++) { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(-W, H * (0.2 + k * 0.06), W * 3, H * 0.004); }
+  for (const x of [0.1, 0.9]) { g.fillStyle = '#4A505E'; g.fillRect(W * x - W * 0.006, H * 0.02, W * 0.012, H * 0.16); box(g, W * x - W * 0.05, H * 0.0, W * 0.1, H * 0.04, '#E8EEF5'); glow(g, W * x, H * 0.02, W * 0.3, 'rgba(255,255,240,0.7)'); }
+  vGrad(g, -W, hz, W * 3, H, [[0, '#4FAE4A'], [1, '#2F7E33']]);
+  for (let k = 0; k < 8; k++) { const y0 = hz + (H - hz) * Math.pow(k / 8, 1.8), y1 = hz + (H - hz) * Math.pow((k + 1) / 8, 1.8); if (k % 2) { g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(-W, y0, W * 3, y1 - y0); } }
+  g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = Math.max(2, W * 0.004);
+  g.beginPath(); g.moveTo(-W, hz + H * 0.04); g.lineTo(W * 2, hz + H * 0.04); g.stroke();
+  g.beginPath(); g.ellipse(W * 0.5, hz + H * 0.2, W * 0.22, H * 0.06, 0, 0, TAU); g.stroke();
+};
+// A kitchen: tiles, a stove with a pot, a fridge and a counter.
+P.kitchen = (g, W, H, r) => {
+  const hz = H * 0.6;
+  roomShell(g, W, H, '#F4EBDD', '#C9B08E', hz);
+  g.strokeStyle = 'rgba(160,140,110,0.35)'; g.lineWidth = Math.max(1, W * 0.0015);
+  for (let y = H * 0.26; y < hz - H * 0.08; y += H * 0.03) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  for (let x = 0; x < W; x += W * 0.05) { g.beginPath(); g.moveTo(x, H * 0.26); g.lineTo(x, hz - H * 0.08); g.stroke(); }
+  // Cabinets up top.
+  for (let k = 0; k < 4; k++) box(g, W * (0.04 + k * 0.17), H * 0.06, W * 0.15, H * 0.16, '#E9876B', { top: 0 });
+  // Fridge.
+  box(g, W * 0.78, H * 0.12, W * 0.18, hz - H * 0.1, '#E8EDF2'); g.fillStyle = '#9AA6B2'; g.fillRect(W * 0.8, H * 0.2, W * 0.008, H * 0.1); g.fillRect(W * 0.78, H * 0.33, W * 0.18, H * 0.004);
+  // Counter and stove.
+  box(g, W * 0.0, hz - H * 0.08, W * 0.76, H * 0.12, '#D8A06A', { top: H * 0.02, topColor: '#F2EDE4' });
+  g.fillStyle = '#2E3440'; for (const x of [0.3, 0.42]) { g.beginPath(); g.ellipse(W * x, hz - H * 0.088, W * 0.04, H * 0.008, 0, 0, TAU); g.fill(); }
+  box(g, W * 0.26, hz - H * 0.15, W * 0.1, H * 0.06, '#C8102E', { top: H * 0.01 });
+  g.fillStyle = '#7A4E2E'; g.fillRect(W * 0.08, hz - H * 0.11, W * 0.12, H * 0.012);
+};
+// A jungle: layers of big leaves, hanging vines, light shafts.
+P.jungle = (g, W, H, r) => {
+  const hz = H * 0.62;
+  vGrad(g, -W, -H, W * 3, H * 2, [[0, '#BFE6A8'], [0.5, '#5FAE5A'], [1, '#2E6B33']]);
+  rays(g, W, H, W * 0.6, -H * 0.1, 3, 'rgba(255,255,220,0.12)');
+  const leaf = (x, y, s, a, c) => { g.save(); g.translate(x, y); g.rotate(a); const gr = g.createLinearGradient(0, -s, 0, s); gr.addColorStop(0, shade(c, 0.2)); gr.addColorStop(1, shade(c, -0.2)); g.fillStyle = gr; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(s * 0.5, -s * 0.5, 0, -s * 1.3); g.quadraticCurveTo(-s * 0.5, -s * 0.5, 0, 0); g.fill(); g.restore(); };
+  for (let layer = 0; layer < 3; layer++) for (let k = 0; k < 18; k++) { const x = r() * W * 1.2 - W * 0.1, y = H * (0.25 + layer * 0.18 + r() * 0.12), c = mix(['#2F7D3F', '#3E9A4A', '#4FB25A'][layer], '#BFE6A8', 0.35 - layer * 0.15); leaf(x, y, H * (0.06 + layer * 0.03), (r() - 0.5) * 1.6, c); }
+  g.strokeStyle = '#3E6B2E'; g.lineWidth = Math.max(2, W * 0.004);
+  for (let k = 0; k < 6; k++) { const x = r() * W; g.beginPath(); g.moveTo(x, -H * 0.1); g.quadraticCurveTo(x + W * 0.03, H * 0.2, x - W * 0.01, H * (0.3 + r() * 0.2)); g.stroke(); }
+  vGrad(g, -W, hz, W * 3, H, [[0, '#4F7A35'], [1, '#2E4A22']]);
+  for (let k = 0; k < 10; k++) leaf(r() * W, H * (0.95 + r() * 0.1), H * 0.14, (r() - 0.5) * 1.2, '#2F7D3F');
+};
+// A volcano: a cone with a glowing crater, lava rivers and an ash sky.
+P.volcano = (g, W, H, r) => {
+  const hz = H * 0.6;
+  vGrad(g, -W, -H, W * 3, hz + H, [[0, '#3A2E3A'], [0.6, '#A0523A'], [1, '#E8A060']]);
+  g.fillStyle = '#4A3A3A'; g.beginPath(); g.moveTo(W * 0.05, hz); g.lineTo(W * 0.4, H * 0.18); g.lineTo(W * 0.6, H * 0.18); g.lineTo(W * 0.95, hz); g.closePath(); g.fill();
+  const lg = g.createLinearGradient(W * 0.4, 0, W * 0.95, 0); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(1, 'rgba(0,0,0,0.25)'); g.fillStyle = lg; g.fill();
+  glow(g, W * 0.5, H * 0.18, W * 0.3, 'rgba(255,140,40,0.75)');
+  g.fillStyle = '#FF7A1A'; g.beginPath(); g.ellipse(W * 0.5, H * 0.185, W * 0.1, H * 0.015, 0, 0, TAU); g.fill();
+  g.strokeStyle = '#FF8C2A'; g.lineWidth = W * 0.012; g.lineCap = 'round';
+  for (const [a, b] of [[0.46, 0.3], [0.55, 0.72]]) { g.beginPath(); g.moveTo(W * a, H * 0.2); g.quadraticCurveTo(W * (a + b) / 2 + W * 0.04, H * 0.38, W * b, hz); g.stroke(); }
+  vGrad(g, -W, hz, W * 3, H, [[0, '#3A3030'], [1, '#1E1818']]);
+  for (let k = 0; k < 12; k++) { const x = r() * W, y = hz + H * (0.05 + r() * 0.3); g.fillStyle = '#2A2222'; g.beginPath(); g.ellipse(x, y, W * 0.04, H * 0.012, 0, 0, TAU); g.fill(); }
+};
+
 // The colours to paint beyond the world's edges, for camera pans and whips.
 const EDGE = {
   sky: ['#5FB2EC', '#3F8E3F'], field: ['#5FB2EC', '#3F8E3F'], road: ['#5AAFEA', '#3F8B3B'], rails: ['#4F9BE0', '#8C6544'],
@@ -774,6 +905,7 @@ const EDGE = {
   snow: ['#8EC1EA', '#D6E3F0'], forest: ['#8CCB74', '#4E7F33'], city: ['#5AA9E8', '#5D6470'], night: ['#0E1636', '#171A30'],
   space: ['#070A1C', '#6D6F7C'], temple: ['#4FA3E6', '#B69D62'], room: ['#E8D0A2', '#A9784A'], shop: ['#EDDB98', '#C9C6BE'],
   office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], cabin: ['#2B3550', '#7c7c80'], control: ['#1A2550', '#1D2754'], bunks: ['#243066', '#1B2147'], cockpit: ['#03050F', '#1E2338'], school: ['#E8E2C8', '#B98C5E'], wall: ['#5AA9E6', '#3C8040'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
+  battlefield: ['#5D6168', '#3E3226'], castle: ['#6FB6EC', '#9A8B6E'], hospital: ['#DDE9EC', '#B9CDD1'], museum: ['#CBBBA2', '#7A5B3E'], stadium: ['#2A4F8F', '#2F7E33'], kitchen: ['#EADFCB', '#B89C78'], jungle: ['#BFE6A8', '#2E4A22'], volcano: ['#3A2E3A', '#1E1818'],
 };
 export const WORLD_IDS = Object.keys(P);
 
@@ -796,7 +928,7 @@ function still(id, W, H) {
 // ---------- what moves ----------
 function animate(ctx, W, H, id, t) {
   const r = rng(id.length * 131 + 5);
-  const outdoor = !['room', 'shop', 'office', 'lab', 'school', 'underwater', 'space', 'night', 'cabin', 'control', 'bunks', 'cockpit'].includes(id);
+  const outdoor = !['room', 'shop', 'office', 'lab', 'school', 'underwater', 'space', 'night', 'cabin', 'control', 'bunks', 'cockpit', 'battlefield', 'hospital', 'museum', 'kitchen', 'jungle', 'volcano', 'stadium'].includes(id);
   if (outdoor && id !== 'forest') {
     for (let k = 0; k < 3; k++) { const s = W * (0.08 + r() * 0.07), y = H * (0.04 + r() * 0.2), sp = 0.008 + r() * 0.01; const x = (((r() + t * sp) % 1.4) - 0.2) * W; cloud(ctx, x, y, s, 0.95); }
     // A pair of birds crossing now and then.
@@ -840,6 +972,32 @@ function animate(ctx, W, H, id, t) {
     ctx.fillStyle = 'rgba(255,250,200,0.8)';
     for (let k = 0; k < 18; k++) { const x = (r() + Math.sin(t * 0.4 + k) * 0.03) * W, y = H * (0.35 + r() * 0.4) + Math.sin(t * 0.7 + k * 2) * H * 0.01, s = W * (0.002 + r() * 0.003); ctx.globalAlpha = 0.3 + 0.5 * Math.abs(Math.sin(t + k)); ctx.beginPath(); ctx.arc(x, y, s, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
+  }
+  if (id === 'battlefield') {
+    // Smoke drifting across, and now and then a distant flash.
+    for (let k = 0; k < 5; k++) { const x = (((r() + t * 0.012 * (1 + k * 0.2)) % 1.4) - 0.2) * W, y = H * (0.3 + r() * 0.15), rr = W * (0.12 + r() * 0.1); const gr = ctx.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, 'rgba(120,115,110,0.28)'); gr.addColorStop(1, 'rgba(120,115,110,0)'); ctx.fillStyle = gr; ctx.fillRect(x - rr, y - rr, rr * 2, rr * 2); }
+    const f = (t * 0.6) % 3; if (f < 0.15) glow(ctx, W * (0.2 + ((Math.floor(t * 0.6 / 3) * 0.37) % 0.6)), H * 0.47, W * 0.25, 'rgba(255,200,120,0.6)', 1 - f / 0.15);
+  }
+  if (id === 'volcano') {
+    for (let k = 0; k < 30; k++) { const life = (r() + t * (0.2 + r() * 0.3)) % 1, x = W * (0.5 + (r() - 0.5) * 0.2 * (1 + life * 2)), y = H * 0.18 - life * H * 0.2; ctx.globalAlpha = 1 - life; ctx.fillStyle = k % 3 ? '#FFB347' : '#FF5A1F'; ctx.beginPath(); ctx.arc(x, y, W * 0.004, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+  if (id === 'kitchen') {
+    // Steam from the pot.
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = Math.max(2, W * 0.004); ctx.lineCap = 'round';
+    for (let k = 0; k < 3; k++) { const x = W * (0.29 + k * 0.025), ph = t * 2 + k; ctx.beginPath(); for (let j = 0; j < 12; j++) { const y = H * 0.44 - j * H * 0.012 - ((t * 0.05) % 0.02) * H; const xx = x + Math.sin(ph + j * 0.6) * W * 0.008; j ? ctx.lineTo(xx, y) : ctx.moveTo(xx, y); } ctx.stroke(); }
+  }
+  if (id === 'hospital') {
+    // The heartbeat line on the monitor.
+    const x0 = W * 0.675, x1 = W * 0.885, yc = H * 0.21;
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, H * 0.152, x1 - x0, H * 0.116); ctx.clip();
+    ctx.strokeStyle = '#46F08A'; ctx.lineWidth = Math.max(2, W * 0.003); ctx.beginPath();
+    for (let x = x0; x <= x1; x += W * 0.003) { const u = ((x - x0) / (x1 - x0) + t * 0.5) % 1; const beat = u > 0.45 && u < 0.55 ? Math.sin((u - 0.45) / 0.1 * TAU) * H * 0.035 : 0; x === x0 ? ctx.moveTo(x, yc - beat) : ctx.lineTo(x, yc - beat); }
+    ctx.stroke(); ctx.restore();
+  }
+  if (id === 'stadium') {
+    // Camera flashes in the crowd.
+    for (let k = 0; k < 6; k++) { const ph = (t * 1.3 + k * 0.37) % 1; if (ph < 0.08) glow(ctx, W * ((k * 0.17 + Math.floor(t * 1.3) * 0.23) % 1), H * (0.22 + (k % 3) * 0.08), W * 0.03, 'rgba(255,255,255,0.9)'); }
   }
   if (id === 'rails' || id === 'desert') {
     ctx.save(); ctx.globalAlpha = 0.08 + 0.04 * Math.sin(t * 2); ctx.fillStyle = '#FFE8C0'; ctx.fillRect(0, H * 0.42, W, H * 0.1); ctx.restore();
