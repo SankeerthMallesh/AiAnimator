@@ -9,6 +9,8 @@ import { InkPass, noInkFallback } from "./ink";
 import { LensBlur } from "./lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "./grade";
 import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt } from "./story";
+import { frameAt, aerialAt, TSpec, PLACE_NAMES } from "./tmpl";
+export { PLACE_NAMES };
 export { setStaticBase } from "./shim/remotion";
 export { TOTAL, SHOTS };
 
@@ -56,6 +58,47 @@ class View {
     this.composer.render();
     return this.renderer.domElement;
   }
+  /** one frame of a Loomy template shot (tmpl.ts) */
+  drawTemplate(s: TSpec, t: number) {
+    const cam = this.camera, local = t - s.start;
+    const fr = frameAt(s, local);
+    if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }
+    this.world.updateTemplate(fr, t, cam, this.scene);
+    noInkFallback(this.world.root);
+    const fwd = new THREE.Vector3(), fpt = new THREE.Vector3(...fr.focus);
+    cam.getWorldDirection(fwd);
+    this.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
+    this.lens.cInf = fr.cInf;
+    gradeFor(this.grade, fr.light);
+    this.composer.render();
+    return this.renderer.domElement;
+  }
+}
+
+// Loomy's own videos with this engine: shots from a script (tmpl.ts TSpec, times in seconds). renderAt(t)
+// draws the frame at time t; a 6-frame dip through white marks a change of place (the film's crossfade feel).
+export async function createTemplated({ width = 1080, height = 1920, shots = [] as TSpec[] } = {}) {
+  const kit = await loadKit();
+  const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+  const g = canvas.getContext("2d", { alpha: false })!;
+  const view = new View(kit, width, height);
+  const list = [...shots].sort((a, b) => a.start - b.start);
+  const at = (t: number) => list.find((s) => t >= s.start && t < s.end) ?? list[list.length - 1];
+  return {
+    canvas, shots: list,
+    renderAt(t: number) {
+      const s = at(t);
+      g.globalAlpha = 1;
+      g.drawImage(view.drawTemplate(s, t), 0, 0, width, height);
+      const i = list.indexOf(s), prev = list[i - 1];
+      if (prev && prev.place !== s.place) {
+        const k = (t - s.start) * 30;
+        if (k < 6) { g.globalAlpha = 0.55 * (1 - k / 6); g.fillStyle = "#ffffff"; g.fillRect(0, 0, width, height); g.globalAlpha = 1; }
+      }
+      return canvas;
+    },
+    dispose() { view.renderer.dispose(); },
+  };
 }
 
 export async function createBridge({ width = 1080, height = 1920 } = {}) {

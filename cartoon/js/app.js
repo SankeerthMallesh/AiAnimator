@@ -175,6 +175,8 @@ $('#voice').addEventListener('change', (e) => {
       format: ui.format,
       duration: Number($('#duration').value),
       style: 'cartoon',
+      look: $('#look')?.value || 'town3d',
+      townCaptions: !!$('#townCaptions')?.checked,
       mood: $('#mood').value,
       pace: $('#pace').value,
       quality: $('#quality').value,
@@ -804,6 +806,7 @@ async function setupPreview() {
   await loadFonts();
   player.renderer?.dispose();
   player.renderer = pipeline.makeRenderer($('#preview'));
+  if (player.renderer.ready) { $('#playerInfo').textContent = 'Building the 3D cartoon town…'; await player.renderer.ready; }
   player.offset = 0;
   $('#stageEmpty').classList.add('hidden');
   if (!project.video) showStage('canvas');
@@ -1124,7 +1127,7 @@ document.getElementById('btnEdit')?.addEventListener('click', async () => {
   const words = (tl?.scenes || []).flatMap(sc => (sc.words || []).map(w => ({ text: w.text, start: sc.start + w.start, end: sc.start + w.end })));
   try {
     const { sendToEditor, openEditTab } = await import('../../shared/handoff.js');
-    await sendToEditor({ blob: video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: settings.captionStyle !== 'off', duration: tl?.total || 0, tab: 'cartoon' });
+    await sendToEditor({ blob: video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: project.options?.look === 'town3d' ? !!project.options.townCaptions : settings.captionStyle !== 'off', duration: tl?.total || 0, tab: 'cartoon' });
     openEditTab();
   } catch (e) { toast(`Could not open the editor: ${e.message}`, true); }
 });

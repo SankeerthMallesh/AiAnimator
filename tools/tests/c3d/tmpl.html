@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy cartoon 3D templates test</title>
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/examples/jsm/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<canvas id="view" width="1080" height="1920"></canvas>
+<script type="module">
+// L5: Loomy's templated shots in the cartoon-3d engine. ?shots=<json in tools/tests/proof> (TSpec list)
+//   window.still(t) draws time t; window.SHOTS the list.
+import { createTemplated, setStaticBase } from '../../../cartoon/js/c3d/cartoon3d.js';
+setStaticBase('../../../cartoon/c3d-assets/');
+const q = new URLSearchParams(location.search);
+const shots = await (await fetch(`../proof/${q.get('shots') || 'c3d-tmpl.json'}`)).json();
+const W = +(q.get('w') || 1080), H = +(q.get('h') || 1920);
+const view = document.getElementById('view'); view.width = W; view.height = H;
+const g = view.getContext('2d');
+const eng = await createTemplated({ width: W, height: H, shots });
+window.SHOTS = shots;
+window.still = async (t) => { const t0 = performance.now(); g.drawImage(eng.renderAt(t), 0, 0); return { ms: Math.round(performance.now() - t0) }; };
+window.ready = true;
+</script>
+</body>
+</html>
