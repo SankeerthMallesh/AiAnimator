@@ -2,7 +2,7 @@
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
-import { CHARACTERS } from '../../shared/voicechars.js';
+import { CHARACTERS, characterDelivery, characterLine } from '../../shared/voicechars.js';
 import { reviewVideo, quickFixes, revisePrompt } from '../../shared/feedback.js';
 import { attachFeedback } from '../../shared/feedbackui.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
@@ -131,8 +131,11 @@ async function hearVoice() {
   voicePreview.ctx = voicePreview.ctx || new AudioContext();
   voicePreview.ctx.resume();
   btn.classList.add('busy');
+  // With a narrator character picked, the preview is that character: its line, pace, delivery and sound.
+  const ch = CHARACTERS[settings.character] || null;
+  const cacheKey = `${settings.ttsEngine}|${id}|${settings.character || ''}`;
   try {
-    let clip = voicePreview.cache.get(`${settings.ttsEngine}|${id}`);
+    let clip = voicePreview.cache.get(cacheKey);
     if (!clip) {
       const engineSettings = { ...settings };
       if (settings.ttsEngine === 'pollinations') engineSettings.cloudVoice = id; else engineSettings.voice = id;
@@ -142,9 +145,11 @@ async function hearVoice() {
         if (!n.ready) toast('Loading the free voice model (about 90 MB, one time)…', false, 6000);
         await warmNarrator(n);
       }
-      clip = await n.speak(`Hello, my name is ${name}.`);
+      const line = ch ? `Hi, I'm ${ch.label.split(':')[0].replace(/^(The|Your) /, '')}. Want to hear something wild?` : `Hello, my name is ${name}.`;
+      clip = await n.speak(line, ch?.speed || 1, ch ? characterDelivery('neutral', ch) : '');
       if (!clip) throw new Error('no audio');
-      voicePreview.cache.set(`${settings.ttsEngine}|${id}`, clip);
+      clip = characterLine(clip, ch);
+      voicePreview.cache.set(cacheKey, clip);
     }
     const buf = voicePreview.ctx.createBuffer(1, clip.samples.length, clip.sampleRate);
     buf.copyToChannel(clip.samples, 0);
