@@ -46,6 +46,7 @@ export function planShots(scenes, castMap) {
       pose: act, camera: CAMERA_MOVES.includes(sc.camera) ? sc.camera : ['push-in', 'orbit', 'pull-out', 'pan-left', 'tilt-up'][i % 5],
       who: Array.isArray(sc.who) ? sc.who : [], words: sc.words || [], scene: i,
       thing: THINGS.includes(sc.thing) ? sc.thing : '',
+      chapter: sc.chapter || null,
     };
     base.do = base.thing ? (THING_ACTIONS.includes(sc.do) ? sc.do : DEFAULT_DO[kind] || 'show') : '';
     const a = sc.start, b = sc.start + sc.dur;

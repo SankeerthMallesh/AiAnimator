@@ -10,7 +10,7 @@ import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
 import { drawWorld } from '../../cartoon/js/worlds.js';
 import { heroLook, drawHero, feelFor } from './hero.js';
-import { teaserIndex, headlineText, drawHeadline, drawCutFlash, TEASE } from '../../shared/hooks.js';
+import { teaserIndex, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -317,6 +317,8 @@ export class Renderer {
     if (this.teaser >= 0) drawCutFlash(ctx, W, H, t);
     if (this.headline) drawHeadline(ctx, W, H, t, this.headline, { top: this.blocky ? 0.09 : 0.14, font: CAPTION_FONT });
     else if (this.settings.showTitle && i === 0) this._title(t);
+    const ch = chapterAt(scenes, t); // long form: a title card opens each chapter
+    if (ch && ch.n > 1) drawChapterCard(ctx, W, H, ch.local, ch.n, ch.title, { font: CAPTION_FONT });
     if (this.settings.captionStyle !== 'off') {
       if (this.log) this.log.caption(t, ctx, H, () => this._captions(cur, t - cur.start - cur.voiceOffset));
       else this._captions(cur, t - cur.start - cur.voiceOffset);

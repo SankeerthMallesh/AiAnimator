@@ -240,13 +240,22 @@ export function parseJSONLoose(text) {
   throw new Error('The model did not return valid JSON.');
 }
 
+// Long form: from this length a video is written chapter by chapter (one per CHAPTER_SECONDS or so).
+export const LONG_FROM = 150;
+export const CHAPTER_SECONDS = 80;
+export function chaptersFor(options) {
+  const s = Number(options?.duration) || 0;
+  return s >= LONG_FROM ? Math.max(2, Math.round(s / CHAPTER_SECONDS)) : 1;
+}
+
 export function planFor(options) {
   const seconds = options.duration;
   const fmt = formatOf(options);
   const vertical = FORMATS[fmt].ratio <= 1;
   const pace = PACES[options.pace] || PACES.normal;
   const per = pace.secPerScene * (vertical ? 1 : 1.5);
-  const scenes = Math.max(3, Math.min(vertical ? 30 : 45, Math.round(seconds / per)));
+  // Long videos (LONG_FROM s and up) are written in chapters, so they are not held to one answer's 30 scenes.
+  const scenes = Math.max(3, Math.min(seconds >= LONG_FROM ? 240 : vertical ? 30 : 45, Math.round(seconds / per)));
   const words = Math.round(seconds * pace.wps);
   return { scenes, words, wordsPerScene: Math.max(4, Math.round(words / scenes)), vertical, fmt };
 }
@@ -270,8 +279,9 @@ Rules for the visual prompts:
 
 Output ONLY valid JSON, no markdown.`;
 
-export function writerPrompt(topic, options) {
-  const plan = planFor(options);
+export function writerPrompt(topic, options, part = null) {
+  const plan = { ...planFor(options) };
+  if (part) { plan.scenes = part.scenes; }
   const style = STYLES[options.style] || STYLES['cinematic-3d'];
   const where = { '9:16': 'vertical 9:16 YouTube Short / TikTok / Reel', '16:9': 'horizontal 16:9 YouTube video', '1:1': 'square 1:1 social video', '4:5': 'vertical 4:5 feed video' }[plan.fmt];
   const pace = { chill: 'calm and cinematic, with room to breathe', normal: 'brisk', fast: 'very fast and punchy, rapid cuts, short sentences' }[options.pace || 'normal'];
@@ -283,6 +293,7 @@ CREATOR'S REQUEST (follow it exactly):
 HOOK STACK: the first 3 seconds carry several hooks at once: the spoken first line (a surprising claim, a question or an "imagine" moment), the on-screen "hookText" that adds a second, different reason to stay, and a one-second flash of the "teaser" scene (so make that scene visually dramatic). The second scene must keep the promise moving: no slow setup.
 TARGET LENGTH: about ${options.duration} seconds of narration = about ${plan.words} words total.
 SCENES: exactly ${plan.scenes} scenes, about ${plan.wordsPerScene} words of narration each (the hook scene can be shorter).
+${part ? chapterNote(part, options) : ''}
 PACING: ${pace}.
 VISUAL STYLE (do not repeat in prompts, it is added automatically): ${style.label}.
 ${style.direction ? `DIRECTION: ${style.direction}\n` : ''}${options.extra ? `CREATOR NOTES: ${options.extra}\n` : ''}
@@ -291,7 +302,8 @@ Return JSON with this exact shape:
   "title": "short on-screen title, max 6 words",
   "youtubeTitle": "click-worthy but honest title, under 70 characters",
   "description": "2 short sentences describing the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
-  "hashtags": ["5-8 relevant hashtags"],
+  "hashtags": ["5-8 relevant hashtags"],${part ? `
+  "chapter": "2-5 word title of this chapter (it opens with a title card)",` : ''}
   "hookText": "2-6 word on-screen headline for the first 3 seconds that teases the payoff without giving it away (not the title, not the first narration line), e.g. 'THIS WALL IS 2,000 YEARS OLD' or 'HE HAD 10 MINUTES'",
   "teaser": index of the most dramatic later scene (a reveal, an impact, a big reaction), flashed for one second before the story starts,
 ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: hair = an ordinary person in everyday stories, cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "the main character's short name (a real historical person only if the story is about them)", "look": "specific age, build, hair, face and clothing colours, e.g. 'stocky man in his 40s, short black hair, stubble, red t-shirt, blue jeans'"}],
@@ -325,6 +337,16 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
 Be compact: the whole JSON must stay under 1,100 words, so keep every visual to one sentence and leave \"characters\" as an empty list unless a named person appears in several scenes.
 
 Camera guide: push-in = slow dolly toward the subject (tension, focus); pull-out = reveal; pan-left/pan-right = sideways truck past the scene; tilt-up/tilt-down = crane move; orbit = drift around the subject; vertigo = dolly-zoom for shocking realizations; impact = punch-in for big reveals only. Effect guide (moving particles drawn over the shot; pick the one that physically fits what is shown, and use a real effect on at least half the scenes): bubbles = underwater, liquids, blood, breath; sparks = electricity, metal, impacts, energy; embers = fire, heat, lava; rain / snow = weather; smoke = fog, steam, dust clouds, explosions; pulse = heartbeat, pressure, alarms, something throbbing; shockwave = one big hit or reveal; speed = fast travel, falling, launch; dust = quiet floating particles; none = calm diagrams. Use "onScreenText" for names, dates, numbers and places only (max 4 words). Write numbers in narration the way they are spoken ("two hundred and forty B.C.", "one and a half", "three quarters", "five kilometers"), never as fractions like 1 1/2 or unit symbols like km.`;
+}
+
+// What a chapter of a long video is told (part: { index, count, scenes, soFar: lines, cast: names }).
+function chapterNote(part, options) {
+  const total = Math.round((Number(options.duration) || 0) / 60);
+  if (part.index === 1) return `LONG VIDEO: about ${total} minutes in ${part.count} chapters. Write ONLY chapter 1 of ${part.count} now (exactly ${part.scenes} scenes): the hook stack, then the set-up that makes the viewer need the rest. Give it a "chapter" title. Do not end the story. Later chapters continue it, each with its own mini-cliffhanger at the end so the viewer keeps watching.`;
+  const last = part.index === part.count;
+  return `LONG VIDEO, CHAPTER ${part.index} of ${part.count} (about ${total} minutes in all). Continue the same video; here is the narration so far:
+${part.soFar.map((l, i) => `${i + 1}. ${l}`).join('\n')}
+Write ONLY chapter ${part.index} now (exactly ${part.scenes} scenes), with its own "chapter" title. Never repeat an earlier line or fact; move the story forward with new events, facts and turns${part.cast?.length ? `; keep the same characters (${part.cast.join(', ')})` : ''}. ${last ? 'This is the final chapter: build to the biggest moment, then a short, satisfying ending line (no moral).' : 'End the chapter on a mini-cliffhanger that makes the next chapter a must-watch. Do not end the video.'} The first scene of this chapter needs no new hook; "hookText" and "teaser" can be left empty.`;
 }
 
 const SYSTEM_CHECKER = `You are a meticulous fact-checker with expertise in history, science and geography.
@@ -427,6 +449,7 @@ export function normalizeScript(raw, options) {
       icon: (() => { const m = /\p{Extended_Pictographic}\uFE0F?/u.exec(String(s.icon || '')); return m ? m[0] : ''; })(),
       seed: Math.floor(Math.random() * 1e9),
       ...(STYLES[options?.style]?.drawn ? drawnFields(s, i) : {}),
+      chapter: s.chapter && typeof s.chapter === 'object' && s.chapter.title ? { n: Number(s.chapter.n) || 1, title: cleanText(s.chapter.title, 60) } : null,
     }))
     .filter(s => s.narration);
   if (!scenes.length) throw new Error('The script came back empty.');
@@ -453,7 +476,55 @@ export function normalizeScript(raw, options) {
   };
 }
 
-export async function writeScript(topic, options, settings, { signal, log } = {}) {
+export async function writeScript(topic, options, settings, extra = {}) {
+  if (chaptersFor(options) > 1) return writeLongScript(topic, options, settings, extra);
+  return writeScriptOnce(topic, options, settings, extra);
+}
+
+// A long video, chapter by chapter: chapter 1 sets the title, the hook and the cast; each next chapter
+// sees the narration so far. The first scene of every chapter carries its title card ({ n, title }).
+async function writeLongScript(topic, options, settings, { signal, log } = {}) {
+  const count = chaptersFor(options), total = planFor(options).scenes;
+  const sizes = Array.from({ length: count }, (_, i) => Math.round(total * (i + 1) / count) - Math.round(total * i / count));
+  const ask = async (content) => {
+    let lastErr;
+    for (let round = 0; round < 3; round++) {
+      try {
+        return await chat([{ role: 'system', content: SYSTEM_WRITER }, { role: 'user', content }], settings, {
+          signal, log, temperature: 0.6,
+          validate: (text) => { const raw = findScript(parseJSONLoose(text)); if (!raw?.scenes?.length) throw new Error('No scenes came back'); return raw; },
+        });
+      } catch (e) {
+        if (signal?.aborted) throw e;
+        lastErr = e;
+        log?.(`Chapter not ready yet. Trying again in ${5 * (round + 1)} seconds…`);
+        await new Promise(r => setTimeout(r, 5000 * (round + 1)));
+      }
+    }
+    throw lastErr;
+  };
+  log?.(`Long video: writing ${count} chapters.`);
+  const first = await ask(writerPrompt(topic, options, { index: 1, count, scenes: sizes[0] }));
+  const head = first.value;
+  const mark = (raw, n) => { const sc = raw.scenes.slice(); if (sc[0]) sc[0] = { ...sc[0], chapter: { n, title: String(raw.chapter || `Part ${n}`) } }; return sc; };
+  const scenes = mark(head, 1);
+  const cast = (head.characters || []).map(c => c?.name).filter(Boolean);
+  for (let k = 2; k <= count; k++) {
+    const soFar = scenes.map(x => String(x.narration || x.text || '').trim()).filter(Boolean);
+    try {
+      const part = await ask(writerPrompt(topic, options, { index: k, count, scenes: sizes[k - 1], soFar, cast }));
+      scenes.push(...mark(part.value, k));
+      log?.(`Chapter ${k} of ${count}: "${part.value.chapter || ''}", ${part.value.scenes.length} scenes.`);
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      log?.(`Chapter ${k} could not be written (${e.message}). The video ends after chapter ${k - 1}.`);
+      break;
+    }
+  }
+  return { script: normalizeScript({ ...head, scenes }, { ...options, topic }), provider: first.provider };
+}
+
+async function writeScriptOnce(topic, options, settings, { signal, log } = {}) {
   const messages = [
     { role: 'system', content: SYSTEM_WRITER },
     { role: 'user', content: writerPrompt(topic, options) },

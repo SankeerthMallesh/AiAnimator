@@ -4,7 +4,7 @@
 import { createEngine } from './z3d/engine.js';
 import { composeFrame } from './z3d/film.js';
 import * as A3 from './z3d/auto3d.js';
-import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, TEASE } from '../../shared/hooks.js';
+import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
 export class DrawnRenderer {
   constructor(canvas, { timeline, script, kind = '3d', W, H, perf = {}, captions = true, hooks = true }) {
@@ -16,6 +16,7 @@ export class DrawnRenderer {
     // The hook stack (shared/hooks.js): a cold open on the teaser scene, a headline, a flash on the cut.
     this.teaser = hooks ? teaserIndex(timeline.scenes, script.teaser) : -1;
     this.headline = hooks ? headlineText(script) : '';
+    this.scenes = timeline.scenes;
     this.ready = this.init(timeline, script, perf);
   }
 
@@ -49,6 +50,8 @@ export class DrawnRenderer {
     if (this.teaser >= 0) drawCutFlash(this.g, this.W, this.H, t);
     // Blocky captions sit at 23 % of the height, so its headline sits higher.
     drawHeadline(this.g, this.W, this.H, t, this.headline, { top: this.kind === 'blocky' ? 0.09 : 0.14 });
+    const ch = chapterAt(this.scenes, t); // long form: a title card opens each chapter
+    if (ch && ch.n > 1) drawChapterCard(this.g, this.W, this.H, ch.local, ch.n, ch.title);
   }
 
   dispose() { this.engine?.dispose(); this.engine = null; }

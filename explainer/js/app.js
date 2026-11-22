@@ -93,8 +93,39 @@ function fillShowcase() {
   row.replaceChildren(...SHOWCASE[tab].map(([f, alt, cap]) => el('figure', {}, el('img', { src: `../shared/showcase/${f}.jpg`, alt, loading: 'lazy', width: 270, height: 480 }), el('figcaption', {}, cap))));
 }
 
+
+// ---------- long form: one click sets up a long video in chapters (16:9, the length, the style notes) ----------
+function initLongStarts(starts) {
+  const row = document.getElementById('longStarts'); if (!row) return;
+  row.replaceChildren(...starts.map(st => {
+    const b = el('button', { type: 'button', class: 'long-start' }, el('b', {}, st.label), el('span', {}, st.hint));
+    b.addEventListener('click', () => {
+      document.querySelector('#formatSeg button[data-format="16:9"]')?.click();
+      const d = $('#duration'); if ([...d.options].some(o => o.value === String(st.seconds))) d.value = String(st.seconds);
+      $('#extra').value = st.notes;
+      const topic = $('#topic'); if (!topic.value.trim()) topic.placeholder = st.example;
+      row.querySelectorAll('.long-start').forEach(x => x.classList.toggle('on', x === b));
+      toast(`${st.label}: ${Math.round(st.seconds / 60)} minutes in chapters, 16:9. Type your topic and roll.`);
+      topic.focus();
+    });
+    return b;
+  }));
+}
+
+const LONG_STARTS = {
+  '3d': [
+    { label: '3D explainer', hint: '10 min · chapters', seconds: 600, example: 'Why the Roman Empire really fell', notes: 'A long 3D explainer in chapters: one big question answered step by step, real objects people hold, break and point at, a reveal at the end of every chapter.' },
+    { label: 'History in 3D', hint: '15 min · chapters', seconds: 900, example: 'The whole history of the Titanic, from the shipyard to the seabed', notes: 'A long history documentary in chapters, in time order: who, where and when at the start of each chapter, real dates and places, a cliffhanger at the end of every chapter.' },
+  ],
+  blocky: [
+    { label: 'Game-world story', hint: '8 min · chapters', seconds: 480, example: 'The server where my best friend became the villain', notes: 'A long first-person game-world story in chapters: a mystery set up in chapter 1, rivals, betrayals and a big reveal; every chapter ends on a cliffhanger.' },
+    { label: 'Game-world saga', hint: '15 min · chapters', seconds: 900, example: 'I built a whole kingdom, and then the griefers came', notes: 'A long first-person game-world saga in chapters: the build-up, the war, the comeback; named friends and rivals, a cliffhanger at the end of every chapter.' },
+  ],
+};
+
 function initComposer() {
   fillShowcase();
+  initLongStarts(LONG_STARTS[new URLSearchParams(location.search).get('style') === 'blocky' ? 'blocky' : '3d']);
   // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
   const blockyTab = new URLSearchParams(location.search).get('style') === 'blocky';
@@ -885,6 +916,8 @@ window.addEventListener('message', (e) => {
 
 // Loomy's top bar asks this before reloading a section after a sync.
 window.loomyBusy = () => running;
+// For tests: the open project's script (chapters, scenes).
+window.loomyScript = () => project?.script || null;
 
 // ---------- access: view-only visitors can look around but not make videos ----------
 let viewOnly = false;

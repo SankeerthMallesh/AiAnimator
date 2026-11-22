@@ -76,7 +76,33 @@ function refreshVoiceSelect() {
   else fillSelect(sel, VOICES.map(([v, l]) => [v, l]), settings.voice);
 }
 
+
+// ---------- long form: one click sets up a long video in chapters (16:9, the length, the style notes) ----------
+function initLongStarts(starts) {
+  const row = document.getElementById('longStarts'); if (!row) return;
+  row.replaceChildren(...starts.map(st => {
+    const b = el('button', { type: 'button', class: 'long-start' }, el('b', {}, st.label), el('span', {}, st.hint));
+    b.addEventListener('click', () => {
+      document.querySelector('#formatSeg button[data-format="16:9"]')?.click();
+      const d = $('#duration'); if ([...d.options].some(o => o.value === String(st.seconds))) d.value = String(st.seconds);
+      $('#extra').value = st.notes;
+      const topic = $('#topic'); if (!topic.value.trim()) topic.placeholder = st.example;
+      row.querySelectorAll('.long-start').forEach(x => x.classList.toggle('on', x === b));
+      toast(`${st.label}: ${Math.round(st.seconds / 60)} minutes in chapters, 16:9. Type your topic and roll.`);
+      topic.focus();
+    });
+    return b;
+  }));
+}
+
+const LONG_STARTS = [
+  { label: 'Cartoon history', hint: '10 min · chapters', seconds: 600, example: 'The whole history of the Roman Empire', notes: 'A long, funny cartoon history explainer in chapters by era: big personalities with running jokes, real dates, places and numbers, maps when armies move, a cliffhanger at the end of every chapter.' },
+  { label: 'Cartoon history', hint: '15 min · chapters', seconds: 900, example: 'World War One, explained', notes: 'A long, funny cartoon history explainer in chapters: who was who, why it started, every turning point in time order, real dates and numbers, a cliffhanger at the end of every chapter.' },
+  { label: 'Cartoon explainer', hint: '5 min · chapters', seconds: 300, example: 'How the human body fights a cold', notes: 'A long cartoon explainer in chapters: one question answered step by step with a recurring cast, a twist at the end of every chapter.' },
+];
+
 function initComposer() {
+  initLongStarts(LONG_STARTS);
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), 60); // the reference Shorts run about a minute
   fillSelect($('#mood'), Object.entries(MOODS).map(([k, m]) => [k, m.label]), 'curious');
   fillSelect($('#pace'), Object.entries(PACES).map(([k, p]) => [k, p.label]), 'normal');
@@ -968,6 +994,8 @@ window.addEventListener('message', (e) => {
 
 // Loomy's top bar asks this before reloading a section after a sync.
 window.loomyBusy = () => running;
+// For tests: the open project's script (chapters, scenes).
+window.loomyScript = () => project?.script || null;
 
 // ---------- access: view-only visitors can look around but not make videos ----------
 let viewOnly = false;

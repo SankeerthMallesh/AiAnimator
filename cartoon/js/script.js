@@ -185,13 +185,14 @@ export class Script {
   static ACTIONS = ['idle', 'walk', 'enter', 'exit', 'sit', 'drive', 'hold', 'give', 'point', 'shrug', 'jump', 'facepalm', 'laugh', 'cry', 'cheer', 'think', 'wave', 'turn'];
 
   static plan(options) {
-    const seconds = Math.max(15, Math.min(180, Number(options?.duration) || 30));
+    // Up to 15 minutes: long videos are written in parts and told in chapters (llm.js writeScriptInParts).
+    const seconds = Math.max(15, Math.min(900, Number(options?.duration) || 30));
     const pace = PACES[options?.pace] || PACES.normal;
     // Longer videos hold each scene a little longer, like the references, so they need fewer parts.
     const want = Math.round(seconds / (pace.secPerScene * (seconds > 60 ? 1.5 : 1)));
     // The free model stops around 1,500 tokens, so the ask stays inside that.
     // Long videos are written in parts of up to 8 scenes (see writeScript), so no low cap here.
-    const scenes = Math.max(4, Math.min(56, want));
+    const scenes = Math.max(4, Math.min(seconds > 180 ? 200 : 56, want));
     const words = Math.round(seconds * pace.wps);
     return {
       seconds, scenes, words,
@@ -604,6 +605,8 @@ export class Script {
       scenes.push({
         id: Script.clean(s.id, 16) || `s${i}_${Math.random().toString(36).slice(2, 6)}`,
         narration,
+        // Long form: the first scene of a chapter carries its title card.
+        chapter: s.chapter && typeof s.chapter === 'object' && s.chapter.title ? { n: Number(s.chapter.n) || 1, title: Script.clean(s.chapter.title, 60) } : null,
         // How the narrator reads it (an ElevenLabs v3 delivery tag).
         delivery: DELIVERIES.includes(String(s.read || s.delivery || '').toLowerCase()) ? String(s.read || s.delivery).toLowerCase() : '',
         // Scenery only. Never the spoken line: picture models paint the words of a sentence as text.

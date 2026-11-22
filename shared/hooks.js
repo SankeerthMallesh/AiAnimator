@@ -84,3 +84,40 @@ export function drawCutFlash(g, W, H, t) {
   if (k < 0 || k >= 1) return;
   g.save(); g.globalAlpha = 0.7 * (1 - k); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.restore();
 }
+
+// ---------- long form: chapter cards ----------
+// A chapter opens with a title card over its first shot: "CHAPTER 2" small, its title big, a gradient
+// rule, for CHAPTER_CARD seconds (it slides in and fades out). local: seconds into the chapter's scene.
+export const CHAPTER_CARD = 2.2;
+export function drawChapterCard(g, W, H, local, n, title, { font = '"Montserrat", "Inter", system-ui, sans-serif' } = {}) {
+  if (!title || local < 0 || local > CHAPTER_CARD) return;
+  const inK = Math.min(1, local / 0.3), out = Math.min(1, (CHAPTER_CARD - local) / 0.3), a = Math.min(inK, out);
+  const ease = 1 - (1 - inK) ** 3, portrait = H >= W;
+  const big = Math.round(Math.min(W * (portrait ? 0.075 : 0.05), H * 0.06)), small = Math.round(big * 0.42);
+  g.save();
+  g.globalAlpha = a;
+  // A dark band across the middle third, so the card reads on any picture.
+  const bandH = big * 3.4, cy = H * (portrait ? 0.42 : 0.5);
+  const grd = g.createLinearGradient(0, cy - bandH / 2, 0, cy + bandH / 2);
+  grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(0.25, 'rgba(0,0,0,.62)'); grd.addColorStop(0.75, 'rgba(0,0,0,.62)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, cy - bandH / 2, W, bandH);
+  g.translate((1 - ease) * -W * 0.06, 0);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  g.font = `800 ${small}px ${font}`; g.fillStyle = '#C7C2FF';
+  g.fillText(`CHAPTER ${n}`, W / 2, cy - big * 0.85);
+  let size = big; g.font = `900 ${size}px ${font}`;
+  const text = String(title).toUpperCase();
+  while (g.measureText(text).width > W * 0.88 && size > 12) { size = Math.round(size * 0.9); g.font = `900 ${size}px ${font}`; }
+  g.lineWidth = size * 0.14; g.strokeStyle = '#000'; g.strokeText(text, W / 2, cy + big * 0.15);
+  g.fillStyle = '#FFFFFF'; g.fillText(text, W / 2, cy + big * 0.15);
+  const rw = Math.min(W * 0.4, g.measureText(text).width * 0.6) * ease;
+  const rule = g.createLinearGradient(W / 2 - rw / 2, 0, W / 2 + rw / 2, 0);
+  rule.addColorStop(0, '#8B5CF6'); rule.addColorStop(0.55, '#3B82F6'); rule.addColorStop(1, '#22D3EE');
+  g.fillStyle = rule; g.fillRect(W / 2 - rw / 2, cy + big * 0.95, rw, Math.max(2, big * 0.08));
+  g.restore();
+}
+// The scene whose chapter card shows at time t (scenes: timeline scenes with .chapter = { n, title }).
+export function chapterAt(scenes, t) {
+  for (const s of scenes || []) if (s.chapter && t >= s.start && t < s.start + CHAPTER_CARD) return { ...s.chapter, local: t - s.start };
+  return null;
+}

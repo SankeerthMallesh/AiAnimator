@@ -4,6 +4,7 @@
 import { Ink, Cast } from './cast.js';
 import { PropKit, SetKit } from './props.js';
 import { wordTimings } from './tts.js';
+import { drawChapterCard } from '../../shared/hooks.js';
 
 const BEAT = 3.15;
 
@@ -63,6 +64,8 @@ export class Stage {
       else Stage.caption(ctx, W, H, scene, local);
     }
     if (scene.index === 0 && view.settings?.hookTitle !== false) Stage.hook(ctx, W, H, view.script, local);
+    // Long form: a title card opens each chapter (shared/hooks.js).
+    if (scene.chapter && scene.chapter.n > 1) drawChapterCard(ctx, W, H, local, scene.chapter.n, scene.chapter.title);
   }
 
   static still(canvas, script, scene, plate, localT = 0.8, opts = {}) {

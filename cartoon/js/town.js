@@ -4,7 +4,7 @@
 // the encoder: canvas, W, H, drawFrame(t), dispose(), plus a ready promise. Captions are off unless asked for.
 import { planShots } from '../../explainer/js/z3d/plan.js';
 import { Stage } from './stage.js';
-import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash } from '../../shared/hooks.js';
+import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt } from '../../shared/hooks.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
 const PLACE = {
@@ -95,6 +95,8 @@ export class TownRenderer {
     }
     if (this.shots[0]?.teaser) drawCutFlash(this.g, this.W, this.H, t);
     drawHeadline(this.g, this.W, this.H, t, this.headline, { top: 0.13 });
+    const ch = chapterAt(this.timeline.scenes, t);
+    if (ch && ch.n > 1) drawChapterCard(this.g, this.W, this.H, ch.local, ch.n, ch.title);
   }
 
   dispose() { this.disposed = true; this.engine?.dispose(); this.engine = null; }

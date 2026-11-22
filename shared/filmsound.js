@@ -34,6 +34,8 @@ export function cueSheet(specs, total = Infinity) {
     if (s.kind === 'wide' && (s.set === 'street' || s.set === 'night') && i % 2 === 0) add(s.start + 0.3, 'engine', 0.5, Math.min(2.6, d));
     if (s.kind === 'wide' && s.set === 'snow') add(s.start + 0.6, 'scrape', 0.45);
     if (s.set === 'snow' && (s.kind === 'wide' || s.kind === 'walk')) add(s.start, 'wind', 0.5, d);
+    // A new chapter (long form) lands with a boom under its title card, a riser into it.
+    if (s.chapter && s.offset === 0 && s.start > 1) { add(Math.max(0, s.start - 0.7), 'riser', 0.5, 0.7); add(s.start, 'boom', 0.75); }
     // Things (z3d/things.js): what happens to them is heard.
     if (s.thing) {
       if (s.do === 'drop') { add(s.start + 0.1, 'whoosh', 0.5); add(s.start + 0.55, 'thump', 0.9); }

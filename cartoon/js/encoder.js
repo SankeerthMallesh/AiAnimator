@@ -9,9 +9,10 @@ const VIDEO_CODECS = [
   ['vp9', 'vp09.00.40.08'], ['av1', 'av01.0.08M.08'],
 ];
 
-async function pickVideoConfig(width, height, fps) {
+async function pickVideoConfig(width, height, fps, seconds = 0) {
   // ~10.5 Mbps at 1080x1920@30, capped at 14 Mbps for 60 fps: clean edges on flat cartoon colours.
-  const bitrate = Math.min(14_000_000, Math.round(width * height * fps * 0.17));
+  // Long videos get less (the MP4 is built in memory: 15 min stays near 400 MB).
+  const bitrate = Math.min(14_000_000, Math.round(width * height * fps * (seconds > 300 ? 0.06 : seconds > 150 ? 0.1 : 0.17)));
   for (const accel of ['prefer-hardware', 'no-preference']) {
     for (const [mux, codec] of VIDEO_CODECS) {
       const config = { codec, width, height, bitrate, framerate: fps, hardwareAcceleration: accel, latencyMode: 'quality' };
@@ -42,7 +43,7 @@ export function canFastExport() {
 
 export async function exportVideo({ renderer, audio, fps, onProgress, signal }) {
   if (canFastExport()) {
-    const v = await pickVideoConfig(renderer.W, renderer.H, fps);
+    const v = await pickVideoConfig(renderer.W, renderer.H, fps, audio.duration);
     const a = await pickAudioConfig(audio.sampleRate, audio.numberOfChannels);
     if (v && a) return exportWebCodecs({ renderer, audio, fps, onProgress, signal, v, a });
   }

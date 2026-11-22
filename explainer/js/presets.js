@@ -121,7 +121,9 @@ export const VOICES = [
 export const CLOUD_VOICES = ['onyx', 'echo', 'fable', 'alloy', 'nova', 'shimmer'];
 
 export const LENGTHS = [
-  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [75, '75 sec'], [90, '90 sec'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [600, '10 min'],
+  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [75, '75 sec'], [90, '90 sec'], [120, '2 min'],
+  // Long form, told in chapters (llm.js writeLongScript).
+  [180, '3 min · long form'], [300, '5 min · long form'], [480, '8 min · long form'], [600, '10 min · long form'], [900, '15 min · long form'],
 ];
 
 export const EXAMPLES = [
