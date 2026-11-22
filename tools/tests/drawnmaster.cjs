@@ -36,6 +36,8 @@ script.youtubeTitle = script.title; script.description = 'Test.'; script.hashtag
   const f = p.frameLocator(`#view-${tab}`);
   const style = await f.locator('#style').inputValue();
   console.log('default look:', style);
+  // The 3D tab opens on Auto; this test is about the drawn look, so it picks it.
+  if (tab === '3d') await f.locator('#style').selectOption('drawn-3d');
   await f.locator('#btnMore').click().catch(() => {});
   await f.locator('#quality').selectOption('720'); await f.locator('#fps').selectOption('24');
   await f.locator('#topic').fill(script.title);
@@ -57,7 +59,7 @@ script.youtubeTitle = script.title; script.description = 'Test.'; script.hashtag
   const log = await f.locator('#log').textContent().catch(() => '');
   console.log('shots:', (log.match(/Shots: [^\n]*/) || [''])[0].slice(0, 600));
   const fails = [];
-  if (style !== (tab === 'blocky' ? 'drawn-blocky' : 'drawn-3d')) fails.push('wrong default look ' + style);
+  if (style !== (tab === 'blocky' ? 'drawn-blocky' : 'auto')) fails.push('wrong default look ' + style);
   if (images.length) fails.push(`${images.length} picture requests`);
   for (const id of ['visuals', 'depth', 'motion']) if (!steps.some(s => s.startsWith(id + ':') && /Drawn in code/.test(s))) fails.push(`${id} not skipped as drawn`);
   if (!steps.some(s => s.startsWith('sound:') && /film score/.test(s) && /sound effects/.test(s))) fails.push('no film sound');

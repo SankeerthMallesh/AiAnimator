@@ -164,3 +164,22 @@ export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', '
 
 // The drawn Blocky look tells its story like the Blocky style and picks its shots from the library.
 STYLES['drawn-blocky'].direction = `${STYLES.blocky.direction.replace(/ Vary the camera:[^.]*\./, '').replace(/ Mark 2 to 3 scenes[^.]*\./, '')} Every scene is played by blocky avatars in a block world built in code, so pick for each scene: "set" (the place), "frame" (the shot: talk = the narrator talking to camera, two = two characters, react = a close-up reaction with a big face, wide = an establishing shot, walk = someone walking in, point = pointing at a thing, group = three characters), "who" (the names in the shot; the narrator is the first character) and "act" (the pose). Start with a wide shot, use react for the cliffhanger and the twist, point when the narration shows one thing (with an "icon" emoji), and use snow, park, street or night when the story moves.`;
+
+// The 3D tab's Auto look: stories about people get 3D people drawn in code; topics about things, places,
+// history or science (which the drawn look cannot show: buildings, machines, planets, organs...) get
+// the AI-picture look. Plain word scores, so it is instant, free and testable.
+export const AUTO_STYLE = 'auto';
+const PEOPLE = /\b(you|your|you're|i|i'm|my|me|we|our|he|she|his|her|they|story|friend|friends|kid|kids|child|person|people|someone|man|woman|boy|girl|family|mom|dad|brother|sister|teacher|boss|neighbou?r|stranger|date|wedding|prank|fight|argument|lost|lied|caught|dared)\b/gi;
+const THINGS = /\b(how|why)\b|\b(concrete|building|buildings|bridge|tower|pyramid|pyramids|castle|temple|pantheon|colosseum|cathedral|city|cities|empire|ancient|roman|rome|greek|greece|egypt|egyptian|medieval|war|battle|history|planet|planets|space|moon|sun|star|stars|black hole|galaxy|universe|ocean|sea|volcano|earthquake|mountain|desert|forest|river|animal|animals|octopus|shark|whale|dinosaur|insect|bee|bees|bird|plant|plants|cell|cells|brain|heart|lungs|blood|dna|virus|bacteria|atom|atoms|chemistry|physics|engine|machine|machines|car|cars|truck|cybertruck|plane|rocket|ship|submarine|train|robot|computer|chip|magnet|metal|gold|diamond|oil|electricity|battery|technology|invention|material|materials|recipe|food|honey)\b/gi;
+export function pickLook(text) {
+  const t = String(text || '');
+  const people = (t.match(PEOPLE) || []).length;
+  const things = (t.match(THINGS) || []).length;
+  // "What would happen if you..." is a person's story even when it names a thing.
+  const youStory = /\bwhat (would|will) happen (to you )?if you\b|\bif you (fell|jumped|fall|jump|were|got|lived|stopped|ate|swallowed|held)\b/i.test(t);
+  // Places the drawn sets cannot build (space, the deep sea, volcanoes, the ancient world) need pictures too.
+  if (/\b(black holes?|outer space|in space|planets?|the moon|mars|the sun|galaxy|volcano(es)?|lava|underwater|deep sea|ocean floor|dinosaurs?|ancient|rome|roman|egypt|pyramids?)\b/i.test(t)) return 'story-3d';
+  // Inside the body (organs, blood, bones) only pictures can show it, whoever the story is about.
+  if (/\byour body\b|\b(stomach|organs?|brain|heart|lungs|blood|bones?|muscles?|cells?|veins?)\b/i.test(t)) return 'story-3d';
+  return youStory || people > things ? 'drawn-3d' : 'story-3d';
+}

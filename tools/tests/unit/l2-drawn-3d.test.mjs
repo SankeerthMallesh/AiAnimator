@@ -19,7 +19,7 @@ export const tests = [
   } },
   { name: 'the 3D tab opens on drawn-3d', fn: () => {
     const app = readFileSync(new URL('../../../explainer/js/app.js', import.meta.url), 'utf8');
-    assert.match(app, /return STYLES\[q\] \? q : 'drawn-3d';/);
+    assert.match(app, /return STYLES\[q\] \? q : AUTO_STYLE;/); // Auto picks drawn-3d for people stories (l2b)
   } },
   { name: 'the pose words match the poses people.js can play', fn: () => {
     const src = readFileSync(new URL('../../../explainer/js/z3d/people.js', import.meta.url), 'utf8');

@@ -1,6 +1,6 @@
 // UI controller for Storyforge Studio.
 import { resetVoiceReport } from './tts.js';
-import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
+import { STYLES, AUTO_STYLE, pickLook, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadDepth } from './depth.js';
 import { preloadSafety } from './safety.js';
@@ -73,18 +73,20 @@ function refreshVoiceSelect() {
   else fillSelect(sel, VOICES.map(([v, l]) => [v, l.split(' — ')[0]]), settings.voice);
 }
 
-// The 3D tab opens on 3D people drawn in code, the Blocky tab (?style=blocky) on the drawn blocky
-// world; the AI-picture looks stay in the list. Any other ?style= opens that style.
+// The 3D tab opens on Auto (3D people drawn in code for stories about people, the AI-picture look for
+// things, places, history and science: pickLook), the Blocky tab (?style=blocky) on the drawn blocky
+// world; every look stays in the list. Any other ?style= opens that style.
 function defaultStyle() {
   const q = new URLSearchParams(location.search).get('style');
   if (q === 'blocky') return 'drawn-blocky';
-  return STYLES[q] ? q : 'drawn-3d';
+  return STYLES[q] ? q : AUTO_STYLE;
 }
 
 function initComposer() {
   // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
-  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), defaultStyle());
+  const blockyTab = new URLSearchParams(location.search).get('style') === 'blocky';
+  fillSelect($('#style'), [...(blockyTab ? [] : [[AUTO_STYLE, 'Auto: drawn 3D people or AI pictures, by topic']]), ...Object.entries(STYLES).map(([k, s]) => [k, s.label])], defaultStyle());
   // The Blocky tab opens this page with ?style=blocky: give it its own heading.
   if (new URLSearchParams(location.search).get('style') === 'blocky') {
     const badge = document.querySelector('.hero-badge b'), h = document.querySelector('.view.home .headline'), lede = document.querySelector('.view.home .lede');
@@ -258,6 +260,11 @@ function log(msg) {
 // ---------------- project flow ----------------
 function startProject(topic, options) {
   if (!confirmLeave()) return;
+  if (!STYLES[options.style]) {
+    // Auto: the look that can show this topic (people drawn in code, or AI pictures of the things in it).
+    options = { ...options, style: pickLook(`${topic} ${options.mode === 'own' ? options.ownScript || '' : ''}`), autoLook: true };
+    toast(`Look: ${STYLES[options.style].label} (picked for this topic; change it under Look).`);
+  }
   openProject(newProject(topic, options), { render: !settings.reviewFirst });
 }
 
