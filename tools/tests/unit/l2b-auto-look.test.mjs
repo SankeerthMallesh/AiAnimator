@@ -22,4 +22,8 @@ export const tests = [
     assert.match(app, /if \(q === 'blocky'\) return 'drawn-blocky';/);
     assert.match(app, /if \(!STYLES\[options\.style\]\) \{/);
   } },
+  { name: 'a person out in the world ("if you fall into ice water") gets 3D people even when the topic names the body (A1, from the live test)', fn: () => {
+    for (const t of ['What happens to your body if you fall into ice water', 'What would happen if you got lost at sea', 'What happens if you jumped into a frozen lake']) assert.equal(pickLook(t), 'drawn-3d', t);
+    for (const t of ['What happens to your body if you swallow a magnet', 'What would happen if you fell into a black hole']) assert.equal(pickLook(t), 'story-3d', t);
+  } },
 ];
