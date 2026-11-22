@@ -407,7 +407,7 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         tScale = spec.kind === 'wide' ? 2.6 : spec.kind === 'react' ? 1.2 : 1.8;
         if (thing.userData.h > 0.5) tScale = Math.min(tScale, 1.1);
       }
-      thingAction(thing, spec.do, t, { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: tScale });
+      thingAction(thing, spec.do, t + (spec.teaser ? 1.2 : 0), { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: tScale });
     }
     if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.55, 0.55, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
     if (fx && eff) fx(t, eff, c.position);
