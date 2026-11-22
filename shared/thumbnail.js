@@ -31,11 +31,11 @@ export function accentWord(words) {
 
 // Up to 4 moments (seconds) worth a thumbnail: the writer's teaser scene, punchy or reaction shots,
 // then scenes spread over the video. Never the first 3 s (the headline sits on those frames).
-export function pickMoments(scenes = [], { teaser = null, total = 0 } = {}) {
+export function pickMoments(scenes = [], { teaser = null, total = 0, max = 4 } = {}) {
   const at = (sc) => sc.start + Math.min(sc.dur * 0.55, Math.max(0.3, sc.dur - 0.3));
   const ok = scenes.filter(sc => sc && Number.isFinite(sc.start) && sc.dur > 0 && at(sc) >= 3);
   const out = [];
-  const add = (sc) => { if (sc && out.length < 4 && !out.some(t => Math.abs(t - at(sc)) < 1.5)) out.push(at(sc)); };
+  const add = (sc) => { if (sc && out.length < max && !out.some(t => Math.abs(t - at(sc)) < 1.5)) out.push(at(sc)); };
   if (Number.isInteger(teaser)) add(ok.find(sc => sc === scenes[teaser]));
   // Faces and action first: reactions, impacts and objects in use, then close shots, then the rest.
   const score = (sc) => {
@@ -45,12 +45,13 @@ export function pickMoments(scenes = [], { teaser = null, total = 0 } = {}) {
   const scored = ok.map((sc, i) => ({ sc, i, s: score(sc) }));
   for (const { sc } of scored.filter(x => x.s >= 3).sort((a, b) => b.s - a.s || a.i - b.i).slice(0, 2)) add(sc);
   // Then, from each eighth of the video, its best-scoring scene.
-  for (let i = 0; out.length < 4 && i < 8; i++) {
-    const a = Math.floor(i / 8 * ok.length), part = scored.slice(a, Math.max(a + 1, Math.floor((i + 1) / 8 * ok.length)));
+  for (let i = 0; out.length < max && i < Math.max(8, max * 2); i++) {
+    const n = Math.max(8, max * 2), a = Math.floor(i / n * ok.length), part = scored.slice(a, Math.max(a + 1, Math.floor((i + 1) / n * ok.length)));
     add(part.sort((x, y) => y.s - x.s)[0]?.sc);
   }
   if (!out.length && total > 0) out.push(Math.min(total - 0.1, Math.max(0, total * 0.4)));
-  return out.sort((a, b) => a - b);
+  // Best first (the teaser, then reactions and impacts, then the rest): the first one is used.
+  return out;
 }
 
 // Lines and size for `text` inside a box: the biggest size that fits in at most 3 lines.
@@ -105,19 +106,31 @@ export function drawThumb(g, { W, H, frame, text, layout = 'split' }) {
     fade.addColorStop(0, 'rgba(0,0,0,0.85)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = fade; g.fillRect(px - 2, 0, pw * 0.3, H);
     box = { x: W * 0.045, y: H * 0.1, w: px - W * 0.05, h: H * 0.8, align: 'left', vy: 0.5 };
+  } else if (!wide && tallFrame) {
+    // A 9:16 cover from a 9:16 video. The video's captions sit low (56-82% of the height), faces above
+    // them: the top 60% of the frame stays sharp, the rest is a dark blur of the frame (no caption can be
+    // read there), and the big words go on that.
+    g.filter = `blur(${Math.round(W / 16)}px) brightness(${(0.42 * lift).toFixed(2)}) saturate(1.3)`; cover(-60, -60, W + 120, H + 120, 0.5, 1.1);
+    g.filter = look;
+    const top = H * 0.6;
+    g.drawImage(frame, 0, 0, fw, fh * 0.6, 0, 0, W, top);
+    g.filter = 'none';
+    const fade = g.createLinearGradient(0, top - H * 0.1, 0, top + H * 0.01);
+    fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,0.75)');
+    g.fillStyle = fade; g.fillRect(0, top - H * 0.1, W, H * 0.11);
+    box = { x: W * 0.06, y: top + H * 0.02, w: W * 0.88, h: H * 0.3, align: 'center', vy: 0.45, label: layout === 'label' };
   } else {
-    // Tall: zoomed so the video's own captions (low in the frame) fall outside.
-    cover(0, 0, W, H, wide ? 0.42 : 0.34, wide ? 1.12 : (tallFrame ? 1.4 : 1.04));
+    cover(0, 0, W, H, wide ? 0.42 : 0.38, wide ? 1.12 : 1.04);
     g.filter = 'none';
     if (layout === 'label') {
       box = wide ? { x: W * 0.05, y: H * 0.07, w: W * 0.62, h: H * 0.42, align: 'left', vy: 0, label: true }
         : { x: W * 0.07, y: H * 0.08, w: W * 0.86, h: H * 0.24, align: 'center', vy: 0, label: true };
     } else {
       const grad = g.createLinearGradient(0, H * 0.45, 0, H);
-      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.8)');
+      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(0.35, 'rgba(0,0,0,0.55)'); grad.addColorStop(1, 'rgba(0,0,0,0.85)');
       g.fillStyle = grad; g.fillRect(0, H * 0.45, W, H * 0.55);
       box = wide ? { x: W * 0.05, y: H * 0.5, w: W * 0.9, h: H * 0.44, align: 'left', vy: 1 }
-        : { x: W * 0.06, y: H * 0.6, w: W * 0.88, h: H * 0.3, align: 'center', vy: 1 };
+        : { x: W * 0.06, y: H * 0.52, w: W * 0.88, h: H * 0.3, align: 'center', vy: 0.5 };
     }
   }
   // A vignette pulls the eye to the middle.
@@ -183,6 +196,26 @@ export async function grabFrame(url, t) {
   c.getContext('2d').drawImage(v, 0, 0);
   v.removeAttribute('src'); v.load();
   return c;
+}
+// How much is going on in a frame: the mean brightness change between neighbouring pixels, on a
+// small copy. For a tall cover only the top 60% counts (that part stays sharp); the middle of a
+// wide frame counts most. Empty sky or a flat wall scores low; faces, people and objects score high.
+export function frameDetail(frame, tallOnly = false) {
+  const w = 64, h = Math.max(8, Math.round(64 * frame.height / Math.max(1, frame.width)));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(frame, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data, rows = tallOnly ? Math.round(h * 0.6) : h;
+  return detailOf(d, w, rows);
+}
+export function detailOf(d, w, rows) {
+  const lum = (i) => d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+  let sum = 0, n = 0;
+  for (let y = 1; y < rows; y++) for (let x = 1; x < w; x++) {
+    const i = (y * w + x) * 4;
+    sum += Math.abs(lum(i) - lum(i - 4)) + Math.abs(lum(i) - lum(i - w * 4)); n++;
+  }
+  return n ? sum / n : 0;
 }
 export function frameFrom(video) {
   const c = document.createElement('canvas'); c.width = video.videoWidth; c.height = video.videoHeight;
@@ -279,15 +312,19 @@ export function attachThumbnail({ card, before, player, toast = () => {} }) {
       const job = ++st.job;
       st.name = name || 'loomy'; st.text = thumbWords(script);
       // 9:16 videos get a 9:16 cover first (Shorts, TikTok, Reels); wide videos a 16:9 YouTube thumbnail.
-      st.shape = wideVideo ? 'wide' : 'tall'; st.layout = wideVideo ? 'full' : 'label';
+      // Tall covers use "Big text": the words sit low, over where the video's own captions are.
+      st.shape = wideVideo ? 'wide' : 'tall'; st.layout = 'full';
       $('text').value = st.text;
-      const times = pickMoments(scenes, { teaser: script?.teaser ?? null, total });
-      const frames = [];
-      for (const t of times) {
-        try { frames.push(await grabFrame(url, t)); } catch { /* skip this one */ }
+      const times = pickMoments(scenes, { teaser: script?.teaser ?? null, total, max: 8 });
+      const got = [];
+      for (const [rank, t] of times.entries()) {
+        try { const f = await grabFrame(url, t); got.push({ f, rank, d: frameDetail(f, !wideVideo) }); } catch { /* skip this one */ }
         if (job !== st.job) return;
       }
-      if (!frames.length) return;
+      if (!got.length) return;
+      // The moment's rank counts, but a frame with nothing in the part that stays sharp loses.
+      const top = Math.max(...got.map(x => x.d), 1e-6);
+      const frames = got.map(x => ({ ...x, s: x.d / top - x.rank * 0.06 })).sort((p, q) => q.s - p.s).slice(0, 4).map(x => x.f);
       st.frames = frames; st.frame = frames[0];
       $('wait').classList.add('hidden'); $('body').classList.remove('hidden');
       chips(); await paint();

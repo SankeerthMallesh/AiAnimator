@@ -1,6 +1,6 @@
 // 1.1: thumbnails: the words, the yellow word, the moments to grab, and text that fits.
 import assert from 'node:assert/strict';
-import { thumbWords, accentWord, pickMoments, fitText } from '../../../shared/thumbnail.js';
+import { thumbWords, accentWord, pickMoments, fitText, detailOf } from '../../../shared/thumbnail.js';
 import { normalizeScript } from '../../../explainer/js/llm.js';
 
 export const tests = [
@@ -24,7 +24,10 @@ export const tests = [
     assert.ok(m.length === 4, JSON.stringify(m));
     assert.ok(m.every(t => t >= 3));
     assert.ok(m.some(t => t > 12 && t < 15) && m.some(t => t > 18 && t < 21), JSON.stringify(m));
-    for (let i = 1; i < m.length; i++) assert.ok(m[i] - m[i - 1] >= 1.5);
+    const sorted = m.slice().sort((a, b) => a - b);
+    for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i] - sorted[i - 1] >= 1.5);
+    // Best first: the first moment is a reaction or an impact (scenes 4 and 6), not just the earliest.
+    assert.ok((m[0] > 12 && m[0] < 15) || (m[0] > 18 && m[0] < 21), String(m[0]));
     assert.equal(pickMoments([], { total: 10 })[0], 4);
   } },
   { name: 'text fits its box: the biggest size, at most 3 lines', fn: () => {
@@ -38,5 +41,13 @@ export const tests = [
   { name: 'the 3D tab keeps the writer\'s thumbnail words', fn: () => {
     const s = normalizeScript({ title: 'T', thumbText: 'It heals itself now please', scenes: [{ narration: 'A line.' }, { narration: 'B line.' }] }, { topic: 't', style: 'auto' });
     assert.equal(s.thumbText, 'It heals itself now');
+  } },
+  { name: 'frame picker: more moments on request, and a busy frame scores above a flat one', fn: () => {
+    const scenes = Array.from({ length: 20 }, (_, i) => ({ start: i * 3, dur: 3, narration: 'Line ' + i }));
+    assert.ok(pickMoments(scenes, { total: 60, max: 8 }).length > 4);
+    assert.ok(pickMoments(scenes, { total: 60 }).length <= 4);
+    const w = 16, rows = 16, flat = new Uint8ClampedArray(w * rows * 4).fill(120), busy = flat.map((_, i) => ((i >> 2) % 3) * 90);
+    assert.equal(detailOf(flat, w, rows), 0);
+    assert.ok(detailOf(busy, w, rows) > 20);
   } },
 ];
