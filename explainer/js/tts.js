@@ -55,7 +55,15 @@ export class Narrator {
     }
     if (this.engine === 'elevenlabs') {
       try {
-        const r = await elevenSpeak(text, s, speedMul, delivery); noteVoice('elevenlabs', 1, text, text); return r;
+        // The free ElevenLabs plan allows only a few requests at once: a "too many requests" or a
+        // server hiccup is waited out and retried before the video gives up on this voice.
+        let r = null, err = null;
+        for (let a = 0; a < 4 && !r; a++) {
+          try { r = await elevenSpeak(text, s, speedMul, delivery); }
+          catch (e) { err = e; if (!/HTTP (429|5\d\d)/.test(e.message)) break; await new Promise(res => setTimeout(res, 2500 * (a + 1))); }
+        }
+        if (!r) throw err;
+        noteVoice('elevenlabs', 1, text, text); return r;
       } catch (e) {
         this.log(`ElevenLabs failed (${e.message}); switching to the free built-in voice.`);
         this.engine = 'kokoro';

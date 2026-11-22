@@ -362,7 +362,7 @@ export class Pipeline {
       if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
     }
     let done = 0;
-    await mapLimit(todo, this.narrator.engine === 'kokoro' ? 1 : 3, async (scene) => {
+    await mapLimit(todo, this.narrator.engine === 'kokoro' ? 1 : this.narrator.engine === 'elevenlabs' ? 2 : 3, async (scene) => {
       if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const narration = scene.narration;
       const key = `${narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${p.options.pace}|${this.s.elevenVoice || ''}`;
