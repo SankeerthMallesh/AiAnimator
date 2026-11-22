@@ -126,6 +126,14 @@ export class Stage {
     else if (su.kind === 'aerial') { z *= 1.1; panY = (1 - p) * 150; } // tilts down onto the scene
     else if (su.kind === 'truck') { z *= 1.06; panX = (p - 0.5) * ((scene.index || 0) % 2 ? -1.2 : 1.2); }
     else if (su.kind === 'cutaway') z *= 1 + 0.08 * p;
+    // 1.2: tilted (dutch) angles, like lit 3D cartoon shorts: on reactions, on a line's punch and on
+    // the low hero shot. Zoomed in just enough that the tilted frame never shows its corners.
+    const punch = /[!?]["')]?\s*$/.test(String(scene.narration || '').trim());
+    const side = (scene.index || 0) % 2 ? 1 : -1;
+    if (su.kind === 'reaction') rot = side * (0.055 + 0.01 * p);
+    else if (su.kind === 'low') rot = -side * 0.06;
+    else if (su.kind === 'close' && punch) rot = side * 0.045;
+    if (rot) z *= 1 + 1.9 * Math.abs(rot);
     // Breathing: barely visible, but it keeps every frame alive.
     z *= 1 + 0.006 * Math.sin(local * 0.9 + scene.index);
     panX += 0.02 * Math.sin(local * 0.6 + scene.index * 1.7);
