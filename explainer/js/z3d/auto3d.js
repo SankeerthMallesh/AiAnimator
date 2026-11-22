@@ -4,7 +4,7 @@
 // zach-style edit (cuts every 2.5-4.5 s), depth of field on close shots, 1-3 word captions.
 import * as THREE from 'three';
 import { lerp, smooth, easeOut, easeInOut, range, clamp, V, cam, place, shake } from './anim.js';
-import { glowSprite, sparks, rippleOverlay } from './props.js';
+import { glowSprite, sparks } from './props.js';
 import { CAST, loadPerson, POSES, mix, talking, walking } from './people.js';
 
 import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D, effect3d } from './vocab.js';
@@ -212,15 +212,27 @@ export function emojiSprite(ch, size = 0.6) {
 }
 export function makeEffect(kind, scene, seed) {
   if (kind === 'pulse' || kind === 'shockwave') {
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(kind === 'shockwave' ? 0.5 : 0.16, 48), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-    scene.add(disc);
-    const rp = rippleOverlay(disc); rp.material.uniforms.uRings.value = kind === 'shockwave' ? 60 : 120;
+    // Rings in the air beside the subject (pulse: a beat every 0.6 s) or flat on the ground spreading from
+    // their feet (shockwave). Never drawn on a person: a disc on the chest read as a wound.
+    const mat = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    const rings = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 64), mat()); m.renderOrder = 5; scene.add(m); return m; });
+    const right = new THREE.Vector3();
     return (t, P, camPos) => {
-      disc.position.copy(P); disc.lookAt(camPos);
-      const u = rp.material.uniforms;
-      if (kind === 'pulse') { const beat = (t * 1.6) % 1, pulse = Math.exp(-beat * 5); u.uAmp.value = 0.35 + pulse * 0.6; u.uRadius.value = 0.04 + easeOut(beat) * 0.12; }
-      else { u.uAmp.value = Math.max(0, 1 - t * 0.6); u.uRadius.value = 0.05 + easeOut(range(t, 0.1, 1.2)) * 0.5; }
-      u.uSpot.value = 0.05; u.uTime.value = t;
+      if (kind === 'pulse') {
+        right.set(-(P.z - camPos.z), 0, P.x - camPos.x).normalize();
+        rings.forEach((m, i) => {
+          const beat = ((t + i * 0.3) / 0.6) % 1;
+          m.position.copy(P).addScaledVector(right, 0.24).add(new THREE.Vector3(0, 0.5, 0.05));
+          m.lookAt(camPos); m.scale.setScalar(0.03 + easeOut(beat) * 0.11);
+          m.material.opacity = 0.9 * (1 - beat) * Math.min(1, t * 3);
+        });
+      } else {
+        rings.forEach((m, i) => {
+          const k = easeOut(range(t, 0.1 + i * 0.18, 1.3 + i * 0.18));
+          m.position.set(P.x, 0.02, P.z); m.rotation.set(-Math.PI / 2, 0, 0);
+          m.scale.setScalar(0.2 + k * 2.6); m.material.opacity = 0.8 * (1 - k) * (k > 0 ? 1 : 0);
+        });
+      }
     };
   }
   if (kind === 'sparks') {
