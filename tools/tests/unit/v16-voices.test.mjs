@@ -81,4 +81,22 @@ export const tests = [
       assert.ok(words.length && words.every(w => !/[\[\]]/.test(w)), JSON.stringify(words));
     } finally { globalThis.fetch = realFetch; }
   } },
+  { name: 'faster reads: three lines at a time, and a "too many at once" answer is retried, not failed over', fn: async () => {
+    try {
+      let busy = 0, most = 0, refuse = 0;
+      const inner = fakeEleven();
+      const fake = globalThis.fetch;
+      globalThis.fetch = async (url, o) => {
+        if (refuse > 0) { refuse--; return Response.json({ detail: { status: 'too_many_concurrent_requests' } }, { status: 429 }); }
+        busy++; most = Math.max(most, busy); await new Promise(r => setTimeout(r, 15)); try { return await fake(url, o); } finally { busy--; }
+      };
+      const lines = ['A.', 'B.', 'C.', 'D.', 'E.', 'F.'];
+      let r = await call('speakall', { lines, deliveries: [] });
+      assert.equal(most, 3);
+      refuse = 1; inner.length = 0;
+      r = await call('speakall', { lines, deliveries: [] });
+      assert.equal(r.headers.get('X-Loomy-Voice'), 'elevenlabs');
+      assert.equal(inner.length, 6);
+    } finally { globalThis.fetch = realFetch; }
+  } },
 ];

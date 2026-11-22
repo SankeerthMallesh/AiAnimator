@@ -1,6 +1,7 @@
 // MP4 export. Uses WebCodecs (hardware video encoding, faster than real time) + mp4-muxer.
 // Falls back to real-time MediaRecorder on browsers without WebCodecs.
 
+import { nextTask, drain } from '../../shared/yieldtask.js';
 import { Muxer, ArrayBufferTarget } from '../../vendor/mp4-muxer.mjs';
 
 const VIDEO_CODECS = [
@@ -97,11 +98,11 @@ async function exportWebCodecs({ renderer, audio, fps, onProgress, signal, v, a 
     venc.encode(frame, { keyFrame: f % (fps * 2) === 0 });
     frame.close();
     // Back-pressure: keep the encoder queue short so memory stays low on small laptops.
-    while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 2));
+    await drain(venc, 6);
     if (f % 6 === 0) {
       const el = (performance.now() - started) / 1000;
       onProgress?.({ frame: f, total: totalFrames, eta: f ? el / f * (totalFrames - f) : null });
-      await new Promise(r => setTimeout(r, 0));
+      await nextTask();
     }
   }
   await venc.flush();

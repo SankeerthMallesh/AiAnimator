@@ -425,12 +425,14 @@ async function elevenAll(env, lines, deliveries, speaker, pick = '', expression 
   // At most three little sounds (a gasp, a chuckle, a sigh) per video, never on two lines in a row.
   const sound = new Array(lines.length).fill(false);
   if (expression === 'expressive') { let n = 0; deliveries.forEach((d, i) => { if (n < 3 && NONVERBAL[d] && !sound[i - 1]) { sound[i] = true; n++; } }); }
-  const one = async (i) => {
+  const one = async (i, attempt = 0) => {
     const prev = lines[i - 1], next = lines[i + 1];
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=pcm_24000`, {
       method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(50000),
       body: JSON.stringify({ text: elevenText(env, lines[i], deliveries[i], { expression, sound: sound[i] }), model_id: elevenModel(env), voice_settings: elevenSettings(env, expression), ...(elevenModel(env) === 'eleven_v3' ? {} : { previous_text: prev, next_text: next }) }),
     });
+    // 1.6: three lines at a time; when ElevenLabs says too many at once, wait a moment and try again.
+    if (res.status === 429 && attempt < 3) { await new Promise(r => setTimeout(r, 900 * (attempt + 1))); return one(i, attempt + 1); }
     const j = await res.json().catch(() => ({}));
     if (!res.ok || !j.audio_base64) throw new Error(`ElevenLabs said ${res.status}: ${String(j.detail?.status || j.detail?.message || '').slice(0, 100)}`);
     const pcm = Uint8Array.from(atob(j.audio_base64), (c) => c.charCodeAt(0));
@@ -443,7 +445,7 @@ async function elevenAll(env, lines, deliveries, speaker, pick = '', expression 
   };
   const got = new Array(lines.length);
   let next = 0;
-  await Promise.all([0, 1].map(async () => { while (next < lines.length) { const i = next++; got[i] = await one(i); } }));
+  await Promise.all([0, 1, 2].map(async () => { while (next < lines.length) { const i = next++; got[i] = await one(i); } }));
   const parts = [], cuts = [], perLine = [];
   let t = 0, n = 0, talk = 0;
   got.forEach((g, i) => {

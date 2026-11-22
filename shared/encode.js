@@ -1,6 +1,7 @@
 // MP4 writing for any size: picks a video and audio codec the browser can encode (H.264 first,
 // then VP9 or AV1; AAC first, then Opus), and muxes them with mp4-muxer.
 
+import { drain } from './yieldtask.js';
 import { Muxer, ArrayBufferTarget } from '../vendor/mp4-muxer.mjs';
 
 export function canEncode() {
@@ -67,7 +68,7 @@ export async function mp4Writer({ width, height, fps = 30, audio, bitrate }) {
       frame.close();
       lastTs = ts; frames++;
       // Keep the encoder's queue short so memory stays flat on long videos.
-      if (venc.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+      if (venc.encodeQueueSize > 8) await drain(venc, 8);
     },
     async finish() {
       await venc.flush(); if (aenc) await aenc.flush();
