@@ -133,7 +133,7 @@ window.run = async (tab, n = 1000, buildEvery = 10, seed0 = 1) => {
         const raw = rawCartoon(r);
         let script;
         try { script = Script.normalize(raw, { topic: 'test', duration: 60, pace: 'normal', format: '9:16' }); }
-        catch (e) { res.rejected++; (res.why ||= []).length < 8 && res.why.push(seed + ': ' + e.message); continue; }
+        catch (e) { if (/without scenes|came back empty|no scenes/i.test(e.message)) { res.rejected++; (res.why ||= []).length < 8 && res.why.push(seed + ': ' + e.message); continue; } throw e; }
         const tl = tlCartoon(script.scenes, script.scenes.map(() => null));
         const { specs, shots } = townShots(tl, script);
         bad.push(...checkSpecs(specs, tl.total, 'plan'));
