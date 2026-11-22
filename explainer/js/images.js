@@ -95,6 +95,30 @@ async function geminiImage(prompt, { width, height }, s, signal) {
   throw last || new Error('Gemini images unavailable');
 }
 
+// The free no-key painter takes one request at a time and answers an overlapping or too-fast one with
+// 402/429/503. Requests are queued, a "busy" answer is waited out and retried, and it is only turned
+// off for the visit after a refusal (401/403) or six busy answers in a row.
+let anonChain = Promise.resolve(), anonStrikes = 0;
+function anonFetch(url, signal, ms) {
+  const run = async () => {
+    let last = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (anonRefused) break;
+      last = await fetchTimeout(url, { signal }, ms, 'blob');
+      const st = last.res.status;
+      if (last.res.ok) { anonStrikes = 0; return last; }
+      if (st === 401 || st === 403) { anonRefused = true; return last; }
+      if (st !== 402 && st !== 429 && st !== 503) return last;
+      if (++anonStrikes >= 6) { anonRefused = true; return last; }
+      await new Promise(r => setTimeout(r, 5000 * (attempt + 1)));
+    }
+    return last || { res: { ok: false, status: 402 }, data: null };
+  };
+  const p = anonChain.then(run, run);
+  anonChain = p.catch(() => {});
+  return p;
+}
+
 const providers = {
   async pollinations(prompt, opts, s, signal, log) {
     if (s.pollinationsKey && !keyRejected) {
@@ -112,13 +136,11 @@ const providers = {
       keyRejected = true;
       log?.(`Pollinations key did not work (${why}). Using free no-key images instead. Image keys must be secret keys starting with sk_.`);
     }
-    // The no-key painter now asks for payment: after one refusal, or on a site with its own AI
-    // (today's allowance used up), stop asking so the console stays clean.
     // The free painter is tried even on a site with its own AI whose daily allowance ran out (it works
-    // again, 2026-11-22); only a refusal (402) turns it off for the visit.
+    // again, 2026-11-22); anonFetch queues it and waits out "busy" answers.
     if (anonRefused) { const e = new Error('The free painter is not available'); e.status = 402; throw e; }
-    const { res, data } = await fetchTimeout(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), { signal }, IMAGE_TIMEOUT_MS, 'blob');
-    if (!res.ok) { if ([401, 402, 403].includes(res.status)) anonRefused = true; const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
+    const { res, data } = await anonFetch(pollinationsURL(prompt, opts, { ...s, pollinationsKey: '' }), signal, IMAGE_TIMEOUT_MS);
+    if (!res.ok) { const e = new Error(`HTTP ${res.status}`); e.status = res.status; throw e; }
     return blobToBitmap(data, true);
   },
   async huggingface(prompt, { width, height, seed }, s, signal) {
