@@ -688,7 +688,8 @@ export class Stage {
       const keep = [];
       const x = String(w || '').replace(/[’‘]/g, "'").replace(/\$?\d[\d.,]*(?:\/\d+)?(?:°[FC]?|%)?/g, (m) => { keep.push(m.replace(/[.,]$/, '')); return `\u0004${keep.length - 1}\u0005`; });
       // Case and end punctuation stay as written (names keep their capitals; . , ? ! end a caption).
-      const end = (/[.,?!]+["')\]]*$/.exec(x)?.[0] || '').replace(/["')\]]/g, '').slice(0, 2);
+      // "..." reads as one ellipsis and "!!!" as one "!" (cutting to two marks made "fast..").
+      const end = (/[.,?!…]+["')\]]*$/.exec(x)?.[0] || '').replace(/["')\]]/g, '').replace(/\.{2,}|…+/g, '…').replace(/([!?,])\1+/g, '$1').slice(0, 2);
       const core = x.replace(/[—–-]/g, ' ').replace(/[^\p{L}\p{N}' \u0004\u0005]/gu, '').replace(/\u0004(\d+)\u0005/g, (_, k) => keep[+k]).replace(/(^|\s)'+|'+(\s|$)/g, '$1$2').replace(/\s+/g, ' ').trim();
       return core ? core + end : '';
     };
@@ -696,7 +697,7 @@ export class Stage {
       const a = words[i];
       const b = words[i + 1];
       const short = (w) => bare(w.text).length > 0 && bare(w.text).length <= 7;
-      if (b && short(a) && short(b) && !/[.?!,]$/.test(bare(a.text))) {
+      if (b && short(a) && short(b) && !/[.?!,…]$/.test(bare(a.text))) {
         out.push({ text: `${bare(a.text)} ${bare(b.text)}`, start: a.start, end: b.end });
         i += 2;
       } else {
