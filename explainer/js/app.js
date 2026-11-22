@@ -1,6 +1,7 @@
 // UI controller for Storyforge Studio.
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
+import { attachIdeas } from '../../shared/ideabox.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
 import { chapterLines, withChapters } from '../../shared/upload.js';
 import { STYLES, AUTO_STYLE, pickLook, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
@@ -180,8 +181,8 @@ function initComposer() {
     $('#btnMore').setAttribute('aria-expanded', String(!p.classList.contains('hidden')));
   });
 
-  const ex = $('#examples');
-  for (const e of EXAMPLES) ex.append(el('button', { type: 'button', onclick: () => { $('#topic').value = e; $('#topic').focus(); } }, e));
+  // Hundreds of ideas: search, categories, shuffle; a click fills the topic.
+  attachIdeas($('#examples'), (t) => { $('#topic').value = t; $('#topic').focus(); });
 
   $('#topic').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#composer').requestSubmit(); }
