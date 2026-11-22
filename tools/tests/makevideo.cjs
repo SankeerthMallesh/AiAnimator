@@ -52,6 +52,7 @@ const out = process.env.OUT || 'out/video';
   if (fr && href) {
     const b64 = await fr.evaluate(async u => { const a = new Uint8Array(await (await fetch(u)).arrayBuffer()); let s = ''; for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode.apply(null, a.subarray(i, i + 32768)); return btoa(s); }, href);
     fs.writeFileSync(out + '.mp4', Buffer.from(b64, 'base64')); console.log('saved', out + '.mp4');
+    await f.locator('.thumb-dl[href]').waitFor({ timeout: 180000 }).catch(() => console.log('no thumbnail yet'));
     const th = await fr.evaluate(async () => { const a = document.querySelector('.thumb-dl'); if (!a?.href) return null; const x = new Uint8Array(await (await fetch(a.href)).arrayBuffer()); let s = ''; for (let i = 0; i < x.length; i += 32768) s += String.fromCharCode.apply(null, x.subarray(i, i + 32768)); return btoa(s); }).catch(() => null);
     if (th) { fs.writeFileSync(out + '-thumbnail.jpg', Buffer.from(th, 'base64')); console.log('saved', out + '-thumbnail.jpg'); }
     const kit = await fr.evaluate(() => ({ title: document.getElementById('ytTitle').value, desc: document.getElementById('ytDesc').value, tags: document.getElementById('ytTags').value }));

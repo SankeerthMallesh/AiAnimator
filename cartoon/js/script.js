@@ -793,6 +793,8 @@ export class Script {
     if (/cockpit|capsule|shuttle|spacecraft|docking|\bdock\b|windshield/.test(t)) return 'cockpit';
     if (spacey && /\b(sleep\w*|asleep|bunk|bed|nap|dream\w*)\b/.test(t)) return 'bunks';
     if (/space station|\biss\b|airlock|\bmodule\b/.test(t) || (spacey && /toilet|bathroom|flush|window|cabin|inside|room|drink|food|eat/.test(t))) return 'cabin';
+    // War on land: trenches and battlefields are fields, whatever else the line names ("from the sea to Switzerland").
+    if (/\btrench\w*|battlefield|no man'?s land|front line|the front\b|machine guns?|charge across|over the top/.test(t)) return /night|dark|sleep/.test(t) ? 'night' : 'field';
     if (/titanic|ocean liner|\bliner\b|\bdeck\b|cruise|voyage|lifeboat|iceberg|captain|on board|aboard/.test(t)) return 'deck';
     if (/eclipse|lunar|moonlight|starry|stars? at night|\bmoon\b/.test(t)) return 'night';
     if (/egypt|syene|alexandria|pyramid|camel|nile|\bwell\b|stick|noon/.test(t)) return 'desert';
