@@ -29,6 +29,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .brand svg { width: 28px; height: 28px; flex: none; }
 .brand small { font: 500 13.5px "Inter", sans-serif; color: var(--muted); letter-spacing: 0; padding-left: 12px; margin-left: 2px; border-left: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; }
 .brand .ver { cursor: pointer; } .brand .ver:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@media (pointer: coarse), (max-width: 1180px) { .brand button.ver { min-height: 32px; min-width: 40px; padding: 6px 10px; } }
 .brand small.ver, .brand button.ver { border: 0; margin-left: 0; padding: 3px 8px; border-radius: 999px; font: 700 11.5px/1 "Inter", sans-serif; color: #fff; background: linear-gradient(120deg, #8B5CF6, #3B82F6 55%, #22D3EE); }
 .tab[aria-selected="true"] { box-shadow: 0 6px 22px -10px rgba(99, 102, 241, .8); }
 .tabs { display: flex; gap: 8px; }

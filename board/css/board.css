@@ -112,3 +112,14 @@ svg { stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round
 
 html.viewonly .card .tools, html.viewonly .card .pin { display: none; }
 html.viewonly .tb:disabled { opacity: .4; cursor: not-allowed; }
+/* Phones and tablets (big upgrade): the colour row scrolls instead of pushing the toolbar off the
+   screen, and the note buttons are big enough to tap. */
+@media (max-width: 640px) {
+  .bar-tools { min-width: 0; }
+  .swatches { flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .swatches::-webkit-scrollbar { display: none; }
+  .swatches button { flex: 0 0 auto; }
+}
+@media (pointer: coarse), (max-width: 1180px) {
+  .card .tools button { min-height: 34px; min-width: 34px; }
+}
