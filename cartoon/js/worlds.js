@@ -671,8 +671,9 @@ function porthole(g, x, y, w, h, rad, earth = true) {
   g.save(); g.strokeStyle = '#2A2F3C'; g.lineWidth = w * 0.03; g.beginPath(); g.roundRect(x, y, w, h, rad); g.stroke(); g.restore();
 }
 function checker(g, W, H, hz, a = '#F2F2F2', b = '#151515') {
-  // A checkered floor in perspective.
-  const n = 10;
+  // A checkered floor in perspective, wide enough for pans and whips (a base colour under it too).
+  g.fillStyle = '#7c7c80'; g.fillRect(-W * 1.5, hz, W * 4, H * 1.5);
+  const n = 26;
   for (let row = 0; row < 8; row++) {
     const y0 = hz + (H - hz) * Math.pow(row / 8, 1.6), y1 = hz + (H - hz) * Math.pow((row + 1) / 8, 1.6) + 1;
     const s0 = 0.35 + 0.65 * (row / 8), s1 = 0.35 + 0.65 * ((row + 1) / 8);
@@ -772,7 +773,7 @@ const EDGE = {
   sea: ['#4FA6E8', '#C48A45'], water: ['#4FA6E8', '#C48A45'], desert: ['#5FA9E4', '#C48A45'], mountains: ['#4C9DE3', '#367F3A'],
   snow: ['#8EC1EA', '#D6E3F0'], forest: ['#8CCB74', '#4E7F33'], city: ['#5AA9E8', '#5D6470'], night: ['#0E1636', '#171A30'],
   space: ['#070A1C', '#6D6F7C'], temple: ['#4FA3E6', '#B69D62'], room: ['#E8D0A2', '#A9784A'], shop: ['#EDDB98', '#C9C6BE'],
-  office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], cabin: ['#2B3550', '#151515'], control: ['#1A2550', '#1D2754'], bunks: ['#243066', '#1B2147'], cockpit: ['#03050F', '#1E2338'], school: ['#E8E2C8', '#B98C5E'], wall: ['#5AA9E6', '#3C8040'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
+  office: ['#DCE2E9', '#98A3B2'], lab: ['#D6E2E6', '#B9C1C8'], cabin: ['#2B3550', '#7c7c80'], control: ['#1A2550', '#1D2754'], bunks: ['#243066', '#1B2147'], cockpit: ['#03050F', '#1E2338'], school: ['#E8E2C8', '#B98C5E'], wall: ['#5AA9E6', '#3C8040'], bridge: ['#5AA9E8', '#2F86C2'], underwater: ['#59C3EE', '#A88E58'],
 };
 export const WORLD_IDS = Object.keys(P);
 
