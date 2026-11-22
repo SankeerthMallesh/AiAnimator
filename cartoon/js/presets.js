@@ -144,3 +144,11 @@ export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', '
 // unless the person picked the town themselves.
 const ELSEWHERE = /\b(vikings?|longships?|norse|knights?|castles?|medieval|kings?|queens?|empires?|ancient|romans?|rome|greeks?|egypt\w*|pharaohs?|pyramids?|aztecs?|samurai|pirates?|ships?|sail\w*|sea|seas|ocean\w*|underwater|islands?|space|planets?|moon|mars|stars?|galax\w*|astronauts?|rockets?|dinosaurs?|jungle|rainforest|deserts?|volcano\w*|arctic|antarctic\w*|polar|mountains?|everest|caves?|wars?|battles?|armies|army|invad\w*|invasion|conquer\w*|history)\b/i;
 export function townFits(topic) { return !ELSEWHERE.test(String(topic || '')); }
+
+// 1.2 Auto look: the 3D town when the story happens in a modern town and this computer can draw it,
+// painted sets otherwise. -> { look, why } (why is said to the person in a toast).
+export function autoLook(topic, gpu = { ok: false }) {
+  if (!townFits(topic)) return { look: 'painted', why: 'painted sets can show this place' };
+  if (!gpu?.ok) return { look: 'painted', why: 'painted sets run smoothly on this computer' };
+  return { look: 'town3d', why: 'the 3D town fits this story' };
+}

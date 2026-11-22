@@ -2,7 +2,7 @@
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
-import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits } from './presets.js';
+import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits, autoLook } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadSafety } from './safety.js';
 import { creditText } from './wiki.js';
@@ -168,8 +168,9 @@ $('#voice').addEventListener('change', (e) => {
   const look = $('#look');
   if (look) {
     const gpu = strongGraphics();
-    look.value = settings.look === 'town3d' || settings.look === 'painted' ? settings.look : gpu.ok ? 'town3d' : 'painted';
-    if (!gpu.ok) look.title = `Painted sets suit this computer (${gpu.why}). The 3D town needs a strong graphics card.`;
+    // 1.2: Auto is the default; a look the person picked themselves is kept.
+    look.value = ['town3d', 'painted', 'auto'].includes(settings.look) ? settings.look : 'auto';
+    if (!gpu.ok) look.title = `Auto uses painted sets on this computer (${gpu.why}). The 3D town needs a strong graphics card.`;
     look.addEventListener('change', () => { settings.look = look.value; saveSettings(settings); });
   }
 
@@ -203,7 +204,12 @@ $('#voice').addEventListener('change', (e) => {
   });
   // The town is the default only where it can show the story; a person's own pick always wins.
   const lookFor = (topic) => {
-    const picked = $('#look')?.value || 'painted';
+    const picked = $('#look')?.value || 'auto';
+    if (picked === 'auto') {
+      const a = autoLook(topic, strongGraphics());
+      toast(`Auto look: ${a.look === 'town3d' ? '3D cartoon town' : 'painted sets'} (${a.why}).`);
+      return a.look;
+    }
     if (picked !== 'town3d' || settings.look === 'town3d' || townFits(topic)) return picked;
     toast('Painted sets for this one: the 3D town cannot build those places.');
     return 'painted';
