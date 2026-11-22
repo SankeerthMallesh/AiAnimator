@@ -83,7 +83,7 @@ slow, about 5-15 s a frame).
   effects, cast mapping, `planShots`, `buildShot`, `captionsFrom`) and `explainer/js/drawn.js`
   (`DrawnRenderer`: canvas/W/H/drawFrame/dispose + `ready` promise, same face as `Renderer`).
 
-## Done on 2026-11-22 (branch `claude/new-software-completeness-24sb8k`, not yet on `main`)
+## Done on 2026-11-22 (live: pushed to `main` and deployed 2026-11-21 9:01 PM EST, commit 8f7c8e1)
 
 Each step is one commit with its ID. Unit tests: `node tools/tests/unit/run.mjs` (165 pass).
 
@@ -102,7 +102,7 @@ Each step is one commit with its ID. Unit tests: `node tools/tests/unit/run.mjs`
 - **E2-E4** Edit: text boxes (own lane), captions tied to source time, music track (duck, fades), per-part
   speed/zoom/transition/volume. **E5** "Edit this video" on finished 3D/Blocky/Cartoons videos
   (`shared/handoff.js`, IndexedDB + BroadcastChannel). Tests: `tools/tests/editore2e2.cjs`, `editore2e.cjs`.
-- **L5** (in progress when this was written) Cartoons: look `town3d` ("3D cartoon town, drawn in code",
+- **L5** Cartoons: look `town3d` ("3D cartoon town, drawn in code",
   the composer default; painted sets stay) renders with the cartoon-3d engine's new template layer
   (`tools/c3d-src/src/tmpl.ts`, `World.updateTemplate`, `createTemplated` in driver.ts; rebuild with
   `cd tools/c3d-src && npm install && npm run build`). Places: the bridge deck, the riverbank, the park and
@@ -114,9 +114,11 @@ Each step is one commit with its ID. Unit tests: `node tools/tests/unit/run.mjs`
 
 ## Remaining work
 
-1. Finish L5 checks (townmaster.cjs), then ship: the user decides when `main` (the live site) gets it.
-2. Ideas: more town places (inside a house, a shop street), props for `point` shots in the town, the
-   cartoon storyboard thumbnails for the town look (they still show the painted-set preview).
+All of L2-L5 and E2-E5 are done, tested end to end (drawnmaster.cjs 3d and blocky, townmaster.cjs,
+editore2e.cjs, editore2e2.cjs, cleanmaster.cjs, clean3dmaster.cjs: all pass; 168 unit tests) and live.
+Not checked from the sandbox: the live site itself (its host is blocked here); the user was asked to make
+one video per tab. Ideas: more town places (inside a house, a shop street), props for `point` shots in
+the town, storyboard thumbnails for the town look (they still show the painted-set preview).
 
 ## Deploying to Loomy (the live site)
 
