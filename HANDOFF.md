@@ -61,10 +61,9 @@ slow, about 5-15 s a frame).
   - `score.py icewater|snowfort voice.wav words.json out.wav`: the original score plus sound effects, built with the skill sound kit in `tools/films/skill-audio/` (MIT, from claude-animated-shorts). It expects that kit at `./cartoon-audio/audio` next to it and the films dir path inside; adjust the two paths at the top.
   - `assemble.sh <parts dir> <mix.wav> <dur> <out.mp4>`: concat + H.264 CRF 17 + AAC, faststart.
   - `voice/`: the v3 takes for all three films (mp3 + word json). Reuse them: the ElevenLabs free tier has 10,000 characters a month and about 3,300 were left on 2026-11-21.
-- State when this was written: the three full renders were running in this session's scratchpad (lost if
-  the session ends). If they are gone, re-render with the commands above (each takes a few hours here) and
-  assemble with the soundtracks (re-make them with `score.py`; the cartoon one with `skill-audio/mix.py`
-  after `place_voice3.py`, then polish the voice as in `shared/voicefx.js`).
+- State: all three films were finished and sent to the user on 2026-11-22 (about 11 PM EST): 3D 64 s, Blocky 62 s,
+  Cartoons 67.5 s, all 1080x1920 with v3 voices, scores and effects. They do not need re-rendering.
+  The render scripts stay in `tools/films/` as the reference for how to make more.
 
 ## Done in Loomy (committed)
 
