@@ -1,8 +1,9 @@
 // Big upgrade: the Feedback card grades the video from the script, then from the finished video, and
 // "Fix it for me" asks the writer for a better script and makes the video again (mocked AI).
-//   node fbmaster.cjs
+//   node fbmaster.cjs [3d|cartoon]
 const { chromium } = require('playwright'); const fs = require('fs');
-const script = JSON.parse(fs.readFileSync('proof/drawn-3d.json', 'utf8'));
+const tab = process.argv[2] === 'cartoon' ? 'cartoon' : '3d';
+const script = JSON.parse(fs.readFileSync(tab === 'cartoon' ? 'proof/cartoon-objects.json' : 'proof/drawn-3d.json', 'utf8'));
 script.youtubeTitle = 'THE STORY OF THE MAN WHO FELL THROUGH THE ICE ON A COLD WINTER NIGHT'; script.description = 'Test.'; script.hashtags = ['#Ice'];
 (async () => {
   const b = await chromium.launch({ args: ['--enable-gpu', '--ignore-gpu-blocklist'] });
@@ -19,7 +20,7 @@ script.youtubeTitle = 'THE STORY OF THE MAN WHO FELL THROUGH THE ICE ON A COLD W
       if (/script doctor/.test(sys)) {
         revise++;
         const better = { ...script, youtubeTitle: 'Why He Fell Through the Ice', thumbText: 'THE ICE CRACKED', hashtags: ['#shorts', '#ice', '#survival'],
-          scenes: script.scenes.map((s, i) => (i === 0 ? { ...s, narration: 'If you fall through ice, you have about ten minutes.' } : s)) };
+          scenes: script.scenes.map((s, i) => (i === 0 ? { ...s, narration: 'If you fall through ice, you have about ten minutes.', line: 'If you fall through ice, you have about ten minutes.' } : s)) };
         return route.fulfill({ json: { ok: true, text: JSON.stringify(better) } });
       }
       return route.fulfill({ json: { ok: true, text: JSON.stringify(script) } });
@@ -30,9 +31,9 @@ script.youtubeTitle = 'THE STORY OF THE MAN WHO FELL THROUGH THE ICE ON A COLD W
   const msgs = [];
   p.on('pageerror', e => msgs.push(`[pageerror] ${e.message}`));
   await p.goto('http://127.0.0.1:8773/'); await p.waitForTimeout(2000);
-  await p.click('#tab-3d'); await p.waitForTimeout(2500);
-  const f = p.frameLocator('#view-3d');
-  await f.locator('#style').selectOption('drawn-3d');
+  await p.click(`#tab-${tab}`).catch(() => {}); await p.waitForTimeout(2500);
+  const f = p.frameLocator(`#view-${tab}`);
+  if (tab === '3d') await f.locator('#style').selectOption('drawn-3d');
   await f.locator('#btnMore').click().catch(() => {});
   await f.locator('#quality').selectOption('720'); await f.locator('#fps').selectOption('24');
   await f.locator('#topic').fill(script.title);
