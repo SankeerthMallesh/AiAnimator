@@ -156,3 +156,33 @@ html.has-topbar .masthead { top: 56px; }
 .nav-btn.icon { min-width: 44px; justify-content: center; }
 html:root .hear { width: 44px; height: 44px; }
 html:root .view.home .frames button, html:root .view.home .slot-grid select { min-height: 44px; }
+
+/* ---------- Loomy 1.0: one accent gradient, used sparingly; real frames under the composer ---------- */
+html:root { --grad: linear-gradient(120deg, #8B5CF6 0%, #3B82F6 55%, #22D3EE 100%); --glow: rgba(99, 102, 241, .22); }
+/* A soft violet-blue glow behind the hero (dark mode), fading out before the composer. */
+html:root:not([data-theme="light"]) .view.home .brief-col { background: radial-gradient(60% 42% at 18% 0%, var(--glow), transparent 70%), radial-gradient(40% 30% at 85% 8%, rgba(34, 211, 238, .10), transparent 70%); }
+/* The headline: white into a pale violet; its badge says the version. */
+html:root:not([data-theme="light"]) .view.home .headline { background: linear-gradient(180deg, #FFFFFF 35%, #C7C2FF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html:root .view.home .hero-badge b { background: var(--grad); color: #fff; }
+/* The main button carries the gradient; the composer lights its border with it while typing. */
+html:root .view.home .go, html:root .go { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 8px 28px -10px rgba(99, 102, 241, .7); }
+html:root .view.home .go:hover, html:root .go:hover { background: var(--grad); filter: brightness(1.1); border-color: transparent; }
+html:root:not([data-theme="light"]) .view.home .sheet:focus-within { border-color: transparent; box-shadow: 0 0 0 1px rgba(139, 92, 246, .55), 0 18px 50px -24px rgba(99, 102, 241, .6); }
+html:root .view.home .sheet-tabs button.on, html:root .view.home .frames button.on { background: #FFFFFF; color: #0A0A0A; }
+html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-theme="light"] .view.home .frames button.on { background: #111; color: #fff; }
+
+/* What every video gets: quiet pills under the composer. */
+.feature-pills { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; }
+.feature-pills li { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); font: 500 13px/1.2 var(--sans, Inter, sans-serif); }
+.feature-pills li::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--grad); flex: none; }
+
+/* Made with Loomy: four real frames, tall like the videos, with a short label. */
+.showcase { margin: 34px 0 6px; }
+.showcase .eyebrow { margin: 0 0 12px; }
+.showcase-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.showcase figure { margin: 0; position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); background: var(--paper); aspect-ratio: 9 / 16; }
+.showcase img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s ease; }
+.showcase figure:hover img { transform: scale(1.04); }
+.showcase figcaption { position: absolute; left: 8px; bottom: 8px; padding: 4px 9px; border-radius: 999px; background: rgba(0, 0, 0, .66); color: #fff; font: 600 11.5px/1.3 var(--sans, Inter, sans-serif); backdrop-filter: blur(6px); }
+@media (max-width: 560px) { .showcase-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { .showcase img { transition: none; } .showcase figure:hover img { transform: none; } }

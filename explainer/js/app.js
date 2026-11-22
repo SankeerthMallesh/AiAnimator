@@ -82,7 +82,19 @@ function defaultStyle() {
   return STYLES[q] ? q : AUTO_STYLE;
 }
 
+// "Made with Loomy": real frames of this tab's looks under the composer.
+const SHOWCASE = {
+  '3d': [['3d-break', 'A brick on a stand with the headline THIS WALL IS 2,000 YEARS OLD', 'Hook + 3D objects'], ['3d-hold', 'A man holding a brick', '3D people'], ['3d-atom', 'A woman pointing at an atom', '3D objects'], ['3d-object', 'A brick close-up with a woman behind it', 'Object close-ups']],
+  blocky: [['blocky-react', 'A blocky character with a shocked face', 'Cold open'], ['blocky-wide', 'A blocky kid in a snowy street', 'Blocky world'], ['blocky-group', 'Three blocky friends cheering', 'Blocky cast'], ['town-group', 'Cartoon townsfolk cheering', 'Also in Cartoons']],
+};
+function fillShowcase() {
+  const row = document.getElementById('showcase'); if (!row) return;
+  const tab = new URLSearchParams(location.search).get('style') === 'blocky' ? 'blocky' : '3d';
+  row.replaceChildren(...SHOWCASE[tab].map(([f, alt, cap]) => el('figure', {}, el('img', { src: `../shared/showcase/${f}.jpg`, alt, loading: 'lazy', width: 270, height: 480 }), el('figcaption', {}, cap))));
+}
+
 function initComposer() {
+  fillShowcase();
   // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
   const blockyTab = new URLSearchParams(location.search).get('style') === 'blocky';
