@@ -34,6 +34,8 @@ const { chromium } = require('playwright'); const fs = require('fs');
     fs.writeFileSync(out, Buffer.from(b64, 'base64'));
     console.log('saved', out);
   }
+  const logText = await p.locator('#log').textContent().catch(() => '');
+  fs.writeFileSync(out.replace(/\.mp4$/, '.log.txt'), logText || '');
   console.log('ERRORS:', msgs.length ? msgs.slice(0, 12) : 'none');
   await b.close();
 })();
