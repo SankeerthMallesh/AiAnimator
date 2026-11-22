@@ -175,6 +175,7 @@ window.run = async (tab, n = 1000, buildEvery = 10, seed0 = 1) => {
   res.ms = Math.round(performance.now() - t0);
   return res;
 };
+window.sample = (tab, seed) => (tab === 'cartoon' ? rawCartoon(rnd(seed)) : raw3d(rnd(seed)));
 window.ready = true;
 document.getElementById('out').textContent = 'ready';
 </script></body></html>
