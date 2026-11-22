@@ -92,7 +92,7 @@ const SKY = {
 };
 export function stageFor(set) {
   const base = { shadowSize: 7, sun: 2.6, sunDir: [-6, 6, 7], sunColor: 0xfff1e0, hemi: 0.85, rimLight: 1.6, rimDir: [6, 4, -6], shadowMap: 2048, fog: [22, 130], sky: SKY[set] ?? null };
-  if (set === 'night') return { ...base, sun: 0.28, sunColor: 0x9fb4ff, hemi: 0.1, rimLight: 0.7, rimDir: [5, 5, -6], fog: [14, 80] };
+  if (set === 'night') return { ...base, sun: 0.3, sunColor: 0x9fb4ff, hemi: 0.18, rimLight: 1.0, rimDir: [5, 5, -6], fog: [14, 80] };
   if (set === 'room' || set === 'lab') return { ...base, sun: 2.0, sunDir: [-4, 5, 6], hemi: 1.0, rimLight: 1.0, fog: null };
   if (set === 'desert') return { ...base, sun: 3.1, sunColor: 0xffe2b8, fog: [30, 160] };
   if (set === 'beach') return { ...base, sun: 2.9, fog: [30, 170] };
@@ -133,7 +133,13 @@ export function buildSet(scene, set, seed = 1) {
     for (let x = -50; x < 50;) { const w = 6 + r() * 6, h = 8 + r() * 18; const b = building(w, h, 8, cols[Math.floor(r() * cols.length)], r, lit); b.position.set(x + w / 2, 0, -14 - r() * 3); scene.add(b); x += w + 0.6; }
     // Lamps sit off-centre so no pole stands behind the people at x = 0; at night one lights them.
     for (let x = -22; x <= 26; x += 8) { const l = lamp(lit); l.position.set(x, 0, -1.8); scene.add(l); }
-    if (lit) { const f = new THREE.PointLight(0xffd59a, 7, 9, 2); f.position.set(1.6, 3.2, 1.2); scene.add(f); }
+    if (lit) {
+      const f = new THREE.PointLight(0xffd59a, 9, 11, 2); f.position.set(1.6, 3.2, 1.2); scene.add(f);
+      // Moonlight on the people: a soft, cool spot from above and in front, so a wide or walking shot at
+      // night still shows them (only the street around them stays dark).
+      const moon = new THREE.SpotLight(0xbfd0ff, 30, 22, 0.75, 0.9, 1.4); moon.position.set(-1.5, 6, 6); moon.target.position.set(0, 1, -1.5);
+      scene.add(moon, moon.target);
+    }
     return;
   }
   if (set === 'room' || set === 'lab') {
@@ -397,7 +403,7 @@ export function buildShot(spec, people, { makeStage, W, H }) {
     }
     if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.55, 0.55, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
     if (fx && eff) fx(t, eff, c.position);
-    return { bloom: spec.set === 'night' ? 0.6 : 0.25, ao: icon || spec.effect === 'glow' ? 0 : 0.7, exposure: spec.set === 'night' ? 0.85 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
+    return { bloom: spec.set === 'night' ? 0.6 : 0.25, ao: icon || spec.effect === 'glow' ? 0 : 0.7, exposure: spec.set === 'night' ? 0.95 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
   } };
 }
 
