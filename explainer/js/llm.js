@@ -379,13 +379,16 @@ function cleanText(v, max = 600) {
 function findScript(raw, depth = 0) {
   if (!raw || typeof raw !== 'object' || depth > 3) return null;
   if (Array.isArray(raw)) {
-    if (raw.length && raw.every(x => x && typeof x === 'object' && (x.narration || x.text || x.voiceover))) return { scenes: raw };
+    // A stray null or string among the scenes must not throw the whole script away: keep the real ones.
+    const sc = raw.filter(x => x && typeof x === 'object' && (x.narration || x.text || x.voiceover));
+    if (sc.length && sc.length >= raw.length / 2) return { scenes: sc };
     for (const x of raw) { const f = findScript(x, depth + 1); if (f) return f; }
     return null;
   }
   for (const k of ['scenes', 'shots', 'Scenes', 'script', 'storyboard', 'segments']) {
     const v = raw[k];
-    if (Array.isArray(v) && v.length && v.every(x => x && typeof x === 'object')) return { ...raw, scenes: v };
+    const objs = Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && !Array.isArray(x)) : [];
+    if (objs.length) return { ...raw, scenes: objs };
   }
   for (const v of Object.values(raw)) { const f = findScript(v, depth + 1); if (f) return f; }
   return null;
