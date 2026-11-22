@@ -18,6 +18,9 @@ import { TownRenderer, townShots } from './town.js';
 import { markTownWeak } from './gpu.js';
 import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
 import { characterOf, characterDelivery, characterLine } from '../../shared/voicechars.js';
+// How long the voice waits for the fact-check before reading (big upgrade): Fast reads straight away and
+// re-records only lines the check changes.
+const FACT_WAIT = { fast: 0, balanced: 12000, best: 45000 };
 import { hookCues } from '../../shared/hooks.js';
 
 export const STEPS = [
@@ -355,7 +358,7 @@ export class Pipeline {
     // are in the take instead of being re-recorded line by line afterwards.
     if (this.factJob) {
       this.h.step('voice', 'active', 'Waiting for the fact-check…');
-      await Promise.race([this.factJob.catch(() => null), new Promise(r => setTimeout(r, 45000))]);
+      await Promise.race([this.factJob.catch(() => null), new Promise(r => setTimeout(r, FACT_WAIT[this.s.speed] ?? FACT_WAIT.balanced))]);
       todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
     }
     this.h.step('voice', 'active', 'Reading the whole script…');

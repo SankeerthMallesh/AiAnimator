@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS = {
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_v3',
   fps: 30,
+  speed: 'balanced',              // fast | balanced | best (big upgrade)
   captionStyle: 'classic',        // word | classic | bold | box | minimal | off
   showTitle: false,
   stickers: false,                // floating stickers/icons for things the narrator mentions (off: they read as clutter)

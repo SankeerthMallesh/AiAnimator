@@ -34,7 +34,8 @@ export const DEFAULT_SETTINGS = {
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_v3',
   runwayKey: '', falKey: '', falModel: 'fal-ai/kling-video/v2.1/standard/image-to-video', videoProvider: 'auto',
-  fps: 60,
+  fps: 30,                        // Balanced speed (big upgrade): 30 fps renders twice as fast as 60
+  speed: 'balanced',              // fast | balanced | best
   captionStyle: 'word',           // word | classic | bold | box | minimal | off
   showTitle: false,
   stickers: false,                // floating stickers/icons for things the narrator mentions (off: they read as clutter)
