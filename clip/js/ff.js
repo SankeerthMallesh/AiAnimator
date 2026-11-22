@@ -60,6 +60,17 @@ export async function mountFile(ff, file) {
   return `/in/${file.name}`;
 }
 
+// After ffmpeg.wasm crashes ("memory access out of bounds"), its instance is dead: start a fresh one
+// on the next getFFmpeg() (the core comes from the browser cache) and mount the file again.
+export async function resetFFmpeg() {
+  const old = loading;
+  loading = null; mountedFile = null;
+  try { (await old)?.terminate(); } catch { /* already gone */ }
+}
+
+// ffmpeg.wasm rejects with plain strings, not Errors: always get readable text.
+export const errText = (e) => (e && typeof e === 'object' && e.message) || String(e || 'unknown error');
+
 // Run ffmpeg, reporting progress as seconds of output written (from its log).
 export async function run(ff, args, { onTime } = {}) {
   const logs = [];

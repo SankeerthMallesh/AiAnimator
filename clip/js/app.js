@@ -3,7 +3,7 @@
 // every word.  3. AI picks the strongest moments with a heading each.  4. Each clip is framed to 9:16,
 // captioned and exported as MP4 with the original sound. Nothing is posted anywhere.
 
-import { getFFmpeg, mountFile, run, probeDuration, removeFiles } from './ff.js';
+import { getFFmpeg, mountFile, run, probeDuration, removeFiles, resetFFmpeg, errText } from './ff.js';
 import { RenderLog, publishLog, measureAudio, loudness } from '../../shared/renderlog.js';
 import { levelChannels } from '../../shared/level.js';
 import { parseWav } from './wav.js';
@@ -159,8 +159,8 @@ async function go({ reuseTranscript = false } = {}) {
   } catch (e) {
     if (e?.name === 'AbortError') { toast('Stopped.'); }
     else {
-      log(`Problem: ${e.message}`);
-      toast(e.message, true);
+      log(`Problem: ${errText(e)}`);
+      toast(errText(e), true);
       for (const li of document.querySelectorAll('#steps li.active')) { li.className = 'fail'; li.querySelector('.d').textContent = 'Stopped'; }
     }
   } finally {
@@ -178,20 +178,32 @@ async function freshPlayer(src) {
   return v;
 }
 
-async function sourceFor(clip, ff, path) {
+async function sourceFor(clip, ff, path) { // ff and path are replaced if ffmpeg has to restart
   if (state.playable) return { src: state.video.src, off: 0, owned: false };
   const off = Math.max(0, clip.s - 0.5), len = clip.e - clip.s + 1;
-  // Convert just this moment into a format this browser plays: H.264 where possible, else VP9.
+  // Convert just this moment into a format this browser plays: H.264 where possible, else VP9, and
+  // if ffmpeg.wasm runs out of memory on that (it crashes on VP9 from 1080p sources), a fresh ffmpeg
+  // and a lighter VP8 encode at 960 px.
   const h264 = !!document.createElement('video').canPlayType('video/mp4; codecs="avc1.42E01E"');
-  const out = h264 ? 'cut.mp4' : 'cut.webm';
+  const tries = h264
+    ? [['cut.mp4', 1280, ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20']], ['cut.mp4', 960, ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '22']]]
+    : [['cut.webm', 1280, ['-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '2M']], ['cut.webm', 960, ['-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '2M']]];
   log('Converting this moment so the browser can play it…');
-  await run(ff, ['-hide_banner', '-ss', String(off), '-i', path, '-t', String(len), '-vf', "scale='min(1280,iw)':-2", '-an',
-    ...(h264 ? ['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '20'] : ['-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '2M']), out]);
-  const data = await ff.readFile(out);
-  await removeFiles(ff, [out]);
+  let data = null, out = tries[0][0], lastErr = null;
+  for (const [k, [name, width, codec]] of tries.entries()) {
+    try {
+      if (k) { await resetFFmpeg(); ff = await getFFmpeg(); path = await mountFile(ff, state.file); log(`Converting again, lighter (${width} px)…`); }
+      out = name;
+      await run(ff, ['-hide_banner', '-ss', String(off), '-i', path, '-t', String(len), '-vf', `scale='min(${width},iw)':-2`, '-an', ...codec, '-pix_fmt', 'yuv420p', out]);
+      data = await ff.readFile(out);
+      await removeFiles(ff, [out]);
+      break;
+    } catch (e) { lastErr = e; log(`Converting failed (${errText(e)}).`); }
+  }
+  if (!data) throw new Error(`This video could not be converted for the browser (${errText(lastErr)}). Try an MP4 (H.264) file.`);
   const v = attach(document.createElement('video'));
   v.muted = true; v.playsInline = true; v.preload = 'auto';
-  v.src = URL.createObjectURL(new Blob([data], { type: h264 ? 'video/mp4' : 'video/webm' }));
+  v.src = URL.createObjectURL(new Blob([data], { type: out.endsWith('.mp4') ? 'video/mp4' : 'video/webm' }));
   await new Promise((r) => { v.onloadeddata = r; v.onerror = r; setTimeout(r, 15000); });
   if (v.error) log(`The converted moment would not open (code ${v.error.code}).`);
   const src = v.src;
