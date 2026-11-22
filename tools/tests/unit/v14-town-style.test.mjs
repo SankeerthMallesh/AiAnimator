@@ -22,6 +22,6 @@ export const tests = [
     const js = readFileSync(new URL('../../../cartoon/js/c3d/cartoon3d.js', import.meta.url), 'utf8');
     assert.match(js, /setLooks\(looks\)/);
     const town = readFileSync(new URL('../../../cartoon/js/town.js', import.meta.url), 'utf8');
-    assert.match(town, /looks: townLooks\(script\?\.cast/); assert.match(town, /glare\(this\.g/);
+    assert.match(town, /looks: this\.theme === .viking. \? \[\] : townLooks\(script\?\.cast/); assert.match(town, /glare\(this\.g/);
   } },
 ];

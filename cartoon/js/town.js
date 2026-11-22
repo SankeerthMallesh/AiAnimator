@@ -14,6 +14,10 @@ const PLACE = {
   bridge: 'bridge', water: 'bridge', sea: 'bridge', deck: 'bridge', underwater: 'bridge', lab: 'bridge', sky: 'town', space: 'town', night: 'bridge',
 };
 const GOLDEN = new Set(['night', 'space', 'sky']);
+// Viking-era stories: the town dresses its people as Vikings and puts longships on the river; their shots
+// stay by the river (the bank faces the moored ships) and the park, away from the iron bridge.
+export const VIKING = /\b(vikings?|norse|norsemen|longships?|danes|lindisfarne|ragnar|danelaw)\b/i;
+const VIKING_PLACE = (set) => (['field', 'forest', 'mountains', 'snow', 'school', 'temple'].includes(set) ? 'park' : 'bank');
 // The script's poses and feelings -> the shot library's pose words (z3d/vocab.js).
 const POSE = { idle: 'stand', walk: 'stand', turn: 'stand', sit: 'stand', drive: 'stand', hold: 'talk', give: 'talk', point: 'point', shrug: 'shrug', jump: 'cheer', shock: 'surprised', facepalm: 'flinch', laugh: 'cheer', cry: 'flinch', cheer: 'cheer', think: 'think', wave: 'talk', enter: 'stand', exit: 'stand' };
 const FEEL = { shocked: 'surprised', happy: 'cheer', skeptical: 'think', sad: 'flinch', angry: 'shrug', scared: 'flinch', nervous: 'think' };
@@ -51,7 +55,7 @@ export function townScenes(scenes) {
 }
 
 // The plan's specs -> the engine's template shots (tools/c3d-src/src/tmpl.ts TSpec).
-export function townShots(timeline, script) {
+export function townShots(timeline, script, theme = 'town') {
   const ids = (script?.cast || []).map(c => String(c.id).toLowerCase());
   const castMap = new Map(ids.map((id, k) => [id, k]));
   const scenes = townScenes(timeline.scenes);
@@ -59,7 +63,7 @@ export function townShots(timeline, script) {
   const shots = specs.map((s, k) => {
     const sc = timeline.scenes[s.scene];
     const set = sc?.set || 'city';
-    const place = s.scene === 0 && !s.teaser && (k === 0 || specs[k - 1]?.teaser) ? 'town' : PLACE[set] || 'bridge';
+    const place = s.scene === 0 && !s.teaser && (k === 0 || specs[k - 1]?.teaser) ? 'town' : theme === 'viking' ? VIKING_PLACE(set) : PLACE[set] || 'bridge';
     return {
       start: s.start, end: s.end, kind: s.kind, place: place === 'town' && s.kind !== 'wide' ? 'bridge' : place,
       cast: s.cast.map(c => (typeof c === 'number' ? c : ids.length + (k % 3))), pose: s.pose, camera: s.camera,
@@ -79,12 +83,13 @@ export class TownRenderer {
     this.timeline = timeline; this.captions = captions; this.log = null; this.punch = punch; this.glow = glow;
     this.headline = headlineText(script);
     this.preview = preview; this.lastMs = 0; this.lastAt = -1e9;
-    const { specs, shots } = townShots(timeline, script);
+    this.theme = VIKING.test(`${script?.title || ''} ${script?.topic || ''} ${(timeline.scenes || []).map(x => x.narration || '').join(' ')}`) ? 'viking' : 'town';
+    const { specs, shots } = townShots(timeline, script, this.theme);
     this.specs = specs; this.shots = shots;
     this.ready = (async () => {
       const { createTemplated, setStaticBase } = await import('./c3d/cartoon3d.js');
       setStaticBase(new URL('../c3d-assets/', import.meta.url).href);
-      const engine = await createTemplated({ width: W, height: H, shots, looks: townLooks(script?.cast || []) });
+      const engine = await createTemplated({ width: W, height: H, shots, theme: this.theme, looks: this.theme === 'viking' ? [] : townLooks(script?.cast || []) });
       if (this.disposed) engine.dispose(); else this.engine = engine; // disposed while it was building
     })();
   }

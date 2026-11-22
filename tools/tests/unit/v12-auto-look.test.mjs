@@ -12,6 +12,11 @@ export const tests = [
     assert.equal(a.look, 'painted'); assert.match(a.why, /computer/);
   } },
   { name: 'places the town cannot build get painted sets, however strong the computer', fn: () => {
-    for (const t of ['The Viking raid on Lindisfarne', 'How the Romans built roads', 'Life on the first space station']) assert.equal(autoLook(t, { ok: true }).look, 'painted', t);
+    for (const t of ['How the Romans built roads', 'Life on the first space station', 'Knights defending a castle']) assert.equal(autoLook(t, { ok: true }).look, 'painted', t);
+  } },
+  { name: 'Viking stories get the 3D town on a strong computer: the town has a Viking theme (TOWN2, asked for by the owner)', fn: () => {
+    assert.equal(autoLook('The Viking raid on Lindisfarne', { ok: true }).look, 'town3d');
+    assert.equal(autoLook('How the Vikings invaded England', { ok: true }).look, 'town3d');
+    assert.equal(autoLook('The Viking raid on Lindisfarne', { ok: false, why: 'software graphics' }).look, 'painted');
   } },
 ];

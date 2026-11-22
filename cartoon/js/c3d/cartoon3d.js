@@ -1,5 +1,5 @@
 // src/driver.ts
-import * as THREE8 from "three";
+import * as THREE9 from "three";
 
 // node_modules/postprocessing/build/index.js
 import {
@@ -7075,6 +7075,11 @@ var soldier = (v = 0, extra = {}) => {
   if (v % 4 === 3) o.moustache = "#2a201a";
   return { ...o, ...extra };
 };
+var vikingfolk = (v = 0) => {
+  const tunics = ["#8c3b2e", "#3f5f7a", "#5d6b3a", "#7a5a3a", "#6a4a7a", "#a0703a"];
+  const o = { jacket: tunics[v % 6], pants: "#4e4234", boots: "#3e2c1e", belt: "#6b4a2b", skin: SKINS[v % 4], hat: "viking" };
+  return v % 3 === 2 ? { ...o, hat: "hair", hair: ["#c9a24a", "#8a5a2b", "#d8b76a"][v % 3] } : { ...o, moustache: ["#c9a24a", "#8a5a2b", "#5a3b22"][v % 3] };
+};
 var townsfolk = (v = 0) => {
   const coats = ["#3f6fb5", "#8c3b4a", "#5d7a3a", "#b5653f", "#2f5f6a", "#7b5ac9"];
   const o = { jacket: coats[v % 6], pants: "#3b3f52", boots: "#4a3426", skin: SKINS[v % 4] };
@@ -7515,6 +7520,19 @@ var hatOn = (p, o, hp, H, cx, hc, light, seed, facing, side) => {
         p.ell(px, py, 32 * u, 0.06 * HH, shade(col, 0.8), ow, 0, 180, deg);
       }
     }
+  } else if (o.hat === "viking") {
+    const yb = crown + 0.36 * HH, ht = 0.42 * HH, wb = 0.5 * W;
+    const dome = [];
+    for (let i = 0; i <= 16; i++) {
+      const t = Math.PI * (i / 16);
+      dome.push([cx - wb * Math.cos(t), yb - ht * Math.sin(t)]);
+    }
+    const body = R(dome);
+    p.shadedFill(body, "#a7afb8", "#6f7780", light, wb, 0.45);
+    p.poly(body, null, ow);
+    p.band(R([[cx - wb - 2 * u, yb - 0.02 * HH], [cx + wb + 2 * u, yb - 0.02 * HH]]), "#8c7a5b", 0.07 * HH, 1.4 * u);
+    if (!side) p.band(R([[cx + 2 * u * facing, yb - 0.04 * HH], [cx + 2 * u * facing, yb + 0.2 * HH]]), "#8f98a3", 7 * u, 1.4 * u);
+    else p.band(R([[cx + 30 * u, yb - 0.04 * HH], [cx + 30 * u, yb + 0.16 * HH]]), "#8f98a3", 6 * u, 1.4 * u);
   } else if (o.hat === "tophat") {
     const yb = crown + 0.22 * HH, ht = 0.8 * HH, wb = 0.31 * W, wt = 0.33 * W, col = "#2e2a36";
     const body = R([...sag(yb, wb).reverse(), [cx - wt, yb - ht], [cx + wt, yb - ht]]);
@@ -8738,7 +8756,12 @@ var hh = (i, s = 0) => {
 var q = (v, n = 120) => Math.round(v * n) / n;
 var SOLDIER = [0, 1, 2, 3].map((v) => soldier(v));
 var BARE = [0, 1, 2, 3].map((v) => soldier(v, { hat: null }));
-var FOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
+var TOWNFOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
+var VIKINGFOLK = [0, 1, 2, 3, 4, 5].map((v) => vikingfolk(v));
+var FOLK = TOWNFOLK;
+var setTheme = (t) => {
+  FOLK = t === "viking" ? VIKINGFOLK : TOWNFOLK;
+};
 var LOOKS = [];
 var setLooks = (looks = []) => {
   LOOKS = looks;
@@ -9135,9 +9158,10 @@ var stageTemplate = (people, effects, cam, t, light) => {
   LNAME = light;
   findSun(cam, SUN);
   people.forEach((m, i) => {
-    const own = !m.kid && m.look >= 0 ? LOOKS[m.look] : null;
-    const o = m.kid ? KID : own ? { ...FOLK[(m.look % 6 + 6) % 6], ...own } : FOLK[(m.look % 6 + 6) % 6];
-    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `f${(m.look % 6 + 6) % 6}` };
+    const base2 = FOLK[(m.look % 6 + 6) % 6];
+    const own = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null;
+    const o = m.kid ? KID : own ? { ...base2, ...own } : base2;
+    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
     const walking = m.walk != null;
     const fo = {
       mode: walking ? "stroll" : "stand",
@@ -10336,6 +10360,105 @@ function aerialAt(light, k) {
   return { pos: [b[0] + (a[0] - b[0]) * m, b[1] + (a[1] - b[1]) * m, b[2] + (a[2] - b[2]) * m], look: b, fov: golden ? 40 : 42, roll: 0 };
 }
 
+// src/viking.ts
+import * as THREE8 from "three";
+var lam2 = (color2) => new THREE8.MeshLambertMaterial({ color: color2 });
+var stripes = () => {
+  const c = document.createElement("canvas");
+  c.width = 64;
+  c.height = 256;
+  const g = c.getContext("2d");
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = i % 2 ? "#f3ead6" : "#c0392b";
+    g.fillRect(0, i * 32, 64, 32);
+  }
+  const t = new THREE8.CanvasTexture(c);
+  t.colorSpace = THREE8.SRGBColorSpace;
+  return t;
+};
+function longship() {
+  const g = new THREE8.Group();
+  const wood = lam2(9067059), dark = lam2(6044192), shieldCols = [12597547, 15320170, 2781079, 15985366];
+  const L = 7, p = new THREE8.Shape();
+  p.moveTo(-L, 1.9);
+  p.quadraticCurveTo(-L + 1.2, 0.1, -L + 3, 0);
+  p.lineTo(L - 3, 0);
+  p.quadraticCurveTo(L - 1.2, 0.1, L, 1.9);
+  p.lineTo(L - 0.4, 1.9);
+  p.quadraticCurveTo(L - 1.6, 0.85, L - 3.2, 0.8);
+  p.lineTo(-L + 3.2, 0.8);
+  p.quadraticCurveTo(-L + 1.6, 0.85, -L + 0.4, 1.9);
+  p.closePath();
+  const hull = new THREE8.ExtrudeGeometry(p, { depth: 2.6, bevelEnabled: true, bevelThickness: 0.25, bevelSize: 0.15, bevelSegments: 2, curveSegments: 16 });
+  hull.translate(0, 0, -1.3);
+  g.add(new THREE8.Mesh(hull, wood));
+  for (const y of [0.35, 0.6]) for (const z of [-1.42, 1.42]) {
+    const s = new THREE8.Mesh(new THREE8.BoxGeometry(2 * L - 5.5, 0.06, 0.04), dark);
+    s.position.set(0, y, z);
+    g.add(s);
+  }
+  const neck = new THREE8.Mesh(new THREE8.CylinderGeometry(0.16, 0.24, 1.6, 10), wood);
+  neck.position.set(L - 0.05, 2.55, 0);
+  neck.rotation.z = -0.35;
+  g.add(neck);
+  const head = new THREE8.Mesh(new THREE8.BoxGeometry(0.75, 0.42, 0.36), wood);
+  head.position.set(L + 0.35, 3.3, 0);
+  head.rotation.z = -0.15;
+  g.add(head);
+  const jaw = new THREE8.Mesh(new THREE8.ConeGeometry(0.16, 0.55, 8), wood);
+  jaw.position.set(L + 0.85, 3.2, 0);
+  jaw.rotation.z = -Math.PI / 2;
+  g.add(jaw);
+  for (const z of [-0.19, 0.19]) {
+    const eye2 = new THREE8.Mesh(new THREE8.SphereGeometry(0.06, 8, 6), lam2(15909424));
+    eye2.position.set(L + 0.45, 3.38, z);
+    g.add(eye2);
+  }
+  const tail = new THREE8.Mesh(new THREE8.TorusGeometry(0.42, 0.12, 8, 18, Math.PI * 1.4), wood);
+  tail.position.set(-L - 0.1, 2.35, 0);
+  tail.rotation.z = 0.6;
+  g.add(tail);
+  const mast = new THREE8.Mesh(new THREE8.CylinderGeometry(0.11, 0.14, 7.2, 10), dark);
+  mast.position.set(0.3, 4.4, 0);
+  g.add(mast);
+  const yard = new THREE8.Mesh(new THREE8.CylinderGeometry(0.07, 0.07, 5.6, 8), dark);
+  yard.rotation.x = Math.PI / 2;
+  yard.position.set(0.45, 7.3, 0);
+  g.add(yard);
+  const sail = new THREE8.Mesh(new THREE8.PlaneGeometry(5.2, 4.2, 6, 4), new THREE8.MeshLambertMaterial({ map: stripes(), side: THREE8.DoubleSide }));
+  const pos = sail.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) pos.setZ(i, 0.55 * (1 - (pos.getX(i) / 2.6) ** 2) * (0.6 + 0.4 * (1 - pos.getY(i) / 2.1)));
+  sail.geometry.computeVertexNormals();
+  sail.rotation.y = Math.PI / 2;
+  sail.position.set(0.55, 5.2, 0);
+  g.add(sail);
+  for (let i = 0; i < 9; i++) for (const z of [-1, 1]) {
+    const x = -L + 3.4 + i * ((2 * L - 6.8) / 8);
+    const sh = new THREE8.Mesh(new THREE8.CylinderGeometry(0.42, 0.42, 0.07, 18), lam2(shieldCols[(i + (z > 0 ? 1 : 0)) % 4]));
+    sh.rotation.x = Math.PI / 2;
+    sh.position.set(x, 1.25, z * 1.52);
+    g.add(sh);
+    const boss = new THREE8.Mesh(new THREE8.SphereGeometry(0.1, 8, 6), lam2(12107462));
+    boss.position.set(x, 1.25, z * 1.58);
+    g.add(boss);
+    if (i % 2 === 0) {
+      const oar = new THREE8.Mesh(new THREE8.CylinderGeometry(0.04, 0.04, 3.4, 6), dark);
+      oar.position.set(x + 0.4, 0.45, z * 2.6);
+      oar.rotation.x = z * 1;
+      g.add(oar);
+    }
+  }
+  g.traverse((o) => {
+    const m = o;
+    if (m.isMesh) {
+      m.castShadow = true;
+      m.receiveShadow = true;
+    }
+  });
+  return g;
+}
+var themeFor = (text) => /\b(vikings?|norse|norsemen|longships?|danes|lindisfarne|ragnar|danelaw)\b/i.test(text) ? "viking" : "town";
+
 // src/driver.ts
 var makeBloom = () => {
   const b = new BloomEffect({ blendFunction: BlendFunction.ADD, intensity: 0.5, luminanceThreshold: 1, luminanceSmoothing: 0.2, mipmapBlur: true, levels: 6, radius: 0.6 });
@@ -10346,27 +10469,27 @@ var makeBloom = () => {
 };
 var View = class {
   renderer;
-  scene = new THREE8.Scene();
+  scene = new THREE9.Scene();
   camera;
   world;
   composer;
   ink;
   lens;
   grade;
-  target = new THREE8.Vector3();
+  target = new THREE9.Vector3();
   constructor(kit, w, h, perf = {}) {
-    const r = this.renderer = new THREE8.WebGLRenderer({ antialias: false, stencil: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
+    const r = this.renderer = new THREE9.WebGLRenderer({ antialias: false, stencil: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
     r.setPixelRatio(1);
     r.setSize(w, h, false);
     r.shadowMap.enabled = true;
-    r.shadowMap.type = THREE8.PCFSoftShadowMap;
-    r.toneMapping = THREE8.NoToneMapping;
-    r.outputColorSpace = THREE8.SRGBColorSpace;
-    this.camera = new THREE8.PerspectiveCamera(40, w / h, 0.2, 1500);
+    r.shadowMap.type = THREE9.PCFSoftShadowMap;
+    r.toneMapping = THREE9.NoToneMapping;
+    r.outputColorSpace = THREE9.SRGBColorSpace;
+    this.camera = new THREE9.PerspectiveCamera(40, w / h, 0.2, 1500);
     this.world = new World(kit);
     this.scene.add(this.world.root);
     if (perf.shadow) this.world.setShadowSize(perf.shadow);
-    this.composer = new EffectComposer(r, { multisampling: perf.msaa ?? 4, frameBufferType: THREE8.HalfFloatType });
+    this.composer = new EffectComposer(r, { multisampling: perf.msaa ?? 4, frameBufferType: THREE9.HalfFloatType });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.ink = new InkPass(this.scene, this.camera);
     this.composer.addPass(this.ink);
@@ -10382,7 +10505,7 @@ var View = class {
     this.target.copy(this.world.update(id, f, cam, this.scene));
     noInkFallback(this.world.root);
     const d = dofAt(f);
-    const fwd = new THREE8.Vector3(), fpt = new THREE8.Vector3();
+    const fwd = new THREE9.Vector3(), fpt = new THREE9.Vector3();
     cam.getWorldDirection(fwd);
     if (d.focus) fpt.set(...d.focus(f));
     else fpt.copy(this.target);
@@ -10414,7 +10537,7 @@ var View = class {
     }
     this.world.updateTemplate(fr, t, cam, this.scene);
     noInkFallback(this.world.root);
-    const fwd = new THREE8.Vector3(), fpt = new THREE8.Vector3(...fr.focus);
+    const fwd = new THREE9.Vector3(), fpt = new THREE9.Vector3(...fr.focus);
     cam.getWorldDirection(fwd);
     this.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
     this.lens.cInf = fr.cInf;
@@ -10423,7 +10546,7 @@ var View = class {
     return this.renderer.domElement;
   }
 };
-async function createTemplated({ width = 1080, height = 1920, shots = [], perf = {}, looks = [] } = {}) {
+async function createTemplated({ width = 1080, height = 1920, shots = [], perf = {}, theme = "town", looks = [] } = {}) {
   const kit = await loadKit();
   setLooks(looks);
   setCardMax(perf.cardMax ?? 1080);
@@ -10431,7 +10554,20 @@ async function createTemplated({ width = 1080, height = 1920, shots = [], perf =
   canvas.width = width;
   canvas.height = height;
   const g = canvas.getContext("2d", { alpha: false });
+  setTheme(theme);
   const view = new View(kit, width, height, { msaa: perf.msaa ?? 2, shadow: perf.shadow ?? 2048 });
+  if (theme === "viking") {
+    const a = longship();
+    a.position.set(-0.5, D0 + 0.05, -29.9);
+    a.rotation.y = 0.22;
+    a.scale.setScalar(0.82);
+    view.world.root.add(a);
+    const b = longship();
+    b.position.set(-12, D0 + 0.05, -29.2);
+    b.rotation.y = -0.18;
+    b.scale.setScalar(0.74);
+    view.world.root.add(b);
+  }
   const list = [...shots].sort((a, b) => a.start - b.start);
   const at = (t) => list.find((s) => t >= s.start && t < s.end) ?? list[list.length - 1];
   return {
@@ -10496,7 +10632,8 @@ export {
   TOTAL,
   createBridge,
   createTemplated,
-  setStaticBase
+  setStaticBase,
+  themeFor
 };
 /*! Bundled license information:
 

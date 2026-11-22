@@ -139,11 +139,16 @@ export const TRANSITIONS = ['whip', 'zoom', 'fade', 'flash', 'slide', 'glitch'];
 // Moving effects drawn over a shot, so stills have real motion in them.
 export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', 'snow', 'smoke', 'pulse', 'shockwave', 'speed'];
 
-// The town can build a park, a bank street, a bridge and its square. A topic set somewhere else (the
-// Vikings at sea, a castle, space, the jungle) looks wrong there, so it gets the painted sets instead,
+// The town can build a park, a bank street, a bridge and its square (and dresses itself for Viking stories,
+// with longships on the river). A topic set somewhere else (a castle, space, the jungle) looks wrong there, so it gets the painted sets instead,
 // unless the person picked the town themselves.
-const ELSEWHERE = /\b(vikings?|longships?|norse|knights?|castles?|medieval|kings?|queens?|empires?|ancient|romans?|rome|greeks?|egypt\w*|pharaohs?|pyramids?|aztecs?|samurai|pirates?|ships?|sail\w*|sea|seas|ocean\w*|underwater|islands?|space|planets?|moon|mars|stars?|galax\w*|astronauts?|rockets?|dinosaurs?|jungle|rainforest|deserts?|volcano\w*|arctic|antarctic\w*|polar|mountains?|everest|caves?|wars?|battles?|armies|army|invad\w*|invasion|conquer\w*|history)\b/i;
-export function townFits(topic) { return !ELSEWHERE.test(String(topic || '')); }
+const ELSEWHERE = /\b(knights?|castles?|medieval|kings?|queens?|empires?|ancient|romans?|rome|greeks?|egypt\w*|pharaohs?|pyramids?|aztecs?|samurai|pirates?|ships?|sail\w*|sea|seas|ocean\w*|underwater|islands?|space|planets?|moon|mars|stars?|galax\w*|astronauts?|rockets?|dinosaurs?|jungle|rainforest|deserts?|volcano\w*|arctic|antarctic\w*|polar|mountains?|everest|caves?|wars?|battles?|armies|army|invad\w*|invasion|conquer\w*|history)\b/i;
+export function townFits(topic) {
+  const t = String(topic || '');
+  // Viking stories (raids and invasions included) fit: the town has its Viking theme for them.
+  if (/\b(vikings?|norse|norsemen|longships?|danelaw)\b/i.test(t)) return true;
+  return !ELSEWHERE.test(t);
+}
 
 // 1.2 Auto look: the 3D town when the story happens in a modern town and this computer can draw it,
 // painted sets otherwise. -> { look, why } (why is said to the person in a toast).

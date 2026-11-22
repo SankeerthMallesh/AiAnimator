@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import {
   Pen, bodyFront, bodySide, swingKid, soldier, townsfolk, OFFICER, KID, PARENT, fxNote, fxBurst, fxSplash, fxStars, fxCreak, fxRing, fxBlob, fxShadow, fxContact, fxPlank, fxDrum,
-  Outfit, Expr, FrontOpts, SideOpts,
+  Outfit, Expr, FrontOpts, SideOpts, vikingfolk,
 } from "./toon";
 import {
   FPS, D0, FILES, ROW_GAP, COUNT, PARK, SHOTS, SNAP, DROP0, DROP1, DROP_H, V3, front, marchPhase, stomp, deckY, dropW, dropU, shapeZ,
@@ -127,8 +127,12 @@ const hh = (i: number, s = 0) => { const v = Math.sin(i * 127.1 + s * 311.7) * 4
 const q = (v: number, n = 120) => Math.round(v * n) / n;
 const SOLDIER = [0, 1, 2, 3].map((v) => soldier(v));
 const BARE = [0, 1, 2, 3].map((v) => soldier(v, { hat: null }));
-const FOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
-/** Loomy 1.4: the script's own characters (colour, headwear, hair) by look number, over the town folk */
+const TOWNFOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
+const VIKINGFOLK = [0, 1, 2, 3, 4, 5].map((v) => vikingfolk(v));
+let FOLK = TOWNFOLK;
+/** the era the town's people dress for: "town" (the 1800s) or "viking" */
+export const setTheme = (t: string) => { FOLK = t === "viking" ? VIKINGFOLK : TOWNFOLK; };
+/** Loomy 1.4: the script's own characters (colour, headwear, hair) by look number, over the 1800s town folk */
 let LOOKS: (Partial<Outfit> | null)[] = [];
 export const setLooks = (looks: (Partial<Outfit> | null)[] = []) => { LOOKS = looks; };
 const vOf = (i: number) => (i * 7 + (i >> 2)) % 4;
@@ -499,9 +503,10 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
   LNAME = light;
   findSun(cam, SUN);
   people.forEach((m, i) => {
-    const own = !m.kid && m.look >= 0 ? LOOKS[m.look] : null;
-    const o = m.kid ? KID : own ? { ...FOLK[((m.look % 6) + 6) % 6], ...own } : FOLK[((m.look % 6) + 6) % 6];
-    const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `f${((m.look % 6) + 6) % 6}` };
+    const base = FOLK[((m.look % 6) + 6) % 6];
+    const own = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null; // Viking stories keep their themed clothes
+    const o = m.kid ? KID : own ? { ...base, ...own } : base;
+    const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${((m.look % 6) + 6) % 6}` };
     const walking = m.walk != null;
     const fo: FrontOpts = { mode: walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0, expr: m.expr, blink: lidAt(t, 500 + i * 7),
       wave: m.wave == null ? undefined : q(m.wave, 30), facing: m.facing ?? 0 };
