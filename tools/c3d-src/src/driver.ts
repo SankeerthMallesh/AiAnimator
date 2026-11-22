@@ -9,6 +9,9 @@ import { InkPass, noInkFallback } from "./ink";
 import { LensBlur } from "./lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "./grade";
 import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt } from "./story";
+import { frameAt, aerialAt, TSpec, PLACE_NAMES } from "./tmpl";
+import { setCardMax } from "./cast";
+export { PLACE_NAMES };
 export { setStaticBase } from "./shim/remotion";
 export { TOTAL, SHOTS };
 
@@ -23,7 +26,7 @@ const makeBloom = () => {
 class View {
   renderer: THREE.WebGLRenderer; scene = new THREE.Scene(); camera: THREE.PerspectiveCamera; world: World;
   composer: EffectComposer; ink: InkPass; lens: LensBlur; grade: GradeEffect; target = new THREE.Vector3();
-  constructor(kit: any, w: number, h: number) {
+  constructor(kit: any, w: number, h: number, perf: { msaa?: number; shadow?: number } = {}) {
     const r = this.renderer = new THREE.WebGLRenderer({ antialias: false, stencil: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
     r.setPixelRatio(1); r.setSize(w, h, false);
     r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -31,7 +34,8 @@ class View {
     this.camera = new THREE.PerspectiveCamera(40, w / h, 0.2, 1500);
     this.world = new World(kit);
     this.scene.add(this.world.root);
-    this.composer = new EffectComposer(r, { multisampling: 4, frameBufferType: THREE.HalfFloatType });
+    if (perf.shadow) this.world.setShadowSize(perf.shadow);
+    this.composer = new EffectComposer(r, { multisampling: perf.msaa ?? 4, frameBufferType: THREE.HalfFloatType });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.ink = new InkPass(this.scene, this.camera);
     this.composer.addPass(this.ink as any);
@@ -56,6 +60,57 @@ class View {
     this.composer.render();
     return this.renderer.domElement;
   }
+  /** frees the GPU: the post chain, the world, the drawings and the WebGL context itself */
+  dispose() {
+    this.composer.dispose(); this.ink.dispose(); this.lens.dispose();
+    this.world.dispose();
+    this.renderer.dispose(); this.renderer.forceContextLoss();
+  }
+
+  /** one frame of a Loomy template shot (tmpl.ts) */
+  drawTemplate(s: TSpec, t: number) {
+    const cam = this.camera, local = t - s.start;
+    const fr = frameAt(s, local);
+    if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }
+    this.world.updateTemplate(fr, t, cam, this.scene);
+    noInkFallback(this.world.root);
+    const fwd = new THREE.Vector3(), fpt = new THREE.Vector3(...fr.focus);
+    cam.getWorldDirection(fwd);
+    this.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
+    this.lens.cInf = fr.cInf;
+    gradeFor(this.grade, fr.light);
+    this.composer.render();
+    return this.renderer.domElement;
+  }
+}
+
+// Loomy's own videos with this engine: shots from a script (tmpl.ts TSpec, times in seconds). renderAt(t)
+// draws the frame at time t; a 6-frame dip through white marks a change of place (the film's crossfade feel).
+// perf: the browser defaults are lighter than the film's offline settings (which can stall a weaker graphics
+// card): MSAA 2, a 2048 shadow map, character drawings at most 1080 px wide.
+export async function createTemplated({ width = 1080, height = 1920, shots = [] as TSpec[], perf = {} as { msaa?: number; shadow?: number; cardMax?: number } } = {}) {
+  const kit = await loadKit();
+  setCardMax(perf.cardMax ?? 1080);
+  const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+  const g = canvas.getContext("2d", { alpha: false })!;
+  const view = new View(kit, width, height, { msaa: perf.msaa ?? 2, shadow: perf.shadow ?? 2048 });
+  const list = [...shots].sort((a, b) => a.start - b.start);
+  const at = (t: number) => list.find((s) => t >= s.start && t < s.end) ?? list[list.length - 1];
+  return {
+    canvas, shots: list,
+    renderAt(t: number) {
+      const s = at(t);
+      g.globalAlpha = 1;
+      g.drawImage(view.drawTemplate(s, t), 0, 0, width, height);
+      const i = list.indexOf(s), prev = list[i - 1];
+      if (prev && prev.place !== s.place) {
+        const k = (t - s.start) * 30;
+        if (k < 6) { g.globalAlpha = 0.55 * (1 - k / 6); g.fillStyle = "#ffffff"; g.fillRect(0, 0, width, height); g.globalAlpha = 1; }
+      }
+      return canvas;
+    },
+    dispose() { view.dispose(); },
+  };
 }
 
 export async function createBridge({ width = 1080, height = 1920 } = {}) {

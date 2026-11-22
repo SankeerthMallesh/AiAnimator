@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Loomy drawn-look render test</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports": {
+  "three": "../../../vendor/three/three.module.min.js",
+  "three/addons/": "../../../vendor/three/addons/"
+}}
+</script>
+<style>body { margin: 0; background: #111; } canvas { width: 360px; height: 640px; display: block; }</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<script type="module">
+// Renders a mocked script with the DrawnRenderer the 3D and Blocky tabs use (L2, L3):
+//   ?kind=3d|blocky&w=1080&h=1920&script=<json file in tools/tests/proof>
+//   window.still(t) one frame into #view; window.plan() the shot list; window.DURATION.
+import { DrawnRenderer } from '../../../explainer/js/drawn.js';
+const Q = new URLSearchParams(location.search);
+const kind = Q.get('kind') || '3d', W = +(Q.get('w') || 1080), H = +(Q.get('h') || 1920);
+const PERF = {}; if (Q.has('msaa')) PERF.msaa = +Q.get('msaa'); if (Q.has('ao')) PERF.aoSamples = +Q.get('ao');
+const file = Q.get('script') || (kind === 'blocky' ? 'drawn-blocky.json' : 'drawn-3d.json');
+const script = await (await fetch(`../proof/${file}`)).json();
+// A timeline like buildTimeline makes without a voice: 2.55 words a second, words spread evenly.
+let t = 0;
+const scenes = script.scenes.map((sc, i) => {
+  const words = sc.narration.split(/\s+/).filter(Boolean);
+  const speak = words.length / 2.55, lead = 0.08, dur = Math.max(1.8, speak + 0.45) + (i === script.scenes.length - 1 ? 0.9 : 0);
+  const item = { ...sc, index: i, start: t, dur, words: words.map((w, k) => ({ text: w, start: lead + k / 2.55, end: lead + (k + 0.85) / 2.55 })) };
+  t += dur; return item;
+});
+const timeline = { scenes, total: t };
+await document.fonts.load('700 40px Montserrat').catch(() => {});
+const view = document.getElementById('view');
+const r = new DrawnRenderer(view, { timeline, script, kind, W, H, perf: PERF });
+await r.ready;
+window.DURATION = t;
+window.plan = () => r.describe();
+window.scenesAt = () => scenes.map(s => [s.start, s.dur]);
+window.still = async (time) => { const t0 = performance.now(); r.drawFrame(time); return { ms: Math.round(performance.now() - t0) }; };
+window.ready = true;
+</script>
+</body>
+</html>

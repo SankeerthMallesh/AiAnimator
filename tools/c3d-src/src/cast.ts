@@ -54,6 +54,11 @@ export class Pool {
     }
     this.reqs = [];
   }
+  /** frees every drawing and its GPU texture */
+  dispose() {
+    for (const e of [...this.live.values(), ...this.free]) { e.tex.dispose(); e.cv.width = e.cv.height = 0; }
+    this.live.clear(); this.free = []; this.reqs = [];
+  }
 }
 
 // ---------------- sprite meshes ----------------
@@ -127,8 +132,17 @@ const vOf = (i: number) => (i * 7 + (i >> 2)) % 4;
 /** head-shape seed: 7 shapes, so marching soldiers in step still share canvases */
 const seedOf = (i: number) => ((i * 5 + 3) % 7) + 1;
 /** drawing resolution by distance: [canvas w, h, scale from the 600 x 1000 design]; sized for the 1440 x 2560 final */
-const tier = (d: number): [number, number, number] =>
+const tierFull = (d: number): [number, number, number] =>
   d < 3.2 ? [1800, 3000, 3.0] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
+/** the largest character drawing allowed (width in px of the 600 x 1000 design); the film keeps 1800 */
+let CARD_MAX = 1800;
+export const setCardMax = (w: number) => { CARD_MAX = w; };
+const tier = (d: number): [number, number, number] => {
+  const t = tierFull(d);
+  if (t[0] <= CARD_MAX) return t;
+  const k = CARD_MAX / t[0];
+  return [Math.round(t[0] * k), Math.round(t[1] * k), t[2] * k];
+};
 
 // ---------------- light ----------------
 const SUN = new THREE.Vector3(0.5, 0.75, -0.4).normalize();
@@ -471,3 +485,30 @@ export const creakFx = (t: number, pts: V3[], out: Stage, size = 0.8) =>
     out.fx.push({ key: `creak${u}`, cw: 300, ch: 300, draw: (p) => fxCreak(p, u), x, y, z, w: size, h: size, rot: i * 0.6 - 0.6 });
   });
 export { FPS };
+
+// ---------------- Loomy templates: a script's characters on a place (tmpl.ts plans the shots) ----------------
+/** someone in a template shot: x, z on the ground, the face to wear, an arm wave (-1..1) or none, a hop */
+export type TPerson = { look: number; x: number; z: number; expr: Expr; wave?: number; hop?: number; walk?: number; kid?: boolean; facing?: -1 | 0 | 1 };
+export type TFx = { kind: "burst" | "stars" | "ring" | "note"; x: number; y: number; z: number; u: number; size?: number };
+/** a Stage from template people (front view, standing or strolling) and pop effects, lit by the template's light */
+export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t: number, light: "day" | "golden"): Stage => {
+  const out: Stage = { places: [], fx: [] };
+  LNAME = light;
+  findSun(cam, SUN);
+  people.forEach((m, i) => {
+    const o = m.kid ? KID : FOLK[((m.look % 6) + 6) % 6];
+    const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : `f${((m.look % 6) + 6) % 6}` };
+    const walking = m.walk != null;
+    const fo: FrontOpts = { mode: walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0, expr: m.expr, blink: lidAt(t, 500 + i * 7),
+      wave: m.wave == null ? undefined : q(m.wave, 30), facing: m.facing ?? 0 };
+    const y = D0 + (m.hop || 0);
+    out.places.push(person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1));
+    blob(out, m.x, D0, m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+  });
+  for (const e of effects) {
+    const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;
+    const draw = e.kind === "stars" ? (p: Pen) => fxStars(p, u) : e.kind === "ring" ? (p: Pen) => fxRing(p, u) : e.kind === "note" ? (p: Pen) => fxNote(p, Math.floor(u * 3) % 3) : (p: Pen) => fxBurst(p, u);
+    out.fx.push({ key: `t${e.kind}${u}`, cw: e.kind === "stars" ? 420 : 500, ch: e.kind === "stars" ? 210 : 500, draw, x: e.x, y: e.y, z: e.z, w, h: e.kind === "stars" ? w / 2 : w });
+  }
+  return out;
+};

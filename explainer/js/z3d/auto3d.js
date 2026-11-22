@@ -4,17 +4,15 @@
 // zach-style edit (cuts every 2.5-4.5 s), depth of field on close shots, 1-3 word captions.
 import * as THREE from 'three';
 import { lerp, smooth, easeOut, easeInOut, range, clamp, V, cam, place, shake } from './anim.js';
-import { glowSprite, sparks, rippleOverlay } from './props.js';
+import { glowSprite, sparks } from './props.js';
 import { CAST, loadPerson, POSES, mix, talking, walking } from './people.js';
+import { makeThing, thingAction } from './things.js';
 
-export const SETS = ['studio', 'snow', 'park', 'street', 'room', 'beach', 'night', 'desert', 'lab'];
-export const SHOT_KINDS = ['talk', 'two', 'react', 'wide', 'walk', 'point', 'group'];
-export const POSE_NAMES = Object.keys(POSES);           // stand talk point surprised shrug cheer think flinch
-export const CAMERA_MOVES = ['push-in', 'pull-out', 'orbit', 'pan-left', 'pan-right', 'tilt-up', 'tilt-down', 'impact', 'vertigo', 'static'];
-export const EFFECTS3D = ['none', 'pulse', 'shockwave', 'sparks', 'snow', 'rain', 'glow', 'bubbles', 'dust'];
+import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D, effect3d } from './vocab.js';
+export { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D };
 
 // ---------- small helpers ----------
-const rnd = (seed) => { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
+export const rnd = (seed) => { let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 function canvasTex(w, h, draw, repeat = 1) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 8; return t;
@@ -58,12 +56,15 @@ function roundTree(h, r) {
 }
 function building(w, h, d, color, r, lit = false) {
   const g = new THREE.Group();
+  // At night only the lit windows glow: a second texture holds just them, black everywhere else.
+  const on = [];
   const win = canvasTex(256, 512, (c, W, H) => {
     c.fillStyle = color; c.fillRect(0, 0, W, H);
-    for (let y = 24; y < H - 30; y += 52) for (let x = 20; x < W - 30; x += 56) { const on = lit && r() < 0.55; c.fillStyle = on ? '#ffd88a' : (r() < 0.5 ? '#8fb2cf' : '#6f93b2'); c.fillRect(x, y, 34, 34); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(x, y + 32, 34, 4); }
+    for (let y = 24; y < H - 30; y += 52) for (let x = 20; x < W - 30; x += 56) { const o = lit && r() < 0.45; if (o) on.push([x, y]); c.fillStyle = o ? '#ffd88a' : (r() < 0.5 ? '#8fb2cf' : '#6f93b2'); c.fillRect(x, y, 34, 34); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(x, y + 32, 34, 4); }
   }, 1);
-  win.repeat.set(Math.max(1, Math.round(w / 4)), Math.max(1, Math.round(h / 8)));
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), std({ map: win, roughness: 0.7, emissive: lit ? 0xffc870 : 0x000000, emissiveMap: lit ? win : null, emissiveIntensity: lit ? 0.35 : 0 }));
+  const glowMap = lit ? canvasTex(256, 512, (c, W, H) => { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); c.fillStyle = '#ffd88a'; for (const [x, y] of on) c.fillRect(x, y, 34, 34); }, 1) : null;
+  for (const t of [win, glowMap]) t?.repeat.set(Math.max(1, Math.round(w / 4)), Math.max(1, Math.round(h / 8)));
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), std({ map: win, roughness: 0.7, emissive: lit ? 0xffffff : 0x000000, emissiveMap: glowMap, emissiveIntensity: lit ? 1.4 : 0, color: lit ? 0x8a8f9c : 0xffffff }));
   m.position.y = h / 2; g.add(m);
   const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.3, d + 0.3), std({ color: 0x55585e })); roof.position.y = h + 0.15; g.add(roof);
   return shadowAll(g);
@@ -91,7 +92,7 @@ const SKY = {
 };
 export function stageFor(set) {
   const base = { shadowSize: 7, sun: 2.6, sunDir: [-6, 6, 7], sunColor: 0xfff1e0, hemi: 0.85, rimLight: 1.6, rimDir: [6, 4, -6], shadowMap: 2048, fog: [22, 130], sky: SKY[set] ?? null };
-  if (set === 'night') return { ...base, sun: 0.5, sunColor: 0x9fb4ff, hemi: 0.3, rimLight: 1.1, fog: [16, 90] };
+  if (set === 'night') return { ...base, sun: 0.28, sunColor: 0x9fb4ff, hemi: 0.1, rimLight: 0.7, rimDir: [5, 5, -6], fog: [14, 80] };
   if (set === 'room' || set === 'lab') return { ...base, sun: 2.0, sunDir: [-4, 5, 6], hemi: 1.0, rimLight: 1.0, fog: null };
   if (set === 'desert') return { ...base, sun: 3.1, sunColor: 0xffe2b8, fog: [30, 160] };
   if (set === 'beach') return { ...base, sun: 2.9, fog: [30, 170] };
@@ -100,7 +101,7 @@ export function stageFor(set) {
 // Builds the place around the origin: people stand near (0, 0, 0), the camera looks along -z.
 export function buildSet(scene, set, seed = 1) {
   const r = rnd(seed * 7919 + 13);
-  if (set === 'night') scene.environmentIntensity = 0.25;
+  if (set === 'night') scene.environmentIntensity = 0.1;
   if (set === 'studio') {
     ground(scene, speckle('#c9d6e3', ['#b9c8d8', '#dbe5ef'], 3, 10), { roughness: 0.55 });
     return;
@@ -130,7 +131,9 @@ export function buildSet(scene, set, seed = 1) {
     for (let x = -60; x < 60; x += 4) { const d = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.15), std({ color: 0xf2f2f2 })); d.rotation.x = -Math.PI / 2; d.position.set(x, 0.006, -5.5); scene.add(d); }
     const cols = ['#c98f6b', '#d9c7a3', '#9fb3c8', '#c7a2a2', '#b8c4a0', '#e0d3bf'];
     for (let x = -50; x < 50;) { const w = 6 + r() * 6, h = 8 + r() * 18; const b = building(w, h, 8, cols[Math.floor(r() * cols.length)], r, lit); b.position.set(x + w / 2, 0, -14 - r() * 3); scene.add(b); x += w + 0.6; }
-    for (let x = -24; x <= 24; x += 8) { const l = lamp(lit); l.position.set(x, 0, -1.8); scene.add(l); }
+    // Lamps sit off-centre so no pole stands behind the people at x = 0; at night one lights them.
+    for (let x = -22; x <= 26; x += 8) { const l = lamp(lit); l.position.set(x, 0, -1.8); scene.add(l); }
+    if (lit) { const f = new THREE.PointLight(0xffd59a, 7, 9, 2); f.position.set(1.6, 3.2, 1.2); scene.add(f); }
     return;
   }
   if (set === 'room' || set === 'lab') {
@@ -168,64 +171,16 @@ export function buildSet(scene, set, seed = 1) {
   }
 }
 
-// ---------- the cast for a script ----------
-const FEMALE = /\b(woman|women|girl|she|her|mother|mom|wife|queen|lady|female|sister|daughter|grandma|aunt)\b/i;
-export function castFor(characters = []) {
-  const f = ['carla', 'sophia', 'claudia'], m = ['nathan', 'eric', 'manuel'];
-  const out = new Map();
-  for (const c of characters.slice(0, 3)) {
-    const female = FEMALE.test(`${c.look || ''} ${c.name || ''}`);
-    const pool = female ? f : m;
-    const id = pool.find(x => ![...out.values()].includes(x)) || pool[0];
-    out.set(String(c.name || '').toLowerCase(), id);
-  }
-  return out;
-}
-// The people a scene names (by character name), else the hero, else a presenter.
-export function whoFor(spec, castMap) {
-  const names = (spec.who || []).map(n => castMap.get(String(n).toLowerCase())).filter(Boolean);
-  const all = [...castMap.values()];
-  const want = spec.kind === 'two' ? 2 : spec.kind === 'group' ? 3 : 1;
-  const out = [...new Set(names)];
-  for (const id of [...all, 'nathan', 'carla', 'eric']) { if (out.length >= want) break; if (!out.includes(id)) out.push(id); }
-  return out.slice(0, want);
-}
+// The cast and the shot plan live in plan.js (no three.js, so the sound and the tests can use them).
+export { castFor, whoFor, planShots } from './plan.js';
 export async function loadCast(ids) {
   const people = {};
   await Promise.all([...new Set(ids)].map(async (id) => { if (CAST[id]) people[id] = await loadPerson(id); }));
   return people;
 }
 
-// ---------- the shot plan ----------
-// scenes: timeline scenes ({ start, dur, words, set, shot, who, pose, camera, effect, icon, narration }).
-// A long line is cut into two shots (the writer's shot, then a reaction or a wide), so the edit keeps
-// the 2.5-4.5 s rhythm of the reference shorts.
-const COMPLEMENT = { talk: 'react', two: 'react', react: 'wide', wide: 'talk', walk: 'react', point: 'react', group: 'react' };
-export function planShots(scenes, castMap) {
-  const out = [];
-  let lastSet = 'studio';
-  scenes.forEach((sc, i) => {
-    const set = SETS.includes(sc.set) ? sc.set : lastSet; lastSet = set;
-    const kind = SHOT_KINDS.includes(sc.shot) ? sc.shot : (i === 0 ? 'wide' : ['talk', 'react', 'two', 'point', 'wide'][i % 5]);
-    const base = {
-      set, seed: (i + 1) * 31, effect: EFFECTS3D.includes(sc.effect) ? sc.effect : 'none', icon: sc.icon || '',
-      pose: POSE_NAMES.includes(sc.pose) ? sc.pose : 'talk', camera: CAMERA_MOVES.includes(sc.camera) ? sc.camera : ['push-in', 'orbit', 'pull-out', 'pan-left', 'tilt-up'][i % 5],
-      who: Array.isArray(sc.who) ? sc.who : [], words: sc.words || [], scene: i,
-    };
-    const a = sc.start, b = sc.start + sc.dur;
-    const parts = sc.dur > 4.8 ? [[a, a + sc.dur * 0.55], [a + sc.dur * 0.55, b]] : [[a, b]];
-    parts.forEach(([s, e], k) => {
-      const spec = { ...base, start: s, end: e, kind: k ? COMPLEMENT[kind] : kind, camera: k ? (base.camera === 'push-in' ? 'pull-out' : 'push-in') : base.camera, offset: s - sc.start };
-      if (k && spec.kind === 'react') spec.pose = { talk: 'think', point: 'surprised', stand: 'shrug' }[base.pose] || base.pose;
-      spec.cast = whoFor(spec, castMap);
-      out.push(spec);
-    });
-  });
-  return out;
-}
-
 // ---------- camera ----------
-function frameCam(c, target, { dist, height = 0, yaw = 0, side = 0 }, move, k, t, seed, fov0) {
+export function frameCam(c, target, { dist, height = 0, yaw = 0, side = 0 }, move, k, t, seed, fov0) {
   let d = dist, y = yaw, tx = target.x, ty = target.y, tz = target.z, f = fov0, lat = side;
   switch (move) {
     case 'push-in': d *= lerp(1.14, 0.9, k); break;
@@ -246,24 +201,39 @@ function frameCam(c, target, { dist, height = 0, yaw = 0, side = 0 }, move, k, t
   return Math.hypot(px - tx, ty + height - ty, pz - tz);
 }
 
+// Sideways moves would push one of several people out of a narrow frame: they become a slow push.
+export const narrowMove = (m) => (m === 'pan-left' || m === 'pan-right' ? 'push-in' : m);
+
 // ---------- effects ----------
-function emojiSprite(ch, size = 0.6) {
+export function emojiSprite(ch, size = 0.6) {
   const tex = canvasTex(256, 256, (g, w, h) => { g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '200px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; g.fillText(ch, w / 2, h / 2 + 10); });
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.repeat.set(1, 1);
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
   s.scale.setScalar(size); return s;
 }
-function makeEffect(kind, scene, seed) {
+export function makeEffect(kind, scene, seed) {
   if (kind === 'pulse' || kind === 'shockwave') {
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(kind === 'shockwave' ? 0.5 : 0.16, 48), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-    scene.add(disc);
-    const rp = rippleOverlay(disc); rp.material.uniforms.uRings.value = kind === 'shockwave' ? 60 : 120;
+    // Rings in the air beside the subject (pulse: a beat every 0.6 s) or flat on the ground spreading from
+    // their feet (shockwave). Never drawn on a person: a disc on the chest read as a wound.
+    const mat = () => new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+    const rings = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 64), mat()); m.renderOrder = 5; scene.add(m); return m; });
+    const right = new THREE.Vector3();
     return (t, P, camPos) => {
-      disc.position.copy(P); disc.lookAt(camPos);
-      const u = rp.material.uniforms;
-      if (kind === 'pulse') { const beat = (t * 1.6) % 1, pulse = Math.exp(-beat * 5); u.uAmp.value = 0.35 + pulse * 0.6; u.uRadius.value = 0.04 + easeOut(beat) * 0.12; }
-      else { u.uAmp.value = Math.max(0, 1 - t * 0.6); u.uRadius.value = 0.05 + easeOut(range(t, 0.1, 1.2)) * 0.5; }
-      u.uSpot.value = 0.05; u.uTime.value = t;
+      if (kind === 'pulse') {
+        right.set(-(P.z - camPos.z), 0, P.x - camPos.x).normalize();
+        rings.forEach((m, i) => {
+          const beat = ((t + i * 0.3) / 0.6) % 1;
+          m.position.copy(P).addScaledVector(right, 0.24).add(new THREE.Vector3(0, 0.5, 0.05));
+          m.lookAt(camPos); m.scale.setScalar(0.03 + easeOut(beat) * 0.11);
+          m.material.opacity = 0.9 * (1 - beat) * Math.min(1, t * 3);
+        });
+      } else {
+        rings.forEach((m, i) => {
+          const k = easeOut(range(t, 0.1 + i * 0.18, 1.3 + i * 0.18));
+          m.position.set(P.x, 0.02, P.z); m.rotation.set(-Math.PI / 2, 0, 0);
+          m.scale.setScalar(0.2 + k * 2.6); m.material.opacity = 0.8 * (1 - k) * (k > 0 ? 1 : 0);
+        });
+      }
     };
   }
   if (kind === 'sparks') {
@@ -271,8 +241,8 @@ function makeEffect(kind, scene, seed) {
     return (t, P) => { sp.position.copy(P); sp.update((t - 0.3) % 1.6); };
   }
   if (kind === 'glow') {
-    const g = glowSprite(0xfff1b0, 1.2); scene.add(g);
-    return (t, P) => { g.position.copy(P); g.scale.setScalar(0.9 + Math.sin(t * 4) * 0.15); };
+    const g = glowSprite(0xfff1b0, 0.7); scene.add(g);
+    return (t, P) => { g.position.copy(P).add(new THREE.Vector3(0.45, 0.5, -0.45)); g.scale.setScalar(0.6 + Math.sin(t * 4) * 0.08); };
   }
   if (['snow', 'rain', 'dust', 'bubbles'].includes(kind)) {
     const n = kind === 'rain' ? 900 : 500, r = rnd(seed), pos = new Float32Array(n * 3), base = [];
@@ -295,7 +265,7 @@ function makeEffect(kind, scene, seed) {
 }
 
 // ---------- the shots ----------
-const speakingAt = (words, t) => words.some(w => t >= w.start - 0.05 && t <= w.end + 0.05);
+export const speakingAt = (words, t) => words.some(w => t >= w.start - 0.05 && t <= w.end + 0.05);
 function poseNow(p, name, t, { talk = 0, onset = 0.25, from = 'stand', seed = 0, extra = null } = {}) {
   let q = mix(POSES[from] || POSES.stand, POSES[name] || POSES.stand, smooth(range(t, onset, onset + 0.45)));
   if (talk) q = talking(q, t, talk);
@@ -312,10 +282,22 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   const r = rnd(spec.seed);
   const yawJ = (r() - 0.5) * 0.3;
   const fx = makeEffect(spec.effect, scene, spec.seed);
-  const icon = spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.55) : null;
+  // A real thing (things.js) in the shot replaces the emoji icon.
+  const thing = spec.thing ? makeThing(spec.thing) : null;
+  if (thing) scene.add(thing);
+  const holds = thing && (spec.do === 'hold' || spec.do === 'show') && spec.kind !== 'object';
+  const icon = !thing && spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.55) : null;
   if (icon) scene.add(icon);
+  if (spec.kind === 'object') {
+    // The thing's stand: a small round table, so the close-up has a place to sit.
+    const wood = std({ color: 0x6b4a2e, roughness: 0.6 });
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 48), wood); top.position.y = 0.88;
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.86, 16), wood); leg.position.y = 0.43;
+    scene.add(shadowAll(top), shadowAll(leg));
+  }
   const words = spec.words.map(w => ({ start: w.start - spec.offset, end: w.end - spec.offset }));
   const near = wide ? 0.85 : 1; // a wide frame needs the camera a little closer
+  const tall = H > W * 1.2;     // 9:16 and 4:5: little room side to side
   const at = (p, x, z, ry) => { scene.add(p.object); p.object.position.set(x, 0, z); p.object.rotation.set(0, ry, 0); };
   const chest = (p) => { const h = p.headWorld(new THREE.Vector3()); return h.add(new THREE.Vector3(0, -0.32, 0.12)); };
   const lookAt = (p) => p.headWorld(new THREE.Vector3());
@@ -323,22 +305,41 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   return { scene, camera: c, update(t) {
     const k = easeInOut(range(t, 0, dur));
     let focusD = 0, ap = 0, target = V(0, 1.2, 0), eff = null;
+    let spot = null, hand = null, tScale = 1;
     const A = P[0], B = P[1], C = P[2];
     const talk = speakingAt(words, t) ? 0.9 : 0;
+    // Someone holding the thing raises it in the right hand (the show pose); the thing follows the hand.
+    if (holds && A) hand = () => A.handWorld('r', new THREE.Vector3());
+    const pose0 = holds ? 'show' : null;
     switch (spec.kind) {
+      case 'object': {
+        // The thing up close on its stand, the speaker soft behind it.
+        const h = thing?.userData.h || 0.2;
+        tScale = h < 0.12 ? 1.7 : h > 0.5 ? 0.7 : 1;
+        spot = V(0, 0.9, 0);
+        if (A) { at(A, tall ? 0.45 : 0.8, -1.5, -0.35); poseNow(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { talk, from: 'stand', seed: spec.seed }); }
+        target = V(0, 0.9 + h * tScale * 0.5, 0);
+        // Far enough that the thing's widest side fills about 40 % of the frame's width.
+        const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
+        const span = Math.max(big.x, big.y, big.z, 0.12) * tScale;
+        focusD = frameCam(c, target, { dist: Math.max(0.6, span * (tall ? 4.4 : 2.6)) * near, height: span * 0.45, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        ap = 0.005; eff = target.clone(); break;
+      }
       case 'talk': {
         at(A, 0, 0, 0.18);
-        poseNow(A, spec.pose === 'stand' ? 'talk' : spec.pose, t, { talk, from: 'talk', seed: spec.seed });
+        poseNow(A, pose0 || (spec.pose === 'stand' ? 'talk' : spec.pose), t, { talk, from: 'talk', seed: spec.seed });
         target = lookAt(A).add(V(0, -0.12, 0));
         focusD = frameCam(c, target, { dist: 1.9 * near, height: 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
         ap = 0.0018; eff = chest(A); break;
       }
       case 'two': {
-        at(A, -0.55, 0, 0.9); at(B, 0.55, 0.05, -0.9);
-        poseNow(A, 'talk', t, { talk, from: 'talk', seed: spec.seed });
+        const gap = tall ? 0.34 : 0.55;
+        at(A, -gap, 0, tall ? 0.55 : 0.9); at(B, gap, 0.05, tall ? -0.55 : -0.9);
+        poseNow(A, pose0 || 'talk', t, { talk, from: 'talk', seed: spec.seed });
         poseNow(B, spec.pose, t, { from: 'stand', onset: dur * 0.4, seed: spec.seed + 1 });
+        if (thing && !holds) { spot = lookAt(A).lerp(lookAt(B), 0.5).add(V(0, -0.75, 0.25)); tScale = 1.4; }
         target = lookAt(A).lerp(lookAt(B), 0.5).add(V(0, -0.2, 0));
-        focusD = frameCam(c, target, { dist: 2.9 * near, height: 0.05, yaw: 0.25 }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        focusD = frameCam(c, target, { dist: (tall ? 3.7 : 2.9) * near, height: 0.05, yaw: tall ? 0.12 : 0.25 }, spec.camera === 'impact' ? 'push-in' : (tall ? narrowMove(spec.camera) : spec.camera), k, t, spec.seed, fov0);
         ap = 0.0011; eff = chest(B); break;
       }
       case 'react': {
@@ -364,39 +365,41 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         ap = 0.0014; eff = chest(A); break;
       }
       case 'point': {
-        at(A, -0.5, 0, 0.5);
+        at(A, tall ? 0.2 : 0.5, 0, -0.6);
         poseNow(A, 'point', t, { talk, from: 'talk', onset: 0.3, seed: spec.seed, extra: { head: [0, -0.5, 0] } });
-        const spot = V(0.9, 1.45, -0.2);
-        if (icon) { icon.position.copy(spot); icon.scale.setScalar(0.55 * (0.7 + 0.3 * easeOut(range(t, 0.3, 0.8))) + Math.sin(t * 3) * 0.02); }
-        target = V(0.1, 1.4, -0.1);
-        focusD = frameCam(c, target, { dist: 2.4 * near, height: 0.05, yaw: 0.05 }, spec.camera === 'orbit' ? 'orbit' : 'pan-right', k, t, spec.seed, fov0);
-        ap = 0.0012; eff = spot; break;
+        const pt = tall ? V(-0.36, 1.62, -0.15) : V(-0.9, 1.45, -0.2);
+        if (icon) { icon.position.copy(pt); icon.scale.setScalar(0.55 * (0.7 + 0.3 * easeOut(range(t, 0.3, 0.8))) + Math.sin(t * 3) * 0.02); }
+        if (thing) { spot = pt.clone().add(V(0, -0.25, 0)); tScale = 2.2; }
+        target = tall ? V(-0.04, 1.45, -0.1) : V(-0.1, 1.4, -0.1);
+        focusD = frameCam(c, target, { dist: (tall ? 3.0 : 2.4) * near, height: 0.05, yaw: 0.05 }, spec.camera === 'orbit' ? 'orbit' : tall ? 'push-in' : 'pan-left', k, t, spec.seed, fov0);
+        ap = 0.0012; eff = pt; break;
       }
       case 'group': {
-        at(A, 0, 0, 0); if (B) at(B, -0.85, -0.2, 0.25); if (C) at(C, 0.85, -0.2, -0.25);
+        const side = tall ? 0.58 : 0.85, back = tall ? -0.45 : -0.2;
+        at(A, 0, 0, 0); if (B) at(B, -side, back, 0.3); if (C) at(C, side, back, -0.3);
         const pz = spec.pose === 'talk' ? 'cheer' : spec.pose;
         poseNow(A, pz, t, { from: 'stand', onset: 0.25, seed: spec.seed }); if (B) poseNow(B, pz, t, { onset: 0.4, seed: spec.seed + 1 }); if (C) poseNow(C, pz, t, { onset: 0.55, seed: spec.seed + 2 });
         target = V(0, 1.3, -0.1);
-        focusD = frameCam(c, target, { dist: 3.6 * near, height: 0.15, yaw: 0.1 }, spec.camera, k, t, spec.seed, fov0);
+        focusD = frameCam(c, target, { dist: (tall ? 4.9 : 3.6) * near, height: 0.15, yaw: 0.1 }, (tall ? narrowMove(spec.camera) : spec.camera), k, t, spec.seed, fov0);
         ap = 0.0009; eff = chest(A); break;
       }
     }
+    if (thing) {
+      if (!spot && !hand) {
+        // Not held and not placed by the shot: it lands or spins beside the first person.
+        const base = A ? A.object.position.clone() : V(0, 0, 0);
+        const side = spec.kind === 'wide' ? 0.9 : 0.55;
+        spot = base.add(V(tall ? side * 0.6 : side, spec.do === 'drop' || spec.do === 'break' ? 0 : 1.0, 0.35));
+        tScale = spec.kind === 'wide' ? 2.6 : spec.kind === 'react' ? 1.2 : 1.8;
+        if (thing.userData.h > 0.5) tScale = Math.min(tScale, 1.1);
+      }
+      thingAction(thing, spec.do, t, { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: tScale });
+    }
     if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.55, 0.55, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
     if (fx && eff) fx(t, eff, c.position);
-    return { bloom: spec.set === 'night' ? 0.55 : 0.25, ao: 0.7, exposure: spec.set === 'night' ? 1.05 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
+    return { bloom: spec.set === 'night' ? 0.6 : 0.25, ao: icon || spec.effect === 'glow' ? 0 : 0.7, exposure: spec.set === 'night' ? 0.85 : 1.0, grade: { sat: 1.06, con: 1.04, vig: 0.22 }, ...(ap ? { dof: { focus: focusD, aperture: ap, maxblur: 0.009 } } : {}) };
   } };
 }
 
-// ---------- captions: 1-3 words, a new one at every pause or punctuation ----------
-export function captionsFrom(scenes) {
-  const caps = [];
-  for (const sc of scenes) {
-    const ws = (sc.words || []).map(w => ({ text: w.text, s: sc.start + w.start, e: sc.start + w.end }));
-    let cur = [];
-    const flush = () => { if (!cur.length) return; caps.push([cur[0].s - 0.02, cur.map(w => w.text.replace(/[.,!?;:"]+$/g, '')).join(' '), cur[cur.length - 1].e + 0.12]); cur = []; };
-    ws.forEach((w, i) => { if (cur.length && (cur.length >= 3 || w.s - cur[cur.length - 1].e > 0.3)) flush(); cur.push(w); if (/[.,!?;:]$/.test(w.text) && cur.length >= 1) flush(); });
-    flush();
-  }
-  for (let i = 0; i + 1 < caps.length; i++) caps[i][2] = Math.min(caps[i][2], caps[i + 1][0]);
-  return caps;
-}
+// ---------- captions: 1-3 words, a new one at every pause or punctuation (captions.js) ----------
+export { captions3d as captionsFrom } from './captions.js';

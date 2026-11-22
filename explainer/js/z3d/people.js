@@ -72,6 +72,8 @@ export class Person {
   get object() { return this.holder; }
 
   // Head (eye level) in world space, for cameras and eye lines.
+  // Where a hand is in the world (side 'l' or 'r'): things held are placed there every frame.
+  handWorld(side = 'r', out = new THREE.Vector3()) { this.holder.updateMatrixWorld(true); const b = this.bones[`hand_${side}`] || this.bones.head || this.root; return out.setFromMatrixPosition(b.matrixWorld); }
   headWorld(out = new THREE.Vector3()) { this.holder.updateMatrixWorld(true); return out.setFromMatrixPosition((this.bones.head || this.root).matrixWorld); }
 
   reset() {
@@ -175,6 +177,8 @@ export const POSES = {
   shrug: { armL: A(0.12, -1, 0.12, 0.6, 0.2, 0.8, { fist: 0 }), armR: A(-0.12, -1, 0.12, -0.6, 0.2, 0.8, { fist: 0 }), head: [0.05, 0, 0.12], shrug: 0.07, brows: 0.6 },
   cheer: { armL: A(0.75, 0.75, 0.1, 0.05, 1, 0.3, { fist: 0.9 }), armR: A(-0.75, 0.75, 0.1, -0.05, 1, 0.3, { fist: 0.9 }), head: [-0.15, 0, 0], jaw: 0.8, brows: 0.6 },
   think: { armL: A(0.15, -1, 0.3, -0.9, 0.05, 0.4), armR: A(-0.12, -1, 0.35, 0.35, 1, 0.3, { fist: 0.7 }), head: [0.1, 0.15, 0.08], brows: -0.4 },
+  // Holding a thing up in front of the chest to show it (the right hand; things.js puts the thing there).
+  show: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.22, -0.82, 0.5, 0.02, 0.3, 1, { fist: 0.55 }), head: [0.12, 0.08, 0], brows: 0.3 },
   flinch: { armL: A(0.3, -0.3, 0.8, -0.4, 1, 0.3, { fist: 0.5 }), armR: A(-0.3, -0.3, 0.8, 0.4, 1, 0.3, { fist: 0.5 }), head: [0.25, 0.3, 0], spine: [0.25, 0.2, 0], blink: 1, brows: -0.6, hipDrop: 4 },
 };
 

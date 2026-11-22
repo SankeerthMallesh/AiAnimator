@@ -26,6 +26,13 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
         # three.js for the code-drawn 3D engine (js/z3d/).
         entries.append(f'  "three": "../vendor/three/three.module.min.js?v={v}"')
         entries.append(f'  "three/addons/": "../vendor/three/addons/"')
+    if app == 'cartoon':
+        # The 3D cartoon town (js/c3d, built from tools/c3d-src) needs three.js; town.js plans its shots
+        # with the 3D tab's shot planner.
+        for m in ['z3d/plan.js', 'z3d/vocab.js']:
+            entries.append(f'  "../explainer/js/{m}": "../explainer/js/{m}?v={v}"')
+        entries.append(f'  "three": "../vendor/three/three.module.min.js?v={v}"')
+        entries.append(f'  "three/examples/jsm/": "../vendor/three/addons/"')
     for sh in sorted(glob.glob(os.path.join(root, 'shared', '*.js'))):
         n = os.path.basename(sh)
         entries.append(f'  "../shared/{n}": "../shared/{n}?v={v}"')

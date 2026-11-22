@@ -1,6 +1,6 @@
 // UI controller for Storyforge Studio.
 import { resetVoiceReport } from './tts.js';
-import { STYLES, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
+import { STYLES, AUTO_STYLE, pickLook, MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, CAMERAS, TRANSITIONS, EFFECTS, PACES, FORMATS, formatOf } from './presets.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { preloadDepth } from './depth.js';
 import { preloadSafety } from './safety.js';
@@ -73,10 +73,63 @@ function refreshVoiceSelect() {
   else fillSelect(sel, VOICES.map(([v, l]) => [v, l.split(' — ')[0]]), settings.voice);
 }
 
+// The 3D tab opens on Auto (3D people drawn in code for stories about people, the AI-picture look for
+// things, places, history and science: pickLook), the Blocky tab (?style=blocky) on the drawn blocky
+// world; every look stays in the list. Any other ?style= opens that style.
+function defaultStyle() {
+  const q = new URLSearchParams(location.search).get('style');
+  if (q === 'blocky') return 'drawn-blocky';
+  return STYLES[q] ? q : AUTO_STYLE;
+}
+
+// "Made with Loomy": real frames of this tab's looks under the composer.
+const SHOWCASE = {
+  '3d': [['3d-break', 'A brick on a stand with the headline THIS WALL IS 2,000 YEARS OLD', 'Hook + 3D objects'], ['3d-hold', 'A man holding a brick', '3D people'], ['3d-atom', 'A woman pointing at an atom', '3D objects'], ['3d-object', 'A brick close-up with a woman behind it', 'Object close-ups']],
+  blocky: [['blocky-react', 'A blocky character with a shocked face', 'Cold open'], ['blocky-wide', 'A blocky kid in a snowy street', 'Blocky world'], ['blocky-group', 'Three blocky friends cheering', 'Blocky cast'], ['town-group', 'Cartoon townsfolk cheering', 'Also in Cartoons']],
+};
+function fillShowcase() {
+  const row = document.getElementById('showcase'); if (!row) return;
+  const tab = new URLSearchParams(location.search).get('style') === 'blocky' ? 'blocky' : '3d';
+  row.replaceChildren(...SHOWCASE[tab].map(([f, alt, cap]) => el('figure', {}, el('img', { src: `../shared/showcase/${f}.jpg`, alt, loading: 'lazy', width: 270, height: 480 }), el('figcaption', {}, cap))));
+}
+
+
+// ---------- long form: one click sets up a long video in chapters (16:9, the length, the style notes) ----------
+function initLongStarts(starts) {
+  const row = document.getElementById('longStarts'); if (!row) return;
+  row.replaceChildren(...starts.map(st => {
+    const b = el('button', { type: 'button', class: 'long-start' }, el('b', {}, st.label), el('span', {}, st.hint));
+    b.addEventListener('click', () => {
+      document.querySelector('#formatSeg button[data-format="16:9"]')?.click();
+      const d = $('#duration'); if ([...d.options].some(o => o.value === String(st.seconds))) d.value = String(st.seconds);
+      $('#extra').value = st.notes;
+      const topic = $('#topic'); if (!topic.value.trim()) topic.placeholder = st.example;
+      row.querySelectorAll('.long-start').forEach(x => x.classList.toggle('on', x === b));
+      toast(`${st.label}: ${Math.round(st.seconds / 60)} minutes in chapters, 16:9. Type your topic and roll.`);
+      topic.focus();
+    });
+    return b;
+  }));
+}
+
+const LONG_STARTS = {
+  '3d': [
+    { label: '3D explainer', hint: '10 min · chapters', seconds: 600, example: 'Why the Roman Empire really fell', notes: 'A long 3D explainer in chapters: one big question answered step by step, real objects people hold, break and point at, a reveal at the end of every chapter.' },
+    { label: 'History in 3D', hint: '15 min · chapters', seconds: 900, example: 'The whole history of the Titanic, from the shipyard to the seabed', notes: 'A long history documentary in chapters, in time order: who, where and when at the start of each chapter, real dates and places, a cliffhanger at the end of every chapter.' },
+  ],
+  blocky: [
+    { label: 'Game-world story', hint: '8 min · chapters', seconds: 480, example: 'The server where my best friend became the villain', notes: 'A long first-person game-world story in chapters: a mystery set up in chapter 1, rivals, betrayals and a big reveal; every chapter ends on a cliffhanger.' },
+    { label: 'Game-world saga', hint: '15 min · chapters', seconds: 900, example: 'I built a whole kingdom, and then the griefers came', notes: 'A long first-person game-world saga in chapters: the build-up, the war, the comeback; named friends and rivals, a cliffhanger at the end of every chapter.' },
+  ],
+};
+
 function initComposer() {
+  fillShowcase();
+  initLongStarts(LONG_STARTS[new URLSearchParams(location.search).get('style') === 'blocky' ? 'blocky' : '3d']);
   // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
-  fillSelect($('#style'), Object.entries(STYLES).map(([k, s]) => [k, s.label]), STYLES[new URLSearchParams(location.search).get('style')] ? new URLSearchParams(location.search).get('style') : 'story-3d');
+  const blockyTab = new URLSearchParams(location.search).get('style') === 'blocky';
+  fillSelect($('#style'), [...(blockyTab ? [] : [[AUTO_STYLE, 'Auto: drawn 3D people or AI pictures, by topic']]), ...Object.entries(STYLES).map(([k, s]) => [k, s.label])], defaultStyle());
   // The Blocky tab opens this page with ?style=blocky: give it its own heading.
   if (new URLSearchParams(location.search).get('style') === 'blocky') {
     const badge = document.querySelector('.hero-badge b'), h = document.querySelector('.view.home .headline'), lede = document.querySelector('.view.home .lede');
@@ -250,6 +303,11 @@ function log(msg) {
 // ---------------- project flow ----------------
 function startProject(topic, options) {
   if (!confirmLeave()) return;
+  if (!STYLES[options.style]) {
+    // Auto: the look that can show this topic (people drawn in code, or AI pictures of the things in it).
+    options = { ...options, style: pickLook(`${topic} ${options.mode === 'own' ? options.ownScript || '' : ''}`), autoLook: true };
+    toast(`Look: ${STYLES[options.style].label} (picked for this topic; change it under Look).`);
+  }
   openProject(newProject(topic, options), { render: !settings.reviewFirst });
 }
 
@@ -263,7 +321,7 @@ function openProject(p, { render }) {
   $('#board').innerHTML = '';
   $('#factNotes').classList.add('hidden');
   $('#metaCard').classList.add('hidden');
-  $('#btnDownload').classList.add('hidden');
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden');
   $('#renderProg').classList.add('hidden');
   const ratio = FORMATS[formatOf(p.options)].ratio;
   $('#stage').style.aspectRatio = String(ratio);
@@ -368,16 +426,19 @@ window.addEventListener('error', (ev) => { if (ev.message) log(`Unexpected probl
 
 async function doRender(pl = pipeline) {
   stopPreview();
-  $('#btnDownload').classList.add('hidden');
+  $('#btnDownload').classList.add('hidden'); $('#btnEdit')?.classList.add('hidden');
   $('#renderProg').classList.remove('hidden');
   $('#renderBar').style.width = '0%';
   $('#renderText').textContent = 'Starting…';
+  // A drawn look keeps a whole 3D engine for the preview: free it first, so only one runs during the export.
+  if (player.renderer?.ready) { player.renderer.dispose(); player.renderer = null; }
   const video = await pl.render();
   const a = $('#btnDownload');
   a.href = video.url;
   a.download = `${slug(project.script.title)}.${video.ext}`;
   a.textContent = `Download ${video.ext.toUpperCase()} · ${(video.blob.size / 1048576).toFixed(1)} MB`;
   a.classList.remove('hidden');
+  $('#btnEdit')?.classList.remove('hidden');
   const v = $('#outVideo');
   v.src = video.url;
   v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(0.8, v.duration / 2); } catch { /* ignore */ } }, { once: true });
@@ -679,6 +740,25 @@ function updateThumb(i) {
   copyThumbToClip(i);
 }
 
+// Looks drawn in code have no pictures: each scene's thumbnail is a frame from the middle of its shot.
+function drawnThumbs(renderer) {
+  const scenes = project?.timeline?.scenes || [];
+  scenes.forEach((sc, i) => {
+    const card = $(`#board .scene[data-id="${sc.id}"]`);
+    const thumb = card && $('.thumb', card);
+    if (!thumb) return;
+    renderer.drawFrame(sc.start + Math.min(sc.dur * 0.5, 1.6));
+    $('.shimmer', thumb)?.remove();
+    thumb.querySelector('canvas')?.remove();
+    const c = document.createElement('canvas');
+    const k = 320 / Math.max(renderer.W, renderer.H);
+    c.width = Math.round(renderer.W * k); c.height = Math.round(renderer.H * k);
+    c.getContext('2d').drawImage(renderer.canvas, 0, 0, c.width, c.height);
+    thumb.prepend(c);
+    copyThumbToClip(i);
+  });
+}
+
 // ---------------- preview player ----------------
 const player = { renderer: null, ctx: null, src: null, startAt: 0, offset: 0, raf: 0, playing: false };
 
@@ -693,6 +773,7 @@ async function setupPreview() {
   await loadFonts();
   player.renderer?.dispose();
   player.renderer = pipeline.makeRenderer($('#preview'));
+  if (player.renderer.ready) { await player.renderer.ready; drawnThumbs(player.renderer); }
   player.offset = 0;
   $('#stageEmpty').classList.add('hidden');
   if (!project.video) showStage('canvas');
@@ -835,6 +916,8 @@ window.addEventListener('message', (e) => {
 
 // Loomy's top bar asks this before reloading a section after a sync.
 window.loomyBusy = () => running;
+// For tests: the open project's script (chapters, scenes).
+window.loomyScript = () => project?.script || null;
 
 // ---------- access: view-only visitors can look around but not make videos ----------
 let viewOnly = false;
@@ -919,3 +1002,15 @@ async function renderHub() {
 }
 document.getElementById('settingsForm')?.addEventListener('input', () => renderHub());
 document.getElementById('btnSettings')?.addEventListener('click', () => setTimeout(renderHub, 50));
+
+// E5: the finished video and its word-timed captions go to the Edit tab.
+document.getElementById('btnEdit')?.addEventListener('click', async () => {
+  const video = project?.video, tl = project?.timeline;
+  if (!video?.blob) return;
+  const words = (tl?.scenes || []).flatMap(sc => (sc.words || []).map(w => ({ text: w.text, start: sc.start + w.start, end: sc.start + w.end })));
+  try {
+    const { sendToEditor, openEditTab } = await import('../../shared/handoff.js');
+    await sendToEditor({ blob: video.blob, name: `${project.script?.title || 'Loomy video'}.mp4`, words, captionsBurned: settings.captionStyle !== 'off', duration: tl?.total || 0, tab: '3d' });
+    openEditTab();
+  } catch (e) { toast(`Could not open the editor: ${e.message}`, true); }
+});

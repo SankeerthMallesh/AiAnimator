@@ -18,12 +18,15 @@ export class Timeline {
         <div class="tl-inner" data-inner>
           <div class="tl-ruler" data-ruler></div>
           <div class="tl-track tl-video" data-track="video" aria-label="Video track"></div>
+          <div class="tl-lane tl-text" data-track="text" aria-label="Text track"></div>
+          <div class="tl-lane tl-music" data-track="music" aria-label="Music track"></div>
           <div class="tl-head" data-head><span></span></div>
         </div>
       </div>`;
     this.$ = (s) => root.querySelector(s);
     this.scroll = this.$('[data-scroll]'); this.inner = this.$('[data-inner]'); this.ruler = this.$('[data-ruler]');
     this.track = this.$('[data-track="video"]'); this.head = this.$('[data-head]');
+    this.textLane = this.$('[data-track="text"]'); this.musicLane = this.$('[data-track="music"]');
     root.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => this.zoom(Number(b.dataset.zoom))));
     // Click or drag on the ruler or an empty part of a track: move the playhead.
     const scrub = (e) => {
@@ -70,7 +73,35 @@ export class Timeline {
     // Video track.
     this.track.replaceChildren(...timeline(p).map(e => this.block(e)));
     if (!p.segments.length) this.track.innerHTML = '<p class="tl-empty">Add a video to start. Drop files anywhere on this page.</p>';
+    // E2: text boxes on their own lane (tap to select, drag to move in time); E3: the music.
+    this.textLane.replaceChildren(...p.texts.map(x => this.textBlock(x)));
+    this.textLane.hidden = !p.texts.length;
+    this.musicLane.innerHTML = p.music ? `<div class="lane-block music" style="left:12px;width:${Math.max(6, total * pps)}px"><span>♪ ${escapeHtml(p.music.name)}</span></div>` : '';
+    this.musicLane.hidden = !p.music;
     this.setTime(this.t);
+  }
+
+  textBlock(x) {
+    const el = document.createElement('div');
+    el.className = 'lane-block text' + (this.o.selected() === x.id ? ' on' : '');
+    el.dataset.id = x.id; el.tabIndex = 0; el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', `Text: ${x.text}`);
+    el.style.left = `${12 + x.start * this.pps}px`;
+    el.style.width = `${Math.max(6, (x.end - x.start) * this.pps)}px`;
+    el.innerHTML = `<span>T ${escapeHtml(x.text)}</span>`;
+    el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); this.o.onSelect(x.id); } });
+    el.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      const x0 = ev.clientX; let moved = false;
+      const mv = (m) => { const dx = m.clientX - x0; if (!moved && Math.abs(dx) < 6) return; moved = true; el.style.transform = `translateX(${dx}px)`; };
+      const up = (m) => {
+        removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+        if (!moved) { this.o.onSelect(x.id); return; }
+        this.o.onMoveText?.(x.id, (m.clientX - x0) / this.pps);
+      };
+      addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+    });
+    return el;
   }
 
   block(e) {
@@ -159,6 +190,7 @@ export class Timeline {
 
   select(id) {
     this.track.querySelectorAll('.seg').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+    this.textLane.querySelectorAll('.lane-block').forEach(b => b.classList.toggle('on', b.dataset.id === id));
   }
 }
 

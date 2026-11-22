@@ -4,13 +4,19 @@
 import { createEngine } from './z3d/engine.js';
 import { composeFrame } from './z3d/film.js';
 import * as A3 from './z3d/auto3d.js';
+import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
 export class DrawnRenderer {
-  constructor(canvas, { timeline, script, kind = '3d', W, H, perf = {} }) {
+  constructor(canvas, { timeline, script, kind = '3d', W, H, perf = {}, captions = true, hooks = true }) {
     this.canvas = canvas; this.W = W; this.H = H;
     canvas.width = W; canvas.height = H;
     this.g = canvas.getContext('2d');
     this.kind = kind;
+    this.showCaptions = captions; // the Captions: Off setting
+    // The hook stack (shared/hooks.js): a cold open on the teaser scene, a headline, a flash on the cut.
+    this.teaser = hooks ? teaserIndex(timeline.scenes, script.teaser) : -1;
+    this.headline = hooks ? headlineText(script) : '';
+    this.scenes = timeline.scenes;
     this.ready = this.init(timeline, script, perf);
   }
 
@@ -18,13 +24,13 @@ export class DrawnRenderer {
     if (this.kind === 'blocky') {
       const AB = await import('./z3d/autoblocky.js');
       const castMap = AB.castFor(script.characters || []);
-      this.specs = AB.planShots(timeline.scenes, castMap);
+      this.specs = withTeaser(AB.planShots(timeline.scenes, castMap), this.teaser);
       this.shots = this.specs.map(spec => ({ start: spec.start, end: spec.end, build: (ctx) => AB.buildShot(spec, ctx) }));
       this.captions = AB.captionsFrom(timeline.scenes);
       this.captionStyle = 'blocky';
     } else {
       const castMap = A3.castFor(script.characters || []);
-      this.specs = A3.planShots(timeline.scenes, castMap);
+      this.specs = withTeaser(A3.planShots(timeline.scenes, castMap), this.teaser);
       const people = await A3.loadCast(this.specs.flatMap(s => s.cast));
       this.shots = this.specs.map(spec => ({ start: spec.start, end: spec.end, build: (ctx) => A3.buildShot(spec, people, ctx) }));
       this.captions = A3.captionsFrom(timeline.scenes);
@@ -40,7 +46,12 @@ export class DrawnRenderer {
 
   drawFrame(t) {
     if (!this.engine) return;
-    composeFrame(this.engine, this.g, this.W, this.H, t, { captions: this.captions, captionStyle: this.captionStyle });
+    composeFrame(this.engine, this.g, this.W, this.H, t, { captions: this.showCaptions ? this.captions : [], captionStyle: this.captionStyle });
+    if (this.teaser >= 0) drawCutFlash(this.g, this.W, this.H, t);
+    // Blocky captions sit at 23 % of the height, so its headline sits higher.
+    drawHeadline(this.g, this.W, this.H, t, this.headline, { top: this.kind === 'blocky' ? 0.09 : 0.14 });
+    const ch = chapterAt(this.scenes, t); // long form: a title card opens each chapter
+    if (ch && ch.n > 1) drawChapterCard(this.g, this.W, this.H, ch.local, ch.n, ch.title);
   }
 
   dispose() { this.engine?.dispose(); this.engine = null; }

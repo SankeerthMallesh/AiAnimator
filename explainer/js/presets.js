@@ -1,6 +1,19 @@
 // Visual styles, music moods, voices and example prompts shared by the UI and the pipeline.
 
 export const STYLES = {
+  'drawn-3d': {
+    label: '3D people, drawn in code',
+    hint: 'Realistic 3D people and places built in code, like the hand-made 3D shorts (no AI pictures)',
+    drawn: '3d',
+    direction: 'Direct it like a fast 3D explainer Short: open with a second-person hook ("What would happen if you fell through the ice?"), then follow ONE or two people through it, cutting every 3 to 4 seconds, and end on the consequence in a short, plain line, never a moral. Describe the main character once in "characters" (name and a short look, saying man or woman). Every scene is played by realistic 3D people in a place built in code, so pick for each scene: "set" (the place), "frame" (the shot: talk = one person talking to camera, two = two people, react = a close-up reaction, wide = an establishing shot, walk = someone walking in, point = pointing at a thing, group = three people, object = a close-up of a thing), "who" (the names in the shot) and "act" (the pose). Put real objects in the story with "thing" and "do": people hold them, show them, drop them, break them, so the video shows what the line is about, not only a person talking. Start with a wide shot, use react for surprises, point or object when the narration shows one thing, and change the set only when the story moves. Give scenes about a measurable thing an "icon" emoji (⚖️ ⏱️ 💨 🌡️ 💰 📏).',
+    character: true,
+  },
+  'drawn-blocky': {
+    label: 'Blocky world, drawn in code',
+    hint: 'Blocky game-world characters and places built in code, like the hand-made blocky shorts (no AI pictures)',
+    drawn: 'blocky',
+    character: true,
+  },
   'story-3d': {
     label: '3D story short',
     hint: 'Bright 3D renders with one recurring character, like popular 3D story Shorts',
@@ -108,7 +121,9 @@ export const VOICES = [
 export const CLOUD_VOICES = ['onyx', 'echo', 'fable', 'alloy', 'nova', 'shimmer'];
 
 export const LENGTHS = [
-  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [75, '75 sec'], [90, '90 sec'], [120, '2 min'], [180, '3 min'], [300, '5 min'], [600, '10 min'],
+  [15, '15 sec'], [30, '30 sec'], [45, '45 sec'], [60, '60 sec'], [75, '75 sec'], [90, '90 sec'], [120, '2 min'],
+  // Long form, told in chapters (llm.js writeLongScript).
+  [180, '3 min · long form'], [300, '5 min · long form'], [480, '8 min · long form'], [600, '10 min · long form'], [900, '15 min · long form'],
 ];
 
 export const EXAMPLES = [
@@ -148,3 +163,25 @@ export const QUALITIES = { '720': 720, '1080': 1080, '1440': 1440 };
 export const TRANSITIONS = ['whip', 'zoom', 'fade', 'flash', 'slide', 'glitch'];
 // Moving effects drawn over a shot, so stills have real motion in them.
 export const EFFECTS = ['none', 'dust', 'bubbles', 'sparks', 'embers', 'rain', 'snow', 'smoke', 'pulse', 'shockwave', 'speed'];
+
+// The drawn Blocky look tells its story like the Blocky style and picks its shots from the library.
+STYLES['drawn-blocky'].direction = `${STYLES.blocky.direction.replace(/ Vary the camera:[^.]*\./, '').replace(/ Mark 2 to 3 scenes[^.]*\./, '')} Every scene is played by blocky avatars in a block world built in code, so pick for each scene: "set" (the place), "frame" (the shot: talk = the narrator talking to camera, two = two characters, react = a close-up reaction with a big face, wide = an establishing shot, walk = someone walking in, point = pointing at a thing, group = three characters, object = a close-up of a thing), "who" (the names in the shot; the narrator is the first character), "act" (the pose) and, when the story has an object in it, "thing" and "do" (hold, show, drop, grow, spin, break). Start with a wide shot, use react for the cliffhanger and the twist, point when the narration shows one thing (with an "icon" emoji), and use snow, park, street or night when the story moves.`;
+
+// The 3D tab's Auto look: stories about people get 3D people drawn in code; topics about things, places,
+// history or science (which the drawn look cannot show: buildings, machines, planets, organs...) get
+// the AI-picture look. Plain word scores, so it is instant, free and testable.
+export const AUTO_STYLE = 'auto';
+const PEOPLE = /\b(you|your|you're|i|i'm|my|me|we|our|he|she|his|her|they|story|friend|friends|kid|kids|child|person|people|someone|man|woman|boy|girl|family|mom|dad|brother|sister|teacher|boss|neighbou?r|stranger|date|wedding|prank|fight|argument|lost|lied|caught|dared)\b/gi;
+const THINGS = /\b(how|why)\b|\b(concrete|building|buildings|bridge|tower|pyramid|pyramids|castle|temple|pantheon|colosseum|cathedral|city|cities|empire|ancient|roman|rome|greek|greece|egypt|egyptian|medieval|war|battle|history|planet|planets|space|moon|sun|star|stars|black hole|galaxy|universe|ocean|sea|volcano|earthquake|mountain|desert|forest|river|animal|animals|octopus|shark|whale|dinosaur|insect|bee|bees|bird|plant|plants|cell|cells|brain|heart|lungs|blood|dna|virus|bacteria|atom|atoms|chemistry|physics|engine|machine|machines|car|cars|truck|cybertruck|plane|rocket|ship|submarine|train|robot|computer|chip|magnet|metal|gold|diamond|oil|electricity|battery|technology|invention|material|materials|recipe|food|honey)\b/gi;
+export function pickLook(text) {
+  const t = String(text || '');
+  const people = (t.match(PEOPLE) || []).length;
+  const things = (t.match(THINGS) || []).length;
+  // "What would happen if you..." is a person's story even when it names a thing.
+  const youStory = /\bwhat (would|will) happen (to you )?if you\b|\bif you (fell|jumped|fall|jump|were|got|lived|stopped|ate|swallowed|held)\b/i.test(t);
+  // Places the drawn sets cannot build (space, the deep sea, volcanoes, the ancient world) need pictures too.
+  if (/\b(black holes?|outer space|in space|planets?|the moon|mars|the sun|galaxy|volcano(es)?|lava|underwater|deep sea|ocean floor|dinosaurs?|ancient|rome|roman|egypt|pyramids?)\b/i.test(t)) return 'story-3d';
+  // Inside the body (organs, blood, bones) only pictures can show it, whoever the story is about.
+  if (/\byour body\b|\b(stomach|organs?|brain|heart|lungs|blood|bones?|muscles?|cells?|veins?)\b/i.test(t)) return 'story-3d';
+  return youStory || people > things ? 'drawn-3d' : 'story-3d';
+}

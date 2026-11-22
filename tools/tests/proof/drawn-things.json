@@ -1,0 +1,14 @@
+{
+  "title": "Roman Concrete",
+  "hookText": "This wall is 2,000 years old",
+  "characters": [{ "name": "Livia", "look": "woman, black blazer" }, { "name": "Marco", "look": "man, white t-shirt" }],
+  "scenes": [
+    { "narration": "This Roman wall is two thousand years old.", "set": "street", "frame": "wide", "who": ["Livia"], "act": "stand", "camera": "push-in", "thing": "wall", "do": "drop" },
+    { "narration": "Modern concrete cracks in fifty years.", "set": "street", "frame": "talk", "who": ["Marco"], "act": "talk", "camera": "push-in", "thing": "brick", "do": "hold" },
+    { "narration": "So what was the Roman secret?", "set": "lab", "frame": "object", "who": ["Livia"], "act": "think", "camera": "orbit", "thing": "brick", "do": "show" },
+    { "narration": "Volcanic ash, mixed with lime and seawater!", "set": "lab", "frame": "point", "who": ["Livia"], "act": "point", "camera": "push-in", "thing": "atom", "do": "grow" },
+    { "narration": "Hit modern concrete and it shatters.", "set": "street", "frame": "object", "who": ["Marco"], "act": "surprised", "camera": "impact", "thing": "brick", "do": "break" },
+    { "narration": "It took centuries to figure out.", "set": "room", "frame": "two", "who": ["Livia", "Marco"], "act": "talk", "camera": "pan-left", "thing": "hourglass", "do": "spin" },
+    { "narration": "And it is worth a fortune today.", "set": "room", "frame": "talk", "who": ["Livia"], "act": "talk", "camera": "push-in", "thing": "coins", "do": "show" }
+  ]
+}

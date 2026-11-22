@@ -307,13 +307,19 @@ async function writeScriptInParts(topic, options, settings, { signal, log } = {}
   };
   const hasScenes = (min) => (raw) => { if (!Array.isArray(raw?.scenes) || raw.scenes.length < min) throw new Error('Too few scenes came back'); };
   log?.(`Long video: writing the script in ${count} parts.`);
-  const first = await ask(Script.prompt(topic, options, { index: 1, count, scenes: sizes[0] }), hasScenes(2));
-  const merged = { ...first.raw, scenes: [...first.raw.scenes] };
+  // Long form (over 2.5 minutes): a new chapter about every 80 s; the part that opens it names it.
+  const long = plan.seconds >= 150, partSec = plan.seconds / count;
+  const chapterOf = (k) => 1 + Math.floor(((k - 1) * partSec) / 80);
+  const opens = (k) => long && (k === 1 || chapterOf(k) !== chapterOf(k - 1));
+  const chapterAsk = (k) => (opens(k) ? `\nThese scenes open CHAPTER ${chapterOf(k)} of about ${chapterOf(count)}: add a top-level "chapter" with a 2-5 word chapter title (it shows on a title card).${k > 1 ? ' Start the chapter with a fresh mini-hook.' : ''}` : '');
+  const mark = (raw, k) => { const sc = raw.scenes.slice(); if (opens(k) && sc[0]) sc[0] = { ...sc[0], chapter: { n: chapterOf(k), title: String(raw.chapter || `Part ${chapterOf(k)}`) } }; return sc; };
+  const first = await ask(Script.prompt(topic, options, { index: 1, count, scenes: sizes[0] }) + chapterAsk(1), hasScenes(2));
+  const merged = { ...first.raw, scenes: mark(first.raw, 1) };
   for (let k = 2; k <= count; k++) {
     const lines = merged.scenes.map(x => String(x.line || x.narration || '').trim()).filter(Boolean);
     try {
-      const part = await ask(Script.continuePrompt(topic, options, first.raw, lines, { index: k, count, scenes: sizes[k - 1] }), hasScenes(1));
-      merged.scenes.push(...part.raw.scenes);
+      const part = await ask(Script.continuePrompt(topic, options, first.raw, lines, { index: k, count, scenes: sizes[k - 1] }) + chapterAsk(k), hasScenes(1));
+      merged.scenes.push(...mark(part.raw, k));
       log?.(`Script part ${k} of ${count}: ${part.raw.scenes.length} scenes.`);
     } catch (e) {
       if (signal?.aborted) throw e;

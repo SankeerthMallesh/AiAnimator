@@ -12,9 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/app.css?v=202611212311">
-<script type="module" src="../shared/topbar.js?v=202611212311"></script>
-<link rel="stylesheet" href="../theme.css?v=202611212311">
+<link rel="stylesheet" href="css/app.css?v=202611220348">
+<script type="module" src="../shared/topbar.js?v=202611220348"></script>
+<link rel="stylesheet" href="../theme.css?v=202611220348">
 </head>
 <body>
 <div class="app" id="app">
@@ -78,11 +78,13 @@
               <label class="slot"><span class="lbl">Runtime</span><select id="duration"></select></label>
               <label class="slot"><span class="lbl">Pace</span><select id="pace"></select></label>
               <div class="slot voice-slot"><label class="lbl" for="voice">Narrator</label><div class="voice-row"><select id="voice"></select><button type="button" class="hear" id="btnHear" title="Hear this voice" aria-label="Hear this voice"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg></button></div></div>
+              <label class="slot"><span class="lbl">Look</span><select id="look"><option value="painted" selected>Cartoon on painted sets</option><option value="town3d">3D cartoon town, drawn in code (heavy: needs a strong graphics card)</option></select></label>
               <label class="slot"><span class="lbl">Score</span><select id="mood"></select></label>
               <button type="button" class="slot slot-btn" id="btnMore" aria-expanded="false"><span class="lbl">More</span><span>Quality, notes…</span></button>
             </div>
 
             <div class="more hidden" id="morePanel">
+              <label class="check"><input type="checkbox" id="townCaptions"> Captions on the 3D cartoon town (off by default, like the reference film)</label>
               <label class="slot"><span class="lbl">Director's notes</span><input id="extra" type="text" placeholder="Tone, audience, facts to include, the ending twist…"></label>
               <div class="slot-grid two">
                 <label class="slot"><span class="lbl">Quality</span><select id="quality"><option value="720">720p · fastest</option><option value="1080">1080p · HD</option><option value="1440">1440p · 2K</option></select></label>
@@ -103,6 +105,22 @@
               <button class="btn ghost" id="btnDemo" type="button">20s test reel</button>
             </div>
           </form>
+          <div class="long-starts" aria-label="Start a long video">
+            <span class="long-label">Long form</span>
+            <div class="long-row" id="longStarts"></div>
+          </div>
+          <ul class="feature-pills" aria-label="What every video gets">
+            <li>Fact-checked script</li><li>Hooks in the first seconds</li><li>Narration</li><li>Film score and sound effects</li><li>Captions</li><li>MP4, ready to post</li>
+          </ul>
+          <section class="showcase" aria-label="Frames made with Loomy">
+            <p class="eyebrow">Made with Loomy</p>
+            <div class="showcase-row">
+              <figure><img src="../shared/showcase/cartoon-lab.jpg" alt="Two cartoon scientists in a lab" loading="lazy" width="270" height="480"><figcaption>Painted sets</figcaption></figure>
+              <figure><img src="../shared/showcase/cartoon-field.jpg" alt="A cartoon narrator in a field" loading="lazy" width="270" height="480"><figcaption>Painted sets</figcaption></figure>
+              <figure><img src="../shared/showcase/town-aerial.jpg" alt="An aerial view of a cartoon river town" loading="lazy" width="270" height="480"><figcaption>3D cartoon town</figcaption></figure>
+              <figure><img src="../shared/showcase/town-react.jpg" alt="A shocked cartoon character with stars" loading="lazy" width="270" height="480"><figcaption>3D cartoon town</figcaption></figure>
+            </div>
+          </section>
         </div>
 
         <aside class="ideas-col">
@@ -173,6 +191,7 @@
             <div class="render-actions">
               <button class="btn primary wide" id="btnRender" disabled>Export MP4</button>
               <a class="btn wide hidden" id="btnDownload" download>Download MP4</a>
+              <button class="btn wide hidden" id="btnEdit" type="button">✂️ Edit this video: text, music, trims</button>
               <button class="btn wide hidden runway-btn" id="btnRunway" type="button">✨ Animate shots</button>
               <button class="btn wide hidden" id="btnShotPack" type="button">📤 Shot pack: animate free in Flow, Kling, Magic Hour…</button>
             </div>
@@ -304,39 +323,47 @@
 
 <script type="importmap">
 {"imports": {
-  "./js/app.js": "./js/app.js?v=202611212311",
-  "./js/audio.js": "./js/audio.js?v=202611212311",
-  "./js/c3d/cartoon3d.js": "./js/c3d/cartoon3d.js?v=202611212311",
-  "./js/cast.js": "./js/cast.js?v=202611212311",
-  "./js/demo.js": "./js/demo.js?v=202611212311",
-  "./js/encoder.js": "./js/encoder.js?v=202611212311",
-  "./js/images.js": "./js/images.js?v=202611212311",
-  "./js/llm.js": "./js/llm.js?v=202611212311",
-  "./js/net.js": "./js/net.js?v=202611212311",
-  "./js/pipeline.js": "./js/pipeline.js?v=202611212311",
-  "./js/presets.js": "./js/presets.js?v=202611212311",
-  "./js/props.js": "./js/props.js?v=202611212311",
-  "./js/router.js": "./js/router.js?v=202611212311",
-  "./js/safety.js": "./js/safety.js?v=202611212311",
-  "./js/script.js": "./js/script.js?v=202611212311",
-  "./js/sets.js": "./js/sets.js?v=202611212311",
-  "./js/sharpen.js": "./js/sharpen.js?v=202611212311",
-  "./js/stage.js": "./js/stage.js?v=202611212311",
-  "./js/storage.js": "./js/storage.js?v=202611212311",
-  "./js/toons.js": "./js/toons.js?v=202611212311",
-  "./js/tts.js": "./js/tts.js?v=202611212311",
-  "./js/videoai.js": "./js/videoai.js?v=202611212311",
-  "./js/wiki.js": "./js/wiki.js?v=202611212311",
-  "./js/worlds.js": "./js/worlds.js?v=202611212311",
-  "../shared/encode.js": "../shared/encode.js?v=202611212311",
-  "../shared/level.js": "../shared/level.js?v=202611212311",
-  "../shared/renderlog.js": "../shared/renderlog.js?v=202611212311",
-  "../shared/speech.js": "../shared/speech.js?v=202611212311",
-  "../shared/topbar.js": "../shared/topbar.js?v=202611212311",
-  "../shared/voicefx.js": "../shared/voicefx.js?v=202611212311",
-  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611212311"
+  "./js/app.js": "./js/app.js?v=202611220348",
+  "./js/audio.js": "./js/audio.js?v=202611220348",
+  "./js/c3d/cartoon3d.js": "./js/c3d/cartoon3d.js?v=202611220348",
+  "./js/cast.js": "./js/cast.js?v=202611220348",
+  "./js/demo.js": "./js/demo.js?v=202611220348",
+  "./js/encoder.js": "./js/encoder.js?v=202611220348",
+  "./js/images.js": "./js/images.js?v=202611220348",
+  "./js/llm.js": "./js/llm.js?v=202611220348",
+  "./js/net.js": "./js/net.js?v=202611220348",
+  "./js/pipeline.js": "./js/pipeline.js?v=202611220348",
+  "./js/presets.js": "./js/presets.js?v=202611220348",
+  "./js/props.js": "./js/props.js?v=202611220348",
+  "./js/router.js": "./js/router.js?v=202611220348",
+  "./js/safety.js": "./js/safety.js?v=202611220348",
+  "./js/script.js": "./js/script.js?v=202611220348",
+  "./js/sets.js": "./js/sets.js?v=202611220348",
+  "./js/sharpen.js": "./js/sharpen.js?v=202611220348",
+  "./js/stage.js": "./js/stage.js?v=202611220348",
+  "./js/storage.js": "./js/storage.js?v=202611220348",
+  "./js/toons.js": "./js/toons.js?v=202611220348",
+  "./js/town.js": "./js/town.js?v=202611220348",
+  "./js/tts.js": "./js/tts.js?v=202611220348",
+  "./js/videoai.js": "./js/videoai.js?v=202611220348",
+  "./js/wiki.js": "./js/wiki.js?v=202611220348",
+  "./js/worlds.js": "./js/worlds.js?v=202611220348",
+  "../explainer/js/z3d/plan.js": "../explainer/js/z3d/plan.js?v=202611220348",
+  "../explainer/js/z3d/vocab.js": "../explainer/js/z3d/vocab.js?v=202611220348",
+  "three": "../vendor/three/three.module.min.js?v=202611220348",
+  "three/examples/jsm/": "../vendor/three/addons/",
+  "../shared/encode.js": "../shared/encode.js?v=202611220348",
+  "../shared/filmsound.js": "../shared/filmsound.js?v=202611220348",
+  "../shared/handoff.js": "../shared/handoff.js?v=202611220348",
+  "../shared/hooks.js": "../shared/hooks.js?v=202611220348",
+  "../shared/level.js": "../shared/level.js?v=202611220348",
+  "../shared/renderlog.js": "../shared/renderlog.js?v=202611220348",
+  "../shared/speech.js": "../shared/speech.js?v=202611220348",
+  "../shared/topbar.js": "../shared/topbar.js?v=202611220348",
+  "../shared/voicefx.js": "../shared/voicefx.js?v=202611220348",
+  "../vendor/mp4-muxer.mjs": "../vendor/mp4-muxer.mjs?v=202611220348"
 }}
 </script>
-<script type="module" src="./js/app.js?v=202611212311"></script>
+<script type="module" src="./js/app.js?v=202611220348"></script>
 </body>
 </html>

@@ -8636,6 +8636,16 @@ var Pool = class {
     }
     this.reqs = [];
   }
+  /** frees every drawing and its GPU texture */
+  dispose() {
+    for (const e of [...this.live.values(), ...this.free]) {
+      e.tex.dispose();
+      e.cv.width = e.cv.height = 0;
+    }
+    this.live.clear();
+    this.free = [];
+    this.reqs = [];
+  }
 };
 var blank = (() => {
   const c = document.createElement("canvas");
@@ -8731,7 +8741,17 @@ var BARE = [0, 1, 2, 3].map((v) => soldier(v, { hat: null }));
 var FOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
 var vOf = (i) => (i * 7 + (i >> 2)) % 4;
 var seedOf = (i) => (i * 5 + 3) % 7 + 1;
-var tier = (d) => d < 3.2 ? [1800, 3e3, 3] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
+var tierFull = (d) => d < 3.2 ? [1800, 3e3, 3] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
+var CARD_MAX = 1800;
+var setCardMax = (w) => {
+  CARD_MAX = w;
+};
+var tier = (d) => {
+  const t = tierFull(d);
+  if (t[0] <= CARD_MAX) return t;
+  const k = CARD_MAX / t[0];
+  return [Math.round(t[0] * k), Math.round(t[1] * k), t[2] * k];
+};
 var SUN = new THREE6.Vector3(0.5, 0.75, -0.4).normalize();
 var tmp = new THREE6.Vector3();
 var LNAME = "day";
@@ -9106,6 +9126,33 @@ var creakFx = (t, pts, out, size = 0.8) => pts.forEach(([x, y, z], i) => {
   const u = q((t * 1.3 + i * 0.37) % 1, 30);
   out.fx.push({ key: `creak${u}`, cw: 300, ch: 300, draw: (p) => fxCreak(p, u), x, y, z, w: size, h: size, rot: i * 0.6 - 0.6 });
 });
+var stageTemplate = (people, effects, cam, t, light) => {
+  const out = { places: [], fx: [] };
+  LNAME = light;
+  findSun(cam, SUN);
+  people.forEach((m, i) => {
+    const o = m.kid ? KID : FOLK[(m.look % 6 + 6) % 6];
+    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : `f${(m.look % 6 + 6) % 6}` };
+    const walking = m.walk != null;
+    const fo = {
+      mode: walking ? "stroll" : "stand",
+      phase: walking ? q(m.walk % 1, 120) : 0,
+      expr: m.expr,
+      blink: lidAt(t, 500 + i * 7),
+      wave: m.wave == null ? void 0 : q(m.wave, 30),
+      facing: m.facing ?? 0
+    };
+    const y = D0 + (m.hop || 0);
+    out.places.push(person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1));
+    blob(out, m.x, D0, m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+  });
+  for (const e of effects) {
+    const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;
+    const draw = e.kind === "stars" ? (p) => fxStars(p, u) : e.kind === "ring" ? (p) => fxRing(p, u) : e.kind === "note" ? (p) => fxNote(p, Math.floor(u * 3) % 3) : (p) => fxBurst(p, u);
+    out.fx.push({ key: `t${e.kind}${u}`, cw: e.kind === "stars" ? 420 : 500, ch: e.kind === "stars" ? 210 : 500, draw, x: e.x, y: e.y, z: e.z, w, h: e.kind === "stars" ? w / 2 : w });
+  }
+  return out;
+};
 
 // src/world.ts
 var KENNEY = [
@@ -9543,8 +9590,67 @@ var World = class {
     return this.fxs[i];
   }
   update(id, f, cam, scene) {
-    const t = f / FPS, s = SHOTS[id - 1], tau = s.tau(t), b = bridgeState(id, t), L = LIGHTS[s.light];
-    const c = camAt(id, f);
+    const t = f / FPS, s = SHOTS[id - 1], tau = s.tau(t), b = bridgeState(id, t);
+    const focus = this.view(camAt(id, f), s.light, this.shotSun(id, s, LIGHTS[s.light]), t, cam, scene);
+    for (const g of this.fgs) g.o.visible = f >= g.a && f < g.b && g.a < s.b && g.b > s.a;
+    this.poseBridge(b, t, tau, id);
+    this.sign.visible = id >= 14;
+    this.moveSmoke(t, cam);
+    const right = V(0, 0, 0).setFromMatrixColumn(cam.matrixWorld, 0);
+    const st = stage(id, t, b, { pos: cam.position, right });
+    if (id === 8) {
+      snapFx(tau, BOLT, st);
+      splashFx(tau, st);
+      if (tau > 33.1 && tau < SNAP) creakFx(t, [[BOLT[0] + 0.3, BOLT[1] + 0.14, BOLT[2] - 0.12], [BOLT[0] - 0.32, BOLT[1] + 0.08, BOLT[2] - 0.12]], st, 0.3);
+    }
+    if (id === 7 && t > 28.9) {
+      const F = front(tau);
+      creakFx(t, [3, 5.5, 8].map((dz) => [-2.7, chainY(F + dz, b) + 0.35, F + dz]), st);
+    }
+    this.cards(st, cam, s.light);
+    return focus;
+  }
+  /** shadow-map size (the film uses 4096; the browser templates a smaller one) */
+  setShadowSize(n) {
+    this.sun.shadow.mapSize.set(n, n);
+    this.sun.shadow.map?.dispose();
+    this.sun.shadow.map = null;
+  }
+  /** frees every geometry, material, texture and drawing of the world (GPU memory) */
+  dispose() {
+    const seen = /* @__PURE__ */ new Set();
+    this.root.traverse((o) => {
+      if (o.geometry && !seen.has(o.geometry)) {
+        seen.add(o.geometry);
+        o.geometry.dispose();
+      }
+      for (const m of [].concat(o.material || [])) {
+        if (!m || seen.has(m)) continue;
+        seen.add(m);
+        for (const v of Object.values(m)) if (v?.isTexture && !seen.has(v)) {
+          seen.add(v);
+          v.dispose();
+        }
+        m.dispose();
+      }
+    });
+    this.sun.shadow.map?.dispose();
+    this.pool.dispose();
+  }
+  /** a Loomy template frame (tmpl.ts): the bridge stands rebuilt and at rest, no sign, no framing props */
+  updateTemplate(fr, t, cam, scene) {
+    const focus = this.view(fr.cam, fr.light, new THREE7.Vector3(...fr.sun), t, cam, scene);
+    for (const g of this.fgs) g.o.visible = false;
+    this.poseBridge({ bounce: 0, drop: 0, snap: 0, collapsed: false }, t, 0, 15);
+    this.sign.visible = false;
+    this.moveSmoke(t, cam);
+    const right = V(0, 0, 0).setFromMatrixColumn(cam.matrixWorld, 0);
+    this.cards(stageTemplate(fr.people, fr.effects, { pos: cam.position, right }, t, fr.light), cam, fr.light);
+    return focus;
+  }
+  /** the lens, the light rig, the sky and the river for one frame (shared by the film and the templates) */
+  view(c, light, sunDir, t, cam, scene) {
+    const L = LIGHTS[light];
     cam.position.set(...c.pos);
     cam.up.set(0, 1, 0);
     cam.lookAt(...c.look);
@@ -9556,14 +9662,14 @@ var World = class {
     cam.updateMatrixWorld();
     const focus = V(...c.look), dist = cam.position.distanceTo(focus);
     cam.layers.enable(NOINK);
-    const K = LOOK[s.light], sunDir = this.shotSun(id, s, L);
+    const K = LOOK[light];
     this.hemi.color.set(L.sky);
     this.hemi.groundColor.set(L.ground);
     this.hemi.intensity = L.hemiI;
     this.sun.color.set(L.sunCol);
     this.sun.intensity = L.sunI;
     let Rr = THREE7.MathUtils.clamp(dist * 1.15 + 7, 12, 95);
-    if (s.light === "golden") Rr = Math.max(Rr, 30);
+    if (light === "golden") Rr = Math.max(Rr, 30);
     this.sun.position.copy(focus).addScaledVector(sunDir, 220);
     this.sun.target.position.copy(focus);
     const sc = this.sun.shadow.camera;
@@ -9583,8 +9689,8 @@ var World = class {
     TONE.uLambert.value = L.lambert;
     TONE.uSideK.value = L.sideK;
     TONE.uTerm.value = L.term;
-    TONE.uBounce.value.set(...LOOK[s.light].bounce);
-    TONE.uSat.value = LOOK[s.light].sat;
+    TONE.uBounce.value.set(...LOOK[light].bounce);
+    TONE.uSat.value = LOOK[light].sat;
     CHAR.uCharTint.value.set(...L.charTint);
     CHAR.uCharShade.value = L.charShade;
     CHAR.uGrad.value = L.charGrad;
@@ -9600,7 +9706,7 @@ var World = class {
     this.fog.far = L.fogFar;
     scene.fog = this.fog;
     scene.background = null;
-    const showSun = s.light === "golden";
+    const showSun = light === "golden";
     this.sunDisc.visible = this.sunHalo.visible = showSun;
     if (showSun) {
       this.sunDisc.position.copy(cam.position).addScaledVector(sunDir, 900);
@@ -9612,7 +9718,7 @@ var World = class {
     for (let i = 0; i < this.clouds.length; i++) {
       const m = this.clouds[i], mat = m.material;
       m.lookAt(cam.position.x, m.position.y, cam.position.z);
-      mat.map = this.cloudMaps[s.light][i % 4];
+      mat.map = this.cloudMaps[light][i % 4];
     }
     const W = this.WU, wc = K.water;
     untone(wc.near, W.wNearC.value);
@@ -9623,9 +9729,10 @@ var World = class {
     untone(wc.glint, W.wGlint.value);
     W.wShade.value.set(...wc.shade);
     W.wTime.value = t;
-    for (const g of this.fgs) g.o.visible = f >= g.a && f < g.b && g.a < s.b && g.b > s.a;
-    this.poseBridge(b, t, tau, id);
-    this.sign.visible = id >= 14;
+    return focus;
+  }
+  /** chimney smoke drifting downwind */
+  moveSmoke(t, cam) {
     for (const sm of this.smoke) {
       const u = (t * 0.11 + sm.k) % 1, sz = 3 + u * 9;
       sm.m.position.set(sm.top[0] - u * 18, sm.top[1] + u * 13 + u * u * 4, sm.top[2] + u * 3);
@@ -9633,19 +9740,11 @@ var World = class {
       sm.m.quaternion.copy(cam.quaternion);
       sm.mat.opacity = 0.85 * (1 - u) ** 1.2;
     }
-    const right = V(0, 0, 0).setFromMatrixColumn(cam.matrixWorld, 0);
-    const st = stage(id, t, b, { pos: cam.position, right });
-    if (id === 8) {
-      snapFx(tau, BOLT, st);
-      splashFx(tau, st);
-      if (tau > 33.1 && tau < SNAP) creakFx(t, [[BOLT[0] + 0.3, BOLT[1] + 0.14, BOLT[2] - 0.12], [BOLT[0] - 0.32, BOLT[1] + 0.08, BOLT[2] - 0.12]], st, 0.3);
-    }
-    if (id === 7 && t > 28.9) {
-      const F = front(tau);
-      creakFx(t, [3, 5.5, 8].map((dz) => [-2.7, chainY(F + dz, b) + 0.35, F + dz]), st);
-    }
+  }
+  /** the cast and effects of a frame as camera-facing cards (shared by the film and the templates) */
+  cards(st, cam, light) {
     this.frustum.setFromProjectionMatrix(this.m4.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
-    const tint = s.light === "golden" ? "#ffcf9e" : "#ffffff";
+    const tint = light === "golden" ? "#ffcf9e" : "#ffffff";
     let ai = 0;
     const used = [];
     for (const p of st.places) {
@@ -9659,7 +9758,7 @@ var World = class {
       a.mesh.rotation.set(0, p.yaw ?? Math.atan2(cam.position.x - p.x, cam.position.z - p.z), p.roll ?? 0);
       a.mesh.scale.set(p.mirror ? -sc2 : sc2, sc2, sc2);
       if (a.mat.emissiveMap) a.mat.emissive.set(tint);
-      a.mesh.castShadow = p.geo === "swing" ? true : L.actorShadow;
+      a.mesh.castShadow = p.geo === "swing" ? true : LIGHTS[light].actorShadow;
       used.push(a);
     }
     for (let i = ai; i < this.actors.length; i++) this.actors[i].mesh.visible = false;
@@ -9668,24 +9767,23 @@ var World = class {
     const fused = [];
     for (const p of st.fx) {
       if (!this.frustum.intersectsSphere(this.sph.set(this.v.set(p.x, p.y, p.z), Math.max(p.w, p.h)))) continue;
-      const e2 = this.fx(fi++);
-      e2.r = this.pool.req(p.key, p.cw, p.ch, 1, p.draw);
-      e2.use(!!p.soft);
-      e2.mesh.visible = true;
-      e2.mesh.position.set(p.x, p.y, p.z);
-      if (p.flat) e2.mesh.rotation.set(-Math.PI / 2, 0, p.rot ?? 0);
+      const e = this.fx(fi++);
+      e.r = this.pool.req(p.key, p.cw, p.ch, 1, p.draw);
+      e.use(!!p.soft);
+      e.mesh.visible = true;
+      e.mesh.position.set(p.x, p.y, p.z);
+      if (p.flat) e.mesh.rotation.set(-Math.PI / 2, 0, p.rot ?? 0);
       else {
-        e2.mesh.quaternion.copy(cam.quaternion);
-        e2.mesh.rotateZ(p.rot ?? 0);
+        e.mesh.quaternion.copy(cam.quaternion);
+        e.mesh.rotateZ(p.rot ?? 0);
       }
-      e2.mesh.scale.set(p.w, p.h, 1);
-      fused.push(e2);
+      e.mesh.scale.set(p.w, p.h, 1);
+      fused.push(e);
     }
     for (let i = fi; i < this.fxs.length; i++) this.fxs[i].mesh.visible = false;
     this.pool.flush();
     for (const a of used) a.bind();
-    for (const e2 of fused) e2.bind();
-    return focus;
+    for (const e of fused) e.bind();
   }
   poseBridge(b, t, tau, id) {
     const dy = ZS.map((z) => deckY(z, b));
@@ -10068,6 +10166,171 @@ function gradeFor(fx, light) {
   fx.amount = GRADE_STRENGTH[light];
 }
 
+// src/tmpl.ts
+var PLACES = {
+  bridge: { m: [0, D0, -9], d: [0.253, -0.967] },
+  // shot 15: tourists on the deck
+  bank: { m: [-4.6, D0, -33.6], d: [-0.013, -1] },
+  // shot 14: the bank at the bridge end
+  park: { m: [PARK[0] + 0.55, D0, PARK[2] - 3.6], d: [0, -1] }
+  // shot 12: in front of the swing set
+};
+var PLACE_NAMES = ["bridge", "bank", "park", "town"];
+var clamp012 = (x) => Math.max(0, Math.min(1, x));
+var glide2 = (u) => {
+  const x = clamp012(u);
+  return x * x * x * (x * (6 * x - 15) + 10);
+};
+var lerp = (a, b, k) => a + (b - a) * k;
+var speaking = (ws, t) => ws.some((w) => t >= w.start - 0.04 && t <= w.end + 0.04);
+var FACE2 = { stand: "smile", talk: "smile", point: "grin", surprised: "shock", shrug: "nervous", cheer: "laugh", think: "nervous", flinch: "pained" };
+var TALK = ["relief_open", "smile"];
+function frameAt(s, t) {
+  const dur = Math.max(0.1, s.end - s.start), k = glide2(t / dur);
+  const place = PLACES[s.place] || PLACES.bridge;
+  const [mx, my, mz] = place.m;
+  let [dx, dz] = place.d;
+  if (s.camera === "orbit") {
+    const a = lerp(-0.18, 0.18, k), c = Math.cos(a), sn = Math.sin(a);
+    [dx, dz] = [dx * c - dz * sn, dx * sn + dz * c];
+  }
+  const rx = dz, rz = -dx;
+  const at = (r, d) => [mx + rx * r + dx * d, mz + rz * r + dz * d];
+  const words = s.words.map((w) => ({ start: w.start - s.start, end: w.end - s.start }));
+  const talking = speaking(words, t);
+  const face = (pose, i) => (pose === "talk" || pose === "stand" && i === 0) && talking && i === 0 ? TALK[Math.floor(t * 9) % 2] : FACE2[pose] || "smile";
+  const people = [], effects = [];
+  const who = (i) => s.cast[i % Math.max(1, s.cast.length)] ?? i;
+  const onset = (a) => t >= a;
+  let dist = 3.2, h = 1.5, lookY = 1.3, fov = 36, lookSide = 0, cInf = 8;
+  switch (s.kind) {
+    case "talk": {
+      const [x, z] = at(0, 0);
+      people.push({ look: who(0), x, z, expr: face(s.pose === "stand" ? "talk" : s.pose, 0), wave: s.pose === "talk" && talking ? Math.sin(t * 5) * 0.6 : void 0 });
+      dist = 3;
+      h = 1.55;
+      lookY = 1.35;
+      fov = 34;
+      cInf = 9;
+      break;
+    }
+    case "two": {
+      const [ax, az2] = at(-0.62, 0), [bx, bz] = at(0.62, -0.15);
+      people.push({ look: who(0), x: ax, z: az2, expr: face("talk", 0), facing: 1 });
+      people.push({ look: who(1), x: bx, z: bz, expr: onset(dur * 0.4) ? FACE2[s.pose] || "smile" : "smile", facing: -1 });
+      dist = 4.4;
+      h = 1.6;
+      lookY = 1.25;
+      fov = 38;
+      cInf = 6;
+      break;
+    }
+    case "react": {
+      const [x, z] = at(0, 0);
+      people.push({ look: who(0), x, z, expr: onset(0.15) ? FACE2[s.pose === "talk" ? "surprised" : s.pose] || "shock" : "neutral" });
+      if (s.pose === "surprised" || s.pose === "flinch") effects.push({ kind: "stars", x: x + rx * 0.05, y: my + 2.2, z, u: clamp012((t - 0.15) / 0.5), size: 0.8 });
+      dist = 2.5;
+      h = 1.7;
+      lookY = 1.72;
+      fov = 32;
+      cInf = 13;
+      break;
+    }
+    case "walk": {
+      const d = lerp(-3.2, 0, clamp012(t / dur));
+      const [x, z] = at(0, d);
+      people.push({ look: who(0), x, z, expr: face("talk", 0), walk: t * 0.9 });
+      dist = 4.6;
+      h = 1.6;
+      lookY = 1.2;
+      fov = 38;
+      cInf = 5;
+      break;
+    }
+    case "point": {
+      const [x, z] = at(0.22, 0), [sx, sz] = at(-0.62, -0.3);
+      people.push({ look: who(0), x, z, expr: face("point", 0), wave: onset(0.3) ? 0.9 : void 0, facing: -1 });
+      effects.push({ kind: "burst", x: sx, y: my + 1.7, z: sz, u: clamp012((t - 0.35) / 0.45), size: 1 });
+      dist = 4.6;
+      h = 1.55;
+      lookY = 1.35;
+      fov = 36;
+      lookSide = -0.15;
+      cInf = 7;
+      break;
+    }
+    case "group": {
+      [[-1.05, -0.35], [0, 0], [1.05, -0.35]].forEach(([r, d], i) => {
+        const [x, z] = at(r, d), cheer = s.pose === "cheer" || s.pose === "talk";
+        people.push({ look: who(i), x, z, expr: cheer ? "laugh" : FACE2[s.pose] || "smile", wave: cheer ? Math.sin(t * 9 + i * 1.3) : void 0, hop: cheer ? Math.max(0, Math.sin(t * 7 + i)) * 0.16 : 0 });
+      });
+      dist = 6;
+      h = 1.8;
+      lookY = 1.2;
+      fov = 40;
+      cInf = 4;
+      break;
+    }
+    default: {
+      const n2 = Math.min(2, Math.max(1, s.cast.length));
+      for (let i = 0; i < n2; i++) {
+        const [x, z] = at(i ? 0.9 : -0.3, i ? -0.5 : 0);
+        people.push({ look: who(i), x, z, expr: FACE2[s.pose] || "smile" });
+      }
+      dist = 9.5;
+      h = 2.6;
+      lookY = 1.4;
+      fov = 42;
+      cInf = 0;
+    }
+  }
+  let side = 0, roll = 0;
+  switch (s.camera) {
+    case "push-in":
+      dist *= lerp(1.08, 0.92, k);
+      break;
+    case "pull-out":
+      dist *= lerp(0.9, 1.1, k);
+      break;
+    case "pan-left":
+      side += lerp(0.35, -0.35, k);
+      break;
+    case "pan-right":
+      side += lerp(-0.35, 0.35, k);
+      break;
+    case "tilt-up":
+      lookY += lerp(-0.4, 0.1, k);
+      break;
+    case "tilt-down":
+      lookY += lerp(0.3, -0.15, k);
+      break;
+    case "impact":
+      dist *= t < dur * 0.3 ? 1.05 : lerp(1.05, 0.8, glide2((t - dur * 0.3) / 0.25));
+      roll = 0.03 * glide2((t - dur * 0.3) / 0.25);
+      break;
+    case "vertigo":
+      dist *= lerp(1.3, 0.85, k);
+      fov *= lerp(0.8, 1.15, k);
+      break;
+    default:
+      dist *= lerp(1.03, 0.97, k);
+  }
+  const pos = [mx + dx * dist + rx * side, my + h, mz + dz * dist + rz * side];
+  const look = [mx + rx * (lookSide + side * 0.6), my + lookY, mz + rz * (lookSide + side * 0.6)];
+  const L = LIGHTS[s.light], az = L.az * Math.PI / 180, el = L.el * Math.PI / 180;
+  const fx = -dx, fz = -dz, hx = fx * Math.cos(az) - fz * Math.sin(az), hz = fz * Math.cos(az) + fx * Math.sin(az);
+  const n = Math.hypot(hx * Math.cos(el), Math.sin(el), hz * Math.cos(el)) || 1;
+  const sun = [hx * Math.cos(el) / n, Math.sin(el) / n, hz * Math.cos(el) / n];
+  const focus = people.length ? [people[0].x, my + 1.4, people[0].z] : look;
+  return { cam: { pos, look, fov, roll }, light: s.light, sun, people, effects, cInf, focus };
+}
+function aerialAt(light, k) {
+  const golden = light === "golden";
+  const a = golden ? [14, 10.5, -47] : [24, 26, -78], b = golden ? [-1, 7, -4] : [0, 4, -8];
+  const m = lerp(1.04, 0.96, glide2(k));
+  return { pos: [b[0] + (a[0] - b[0]) * m, b[1] + (a[1] - b[1]) * m, b[2] + (a[2] - b[2]) * m], look: b, fov: golden ? 40 : 42, roll: 0 };
+}
+
 // src/driver.ts
 var makeBloom = () => {
   const b = new BloomEffect({ blendFunction: BlendFunction.ADD, intensity: 0.5, luminanceThreshold: 1, luminanceSmoothing: 0.2, mipmapBlur: true, levels: 6, radius: 0.6 });
@@ -10086,7 +10349,7 @@ var View = class {
   lens;
   grade;
   target = new THREE8.Vector3();
-  constructor(kit, w, h) {
+  constructor(kit, w, h, perf = {}) {
     const r = this.renderer = new THREE8.WebGLRenderer({ antialias: false, stencil: false, powerPreference: "high-performance", preserveDrawingBuffer: true });
     r.setPixelRatio(1);
     r.setSize(w, h, false);
@@ -10097,7 +10360,8 @@ var View = class {
     this.camera = new THREE8.PerspectiveCamera(40, w / h, 0.2, 1500);
     this.world = new World(kit);
     this.scene.add(this.world.root);
-    this.composer = new EffectComposer(r, { multisampling: 4, frameBufferType: THREE8.HalfFloatType });
+    if (perf.shadow) this.world.setShadowSize(perf.shadow);
+    this.composer = new EffectComposer(r, { multisampling: perf.msaa ?? 4, frameBufferType: THREE8.HalfFloatType });
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.ink = new InkPass(this.scene, this.camera);
     this.composer.addPass(this.ink);
@@ -10123,7 +10387,71 @@ var View = class {
     this.composer.render();
     return this.renderer.domElement;
   }
+  /** frees the GPU: the post chain, the world, the drawings and the WebGL context itself */
+  dispose() {
+    this.composer.dispose();
+    this.ink.dispose();
+    this.lens.dispose();
+    this.world.dispose();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+  }
+  /** one frame of a Loomy template shot (tmpl.ts) */
+  drawTemplate(s, t) {
+    const cam = this.camera, local = t - s.start;
+    const fr = frameAt(s, local);
+    if (s.place === "town") {
+      fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start));
+      fr.people = [];
+      fr.effects = [];
+      fr.cInf = 0;
+      fr.focus = fr.cam.look;
+    }
+    this.world.updateTemplate(fr, t, cam, this.scene);
+    noInkFallback(this.world.root);
+    const fwd = new THREE8.Vector3(), fpt = new THREE8.Vector3(...fr.focus);
+    cam.getWorldDirection(fwd);
+    this.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
+    this.lens.cInf = fr.cInf;
+    gradeFor(this.grade, fr.light);
+    this.composer.render();
+    return this.renderer.domElement;
+  }
 };
+async function createTemplated({ width = 1080, height = 1920, shots = [], perf = {} } = {}) {
+  const kit = await loadKit();
+  setCardMax(perf.cardMax ?? 1080);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const g = canvas.getContext("2d", { alpha: false });
+  const view = new View(kit, width, height, { msaa: perf.msaa ?? 2, shadow: perf.shadow ?? 2048 });
+  const list = [...shots].sort((a, b) => a.start - b.start);
+  const at = (t) => list.find((s) => t >= s.start && t < s.end) ?? list[list.length - 1];
+  return {
+    canvas,
+    shots: list,
+    renderAt(t) {
+      const s = at(t);
+      g.globalAlpha = 1;
+      g.drawImage(view.drawTemplate(s, t), 0, 0, width, height);
+      const i = list.indexOf(s), prev = list[i - 1];
+      if (prev && prev.place !== s.place) {
+        const k = (t - s.start) * 30;
+        if (k < 6) {
+          g.globalAlpha = 0.55 * (1 - k / 6);
+          g.fillStyle = "#ffffff";
+          g.fillRect(0, 0, width, height);
+          g.globalAlpha = 1;
+        }
+      }
+      return canvas;
+    },
+    dispose() {
+      view.dispose();
+    }
+  };
+}
 async function createBridge({ width = 1080, height = 1920 } = {}) {
   const kit = await loadKit();
   const canvas = document.createElement("canvas");
@@ -10157,9 +10485,11 @@ async function createBridge({ width = 1080, height = 1920 } = {}) {
   };
 }
 export {
+  PLACE_NAMES,
   SHOTS,
   TOTAL,
   createBridge,
+  createTemplated,
   setStaticBase
 };
 /*! Bundled license information:

@@ -127,3 +127,18 @@ html.has-topbar .ed { height: calc(100dvh - 57px); }
   .stage-box { height: 46vh; }
   .ed-mast .tag { display: none; }
 }
+/* E2/E3: the text and music lanes under the video track */
+.tl-lane { position: relative; height: 30px; margin-top: 6px; }
+.tl-lane[hidden] { display: none; }
+.lane-block { position: absolute; top: 0; height: 26px; border-radius: 7px; display: flex; align-items: center; padding: 0 8px; overflow: hidden; font: 600 11.5px/1 var(--sans); white-space: nowrap; touch-action: none; user-select: none; }
+.lane-block span { overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.lane-block.text { background: #3B2F6B; color: #fff; border: 2px solid #4C3F86; cursor: grab; }
+.lane-block.text.on { border-color: var(--sel); box-shadow: 0 0 0 3px var(--sel-soft); }
+.lane-block.music { background: #1F4A3A; color: #E6FFF2; border: 2px solid #2B5E4B; }
+.ed-inspector .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ed-inspector textarea { width: 100%; min-height: 72px; resize: vertical; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 500 14px var(--sans); padding: 10px; }
+.ed-inspector select, .ed-inspector input[type=range] { width: 100%; }
+.ed-inspector .list { display: flex; flex-direction: column; gap: 6px; }
+.ed-inspector .list button { text-align: left; min-height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 500 13px var(--sans); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-inspector h3 { margin: 18px 0 8px; font: 700 13px var(--sans); text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #9a9a9a); }
+.ed-inspector .check { display: flex; align-items: center; gap: 8px; min-height: 36px; font: 500 13.5px var(--sans); }

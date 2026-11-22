@@ -10,7 +10,7 @@ import { Pen, fxSign } from "./toon";
 import { LIGHTS, LOOK, LightPreset } from "./lights";
 import { TONE, CHAR, LFB, twoTone, untone } from "./shade";
 import { NOINK } from "./ink";
-import { Pool, Actor, Fx, stage, snapFx, splashFx, creakFx, SIGN_AT, SU_SWING } from "./cast";
+import { Pool, Actor, Fx, stage, snapFx, splashFx, creakFx, SIGN_AT, SU_SWING, Stage, stageTemplate, TPerson, TFx } from "./cast";
 import { FPS, D0, SHOTS, PARK, ANCHOR, SNAP, camAt, bridgeState, deckY, dropW, shapeZ, snapEnd, front, BridgeState, V3, smooth, FOREGROUND, ShotDef } from "./story";
 
 // ---------------- assets ----------------
@@ -347,65 +347,14 @@ export class World {
   private fx(i: number) { while (this.fxs.length <= i) this.fxs.push(new Fx(this.root)); return this.fxs[i]; }
 
   update(id: number, f: number, cam: THREE.PerspectiveCamera, scene: THREE.Scene) {
-    const t = f / FPS, s = SHOTS[id - 1], tau = s.tau(t), b = bridgeState(id, t), L = LIGHTS[s.light];
-    // ---- camera ----
-    const c = camAt(id, f);
-    cam.position.set(...c.pos); cam.up.set(0, 1, 0); cam.lookAt(...c.look); cam.rotateZ(c.roll);
-    cam.fov = c.fov; cam.near = 0.2; cam.far = 1500; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
-    const focus = V(...c.look), dist = cam.position.distanceTo(focus);
-    cam.layers.enable(NOINK); // sky, clouds, smoke and sun sprites live on the no-ink layer but are still rendered
-    // ---- light rig (lighting.md 9.4): camera-relative sun frozen per shot, two-tone uniforms, shadow fit ----
-    const K = LOOK[s.light], sunDir = this.shotSun(id, s, L);
-    this.hemi.color.set(L.sky); this.hemi.groundColor.set(L.ground); this.hemi.intensity = L.hemiI;
-    this.sun.color.set(L.sunCol); this.sun.intensity = L.sunI;
-    let Rr = THREE.MathUtils.clamp(dist * 1.15 + 7, 12, 95);
-    if (s.light === "golden") Rr = Math.max(Rr, 30); // el 7: 2 m cards throw ~16 m shadows, houses much longer
-    this.sun.position.copy(focus).addScaledVector(sunDir, 220); this.sun.target.position.copy(focus);
-    const sc = this.sun.shadow.camera;
-    sc.left = -Rr; sc.right = Rr; sc.top = Rr; sc.bottom = -Rr; sc.near = 20; sc.far = 480; sc.updateProjectionMatrix();
-    this.sun.shadow.bias = L.bias; this.sun.shadow.normalBias = L.normalBias * (Rr / 12);
-    this.fill.intensity = 0; // not used by the two-tone shading
-    TONE.uLitCol.value.set(...L.lit); TONE.uShadeCol.value.set(...L.shade); TONE.uShadeLift.value.set(...L.lift);
-    TONE.uLambert.value = L.lambert; TONE.uSideK.value = L.sideK; TONE.uTerm.value = L.term; TONE.uBounce.value.set(...LOOK[s.light].bounce); TONE.uSat.value = LOOK[s.light].sat;
-    CHAR.uCharTint.value.set(...L.charTint); CHAR.uCharShade.value = L.charShade; CHAR.uGrad.value = L.charGrad;
-    CHAR.uBodyGrad.value = L.bodyGrad; CHAR.uSideTint.value.set(...L.sideTint);
-    // ---- sky, fog (colour = horizon colour, linear fogNear -> fogFar), sun disc + halo, clouds ----
-    const su = this.skyMat.uniforms;
-    K.sky.c.forEach((h, i) => untone(h, su["c" + i].value));
-    const e = K.sky.e.map((deg) => THREE.MathUtils.degToRad(deg));
-    su.e.value.set(e[1], e[2], e[3], e[4]);
-    this.sky.position.copy(cam.position);
-    untone(L.fog, this.fog.color); this.fog.near = L.fogNear; this.fog.far = L.fogFar;
-    scene.fog = this.fog; scene.background = null;
-    const showSun = s.light === "golden";
-    this.sunDisc.visible = this.sunHalo.visible = showSun;
-    if (showSun) {
-      this.sunDisc.position.copy(cam.position).addScaledVector(sunDir, 900);
-      this.sunDisc.scale.setScalar(2 * 900 * Math.tan(THREE.MathUtils.degToRad(1.7)));
-      this.sunHalo.position.copy(this.sunDisc.position); this.sunHalo.scale.setScalar(2 * 900 * Math.tan(THREE.MathUtils.degToRad(24)));
-      (this.sunHalo.material as THREE.SpriteMaterial).color.set(L.sunDisc).multiplyScalar(1.3);
-    }
-    for (let i = 0; i < this.clouds.length; i++) {
-      const m = this.clouds[i], mat = m.material as THREE.MeshBasicMaterial;
-      m.lookAt(cam.position.x, m.position.y, cam.position.z);
-      mat.map = this.cloudMaps[s.light][i % 4];
-    }
-    // ---- river colours (on-screen targets, tone-map-inverted) ----
-    const W = this.WU, wc = K.water;
-    untone(wc.near, W.wNearC.value); untone(wc.mid, W.wMidC.value); untone(wc.far, W.wFarC.value);
-    untone(wc.crest, W.wCrest.value); untone(wc.trough, W.wTrough.value); untone(wc.glint, W.wGlint.value);
-    W.wShade.value.set(...wc.shade); W.wTime.value = t;
+    const t = f / FPS, s = SHOTS[id - 1], tau = s.tau(t), b = bridgeState(id, t);
+    const focus = this.view(camAt(id, f), s.light, this.shotSun(id, s, LIGHTS[s.light]), t, cam, scene);
     // ---- foreground framing objects: inside their frames AND their own shot (so a crossfade layer never shows them) ----
     for (const g of this.fgs) g.o.visible = f >= g.a && f < g.b && g.a < s.b && g.b > s.a;
     // ---- bridge ----
     this.poseBridge(b, t, tau, id);
     this.sign.visible = id >= 14;
-    for (const sm of this.smoke) {
-      const u = (t * 0.11 + sm.k) % 1, sz = 3 + u * 9;
-      sm.m.position.set(sm.top[0] - u * 18, sm.top[1] + u * 13 + u * u * 4, sm.top[2] + u * 3);
-      sm.m.scale.set(sz, sz, 1); sm.m.quaternion.copy(cam.quaternion);
-      sm.mat.opacity = 0.85 * (1 - u) ** 1.2;
-    }
+    this.moveSmoke(t, cam);
     // ---- cast + effects ----
     const right = V(0, 0, 0).setFromMatrixColumn(cam.matrixWorld, 0);
     const st = stage(id, t, b, { pos: cam.position, right });
@@ -417,8 +366,106 @@ export class World {
       const F = front(tau);
       creakFx(t, [3, 5.5, 8].map((dz) => [-2.7, chainY(F + dz, b) + 0.35, F + dz] as V3), st);
     }
+    this.cards(st, cam, s.light);
+    return focus;
+  }
+
+  /** shadow-map size (the film uses 4096; the browser templates a smaller one) */
+  setShadowSize(n: number) { this.sun.shadow.mapSize.set(n, n); this.sun.shadow.map?.dispose(); (this.sun.shadow as any).map = null; }
+
+  /** frees every geometry, material, texture and drawing of the world (GPU memory) */
+  dispose() {
+    const seen = new Set<any>();
+    this.root.traverse((o: any) => {
+      if (o.geometry && !seen.has(o.geometry)) { seen.add(o.geometry); o.geometry.dispose(); }
+      for (const m of [].concat(o.material || [])) {
+        if (!m || seen.has(m)) continue; seen.add(m);
+        for (const v of Object.values(m)) if ((v as any)?.isTexture && !seen.has(v)) { seen.add(v); (v as any).dispose(); }
+        m.dispose();
+      }
+    });
+    this.sun.shadow.map?.dispose();
+    this.pool.dispose();
+  }
+
+  /** a Loomy template frame (tmpl.ts): the bridge stands rebuilt and at rest, no sign, no framing props */
+  updateTemplate(fr: { cam: { pos: V3; look: V3; fov: number; roll: number }; light: "day" | "golden"; sun: [number, number, number]; people: TPerson[]; effects: TFx[] }, t: number, cam: THREE.PerspectiveCamera, scene: THREE.Scene) {
+    const focus = this.view(fr.cam, fr.light, new THREE.Vector3(...fr.sun), t, cam, scene);
+    for (const g of this.fgs) g.o.visible = false;
+    this.poseBridge({ bounce: 0, drop: 0, snap: 0, collapsed: false }, t, 0, 15);
+    this.sign.visible = false;
+    this.moveSmoke(t, cam);
+    const right = V(0, 0, 0).setFromMatrixColumn(cam.matrixWorld, 0);
+    this.cards(stageTemplate(fr.people, fr.effects, { pos: cam.position, right }, t, fr.light), cam, fr.light);
+    return focus;
+  }
+
+  /** the lens, the light rig, the sky and the river for one frame (shared by the film and the templates) */
+  view(c: { pos: V3; look: V3; fov: number; roll: number }, light: "day" | "golden", sunDir: THREE.Vector3, t: number, cam: THREE.PerspectiveCamera, scene: THREE.Scene) {
+    const L = LIGHTS[light];
+    // ---- camera ----
+    cam.position.set(...c.pos); cam.up.set(0, 1, 0); cam.lookAt(...c.look); cam.rotateZ(c.roll);
+    cam.fov = c.fov; cam.near = 0.2; cam.far = 1500; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+    const focus = V(...c.look), dist = cam.position.distanceTo(focus);
+    cam.layers.enable(NOINK); // sky, clouds, smoke and sun sprites live on the no-ink layer but are still rendered
+    // ---- light rig (lighting.md 9.4): camera-relative sun frozen per shot, two-tone uniforms, shadow fit ----
+    const K = LOOK[light];
+    this.hemi.color.set(L.sky); this.hemi.groundColor.set(L.ground); this.hemi.intensity = L.hemiI;
+    this.sun.color.set(L.sunCol); this.sun.intensity = L.sunI;
+    let Rr = THREE.MathUtils.clamp(dist * 1.15 + 7, 12, 95);
+    if (light === "golden") Rr = Math.max(Rr, 30); // el 7: 2 m cards throw ~16 m shadows, houses much longer
+    this.sun.position.copy(focus).addScaledVector(sunDir, 220); this.sun.target.position.copy(focus);
+    const sc = this.sun.shadow.camera;
+    sc.left = -Rr; sc.right = Rr; sc.top = Rr; sc.bottom = -Rr; sc.near = 20; sc.far = 480; sc.updateProjectionMatrix();
+    this.sun.shadow.bias = L.bias; this.sun.shadow.normalBias = L.normalBias * (Rr / 12);
+    this.fill.intensity = 0; // not used by the two-tone shading
+    TONE.uLitCol.value.set(...L.lit); TONE.uShadeCol.value.set(...L.shade); TONE.uShadeLift.value.set(...L.lift);
+    TONE.uLambert.value = L.lambert; TONE.uSideK.value = L.sideK; TONE.uTerm.value = L.term; TONE.uBounce.value.set(...LOOK[light].bounce); TONE.uSat.value = LOOK[light].sat;
+    CHAR.uCharTint.value.set(...L.charTint); CHAR.uCharShade.value = L.charShade; CHAR.uGrad.value = L.charGrad;
+    CHAR.uBodyGrad.value = L.bodyGrad; CHAR.uSideTint.value.set(...L.sideTint);
+    // ---- sky, fog (colour = horizon colour, linear fogNear -> fogFar), sun disc + halo, clouds ----
+    const su = this.skyMat.uniforms;
+    K.sky.c.forEach((h, i) => untone(h, su["c" + i].value));
+    const e = K.sky.e.map((deg) => THREE.MathUtils.degToRad(deg));
+    su.e.value.set(e[1], e[2], e[3], e[4]);
+    this.sky.position.copy(cam.position);
+    untone(L.fog, this.fog.color); this.fog.near = L.fogNear; this.fog.far = L.fogFar;
+    scene.fog = this.fog; scene.background = null;
+    const showSun = light === "golden";
+    this.sunDisc.visible = this.sunHalo.visible = showSun;
+    if (showSun) {
+      this.sunDisc.position.copy(cam.position).addScaledVector(sunDir, 900);
+      this.sunDisc.scale.setScalar(2 * 900 * Math.tan(THREE.MathUtils.degToRad(1.7)));
+      this.sunHalo.position.copy(this.sunDisc.position); this.sunHalo.scale.setScalar(2 * 900 * Math.tan(THREE.MathUtils.degToRad(24)));
+      (this.sunHalo.material as THREE.SpriteMaterial).color.set(L.sunDisc).multiplyScalar(1.3);
+    }
+    for (let i = 0; i < this.clouds.length; i++) {
+      const m = this.clouds[i], mat = m.material as THREE.MeshBasicMaterial;
+      m.lookAt(cam.position.x, m.position.y, cam.position.z);
+      mat.map = this.cloudMaps[light][i % 4];
+    }
+    // ---- river colours (on-screen targets, tone-map-inverted) ----
+    const W = this.WU, wc = K.water;
+    untone(wc.near, W.wNearC.value); untone(wc.mid, W.wMidC.value); untone(wc.far, W.wFarC.value);
+    untone(wc.crest, W.wCrest.value); untone(wc.trough, W.wTrough.value); untone(wc.glint, W.wGlint.value);
+    W.wShade.value.set(...wc.shade); W.wTime.value = t;
+    return focus;
+  }
+
+  /** chimney smoke drifting downwind */
+  moveSmoke(t: number, cam: THREE.PerspectiveCamera) {
+    for (const sm of this.smoke) {
+      const u = (t * 0.11 + sm.k) % 1, sz = 3 + u * 9;
+      sm.m.position.set(sm.top[0] - u * 18, sm.top[1] + u * 13 + u * u * 4, sm.top[2] + u * 3);
+      sm.m.scale.set(sz, sz, 1); sm.m.quaternion.copy(cam.quaternion);
+      sm.mat.opacity = 0.85 * (1 - u) ** 1.2;
+    }
+  }
+
+  /** the cast and effects of a frame as camera-facing cards (shared by the film and the templates) */
+  cards(st: Stage, cam: THREE.PerspectiveCamera, light: "day" | "golden") {
     this.frustum.setFromProjectionMatrix(this.m4.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
-    const tint = s.light === "golden" ? "#ffcf9e" : "#ffffff";
+    const tint = light === "golden" ? "#ffcf9e" : "#ffffff";
     let ai = 0;
     const used: Actor[] = [];
     for (const p of st.places) {
@@ -432,7 +479,7 @@ export class World {
       a.mesh.rotation.set(0, p.yaw ?? Math.atan2(cam.position.x - p.x, cam.position.z - p.z), p.roll ?? 0);
       a.mesh.scale.set(p.mirror ? -sc2 : sc2, sc2, sc2);
       if (a.mat.emissiveMap) a.mat.emissive.set(tint); // legacy emissive card until the CHAR agent's cardShade lands
-      a.mesh.castShadow = p.geo === "swing" ? true : L.actorShadow; // day: soft contact blobs instead (CHAR agent)
+      a.mesh.castShadow = p.geo === "swing" ? true : LIGHTS[light].actorShadow; // day: soft contact blobs instead (CHAR agent)
       used.push(a);
     }
     for (let i = ai; i < this.actors.length; i++) this.actors[i].mesh.visible = false;
@@ -455,8 +502,8 @@ export class World {
     this.pool.flush();
     for (const a of used) a.bind();
     for (const e of fused) e.bind();
-    return focus;
   }
+
 
   private poseBridge(b: BridgeState, t: number, tau: number, id: number) {
     const dy = ZS.map((z) => deckY(z, b));

@@ -83,36 +83,61 @@ slow, about 5-15 s a frame).
   effects, cast mapping, `planShots`, `buildShot`, `captionsFrom`) and `explainer/js/drawn.js`
   (`DrawnRenderer`: canvas/W/H/drawFrame/dispose + `ready` promise, same face as `Renderer`).
 
-## Remaining work, in order
+## Done on 2026-11-22 (live: pushed to `main` and deployed 2026-11-21 9:01 PM EST, commit 8f7c8e1)
 
-1. **L2 wire the 3D tab** (about 2-3 h):
-   - `explainer/js/presets.js`: add style `'drawn-3d'` (label "3D people, drawn in code", `drawn: '3d'`,
-     `character: true`, a zach-style direction) and make it the 3D default in `explainer/js/app.js` (line ~79,
-     currently `'story-3d'`). AI-picture styles stay as options.
-   - `explainer/js/llm.js` `writerPrompt`/`normalizeScript`: when `style.drawn`, ask per scene for
-     `set` (auto3d `SETS`), `frame` (auto3d `SHOT_KINDS`; don't reuse `shot`, the mascot styles use it),
-     `who` (character names), `act` (auto3d `POSE_NAMES`); keep `camera`, `effect`, `icon`, `delivery`.
-     Map them onto what `planShots` reads (`sc.shot`, `sc.pose`) or change `planShots` to read `frame`/`act`.
-   - `explainer/js/pipeline.js`: when `STYLES[style].drawn`, mark visuals/depth/motion as skipped
-     ("Drawn in code, no pictures needed") and run only the voice job; `makeRenderer` returns
-     `new DrawnRenderer(canvas, { timeline, script, kind, W: width, H: height })`; `render()` must
-     `await renderer.ready` before `exportVideo`. The renderer test page needs `three` in the import map of
-     `explainer/index.html` (it already maps `three` and `three/addons/` for z3d) and people GLBs in `explainer/people/`.
-   - Then render stills from a mocked script and fix framing like the hand-made films (tall frames need
-     the camera further back; check faces are not cropped, the night set is dark, effects show).
-2. **L3 Blocky drawn**: `explainer/js/z3d/autoblocky.js` with the same exports as auto3d (`castFor`,
-   `planShots`, `buildShot(spec, ctx)`, `captionsFrom` with 3-4 word groups and one `*key*` word) using
-   `blocky.js` (`Avatar`, `LOOKS`, `FACES`, `makeWorld`, `roundBox`, `paintedMat`) and props like the snow
-   fort film (fort, flag, shovel, plow, pile). The Blocky tab is `explainer/?style=blocky`.
-3. **L4 sound**: port the film sound design to the browser (`explainer/js/audio.js` / `cartoon/js/audio.js`):
-   per-section score (pluck, glock, vibes, pad, snare, timpani, cymbal) and an SFX cue library (whoosh,
-   splash, bubbles, heartbeat, breath, crunch, thump, cheer, engine, beeps, scrape, boom, riser) placed from
-   the shot plan, music ducked about 4 dB under speech, master about -14 LUFS. `tools/films/score.py` is the
-   reference; `tools/tests/musiclevel.py` measures the music level.
-4. **L5 Cartoons**: generalize the cartoon-3d-short engine (`tools/c3d-src`, esbuild bundle) into templated
-   shots for the Cartoons tab; captions off by default with a switch.
-5. Editor E2-E5 (text and captions, music and sound, speed/zoom/transitions, an Edit button on Loomy videos);
-   see `editor/js/model.js`. TaleTok reference: the user never sent screenshots.
+Each step is one commit with its ID. Unit tests: `node tools/tests/unit/run.mjs` (165 pass).
+
+- **V1** Cartoons keeps a voice when Kokoro cannot download (site narrator, then cloud), like the 3D tab.
+- **L2** 3D tab: new default look `drawn-3d` (presets.js); the writer asks `set`/`frame`/`who`/`act` per
+  scene (words in `z3d/vocab.js`); the pipeline skips pictures/depth/clips and renders with `DrawnRenderer`.
+  Shot plan and caption rules moved to `z3d/plan.js` / `z3d/captions.js` (no three.js). Tall-frame
+  framing, night, glow and icon fixes from rendered stills. Test page `tools/tests/z3d/drawn.html`
+  (`?kind=3d|blocky&script=drawn-3d.json`, `window.still(t)`, `window.plan()`).
+- **L3** Blocky tab: `z3d/autoblocky.js` + `z3d/blockyprops.js` (The Snow Fort's props, shared with the
+  film); new default look `drawn-blocky` (Blocky direction + shot words); 3-4 word captions, one key word.
+- **L4** `shared/filmsound.js`: sectioned score (intro/build/tension/payoff/outro from the shot plan) and
+  a cue sheet (whoosh, riser, thump, breath, boom, crunch/steps, cheer, beeps, engine, scrape, wind,
+  heartbeat, splash, bubbles, zaps) mixed by both tabs' `mixSoundtrack(..., { cues })`. The music level
+  rules are unchanged (17.5 dB under the voice, -13.5 LUFS master).
+- **E2-E4** Edit: text boxes (own lane), captions tied to source time, music track (duck, fades), per-part
+  speed/zoom/transition/volume. **E5** "Edit this video" on finished 3D/Blocky/Cartoons videos
+  (`shared/handoff.js`, IndexedDB + BroadcastChannel). Tests: `tools/tests/editore2e2.cjs`, `editore2e.cjs`.
+- **L5** Cartoons: look `town3d` ("3D cartoon town, drawn in code",
+  the composer default; painted sets stay) renders with the cartoon-3d engine's new template layer
+  (`tools/c3d-src/src/tmpl.ts`, `World.updateTemplate`, `createTemplated` in driver.ts; rebuild with
+  `cd tools/c3d-src && npm install && npm run build`). Places: the bridge deck, the riverbank, the park and
+  an aerial over the town, seen from the film's own camera sides (no house blocks the lens). Captions off
+  by default (More, "Captions on the 3D cartoon town"). `cartoon/js/town.js` maps scenes to shots.
+  Test page `tools/tests/c3d/tmpl.html?shots=c3d-tmpl.json`; end to end `tools/tests/townmaster.cjs`.
+  The bridge film renders pixel-identical after the engine refactor (checked on 6 frames).
+- End-to-end tests for the drawn looks: `tools/tests/drawnmaster.cjs 3d|blocky` (720p 24 fps, mocked AI).
+
+## Loomy 1.0 (2026-11-22)
+
+Everything above, plus (one commit each, all on `main`):
+- **Fixes after live use**: the pulse effect was a red disc on the chest (now rings beside the head);
+  the 3D cartoon town crashed a user's PC (now lighter: MSAA 2, 2048 shadow map, drawings capped at
+  1080 px; it frees its WebGL context; the preview's engine is freed before an export; frames are
+  paced) and Cartoons opens on painted sets again (the town is opt-in, marked heavy).
+- **Auto look** (3D tab default): `pickLook` in presets.js: drawn 3D people for stories, AI pictures for
+  things, places, history, space and the body.
+- **H1 hook stack** (`shared/hooks.js`): cold open on the teaser scene (0.9 s), headline from the
+  writer's `hookText`, a flash on the cut, a riser and boom. All looks.
+- **O1 3D objects** (`z3d/things.js`, 26 things; actions hold/show/drop/grow/spin/break; shot kind
+  `object`; pose `show`), in 3D and Blocky; the writer picks `thing` and `do`.
+- **1.0 look**: one accent gradient (theme.css), hero glow, "Made with Loomy" frames
+  (`shared/showcase/`), feature pills, a What's-new card (index.html, once per browser).
+- **LF1 long form**: up to 15 min in chapters (3D/Blocky `writeLongScript`, Cartoons parts), chapter
+  title cards, one-click long-form starters, lower bitrate for long exports. Styles are original
+  (cartoon history, game-world story, long 3D explainer): no channel or game names in Loomy.
+Tests added: h1-hooks, o1-things, l2b-auto-look, l4b-film-sound-nodes (unit); longmaster.cjs,
+autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editore2e2.cjs (page).
+
+## Remaining work
+
+- Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
+  render (hours on this CPU; minutes on a GPU). Ask the user to make one long video per tab.
+- Ideas: more town places, objects for the Cartoons tab, a chapter list in the YouTube description.
 
 ## Deploying to Loomy (the live site)
 

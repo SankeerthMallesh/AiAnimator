@@ -13,7 +13,10 @@ import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
 import { exportVideo } from './encoder.js';
 import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
-import { FORMATS, PACES, formatOf } from './presets.js';
+import { FORMATS, PACES, MOODS, formatOf } from './presets.js';
+import { TownRenderer, townShots } from './town.js';
+import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
+import { hookCues } from '../../shared/hooks.js';
 
 export const STEPS = [
   ['script', 'Write script'],
@@ -189,7 +192,8 @@ export class Pipeline {
   // becomes extra backgrounds. Before the script exists it paints topic views; after, the sets.
   startPainting() {
     const p = this.p;
-    if (this.demo || this.s.imageProvider === 'none' || p.options.plates === false || this.paint) return;
+    // The 3D cartoon town is drawn in code: no backgrounds to paint (and no image allowance spent).
+    if (this.town || this.demo || this.s.imageProvider === 'none' || p.options.plates === false || this.paint) return;
     const views = [['wide establishing view', 'field'], ['up close at street level', 'city'], ['inside a building', 'inside'], ['at golden sunset', 'mountains']];
     const pool = [];
     const done = new Set();
@@ -224,8 +228,12 @@ export class Pipeline {
     })();
   }
 
+  // L5: the 3D cartoon town look (the default for new videos): drawn in code, no backgrounds to paint.
+  get town() { return !this.demo && (this.p.options.look || 'painted') === 'town3d'; }
+
   async ensurePlates() {
     const p = this.p;
+    if (this.town) { this.h.step('plates', 'skip', 'Drawn in code: the 3D cartoon town'); return; }
     if (this.demo || this.s.imageProvider === 'none' || p.options.plates === false) {
       this.h.step('plates', 'skip', 'Drawn in code');
       return;
@@ -331,10 +339,10 @@ export class Pipeline {
       try { await deadline(warmNarrator(this.narrator), 90000, 'Voice download'); }
       catch (e) {
         if (this.signal.aborted) throw e;
-        this.log(`Built-in voice could not load (${e.message}). Captions will carry the film.`);
-        this.narrator.engine = 'none';
-        this.h.step('voice', 'warn', 'No voice — captions only');
-        return;
+        // Like the 3D tab: the site's own narrator (and then the cloud voice) still reads it.
+        // Captions-only is left for when those fail too (speak() returns null and says so).
+        this.log(`Built-in voice could not load (${e.message}); using the site's narrator voice.`);
+        this.narrator.engine = 'pollinations';
       }
     }
     // The whole script in one read when the site's narrator can do it; the loop below then only
@@ -389,13 +397,19 @@ export class Pipeline {
     if (q.get('musicseed') || stem) p.musicSeed = Number(q.get('musicseed')) || 1234567;
     p.stem = stem;
     p.musicSeed ||= Math.floor(Math.random() * 1e9);
-    const musicKey = `${mood}|${p.musicSeed}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}`;
+    // The town look gets the film sound (a sectioned score and effects on the shots it cuts to).
+    const specs = this.town ? townShots(p.timeline, p.script).specs : null;
+    const sections = specs ? scoreSections(specs, p.timeline.total) : null;
+    const musicKey = `${mood}|${p.musicSeed}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}|${sections ? JSON.stringify(sections.map(x => [x.kind, x.start.toFixed(1)])) : ''}`;
     if (p.musicKey !== musicKey) {
-      p.music = p.userMusic || (mood === 'none' ? null : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
+      p.music = p.userMusic || (mood === 'none' ? null
+        : sections ? await filmScore(p.timeline.total, { mood: MOODS[mood], sections, seed: p.musicSeed })
+          : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
       p.musicKey = musicKey;
     }
-    p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume), stem: p.stem });
-    this.h.step('sound', 'done', `${p.timeline.total.toFixed(1)}s · ${mood === 'none' ? 'no music' : p.userMusic ? 'your music' : mood + ' score'}`);
+    const cues = specs ? [...hookCues(), ...cueSheet(specs, p.timeline.total)].sort((a, b) => a.t - b.t) : null;
+    p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume), stem: p.stem, cues });
+    this.h.step('sound', 'done', `${p.timeline.total.toFixed(1)}s · ${mood === 'none' ? 'no music' : p.userMusic ? 'your music' : mood + (sections ? ' film score' : ' score')}${cues ? ` · ${cues.length} sound effects` : ''}`);
   }
 
   async prepare() {
@@ -413,7 +427,13 @@ export class Pipeline {
     await this.ensureMix();
   }
 
-  makeRenderer(canvas) {
+  makeRenderer(canvas, size = null) {
+    if (this.town) {
+      // The live preview renders at half size (fast on any computer); the export at the output size.
+      const out = outputSize(this.p.options, this.s), even = (n) => Math.round(n / 2) * 2;
+      const { width, height } = size || { width: even(out.width / 2), height: even(out.height / 2) };
+      return new TownRenderer(canvas, { timeline: this.p.timeline, script: this.p.script, W: width, H: height, captions: !!this.p.options.townCaptions, preview: !size });
+    }
     const stage = new Stage(canvas);
     stage.setView({
       script: this.p.script,
@@ -457,8 +477,9 @@ export class Pipeline {
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
-    const renderer = this.makeRenderer(canvas);
-    renderer.log = new RenderLog({ tab: 'cartoons', style: this.s.bgLook || 'cartoon' });
+    const renderer = this.makeRenderer(canvas, { width, height });
+    if (renderer.ready) { this.h.step('render', 'active', 'Building the 3D cartoon town…'); await renderer.ready; }
+    renderer.log = new RenderLog({ tab: 'cartoons', style: this.town ? 'town3d' : this.s.bgLook || 'cartoon' });
     const t0 = performance.now();
     const fps = Number(p.options.fps || this.s.fps) || 24;
     try {
@@ -472,6 +493,7 @@ export class Pipeline {
       const secs = ((performance.now() - t0) / 1000).toFixed(1);
       this.h.step('render', 'done', `${width}×${height} · ${fps} fps · ${(out.blob.size / 1048576).toFixed(1)} MB · ${secs}s`);
       this.log(`Encoded with ${out.codec}`);
+      if (renderer.describe) this.log(`Shots: ${renderer.describe().join(' | ')}`);
       if (p.video?.url) URL.revokeObjectURL(p.video.url);
       p.video = { ...out, url: URL.createObjectURL(out.blob), width, height };
       p.manifest = this.fillLog(renderer.log);

@@ -10,6 +10,7 @@ import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
 import { drawWorld } from '../../cartoon/js/worlds.js';
 import { heroLook, drawHero, feelFor } from './hero.js';
+import { teaserIndex, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -37,6 +38,9 @@ export class Renderer {
   constructor(canvas, { timeline, images, depths = [], clips = [], options, settings, script, meta = null }) {
     this.clips = timeline.scenes.map((s, i) => clips[i] || null);
     this.hostOn = !!STYLES[options.style]?.mascot && settings.host !== false;
+    // The hook stack (shared/hooks.js): the teaser scene's picture flashes first, a headline pops in.
+    this.teaser = settings.hooks === false || timeline.scenes[0]?.dur <= TEASE + 0.4 ? -1 : teaserIndex(timeline.scenes, script?.teaser);
+    this.headline = settings.hooks === false ? '' : headlineText(script);
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
     this.W = canvas.width;
@@ -273,6 +277,12 @@ export class Renderer {
       const tb = cur.start;
       if (T && t < tb + T / 2) { this._transition(prev, cur, (t - (tb - T / 2)) / T, t); drawn = true; }
     }
+    if (this.teaser >= 0 && t < TEASE) {
+      // Cold open: the teaser scene, from a little into its shot, for the first TEASE seconds.
+      const ts = scenes[this.teaser];
+      this._drawScene(ctx, ts, Math.min(ts.dur * 0.35, 1.2) + t);
+      drawn = true;
+    }
     if (!drawn) this._drawScene(ctx, cur, t - cur.start);
     if (this.log) {
       this._heroBox = null;
@@ -304,7 +314,11 @@ export class Renderer {
     ctx.globalAlpha = 1;
 
     this._label(cur, t - cur.start);
-    if (this.settings.showTitle && i === 0) this._title(t);
+    if (this.teaser >= 0) drawCutFlash(ctx, W, H, t);
+    if (this.headline) drawHeadline(ctx, W, H, t, this.headline, { top: this.blocky ? 0.09 : 0.14, font: CAPTION_FONT });
+    else if (this.settings.showTitle && i === 0) this._title(t);
+    const ch = chapterAt(scenes, t); // long form: a title card opens each chapter
+    if (ch && ch.n > 1) drawChapterCard(ctx, W, H, ch.local, ch.n, ch.title, { font: CAPTION_FONT });
     if (this.settings.captionStyle !== 'off') {
       if (this.log) this.log.caption(t, ctx, H, () => this._captions(cur, t - cur.start - cur.voiceOffset));
       else this._captions(cur, t - cur.start - cur.voiceOffset);

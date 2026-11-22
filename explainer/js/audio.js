@@ -5,6 +5,7 @@ import { levelChannels } from '../../shared/level.js';
 import { loudness } from '../../shared/renderlog.js';
 import { MOODS } from './presets.js';
 import { speechBounds, wordTimings } from './tts.js';
+import { renderCues } from '../../shared/filmsound.js';
 
 export const SAMPLE_RATE = 48000;
 const WPS = 2.55;
@@ -331,9 +332,12 @@ export function speechSpans(timeline, join = 0.6) {
 export const MUSIC_UNDER_VOICE = 17.5;
 // stem 'voice' or 'music' (test only, ?stem=): just that part of the soundtrack, through the same
 // chain and with the same master gain as the full mix, so the two can be measured against each other.
-export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0 } = {}) {
+// cues: the film sound's effects placed on the shot plan (shared/filmsound.js), used instead of the
+// scene-based effects below for the looks drawn in code.
+// extraCues: more film-sound cues on top of the scene-based effects (the hook's sounds for picture looks).
+export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0, cues = null, extraCues = null } = {}) {
   let master = null;
-  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx })).levelInfo; sfx = false; }
+  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx, cues, extraCues })).levelInfo; sfx = false; }
   // The voice as it comes out of the voice chain, measured, so the music can be set against it.
   // The music too, through the same bus at a fixed 0.2 gain (the bus compressor adds makeup gain).
   const lufsOf = (b) => loudness(Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c)), b.sampleRate);
@@ -429,11 +433,17 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     src.start(0);
   }
 
-  if (sfx) {
+  if (sfx && cues) {
+    const fx = ctx.createGain();
+    fx.gain.value = 0.8;
+    fx.connect(comp);
+    renderCues(ctx, fx, cues);
+  } else if (sfx) {
     const noise = noiseBuffer(ctx, 1.5);
     const fx = ctx.createGain();
     fx.gain.value = 0.8;
     fx.connect(comp);
+    if (extraCues) renderCues(ctx, fx, extraCues);
     boom(ctx, fx, 0.0, noise, 0.8);
     timeline.scenes.forEach((s, i) => {
       if (i > 0 && s.transition !== 'fade') whoosh(ctx, fx, Math.max(0, s.start - 0.22), noise, s.transition === 'whip' ? 1 : 0.7);

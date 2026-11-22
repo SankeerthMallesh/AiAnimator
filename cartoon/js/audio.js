@@ -5,6 +5,7 @@ import { levelChannels } from '../../shared/level.js';
 import { loudness } from '../../shared/renderlog.js';
 import { MOODS } from './presets.js';
 import { speechBounds, wordTimings, alignWords, voiceEnvelope } from './tts.js';
+import { renderCues } from '../../shared/filmsound.js';
 
 export const SAMPLE_RATE = 48000;
 const WPS = 2.55;
@@ -392,9 +393,11 @@ export function speechSpans(timeline, join = 0.6) {
 export const MUSIC_UNDER_VOICE = 17.5;
 // stem 'voice' or 'music' (test only, ?stem=): just that part of the soundtrack, through the same
 // chain and with the same master gain as the full mix, so the two can be measured against each other.
-export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0 } = {}) {
+// cues: the film sound's effects on the shot plan (shared/filmsound.js), used instead of the
+// scene-based effects for the 3D cartoon town look.
+export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0, cues = null } = {}) {
   let master = null;
-  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx })).levelInfo; sfx = false; }
+  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx, cues })).levelInfo; sfx = false; }
   // The voice as it comes out of the voice chain, measured, so the music can be set against it.
   // The music too, through the same bus at a fixed 0.2 gain (the bus compressor adds makeup gain).
   const lufsOf = (b) => loudness(Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c)), b.sampleRate);
@@ -490,7 +493,12 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     src.start(0);
   }
 
-  if (sfx) {
+  if (sfx && cues) {
+    const fx = ctx.createGain();
+    fx.gain.value = 0.8;
+    fx.connect(comp);
+    renderCues(ctx, fx, cues);
+  } else if (sfx) {
     const noise = noiseBuffer(ctx, 1.5);
     const fx = ctx.createGain();
     fx.gain.value = 0.8;
