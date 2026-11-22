@@ -34,6 +34,13 @@ export function cueSheet(specs, total = Infinity) {
     if (s.kind === 'wide' && (s.set === 'street' || s.set === 'night') && i % 2 === 0) add(s.start + 0.3, 'engine', 0.5, Math.min(2.6, d));
     if (s.kind === 'wide' && s.set === 'snow') add(s.start + 0.6, 'scrape', 0.45);
     if (s.set === 'snow' && (s.kind === 'wide' || s.kind === 'walk')) add(s.start, 'wind', 0.5, d);
+    // Things (z3d/things.js): what happens to them is heard.
+    if (s.thing) {
+      if (s.do === 'drop') { add(s.start + 0.1, 'whoosh', 0.5); add(s.start + 0.55, 'thump', 0.9); }
+      if (s.do === 'break') { add(s.start + 0.45, 'riser', 0.4, 0.15); add(s.start + 0.6, 'crunch', 1); add(s.start + 0.62, 'boom', 0.6); }
+      if (s.do === 'grow') add(s.start + 0.15, 'thump', 0.55);
+      if (s.do === 'spin') add(s.start + 0.05, 'whoosh', 0.4);
+    }
     switch (s.effect) {
       case 'pulse': for (let t = s.start + 0.1; t < s.end - 0.3; t += 0.9) add(t, 'heartbeat', 0.85); break;
       case 'shockwave': add(s.start + 0.15, 'boom', 0.95); break;

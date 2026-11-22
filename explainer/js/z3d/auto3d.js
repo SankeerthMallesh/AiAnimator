@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { lerp, smooth, easeOut, easeInOut, range, clamp, V, cam, place, shake } from './anim.js';
 import { glowSprite, sparks } from './props.js';
 import { CAST, loadPerson, POSES, mix, talking, walking } from './people.js';
+import { makeThing, thingAction } from './things.js';
 
 import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D, effect3d } from './vocab.js';
 export { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D };
@@ -281,8 +282,19 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   const r = rnd(spec.seed);
   const yawJ = (r() - 0.5) * 0.3;
   const fx = makeEffect(spec.effect, scene, spec.seed);
-  const icon = spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.55) : null;
+  // A real thing (things.js) in the shot replaces the emoji icon.
+  const thing = spec.thing ? makeThing(spec.thing) : null;
+  if (thing) scene.add(thing);
+  const holds = thing && (spec.do === 'hold' || spec.do === 'show') && spec.kind !== 'object';
+  const icon = !thing && spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.55) : null;
   if (icon) scene.add(icon);
+  if (spec.kind === 'object') {
+    // The thing's stand: a small round table, so the close-up has a place to sit.
+    const wood = std({ color: 0x6b4a2e, roughness: 0.6 });
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 48), wood); top.position.y = 0.88;
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.86, 16), wood); leg.position.y = 0.43;
+    scene.add(shadowAll(top), shadowAll(leg));
+  }
   const words = spec.words.map(w => ({ start: w.start - spec.offset, end: w.end - spec.offset }));
   const near = wide ? 0.85 : 1; // a wide frame needs the camera a little closer
   const tall = H > W * 1.2;     // 9:16 and 4:5: little room side to side
@@ -293,12 +305,29 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   return { scene, camera: c, update(t) {
     const k = easeInOut(range(t, 0, dur));
     let focusD = 0, ap = 0, target = V(0, 1.2, 0), eff = null;
+    let spot = null, hand = null, tScale = 1;
     const A = P[0], B = P[1], C = P[2];
     const talk = speakingAt(words, t) ? 0.9 : 0;
+    // Someone holding the thing raises it in the right hand (the show pose); the thing follows the hand.
+    if (holds && A) hand = () => A.handWorld('r', new THREE.Vector3());
+    const pose0 = holds ? 'show' : null;
     switch (spec.kind) {
+      case 'object': {
+        // The thing up close on its stand, the speaker soft behind it.
+        const h = thing?.userData.h || 0.2;
+        tScale = h < 0.12 ? 1.7 : h > 0.5 ? 0.7 : 1;
+        spot = V(0, 0.9, 0);
+        if (A) { at(A, tall ? 0.45 : 0.8, -1.5, -0.35); poseNow(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { talk, from: 'stand', seed: spec.seed }); }
+        target = V(0, 0.9 + h * tScale * 0.5, 0);
+        // Far enough that the thing's widest side fills about 40 % of the frame's width.
+        const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
+        const span = Math.max(big.x, big.y, big.z, 0.12) * tScale;
+        focusD = frameCam(c, target, { dist: Math.max(0.6, span * (tall ? 4.4 : 2.6)) * near, height: span * 0.45, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        ap = 0.005; eff = target.clone(); break;
+      }
       case 'talk': {
         at(A, 0, 0, 0.18);
-        poseNow(A, spec.pose === 'stand' ? 'talk' : spec.pose, t, { talk, from: 'talk', seed: spec.seed });
+        poseNow(A, pose0 || (spec.pose === 'stand' ? 'talk' : spec.pose), t, { talk, from: 'talk', seed: spec.seed });
         target = lookAt(A).add(V(0, -0.12, 0));
         focusD = frameCam(c, target, { dist: 1.9 * near, height: 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
         ap = 0.0018; eff = chest(A); break;
@@ -306,8 +335,9 @@ export function buildShot(spec, people, { makeStage, W, H }) {
       case 'two': {
         const gap = tall ? 0.34 : 0.55;
         at(A, -gap, 0, tall ? 0.55 : 0.9); at(B, gap, 0.05, tall ? -0.55 : -0.9);
-        poseNow(A, 'talk', t, { talk, from: 'talk', seed: spec.seed });
+        poseNow(A, pose0 || 'talk', t, { talk, from: 'talk', seed: spec.seed });
         poseNow(B, spec.pose, t, { from: 'stand', onset: dur * 0.4, seed: spec.seed + 1 });
+        if (thing && !holds) { spot = lookAt(A).lerp(lookAt(B), 0.5).add(V(0, -0.75, 0.25)); tScale = 1.4; }
         target = lookAt(A).lerp(lookAt(B), 0.5).add(V(0, -0.2, 0));
         focusD = frameCam(c, target, { dist: (tall ? 3.7 : 2.9) * near, height: 0.05, yaw: tall ? 0.12 : 0.25 }, spec.camera === 'impact' ? 'push-in' : (tall ? narrowMove(spec.camera) : spec.camera), k, t, spec.seed, fov0);
         ap = 0.0011; eff = chest(B); break;
@@ -337,11 +367,12 @@ export function buildShot(spec, people, { makeStage, W, H }) {
       case 'point': {
         at(A, tall ? 0.2 : 0.5, 0, -0.6);
         poseNow(A, 'point', t, { talk, from: 'talk', onset: 0.3, seed: spec.seed, extra: { head: [0, -0.5, 0] } });
-        const spot = tall ? V(-0.36, 1.62, -0.15) : V(-0.9, 1.45, -0.2);
-        if (icon) { icon.position.copy(spot); icon.scale.setScalar(0.55 * (0.7 + 0.3 * easeOut(range(t, 0.3, 0.8))) + Math.sin(t * 3) * 0.02); }
+        const pt = tall ? V(-0.36, 1.62, -0.15) : V(-0.9, 1.45, -0.2);
+        if (icon) { icon.position.copy(pt); icon.scale.setScalar(0.55 * (0.7 + 0.3 * easeOut(range(t, 0.3, 0.8))) + Math.sin(t * 3) * 0.02); }
+        if (thing) { spot = pt.clone().add(V(0, -0.25, 0)); tScale = 2.2; }
         target = tall ? V(-0.04, 1.45, -0.1) : V(-0.1, 1.4, -0.1);
         focusD = frameCam(c, target, { dist: (tall ? 3.0 : 2.4) * near, height: 0.05, yaw: 0.05 }, spec.camera === 'orbit' ? 'orbit' : tall ? 'push-in' : 'pan-left', k, t, spec.seed, fov0);
-        ap = 0.0012; eff = spot; break;
+        ap = 0.0012; eff = pt; break;
       }
       case 'group': {
         const side = tall ? 0.58 : 0.85, back = tall ? -0.45 : -0.2;
@@ -352,6 +383,17 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         focusD = frameCam(c, target, { dist: (tall ? 4.9 : 3.6) * near, height: 0.15, yaw: 0.1 }, (tall ? narrowMove(spec.camera) : spec.camera), k, t, spec.seed, fov0);
         ap = 0.0009; eff = chest(A); break;
       }
+    }
+    if (thing) {
+      if (!spot && !hand) {
+        // Not held and not placed by the shot: it lands or spins beside the first person.
+        const base = A ? A.object.position.clone() : V(0, 0, 0);
+        const side = spec.kind === 'wide' ? 0.9 : 0.55;
+        spot = base.add(V(tall ? side * 0.6 : side, spec.do === 'drop' || spec.do === 'break' ? 0 : 1.0, 0.35));
+        tScale = spec.kind === 'wide' ? 2.6 : spec.kind === 'react' ? 1.2 : 1.8;
+        if (thing.userData.h > 0.5) tScale = Math.min(tScale, 1.1);
+      }
+      thingAction(thing, spec.do, t, { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: tScale });
     }
     if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.55, 0.55, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
     if (fx && eff) fx(t, eff, c.position);

@@ -8,7 +8,7 @@ import { fetchTimeout } from './net.js';
 import { HATS, POSES, EMOTIONS, SIDES } from './mascot.js';
 import { PROPS } from './props.js';
 import { DELIVERIES } from '../../shared/voicefx.js';
-import { SETS, SHOT_KINDS, POSE_NAMES, EFFECTS3D, effect3d } from './z3d/vocab.js';
+import { SETS, SHOT_KINDS, POSE_NAMES, EFFECTS3D, THINGS, THING_ACTIONS, effect3d } from './z3d/vocab.js';
 
 const WORDS_PER_SECOND = 2.55;
 
@@ -310,7 +310,9 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
       "set": one of ${JSON.stringify(SETS)} (the place; keep it until the story moves),
       "frame": one of ${JSON.stringify(SHOT_KINDS)},
       "who": ["the names of the characters in this shot"],
-      "act": one of ${JSON.stringify(POSE_NAMES)}` : ''}${style.mascot ? `,
+      "act": one of ${JSON.stringify(POSE_NAMES)},
+      "thing": one of ${JSON.stringify(THINGS)} or '' (a real object in the shot whenever the line is about a thing: the brick or wall for building materials, coins for money, clock or hourglass for time, globe for places, bulb for ideas, atom or dna for science, scale for weight, magnet, phone, book... use one in at least half the scenes),
+      "do": what happens to the thing, one of ${JSON.stringify(THING_ACTIONS)} (hold = in the speaker's hand, show = an object close-up turning slowly, drop = it falls in and lands, grow = it pops up where someone points, spin = it floats and turns, break = it shatters; use frame "object" for a close-up of the thing)` : ''}${style.mascot ? `,
       "prop": one of ${JSON.stringify(PROPS)},
       "shot": "wide" or "close",
       "pose": one of ${JSON.stringify(POSES)},
@@ -393,6 +395,8 @@ function drawnFields(s, i) {
     set: SETS.includes(low(s.set)) ? low(s.set) : '',
     frame: SHOT_KINDS.includes(low(s.frame)) ? low(s.frame) : '',
     act: POSE_NAMES.includes(low(s.act)) ? low(s.act) : '',
+    thing: THINGS.includes(low(s.thing)) ? low(s.thing) : '',
+    do: THING_ACTIONS.includes(low(s.do)) ? low(s.do) : '',
     who,
     effect: effect3d(low(s.effect)),
   };

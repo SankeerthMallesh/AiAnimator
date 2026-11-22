@@ -1,7 +1,7 @@
 // The shot plan for the looks drawn in code, without three.js: who plays whom (castFor), who is in a
 // shot (whoFor) and the cut list (planShots). auto3d.js and autoblocky.js build the shots from it;
 // the film sound (shared/filmsound.js) places its cues on it.
-import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, effect3d } from './vocab.js';
+import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, THINGS, THING_ACTIONS, effect3d } from './vocab.js';
 
 // ---------- the cast for a script ----------
 const FEMALE = /\b(woman|women|girl|she|her|mother|mom|wife|queen|lady|female|sister|daughter|grandma|aunt)\b/i;
@@ -29,7 +29,10 @@ export function whoFor(spec, castMap) {
 // scenes: timeline scenes ({ start, dur, words, set, shot, who, pose, camera, effect, icon, narration }).
 // A long line is cut into two shots (the writer's shot, then a reaction or a wide), so the edit keeps
 // the 2.5-4.5 s rhythm of the reference shorts.
-const COMPLEMENT = { talk: 'react', two: 'react', react: 'wide', wide: 'talk', walk: 'react', point: 'react', group: 'react' };
+const COMPLEMENT = { talk: 'react', two: 'react', react: 'wide', wide: 'talk', walk: 'react', point: 'react', group: 'react', object: 'talk' };
+// What a scene does with its thing when the writer did not say: held in talking shots, shown up close in
+// an object shot, dropped into a wide, grown where someone points.
+const DEFAULT_DO = { talk: 'hold', two: 'hold', point: 'grow', object: 'show', wide: 'drop', walk: 'hold', react: 'spin', group: 'spin' };
 export function planShots(scenes, castMap) {
   const out = [];
   let lastSet = 'studio';
@@ -42,11 +45,16 @@ export function planShots(scenes, castMap) {
       set, seed: (i + 1) * 31, effect: effect3d(sc.effect), icon: sc.icon || '',
       pose: act, camera: CAMERA_MOVES.includes(sc.camera) ? sc.camera : ['push-in', 'orbit', 'pull-out', 'pan-left', 'tilt-up'][i % 5],
       who: Array.isArray(sc.who) ? sc.who : [], words: sc.words || [], scene: i,
+      thing: THINGS.includes(sc.thing) ? sc.thing : '',
     };
+    base.do = base.thing ? (THING_ACTIONS.includes(sc.do) ? sc.do : DEFAULT_DO[kind] || 'show') : '';
     const a = sc.start, b = sc.start + sc.dur;
     const parts = sc.dur > 4.8 ? [[a, a + sc.dur * 0.55], [a + sc.dur * 0.55, b]] : [[a, b]];
     parts.forEach(([s, e], k) => {
-      const spec = { ...base, start: s, end: e, kind: k ? COMPLEMENT[kind] : kind, camera: k ? (base.camera === 'push-in' ? 'pull-out' : 'push-in') : base.camera, offset: s - sc.start };
+      // A long scene with a thing cuts to the thing up close for its second shot.
+      const second = base.thing && kind !== 'object' ? 'object' : COMPLEMENT[kind];
+      const spec = { ...base, start: s, end: e, kind: k ? second : kind, camera: k ? (base.camera === 'push-in' ? 'pull-out' : 'push-in') : base.camera, offset: s - sc.start };
+      if (k && second === 'object') spec.do = base.do === 'break' || base.do === 'drop' ? base.do : 'show';
       if (k && spec.kind === 'react') spec.pose = { talk: 'think', point: 'surprised', stand: 'shrug' }[base.pose] || base.pose;
       spec.cast = whoFor(spec, castMap);
       out.push(spec);

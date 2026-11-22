@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { lerp, easeOut, easeInOut, range, V, cam } from './anim.js';
 import { Avatar, LOOKS, makeWorld, roundBox, plainMat } from './blocky.js';
 import { fort, flag, pile, shovel, plow } from './blockyprops.js';
+import { makeThing, thingAction } from './things.js';
 import { frameCam, narrowMove, emojiSprite, makeEffect, speakingAt, rnd } from './auto3d.js';
 import { planShots as plan3d } from './plan.js';
 export { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D } from './vocab.js';
@@ -48,7 +49,7 @@ export function planShots(scenes, castMap) {
 }
 
 // ---------- poses: the library's pose words in the blocky rig ----------
-const POSE = { stand: 'stand', talk: 'talk', point: 'point', surprised: 'surprised', shrug: 'shrug', cheer: 'cheer', think: 'think', flinch: 'scared' };
+const POSE = { stand: 'stand', talk: 'talk', point: 'point', surprised: 'surprised', shrug: 'shrug', cheer: 'cheer', think: 'think', show: 'point', flinch: 'scared' };
 const poseOf = (name) => POSE[name] || 'stand';
 
 // ---------- props for a scene: snow sets get the fort film's props, others a flag or nothing ----------
@@ -90,8 +91,15 @@ export function buildShot(spec, { makeStage, W, H }) {
   const dur = spec.end - spec.start;
   const yawJ = (r() - 0.5) * 0.3;
   const fx = makeEffect(spec.effect, scene, spec.seed);
-  const icon = spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.6) : null;
+  const thing = spec.thing ? makeThing(spec.thing) : null;
+  if (thing) scene.add(thing);
+  const holds = thing && (spec.do === 'hold' || spec.do === 'show') && spec.kind !== 'object';
+  const icon = !thing && spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.6) : null;
   if (icon) scene.add(icon);
+  if (spec.kind === 'object') { const st = new THREE.Mesh(roundBox(0.7, 0.9, 0.7, 0.05), plainMat('#8a5a33')); st.position.y = 0.45; st.castShadow = st.receiveShadow = true; scene.add(st); }
+  // The blocky hand: the end of the right arm (things are held there, a block's width in front).
+  // Blocky arms are stiff, so a held thing sits in front of the chest, a little to the hand's side.
+  const handOf = (a) => () => { a.object.updateMatrixWorld(true); return a.object.localToWorld(new THREE.Vector3(-0.12, 0.98, 0.42)); };
   const words = spec.words.map(w => ({ start: w.start - spec.offset, end: w.end - spec.offset }));
   const near = wide ? 0.85 : 1;
   const at = (a, x, z, ry) => { a.object.position.set(x, 0, z); a.object.rotation.set(0, ry, 0); };
@@ -106,10 +114,23 @@ export function buildShot(spec, { makeStage, W, H }) {
     let target = V(0, 1.2, 0), eff = null;
     const [A, B, C] = P;
     dress.wave?.(t);
+    let spot = null, tScale = 1;
+    const hand = holds && A ? handOf(A) : null;
     switch (spec.kind) {
+      case 'object': {
+        const h = thing?.userData.h || 0.2;
+        tScale = (h < 0.12 ? 2.4 : h > 0.5 ? 1 : 1.6) * 1.2;
+        spot = V(0, 0.9, 0);
+        if (A) { at(A, tall ? 0.55 : 0.9, -1.6, -0.35); act(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { onset: 0.3 }); }
+        target = V(0, 0.9 + h * tScale * 0.5, 0);
+        const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
+        const span = Math.max(big.x, big.y, big.z, 0.12) * tScale;
+        frameCam(c, target, { dist: Math.max(0.8, span * (tall ? 4.4 : 2.6)) * near, height: span * 0.45, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        eff = target.clone(); break;
+      }
       case 'talk': {
         at(A, 0, 0, 0.18);
-        act(A, spec.pose === 'stand' ? 'talk' : spec.pose, t, { onset: 0, talking: talk });
+        act(A, holds ? 'show' : spec.pose === 'stand' ? 'talk' : spec.pose, t, { onset: 0, talking: talk });
         target = head(A).add(V(0, -0.05, 0));
         frameCam(c, target, { dist: 3.2 * near, height: 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
         eff = chest(A); break;
@@ -117,7 +138,7 @@ export function buildShot(spec, { makeStage, W, H }) {
       case 'two': {
         const gap = tall ? 0.42 : 0.6;
         at(A, -gap, 0, tall ? 0.5 : 0.85); at(B, gap, 0.05, tall ? -0.5 : -0.85);
-        act(A, 'talk', t, { onset: 0, talking: talk });
+        act(A, holds ? 'show' : 'talk', t, { onset: 0, talking: talk });
         act(B, spec.pose, t, { onset: dur * 0.4 });
         target = head(A).lerp(head(B), 0.5);
         frameCam(c, target, { dist: (tall ? 4.6 : 3.4) * near, height: 0.1, yaw: tall ? 0.12 : 0.25 }, spec.camera === 'impact' ? 'push-in' : (tall ? narrowMove(spec.camera) : spec.camera), k, t, spec.seed, fov0);
@@ -148,11 +169,12 @@ export function buildShot(spec, { makeStage, W, H }) {
         // The blocky point raises the right arm straight ahead: turn them toward the thing.
         at(A, tall ? 0.12 : 0.6, 0, -1.0);
         act(A, 'point', t, { onset: 0.3, talking: talk });
-        const spot = tall ? V(-0.5, 1.55, 0.1) : V(-1.0, 1.4, 0.1);
-        if (icon) { icon.position.copy(spot); icon.scale.setScalar(0.6 * (0.7 + 0.3 * easeOut(range(t, 0.3, 0.8))) + Math.sin(t * 3) * 0.02); }
+        const pt = tall ? V(-0.5, 1.55, 0.1) : V(-1.0, 1.4, 0.1);
+        if (icon) { icon.position.copy(pt); icon.scale.setScalar(0.6 * (0.7 + 0.3 * easeOut(range(t, 0.3, 0.8))) + Math.sin(t * 3) * 0.02); }
+        if (thing) { spot = pt.clone().add(V(0, -0.3, 0)); tScale = 2.6; }
         target = tall ? V(-0.12, 1.5, 0) : V(-0.15, 1.4, 0);
         frameCam(c, target, { dist: (tall ? 4.6 : 3.4) * near, height: 0.1, yaw: 0.05 }, spec.camera === 'orbit' ? 'orbit' : 'push-in', k, t, spec.seed, fov0);
-        eff = spot; break;
+        eff = pt; break;
       }
       case 'group': {
         const side = tall ? 0.7 : 1.0, back = tall ? -0.5 : -0.25;
@@ -164,8 +186,17 @@ export function buildShot(spec, { makeStage, W, H }) {
         eff = chest(A); break;
       }
     }
+    if (thing) {
+      if (!spot && !hand) {
+        const base = A ? A.object.position.clone() : V(0, 0, 0);
+        spot = base.add(V(tall ? 0.55 : 0.95, spec.do === 'drop' || spec.do === 'break' ? 0 : 1.1, 0.35));
+        tScale = spec.kind === 'wide' ? 3 : 2;
+        if (thing.userData.h > 0.5) tScale = Math.min(tScale, 1.3);
+      }
+      thingAction(thing, spec.do, t, { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: hand ? 1.6 : tScale });
+    }
     // Hide anyone the shot does not use (a two-shot spec may carry a spare).
-    P.forEach((a, i) => { a.object.visible = i < ({ talk: 1, react: 1, walk: 1, point: 1, two: 2, wide: 2, group: 3 }[spec.kind] || 1); });
+    P.forEach((a, i) => { a.object.visible = i < ({ talk: 1, react: 1, walk: 1, point: 1, two: 2, wide: 2, group: 3, object: 1 }[spec.kind] || 1); });
     if (icon && spec.kind !== 'point') { icon.position.copy(target).add(V(0.6, 0.6, 0.1)); icon.material.opacity = easeOut(range(t, 0.2, 0.6)); }
     if (fx && eff) fx(t, eff, c.position);
     const night = spec.set === 'night';
