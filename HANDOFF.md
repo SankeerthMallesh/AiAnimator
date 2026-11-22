@@ -46,6 +46,20 @@ the user a short update. It deletes itself when nothing is left. **Do not create
 take over in another session, check `list_triggers` first. To stop it, the user says "stop the check-ins"
 in that session, or delete it with `delete_trigger`.
 
+## Testing in progress (2026-11-22, started about 11:50 PM EST)
+
+The user asked to test every tab "1000 times". Done in three levels (tools/tests):
+1. Stress test `node fuzz.cjs 1000 10` (page `tools/tests/fuzz/`): 1,000 random writer outputs per tab through
+   cleanup, shot plan, captions and sound plan, a tenth built and drawn. DONE: 0 failures on all three tabs
+   after fixes T1a (one junk scene threw the whole script away), T1b (punctuation-only words made blank
+   captions) and T1c (Cartoons crashed on one blank scene). All live (stamp 202611220521).
+2. Full mocked videos: `SCRIPT=<proof file> node drawnmaster.cjs 3d|blocky out/l2/...` (drawn-3d, drawn-blocky,
+   drawn-fx, drawn-things, drawn-long) and `SCRIPT=... OUT=... node cartoonmaster.cjs` (bees, m5-script and
+   three random scripts in proof/out/). Outputs in tools/tests/out/l2/ (git-ignored). IN PROGRESS.
+3. One short real video per tab on the live site: `node livetab.cjs cartoon|3d|blocky "topic" out/live-<tab>.mp4 30`.
+   NOT STARTED. Spends real allowance (ElevenLabs ~3,000 characters left this month: keep them short).
+Then send the user a report with sample videos. If this session stops, a check-in continues from here.
+
 ## What the user wants
 
 "Make sure my tool does this": Loomy itself should make videos like the three films below, from a
