@@ -3,6 +3,7 @@
 // saves the MP4 and stills, prints console problems.   node townmaster.cjs [out/name] [captions]
 const { chromium } = require('playwright'); const fs = require('fs');
 const name = process.argv[2] || 'out/town', captions = process.argv[3] === 'captions';
+// No picture may be asked for: the town look paints no backgrounds (not even early, while the script is written).
 const lines = ['One windy morning, the old bridge started to sway.', 'Maya told Leo to get off it, right now!', 'Then, with a crack, the middle fell into the river!', 'By evening, the whole town came to help rebuild it.'];
 const script = { title: 'The Day the Bridge Fell', youtubeTitle: 'The Day the Bridge Fell', description: 'A short story.', hashtags: ['#shorts'],
   cast: [{ id: 'a', name: 'Maya', color: '#E8A33D', hat: 'cap', hair: 'curly', costume: 'shirt' }, { id: 'b', name: 'Leo', color: '#3E8FE0', hat: 'hardhat', hair: 'short', costume: 'shirt' }],

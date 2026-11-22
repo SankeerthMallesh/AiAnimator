@@ -19,14 +19,18 @@ const FEEL = { shocked: 'surprised', happy: 'cheer', skeptical: 'think', sad: 'f
 // Timeline scenes -> the shot plan's words: the frame comes from how many people are in the scene and
 // what the line does (a question or an exclamation is a reaction); the first scene is an aerial.
 export function townScenes(scenes) {
+  const frames = [];
   return scenes.map((sc, i) => {
     const who = Array.isArray(sc.who) ? sc.who : [];
     const lead = who.find(w => w.id === sc.say) || who[0] || {};
     const act = FEEL[lead.feel] || POSE[lead.pose] || 'talk';
     const line = String(sc.narration || '');
-    const frame = i === 0 ? 'wide' : who.length >= 3 ? 'group' : who.length === 2 ? (i % 3 === 2 ? 'react' : 'two')
+    let frame = i === 0 ? 'wide' : who.length >= 3 ? 'group' : who.length === 2 ? (i % 3 === 2 ? 'react' : 'two')
       : /!$/.test(line.trim()) || act === 'surprised' ? 'react' : act === 'point' ? 'point' : ['talk', 'walk', 'talk', 'react'][i % 4];
-    return { ...sc, set: sc.set, frame, act, who: who.map(w => w.id) };
+    // A reaction close-up lands harder when it is rare: at most one in any three shots.
+    if (frame === 'react' && frames.slice(-2).includes('react')) frame = who.length === 2 ? 'two' : ['talk', 'walk'][i % 2];
+    frames.push(frame);
+    return { ...sc, set: sc.set, frame, act: frame === 'react' || act !== 'surprised' ? act : 'talk', who: who.map(w => w.id) };
   });
 }
 

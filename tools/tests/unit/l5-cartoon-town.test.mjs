@@ -18,6 +18,12 @@ export const tests = [
   { name: 'scenes get a frame: aerial first, two people a two-shot, an exclamation a reaction, three a group', fn: () => {
     assert.deepEqual(townScenes(scenes).map(s => s.frame), ['wide', 'two', 'react', 'group']);
   } },
+  { name: 'reaction close-ups are rare: never two within three shots', fn: () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ start: i * 3, dur: 3, set: 'city', narration: 'Wow!', say: 'maya', who: [{ id: 'maya', pose: 'shock', feel: 'shocked' }], words: w(1) }));
+    const f = townScenes(many).map(s => s.frame);
+    for (let i = 0; i < f.length; i++) if (f[i] === 'react') assert.ok(!f.slice(Math.max(0, i - 2), i).includes('react'), f.join(','));
+    assert.ok(f.filter(x => x === 'react').length >= 2, f.join(','));
+  } },
   { name: 'the first shot is the aerial over the town; sets map to the bridge, the bank and the park', fn: () => {
     const { shots } = townShots(timeline, script);
     assert.equal(shots[0].place, 'town'); assert.equal(shots[0].kind, 'wide');

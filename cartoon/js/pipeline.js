@@ -191,7 +191,8 @@ export class Pipeline {
   // becomes extra backgrounds. Before the script exists it paints topic views; after, the sets.
   startPainting() {
     const p = this.p;
-    if (this.demo || this.s.imageProvider === 'none' || p.options.plates === false || this.paint) return;
+    // The 3D cartoon town is drawn in code: no backgrounds to paint (and no image allowance spent).
+    if (this.town || this.demo || this.s.imageProvider === 'none' || p.options.plates === false || this.paint) return;
     const views = [['wide establishing view', 'field'], ['up close at street level', 'city'], ['inside a building', 'inside'], ['at golden sunset', 'mountains']];
     const pool = [];
     const done = new Set();
