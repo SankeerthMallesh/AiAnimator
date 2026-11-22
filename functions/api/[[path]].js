@@ -457,7 +457,7 @@ async function speakAll(request, env) {
     try { return await elevenAll(env, lines, deliveries, speaker); } catch (e) { elevenWhy = String(e?.message || e).replace(/[^\x20-\x7E]/g, ' ').slice(0, 160); if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: elevenWhy }); }
   }
   let v;
-  try { v = await geminiVoice(env, text, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200) }); }
+  try { v = await geminiVoice(env, text, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200), ...(elevenWhy ? { tried: `ElevenLabs: ${elevenWhy}` } : {}) }); }
   const form = new FormData();
   form.append('file', new Blob([v.bytes], { type: 'audio/wav' }), 'script.wav');
   form.append('model', 'whisper-large-v3-turbo');
