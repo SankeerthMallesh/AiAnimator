@@ -7,12 +7,14 @@ import { getNarrator, warmNarrator } from './tts.js';
 import { finishLine } from '../../shared/voicefx.js';
 import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
+import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
+import { planShots } from './z3d/plan.js';
 import { Renderer, loadFonts } from './renderer.js';
 import { DrawnRenderer } from './drawn.js';
 import { exportVideo } from './encoder.js';
 import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { estimateDepth, onDepthProgress } from './depth.js';
-import { FORMATS, PACES, STYLES, formatOf } from './presets.js';
+import { FORMATS, PACES, STYLES, MOODS, formatOf } from './presets.js';
 import { clipsEnabled, generateClip } from './clips.js';
 
 export const STEPS = [
@@ -377,13 +379,20 @@ export class Pipeline {
     if (q.get('musicseed') || stem) p.musicSeed = Number(q.get('musicseed')) || 1234567;
     p.stem = stem;
     p.musicSeed ||= Math.floor(Math.random() * 1e9);
-    const musicKey = `${mood}|${p.musicSeed}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}`;
+    // Looks drawn in code get the film sound: a score in sections that follows the story and
+    // effects on the shot plan (the same plan the renderer cuts to).
+    const specs = this.drawn ? planShots(p.timeline.scenes, new Map()) : null;
+    const sections = specs ? scoreSections(specs, p.timeline.total) : null;
+    const musicKey = `${mood}|${p.musicSeed}|${Math.ceil(p.timeline.total)}|${p.userMusic ? p.userMusic.duration : ''}|${sections ? JSON.stringify(sections.map(x => [x.kind, x.start.toFixed(1)])) : ''}`;
     if (p.musicKey !== musicKey) {
-      p.music = p.userMusic || (mood === 'none' ? null : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
+      p.music = p.userMusic || (mood === 'none' ? null
+        : sections ? await filmScore(p.timeline.total, { mood: MOODS[mood], sections, seed: p.musicSeed })
+          : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
       p.musicKey = musicKey;
     }
-    p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume), stem: p.stem });
-    this.h.step('sound', 'done', `${p.timeline.total.toFixed(1)}s · ${mood === 'none' ? 'no music' : p.userMusic ? 'your music' : mood + ' score'}`);
+    const cues = specs ? cueSheet(specs, p.timeline.total) : null;
+    p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume), stem: p.stem, cues });
+    this.h.step('sound', 'done', `${p.timeline.total.toFixed(1)}s · ${mood === 'none' ? 'no music' : p.userMusic ? 'your music' : mood + (sections ? ' film score' : ' score')}${cues ? ` · ${cues.length} sound effects` : ''}`);
   }
 
   async prepare() {
