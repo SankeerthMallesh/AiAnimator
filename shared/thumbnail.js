@@ -278,7 +278,8 @@ export function attachThumbnail({ card, before, player, toast = () => {} }) {
     async ready({ url, name, script, scenes, total, wideVideo }) {
       const job = ++st.job;
       st.name = name || 'loomy'; st.text = thumbWords(script);
-      st.shape = 'wide'; st.layout = wideVideo ? 'full' : 'split';
+      // 9:16 videos get a 9:16 cover first (Shorts, TikTok, Reels); wide videos a 16:9 YouTube thumbnail.
+      st.shape = wideVideo ? 'wide' : 'tall'; st.layout = wideVideo ? 'full' : 'label';
       $('text').value = st.text;
       const times = pickMoments(scenes, { teaser: script?.teaser ?? null, total });
       const frames = [];

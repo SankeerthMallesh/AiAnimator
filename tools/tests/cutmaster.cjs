@@ -46,7 +46,7 @@ script.youtubeTitle = script.title; script.description = 'Test.'; script.hashtag
   const tags = await f.locator('#ytTags').inputValue();
   console.log('hashtags:', tags);
   if (tags !== tags.toLowerCase()) fails.push('hashtags not lowercase');
-  // The thumbnail: made from the video, 1280x720, under 2 MB, with words; Tall makes 1080x1920.
+  // The thumbnail: made from the video; a 9:16 video starts on a 9:16 cover (1080x1920), Wide makes 1280x720.
   await f.locator('.thumb-dl[href]').waitFor({ timeout: 120000 }).catch(() => fails.push('no thumbnail'));
   const thumbOf = () => fr.evaluate(async () => {
     const a = document.querySelector('.thumb-dl'); const blob = await (await fetch(a.href)).blob();
@@ -55,14 +55,14 @@ script.youtubeTitle = script.title; script.description = 'Test.'; script.hashtag
   });
   const th = await thumbOf();
   console.log('thumbnail:', JSON.stringify(th));
-  if (th.w !== 1280 || th.h !== 720 || th.size > 2e6 || th.type !== 'image/jpeg' || !th.words || th.frames < 2) fails.push('thumbnail is wrong');
+  if (th.w !== 1080 || th.h !== 1920 || th.size > 2e6 || th.type !== 'image/jpeg' || !th.words || th.frames < 2) fails.push('thumbnail is wrong');
   await f.locator('#metaCard').screenshot({ path: name + '-kit.png' }).catch(() => {});
-  await f.locator('.thumb [data-k="shape"] [data-v="tall"]').click();
-  await f.locator('.thumb [data-k="layout"] [data-v="label"]').click();
+  await f.locator('.thumb [data-k="shape"] [data-v="wide"]').click();
+  await f.locator('.thumb [data-k="layout"] [data-v="split"]').click();
   await p.waitForTimeout(600);
-  const tall = await thumbOf();
-  console.log('tall thumbnail:', JSON.stringify(tall));
-  if (tall.w !== 1080 || tall.h !== 1920) fails.push('tall thumbnail is wrong');
+  const wide = await thumbOf();
+  console.log('wide thumbnail:', JSON.stringify(wide));
+  if (wide.w !== 1280 || wide.h !== 720) fails.push('wide thumbnail is wrong');
   await f.locator('.thumb [data-k="text"]').fill('mine now');
   await p.waitForTimeout(600);
   if ((await thumbOf()).words !== 'MINE NOW') fails.push('thumbnail words not editable');
