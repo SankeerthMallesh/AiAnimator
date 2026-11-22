@@ -236,11 +236,11 @@ html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-t
 .ideabox { display: block; margin-top: 14px; }
 .ib-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ib-title { font: 600 13px/1 var(--sans, Inter, sans-serif); color: var(--ink); margin-right: auto; }
-.ib-search { min-width: 0; flex: 1 1 180px; max-width: 260px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 13px var(--sans, Inter, sans-serif); }
-.ib-btn, .ib-more { padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 500 13px var(--sans, Inter, sans-serif); cursor: pointer; min-height: 36px; }
+.ib-search { min-width: 0; flex: 1 1 180px; max-width: 260px; min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 13px var(--sans, Inter, sans-serif); }
+.ib-btn, .ib-more { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 500 13px var(--sans, Inter, sans-serif); cursor: pointer; min-height: 44px; }
 .ib-btn:hover, .ib-more:hover, .ib-cat:hover, .ib-idea:hover { background: var(--hover); }
 .ib-cats { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 8px; scrollbar-width: thin; }
-.ib-cat { flex: 0 0 auto; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--muted); font: 500 12.5px var(--sans, Inter, sans-serif); cursor: pointer; min-height: 32px; }
+.ib-cat { flex: 0 0 auto; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: transparent; color: var(--muted); font: 500 13px var(--sans, Inter, sans-serif); cursor: pointer; min-height: 44px; }
 .ib-cat.on { color: var(--ink); border-color: transparent; box-shadow: 0 0 0 1px rgba(139, 92, 246, .7); background: rgba(139, 92, 246, .12); }
 .ib-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .ib-idea { text-align: left; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink); font: 500 13px/1.35 var(--sans, Inter, sans-serif); cursor: pointer; min-height: 44px; }
