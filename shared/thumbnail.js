@@ -185,17 +185,37 @@ function meanLight(frame) {
 }
 
 // A frame of the video at t seconds, as a canvas (from a second, hidden player).
-export async function grabFrame(url, t) {
+// One hidden video for all the moments: faster than a new one per frame, and every wait has a time
+// limit so a browser that never answers (Safari can stall on hidden videos) cannot hang the cover.
+const once = (el, ev, ms) => new Promise((res, rej) => {
+  const t = setTimeout(() => rej(new Error('The video took too long to answer.')), ms);
+  el.addEventListener(ev, () => { clearTimeout(t); res(); }, { once: true });
+});
+export async function openVideo(url) {
   const v = document.createElement('video');
-  v.muted = true; v.preload = 'auto'; v.playsInline = true; v.src = url;
-  await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('The video could not be read.')); });
-  v.currentTime = Math.max(0, Math.min(t, v.duration - 0.05));
-  await new Promise(res => v.addEventListener('seeked', res, { once: true }));
-  await new Promise(res => (v.requestVideoFrameCallback ? (v.requestVideoFrameCallback(() => res()), setTimeout(res, 400)) : res()));
+  v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
+  v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+  v.style.cssText = 'position:fixed;left:-10000px;top:0;width:4px;height:4px;opacity:0;pointer-events:none';
+  document.body.appendChild(v);
+  const loaded = once(v, 'loadeddata', 10000);
+  v.src = url;
+  v.play?.()?.then(() => v.pause()).catch(() => {}); // Safari decodes nothing until a play starts
+  try { await loaded; } catch (e) { if (v.readyState < 2) { closeVideo(v); throw e; } }
+  return v;
+}
+export function closeVideo(v) { try { v.pause(); v.removeAttribute('src'); v.load(); v.remove(); } catch { /* gone */ } }
+export async function frameAt(v, t) {
+  const to = Math.max(0, Math.min(t, (v.duration || t + 1) - 0.05));
+  if (Math.abs(v.currentTime - to) > 0.01) { const sought = once(v, 'seeked', 8000); v.currentTime = to; await sought; }
+  await new Promise(res => (v.requestVideoFrameCallback ? (v.requestVideoFrameCallback(() => res()), setTimeout(res, 300)) : setTimeout(res, 60)));
   const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  if (!c.width || !c.height) throw new Error('The video has no picture yet.');
   c.getContext('2d').drawImage(v, 0, 0);
-  v.removeAttribute('src'); v.load();
   return c;
+}
+export async function grabFrame(url, t) {
+  const v = await openVideo(url);
+  try { return await frameAt(v, t); } finally { closeVideo(v); }
 }
 // How much is going on in a frame: the mean brightness change between neighbouring pixels, on a
 // small copy. For a tall cover only the top 60% counts (that part stays sharp); the middle of a
@@ -234,9 +254,10 @@ export async function toJpeg(canvas) {
 
 // ---------------- the Upload kit section ----------------
 
+const WAIT = 'Your thumbnail appears here when the video is made.';
 const HTML = `
   <p class="sect-title">Thumbnail</p>
-  <div class="thumb-wait fine" data-k="wait">Your thumbnail appears here when the video is made.</div>
+  <div class="thumb-wait fine" data-k="wait">${WAIT}</div>
   <div class="thumb-body hidden" data-k="body">
     <canvas class="thumb-view" data-k="view" aria-label="Thumbnail preview"></canvas>
     <div class="thumb-frames" data-k="frames" aria-label="Pick a frame"></div>
@@ -255,7 +276,7 @@ const HTML = `
 
 export function attachThumbnail({ card, before, player, toast = () => {} }) {
   const el = document.createElement('div');
-  el.className = 'thumb';
+  el.className = 'thumbkit';
   el.innerHTML = HTML;
   if (before?.parentElement) before.parentElement.insertBefore(el, before); else card.appendChild(el);
   const $ = (k) => el.querySelector(`[data-k="${k}"]`);
@@ -268,6 +289,7 @@ export function attachThumbnail({ card, before, player, toast = () => {} }) {
     const [W, H] = SIZES[st.shape];
     view.width = W; view.height = H;
     view.style.aspectRatio = `${W} / ${H}`;
+    view.classList.toggle('tall', st.shape === 'tall');
     try { await document.fonts?.load(`900 100px Montserrat`); } catch { /* the fallback font is fine */ }
     drawThumb(view.getContext('2d'), { W, H, frame: st.frame, text: st.text || 'WATCH THIS', layout: st.shape === 'tall' && st.layout === 'split' ? 'full' : st.layout });
     seg('layout'); seg('shape');
@@ -306,7 +328,7 @@ export function attachThumbnail({ card, before, player, toast = () => {} }) {
   });
 
   return {
-    reset() { st.job++; st.frames = []; st.frame = null; $('body').classList.add('hidden'); $('wait').classList.remove('hidden'); },
+    reset() { st.job++; st.frames = []; st.frame = null; $('wait').textContent = WAIT; $('body').classList.add('hidden'); $('wait').classList.remove('hidden'); },
     // The video is made: grab the moments, start on the best one.
     async ready({ url, name, script, scenes, total, wideVideo }) {
       const job = ++st.job;
@@ -317,11 +339,16 @@ export function attachThumbnail({ card, before, player, toast = () => {} }) {
       $('text').value = st.text;
       const times = pickMoments(scenes, { teaser: script?.teaser ?? null, total, max: 8 });
       const got = [];
-      for (const [rank, t] of times.entries()) {
-        try { const f = await grabFrame(url, t); got.push({ f, rank, d: frameDetail(f, !wideVideo) }); } catch { /* skip this one */ }
-        if (job !== st.job) return;
-      }
-      if (!got.length) return;
+      let v = null;
+      try {
+        v = await openVideo(url);
+        for (const [rank, t] of times.entries()) {
+          try { const f = await frameAt(v, t); const d = frameDetail(f, !wideVideo); if (d > 0.5) got.push({ f, rank, d }); } catch { /* skip this one */ }
+          if (job !== st.job) return;
+        }
+      } catch { /* fall back to the player below */ } finally { if (v) closeVideo(v); }
+      if (!got.length && player?.videoWidth) got.push({ f: frameFrom(player), rank: 0, d: 1 });
+      if (!got.length) { $('wait').textContent = 'The frames could not be read here. Play the video, then press "Use the player\'s frame".'; $('body').classList.remove('hidden'); return; }
       // The moment's rank counts, but a frame with nothing in the part that stays sharp loses.
       const top = Math.max(...got.map(x => x.d), 1e-6);
       const frames = got.map(x => ({ ...x, s: x.d / top - x.rank * 0.06 })).sort((p, q) => q.s - p.s).slice(0, 4).map(x => x.f);

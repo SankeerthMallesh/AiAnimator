@@ -51,19 +51,19 @@ script.youtubeTitle = script.title; script.description = 'Test.'; script.hashtag
   const thumbOf = () => fr.evaluate(async () => {
     const a = document.querySelector('.thumb-dl'); const blob = await (await fetch(a.href)).blob();
     const img = await createImageBitmap(blob);
-    return { w: img.width, h: img.height, size: blob.size, type: blob.type, words: document.querySelector('.thumb [data-k="text"]').value, frames: document.querySelectorAll('.thumb-frame').length, name: a.download };
+    return { w: img.width, h: img.height, size: blob.size, type: blob.type, words: document.querySelector('.thumbkit [data-k="text"]').value, frames: document.querySelectorAll('.thumb-frame').length, name: a.download };
   });
   const th = await thumbOf();
   console.log('thumbnail:', JSON.stringify(th));
   if (th.w !== 1080 || th.h !== 1920 || th.size > 2e6 || th.type !== 'image/jpeg' || !th.words || th.frames < 2) fails.push('thumbnail is wrong');
   await f.locator('#metaCard').screenshot({ path: name + '-kit.png' }).catch(() => {});
-  await f.locator('.thumb [data-k="shape"] [data-v="wide"]').click();
-  await f.locator('.thumb [data-k="layout"] [data-v="split"]').click();
+  await f.locator('.thumbkit [data-k="shape"] [data-v="wide"]').click();
+  await f.locator('.thumbkit [data-k="layout"] [data-v="split"]').click();
   await p.waitForTimeout(600);
   const wide = await thumbOf();
   console.log('wide thumbnail:', JSON.stringify(wide));
   if (wide.w !== 1280 || wide.h !== 720) fails.push('wide thumbnail is wrong');
-  await f.locator('.thumb [data-k="text"]').fill('mine now');
+  await f.locator('.thumbkit [data-k="text"]').fill('mine now');
   await p.waitForTimeout(600);
   if ((await thumbOf()).words !== 'MINE NOW') fails.push('thumbnail words not editable');
   await p.waitForTimeout(800);
