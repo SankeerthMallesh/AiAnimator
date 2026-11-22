@@ -151,7 +151,9 @@ export class Pipeline {
         this.h.step('depth', 'active', `${depthDone} / ${depthTodo}${entry.depth?.synthetic ? ' · estimated' : ''}`);
       });
     };
-    onDepthProgress((d) => this.h.step('depth', 'active', `Downloading 3D model ${Math.round(d.loaded / d.total * 100)}% (one time)`));
+    // Only a look that uses depth reports the depth model's download; a drawn look keeps its step
+    // "skipped" even if the page's idle preload is still downloading the model.
+    onDepthProgress(this.use3d ? (d) => this.h.step('depth', 'active', `Downloading 3D model ${Math.round(d.loaded / d.total * 100)}% (one time)`) : () => {});
 
     const visualJob = async () => {
       const todo = scenes.filter(s => {
