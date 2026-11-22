@@ -175,6 +175,17 @@ window.run = async (tab, n = 1000, buildEvery = 10, seed0 = 1) => {
   res.ms = Math.round(performance.now() - t0);
   return res;
 };
+
+// One still of a hand-made spec (for checking a look): window.still({ set, kind, pose, camera, cast }, t)
+window.still = async (spec, f = 0.5, W = 540, H = 960) => {
+  const { createEngine } = await import('../../../explainer/js/z3d/engine.js');
+  const { A3, people } = await engines();
+  const e = createEngine({ width: W, height: H, perf: { msaa: 0, aoSamples: 8 } });
+  const full = { start: 0, end: 3, offset: 0, seed: 31, effect: 'none', icon: '', words: [], who: [], cast: ['carla'], pose: 'stand', camera: 'static', ...spec };
+  e.setEdit({ shots: [{ start: 0, end: 3, build: (ctx) => A3.buildShot(full, people, ctx) }] });
+  e.renderAt(3 * f);
+  const url = e.canvas.toDataURL('image/jpeg', 0.85); e.dispose(); return url;
+};
 window.sample = (tab, seed) => (tab === 'cartoon' ? rawCartoon(rnd(seed)) : raw3d(rnd(seed)));
 window.ready = true;
 document.getElementById('out').textContent = 'ready';
