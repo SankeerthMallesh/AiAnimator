@@ -8739,6 +8739,10 @@ var q = (v, n = 120) => Math.round(v * n) / n;
 var SOLDIER = [0, 1, 2, 3].map((v) => soldier(v));
 var BARE = [0, 1, 2, 3].map((v) => soldier(v, { hat: null }));
 var FOLK = [0, 1, 2, 3, 4, 5].map((v) => townsfolk(v));
+var LOOKS = [];
+var setLooks = (looks = []) => {
+  LOOKS = looks;
+};
 var vOf = (i) => (i * 7 + (i >> 2)) % 4;
 var seedOf = (i) => (i * 5 + 3) % 7 + 1;
 var tierFull = (d) => d < 3.2 ? [1800, 3e3, 3] : d < 6.5 ? [1080, 1800, 1.8] : d < 16 ? [480, 800, 0.8] : [240, 400, 0.4];
@@ -9131,8 +9135,9 @@ var stageTemplate = (people, effects, cam, t, light) => {
   LNAME = light;
   findSun(cam, SUN);
   people.forEach((m, i) => {
-    const o = m.kid ? KID : FOLK[(m.look % 6 + 6) % 6];
-    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : `f${(m.look % 6 + 6) % 6}` };
+    const own = !m.kid && m.look >= 0 ? LOOKS[m.look] : null;
+    const o = m.kid ? KID : own ? { ...FOLK[(m.look % 6 + 6) % 6], ...own } : FOLK[(m.look % 6 + 6) % 6];
+    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `f${(m.look % 6 + 6) % 6}` };
     const walking = m.walk != null;
     const fo = {
       mode: walking ? "stroll" : "stand",
@@ -10418,8 +10423,9 @@ var View = class {
     return this.renderer.domElement;
   }
 };
-async function createTemplated({ width = 1080, height = 1920, shots = [], perf = {} } = {}) {
+async function createTemplated({ width = 1080, height = 1920, shots = [], perf = {}, looks = [] } = {}) {
   const kit = await loadKit();
+  setLooks(looks);
   setCardMax(perf.cardMax ?? 1080);
   const canvas = document.createElement("canvas");
   canvas.width = width;

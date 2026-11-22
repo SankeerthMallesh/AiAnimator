@@ -10,7 +10,7 @@ import { LensBlur } from "./lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "./grade";
 import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt } from "./story";
 import { frameAt, aerialAt, TSpec, PLACE_NAMES } from "./tmpl";
-import { setCardMax } from "./cast";
+import { setCardMax, setLooks } from "./cast";
 export { PLACE_NAMES };
 export { setStaticBase } from "./shim/remotion";
 export { TOTAL, SHOTS };
@@ -88,8 +88,9 @@ class View {
 // draws the frame at time t; a 6-frame dip through white marks a change of place (the film's crossfade feel).
 // perf: the browser defaults are lighter than the film's offline settings (which can stall a weaker graphics
 // card): MSAA 2, a 2048 shadow map, character drawings at most 1080 px wide.
-export async function createTemplated({ width = 1080, height = 1920, shots = [] as TSpec[], perf = {} as { msaa?: number; shadow?: number; cardMax?: number } } = {}) {
+export async function createTemplated({ width = 1080, height = 1920, shots = [] as TSpec[], perf = {} as { msaa?: number; shadow?: number; cardMax?: number }, looks = [] as any[] } = {}) {
   const kit = await loadKit();
+  setLooks(looks);
   setCardMax(perf.cardMax ?? 1080);
   const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
   const g = canvas.getContext("2d", { alpha: false })!;

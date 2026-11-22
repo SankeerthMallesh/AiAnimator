@@ -16,7 +16,21 @@ const PLACE = {
 const GOLDEN = new Set(['night', 'space', 'sky']);
 // The script's poses and feelings -> the shot library's pose words (z3d/vocab.js).
 const POSE = { idle: 'stand', walk: 'stand', turn: 'stand', sit: 'stand', drive: 'stand', hold: 'talk', give: 'talk', point: 'point', shrug: 'shrug', jump: 'cheer', shock: 'surprised', facepalm: 'flinch', laugh: 'cheer', cry: 'flinch', cheer: 'cheer', think: 'think', wave: 'talk', enter: 'stand', exit: 'stand' };
-const FEEL = { shocked: 'surprised', happy: 'cheer', skeptical: 'think', sad: 'flinch', angry: 'shrug', scared: 'flinch' };
+const FEEL = { shocked: 'surprised', happy: 'cheer', skeptical: 'think', sad: 'flinch', angry: 'shrug', scared: 'flinch', nervous: 'think' };
+
+// 1.4: the script's characters as the town draws them: their own colour, headwear and hair (crews and
+// officers in caps, a scientist in a white coat), instead of the town's 1800s folk.
+const HAIR = { brown: '#7a4a28', black: '#2a2422', blonde: '#d8a845', red: '#b8522c' };
+export function townLooks(cast = []) {
+  return cast.map((c) => {
+    if (!c) return null;
+    const hair = HAIR[c.hair] || HAIR.brown;
+    const jacket = c.costume === 'labcoat' ? '#f2f4f7' : c.costume === 'suit' ? '#2c3e6b' : c.color || '#3f6fb5';
+    const capped = ['cap', 'officer', 'conductor', 'hardhat', 'beanie', 'flatcap', 'helmet'].includes(c.hat);
+    const cap = c.hat === 'officer' ? '#2e3f73' : c.hat === 'hardhat' ? '#f2c230' : c.color || '#e2453c';
+    return { jacket, hat: c.hat === 'tophat' ? 'tophat' : capped ? 'cap' : 'hair', cap, hair, buttons: '#f4f1ea', dress: '' };
+  });
+}
 
 // Timeline scenes -> the shot plan's words: the frame comes from how many people are in the scene and
 // what the line does (a question or an exclamation is a reaction); the first scene is an aerial.
@@ -70,7 +84,7 @@ export class TownRenderer {
     this.ready = (async () => {
       const { createTemplated, setStaticBase } = await import('./c3d/cartoon3d.js');
       setStaticBase(new URL('../c3d-assets/', import.meta.url).href);
-      const engine = await createTemplated({ width: W, height: H, shots });
+      const engine = await createTemplated({ width: W, height: H, shots, looks: townLooks(script?.cast || []) });
       if (this.disposed) engine.dispose(); else this.engine = engine; // disposed while it was building
     })();
   }
