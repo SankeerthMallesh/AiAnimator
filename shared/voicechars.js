@@ -32,6 +32,39 @@ export function characterDelivery(delivery, ch) {
   return ch.lean[d] || d;
 }
 
+// ---------- 1.6: real voices ----------
+// Human-sounding ElevenLabs voices with a personality, used whenever the site reads with ElevenLabs
+// (the server only accepts these names; functions/api keeps the same list). "auto" picks the one that
+// suits the narrator character, else the narrator voice.
+export const REAL_VOICES = {
+  george: ['George: warm British storyteller', 'JBFqnCBsd6RMkjVDRZzb'],
+  brian: ['Brian: deep, rich narrator', 'nPczCjzI2devNBz1zQrb'],
+  liam: ['Liam: energetic Shorts creator', 'TX3LPaxmHKxFdv7VOQHJ'],
+  harry: ['Harry: fierce and intense', 'SOYHLrjzK2X1ezoPC6cr'],
+  callum: ['Callum: husky, a little sinister', 'N2lVS1w4EtoT3dr4eOWO'],
+  charlie: ['Charlie: confident Aussie', 'IKne3meq5aSn9XLyUdCD'],
+  daniel: ['Daniel: British news anchor', 'onwK4e9ZLuTAKqWW03F9'],
+  bill: ['Bill: wise old grandpa', 'pqHfZKP75CvOlQylNhV4'],
+  roger: ['Roger: laid-back and dry', 'CwhRBWXzGAHq8TQ4Fs17'],
+  jessica: ['Jessica: playful and bright', 'cgSgspJ2msm6clMCkdW9'],
+  laura: ['Laura: quirky and excited', 'FGY2WhTYpPnrIDTdsKH5'],
+  lily: ['Lily: velvety British actress', 'pFZP5JQG7iQjIQuC4Bku'],
+  sarah: ['Sarah: warm and confident', 'EXAVITQu4vr4xnSDxMaL'],
+  alice: ['Alice: clear British teacher', 'Xb7hH8MSUJpSbSDYk0k2'],
+};
+export const EXPRESSIONS = {
+  expressive: 'Very expressive: big feelings, gasps and laughs',
+  natural: 'Natural: true to life, calmer',
+  steady: 'Steady: even, like a documentary',
+};
+const BY_CHARACTER = { storyteller: 'george', hype: 'liam', secret: 'lily', newsreel: 'daniel', deadpan: 'roger', professor: 'bill', trailer: 'brian', bestie: 'jessica' };
+const BY_NARRATOR = { am_michael: 'brian', bm_george: 'george', bm_fable: 'daniel', am_puck: 'liam', am_fenrir: 'callum', af_heart: 'sarah', af_bella: 'laura', af_nicole: 'lily', bf_emma: 'alice' };
+export function realVoiceFor(settings = {}) {
+  if (REAL_VOICES[settings.realVoice]) return settings.realVoice;
+  return BY_CHARACTER[settings.character] || BY_NARRATOR[settings.voice] || (/^[ab]f_/.test(settings.voice || '') ? 'sarah' : 'brian');
+}
+export const expressionOf = (settings = {}) => (EXPRESSIONS[settings.expression] ? settings.expression : 'expressive');
+
 // ---------- the sound ----------
 // RBJ biquads, run in place on a Float32Array.
 function biquad(x, sr, type, f, q = 0.707, gainDb = 0) {

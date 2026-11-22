@@ -3,6 +3,7 @@ export { sayNumbers, mapToWritten };
 import { voiceChoice } from './router.js';
 // Narration: Kokoro (free, runs in the browser) with a cloud fallback and a silent mode.
 import { fetchTimeout } from './net.js';
+import { REAL_VOICES, realVoiceFor } from '../../shared/voicechars.js';
 import { voiceText, alignmentWords, pcmFromBase64, V3 } from '../../shared/voicefx.js';
 
 export class Narrator {
@@ -154,7 +155,7 @@ export function warmNarrator(n) {
 }
 
 async function elevenSpeak(text, s, speedMul, delivery = '') {
-  const voice = (s.elevenVoice || 'JBFqnCBsd6RMkjVDRZzb').trim();
+  const voice = (s.elevenVoice || REAL_VOICES[realVoiceFor(s)]?.[1] || 'JBFqnCBsd6RMkjVDRZzb').trim();
   // v3 (delivery tags, word timings) unless a different model was set on purpose; the old stored
   // default (multilingual v2) was never a choice anyone made.
   const model = !s.elevenModel || s.elevenModel === 'eleven_multilingual_v2' ? V3 : s.elevenModel;
@@ -177,7 +178,7 @@ async function elevenSpeak(text, s, speedMul, delivery = '') {
 }
 
 async function elevenSpeakOld(text, s, speedMul, model) {
-  const voice = (s.elevenVoice || 'JBFqnCBsd6RMkjVDRZzb').trim();
+  const voice = (s.elevenVoice || REAL_VOICES[realVoiceFor(s)]?.[1] || 'JBFqnCBsd6RMkjVDRZzb').trim();
   const { res, data: buf } = await fetchTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice)}?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'xi-api-key': s.elevenKey, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
@@ -362,11 +363,15 @@ async function auraReady() {
 const AURA_FOR = { af_heart: 'thalia', af_bella: 'aurora', af_nicole: 'luna', bf_emma: 'helena', am_michael: 'arcas', am_fenrir: 'orion', am_puck: 'apollo', bm_george: 'draco', bm_fable: 'hermes' };
 function auraSpeaker(v) { return AURA_FOR[v] || (/^[ab]f_/.test(v || '') ? 'thalia' : 'arcas'); }
 
+// 1.6: the real voice (by name) and how expressive it is, for the server's ElevenLabs reads.
+let REAL = { eleven: '', expression: 'expressive' };
+export function setRealVoice(o = {}) { REAL = { ...REAL, ...o }; }
+
 async function auraLine(text, speaker, delivery = '') {
   const res = await fetch('/api/speak', {
     method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, speaker, delivery }),
+    body: JSON.stringify({ text, speaker, delivery, eleven: REAL.eleven, expression: REAL.expression }),
   });
   if (!/^audio\//.test(res.headers.get('Content-Type') || '')) {
     const why = await res.json().catch(() => ({}));
@@ -470,7 +475,7 @@ export async function speakAllLines(lines, voice, deliveries = []) {
   try {
     // The narrator reads the spoken form ("1 and a half cups"); captions keep the written lines.
     const spoken = lines.map(speakable);
-    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: spoken, deliveries, speaker: auraSpeaker(voice) }) });
+    const res = await fetch('/api/speakall', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: spoken, deliveries, speaker: auraSpeaker(voice), eleven: REAL.eleven, expression: REAL.expression }) });
     if (!/^audio\//.test(res.headers.get('Content-Type') || '')) return null;
     const cuts = JSON.parse(res.headers.get('X-Loomy-Cuts') || '[]');
     if (cuts.length !== lines.length - 1) return null;

@@ -338,19 +338,38 @@ const AURA_FEMALE = new Set('amalthea andromeda asteria athena aurora callista c
 // v3 (the default) reads with a delivery tag such as [tense] or [warm] picked by the writer for each line.
 const DELIVERY_TAG = { serious: 1, excited: 1, calm: 1, tense: 1, urgent: 1, curious: 1, amused: 1, sad: 1, warm: 1, firm: 1, shocked: 1, happy: 1, mysterious: 1, whispering: 'whispers', proud: 1, deadpan: 1, annoyed: 1, relieved: 1, dramatic: 1 };
 const elevenModel = (env) => env.ELEVEN_MODEL || 'eleven_v3';
-function elevenText(env, text, delivery) {
-  const t = DELIVERY_TAG[delivery];
-  return elevenModel(env) === 'eleven_v3' && t ? `[${t === 1 ? delivery : t}] ${text}` : text;
+// 1.6: real voices the page can ask for by name (ElevenLabs' built-in voices: every key can use them).
+// Only these names are accepted. shared/voicechars.js lists the same names for the menus.
+const ELEVEN_VOICES = {
+  george: 'JBFqnCBsd6RMkjVDRZzb', brian: 'nPczCjzI2devNBz1zQrb', liam: 'TX3LPaxmHKxFdv7VOQHJ', harry: 'SOYHLrjzK2X1ezoPC6cr',
+  callum: 'N2lVS1w4EtoT3dr4eOWO', charlie: 'IKne3meq5aSn9XLyUdCD', daniel: 'onwK4e9ZLuTAKqWW03F9', bill: 'pqHfZKP75CvOlQylNhV4',
+  roger: 'CwhRBWXzGAHq8TQ4Fs17', jessica: 'cgSgspJ2msm6clMCkdW9', laura: 'FGY2WhTYpPnrIDTdsKH5', lily: 'pFZP5JQG7iQjIQuC4Bku',
+  sarah: 'EXAVITQu4vr4xnSDxMaL', alice: 'Xb7hH8MSUJpSbSDYk0k2',
+};
+// Little human sounds v3 performs before a line, for the feelings that have one.
+const NONVERBAL = { shocked: 'gasps', amused: 'chuckles', sad: 'sighs', relieved: 'exhales', happy: 'laughs' };
+// Very expressive (the default) also reads feeling into lines the writer left neutral.
+function elevenText(env, text, delivery, { expression = 'expressive', sound = false } = {}) {
+  if (elevenModel(env) !== 'eleven_v3') return text;
+  let d = delivery;
+  if ((!d || d === 'neutral') && expression === 'expressive') d = /!\s*$/.test(text) ? 'excited' : /\?\s*$/.test(text) ? 'curious' : /\b(but|until|except|suddenly|then)\b/i.test(text) ? 'dramatic' : '';
+  const t = DELIVERY_TAG[d];
+  const tag = t ? `[${t === 1 ? d : t}] ` : '';
+  const nv = sound && NONVERBAL[d] ? `[${NONVERBAL[d]}] ` : '';
+  return `${tag}${nv}${text}`;
 }
-function elevenSettings(env) {
-  return elevenModel(env) === 'eleven_v3' ? { stability: 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: 1.1 } : { stability: 0.38, similarity_boost: 0.8, style: 0.4 };
+// v3 takes three stability settings: 0 Creative (most emotional), 0.5 Natural, 1 Robust.
+function elevenSettings(env, expression = 'expressive') {
+  if (elevenModel(env) !== 'eleven_v3') return { stability: expression === 'expressive' ? 0.3 : 0.38, similarity_boost: 0.8, style: expression === 'expressive' ? 0.65 : 0.4 };
+  return { stability: expression === 'expressive' ? 0 : expression === 'steady' ? 1 : 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: 1.1 };
 }
-const elevenVoiceId = (env, speaker) => (AURA_FEMALE.has(speaker) ? (env.ELEVEN_VOICE_F || 'EXAVITQu4vr4xnSDxMaL') : (env.ELEVEN_VOICE_M || 'JBFqnCBsd6RMkjVDRZzb'));
-async function elevenVoice(env, text, speaker, delivery = '') {
-  const voice = elevenVoiceId(env, speaker);
+const elevenVoiceId = (env, speaker, pick = '') => ELEVEN_VOICES[pick] || (AURA_FEMALE.has(speaker) ? (env.ELEVEN_VOICE_F || 'EXAVITQu4vr4xnSDxMaL') : (env.ELEVEN_VOICE_M || 'JBFqnCBsd6RMkjVDRZzb'));
+const pickExpression = (x) => (['expressive', 'natural', 'steady'].includes(x) ? x : 'expressive');
+async function elevenVoice(env, text, speaker, delivery = '', pick = '', expression = 'expressive') {
+  const voice = elevenVoiceId(env, speaker, pick);
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
     method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-    body: JSON.stringify({ text: elevenText(env, text, delivery), model_id: elevenModel(env), voice_settings: elevenSettings(env) }),
+    body: JSON.stringify({ text: elevenText(env, text, delivery, { expression, sound: expression === 'expressive' }), model_id: elevenModel(env), voice_settings: elevenSettings(env, expression) }),
   });
   if (!res.ok || !/audio/.test(res.headers.get('Content-Type') || '')) {
     const j = await res.json().catch(() => ({}));
@@ -401,13 +420,16 @@ async function geminiVoice(env, text, speaker) {
 // The whole script with ElevenLabs: each line read with its delivery tag (two lines at a time), its
 // character timings turned into word timings, the lines joined with short gaps into one WAV. Same
 // answer as the Gemini read below (cut times, words per line, pace), so the page treats both alike.
-async function elevenAll(env, lines, deliveries, speaker) {
-  const voice = elevenVoiceId(env, speaker), SR = 24000, GAP = Math.round(0.36 * SR);
+async function elevenAll(env, lines, deliveries, speaker, pick = '', expression = 'expressive') {
+  const voice = elevenVoiceId(env, speaker, pick), SR = 24000, GAP = Math.round(0.36 * SR);
+  // At most three little sounds (a gasp, a chuckle, a sigh) per video, never on two lines in a row.
+  const sound = new Array(lines.length).fill(false);
+  if (expression === 'expressive') { let n = 0; deliveries.forEach((d, i) => { if (n < 3 && NONVERBAL[d] && !sound[i - 1]) { sound[i] = true; n++; } }); }
   const one = async (i) => {
     const prev = lines[i - 1], next = lines[i + 1];
     const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=pcm_24000`, {
       method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(50000),
-      body: JSON.stringify({ text: elevenText(env, lines[i], deliveries[i]), model_id: elevenModel(env), voice_settings: elevenSettings(env), ...(elevenModel(env) === 'eleven_v3' ? {} : { previous_text: prev, next_text: next }) }),
+      body: JSON.stringify({ text: elevenText(env, lines[i], deliveries[i], { expression, sound: sound[i] }), model_id: elevenModel(env), voice_settings: elevenSettings(env, expression), ...(elevenModel(env) === 'eleven_v3' ? {} : { previous_text: prev, next_text: next }) }),
     });
     const j = await res.json().catch(() => ({}));
     if (!res.ok || !j.audio_base64) throw new Error(`ElevenLabs said ${res.status}: ${String(j.detail?.status || j.detail?.message || '').slice(0, 100)}`);
@@ -454,7 +476,7 @@ async function speakAll(request, env) {
   // (the reason goes back in X-Loomy-Note, so a silent fallback can be seen).
   let elevenWhy = '';
   if (env.ELEVEN_KEY) {
-    try { return await elevenAll(env, lines, deliveries, speaker); } catch (e) { elevenWhy = String(e?.message || e).replace(/[^\x20-\x7E]/g, ' ').slice(0, 160); if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: elevenWhy }); }
+    try { return await elevenAll(env, lines, deliveries, speaker, String(body.eleven || ''), pickExpression(body.expression)); } catch (e) { elevenWhy = String(e?.message || e).replace(/[^\x20-\x7E]/g, ' ').slice(0, 160); if (!env.GEMINI_KEY || !env.GROQ_KEY) return json({ ok: false, error: elevenWhy }); }
   }
   let v;
   try { v = await geminiVoice(env, text, speaker); } catch (e) { return json({ ok: false, error: String(e?.message || e).slice(0, 200), ...(elevenWhy ? { tried: `ElevenLabs: ${elevenWhy}` } : {}) }); }
@@ -518,7 +540,7 @@ async function speak(request, env) {
   let elevenNote = '';
   if (env.ELEVEN_KEY) {
     try {
-      const res = await elevenVoice(env, text, speaker, String(body.delivery || '').toLowerCase());
+      const res = await elevenVoice(env, text, speaker, String(body.delivery || '').toLowerCase(), String(body.eleven || ''), pickExpression(body.expression));
       return new Response(res.body, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store', 'X-Loomy-Voice': 'elevenlabs' } });
     } catch (e) { elevenNote = String(e?.message || e).slice(0, 80) + ' / '; }
   }

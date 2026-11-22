@@ -5,7 +5,7 @@ import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js
 import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady, cloudflareUsedUp } from './images.js';
 import { getNarrator, warmNarrator } from './tts.js';
 import { finishLine } from '../../shared/voicefx.js';
-import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport } from './tts.js';
+import { auraUsed, serverVoiceName, speakAllLines, voiceReport, resetVoiceReport, setRealVoice } from './tts.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
 import { planShots } from './z3d/plan.js';
@@ -16,7 +16,7 @@ import { exportVideo } from './encoder.js';
 import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { estimateDepth, onDepthProgress } from './depth.js';
 import { FORMATS, PACES, STYLES, MOODS, formatOf } from './presets.js';
-import { characterOf, characterDelivery, characterLine } from '../../shared/voicechars.js';
+import { characterOf, characterDelivery, characterLine, realVoiceFor, expressionOf } from '../../shared/voicechars.js';
 // How long the voice waits for the fact-check before reading (big upgrade): Fast reads straight away and
 // re-records only lines the check changes.
 const FACT_WAIT = { fast: 0, balanced: 12000, best: 45000 };
@@ -260,6 +260,7 @@ export class Pipeline {
     };
 
     const voiceJob = async () => {
+      setRealVoice({ eleven: realVoiceFor(this.s), expression: expressionOf(this.s) });
       const todo = scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s));
       this.narrator = getNarrator(this.s, (m) => this.log(m));
       if (!todo.length) { this.h.step('voice', 'done', this.voiceSummary()); return; }
@@ -374,7 +375,7 @@ export class Pipeline {
   }
 
   imageKey(s) { return `${s.visual}|${s.seed}|${this.p.options.style}|${formatOf(this.p.options)}|${this.s.imageProvider}`; }
-  voiceKey(s) { return `${s.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}|${this.s.character || ''}`; }
+  voiceKey(s) { return `${s.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}|${this.s.character || ''}|${realVoiceFor(this.s)}|${expressionOf(this.s)}`; }
 
   async ensureMix() {
     const p = this.p;

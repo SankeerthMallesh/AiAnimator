@@ -32,6 +32,8 @@ export const DEFAULT_SETTINGS = {
   depth3d: 'auto',                // auto | off
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_v3',
+  realVoice: 'auto',              // 1.6: the real (ElevenLabs) voice by name, or auto
+  expression: 'expressive',       // 1.6: expressive | natural | steady
   fps: 30,
   speed: 'balanced',              // fast | balanced | best (big upgrade)
   captionStyle: 'classic',        // word | classic | bold | box | minimal | off

@@ -3,7 +3,7 @@ import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
 import { TOWN_IDEAS } from '../../shared/townideas.js';
-import { CHARACTERS } from '../../shared/voicechars.js';
+import { CHARACTERS, REAL_VOICES, EXPRESSIONS, expressionOf } from '../../shared/voicechars.js';
 import { reviewVideo, quickFixes, revisePrompt } from '../../shared/feedback.js';
 import { attachFeedback } from '../../shared/feedbackui.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
@@ -187,6 +187,17 @@ function initComposer() {
       saveSettings(settings);
       if (ch) toast(`${ch.label.split(':')[0]} will narrate.`);
     });
+  }
+
+  // 1.6: real voices (ElevenLabs on the site) and how expressive they are.
+  const realSel = document.getElementById('realVoice'), exprSel = document.getElementById('expression');
+  if (realSel) {
+    fillSelect(realSel, [['auto', 'Auto: suits the narrator'], ...Object.entries(REAL_VOICES).map(([k, [label]]) => [k, label])], REAL_VOICES[settings.realVoice] ? settings.realVoice : 'auto');
+    realSel.addEventListener('change', () => { settings.realVoice = realSel.value; saveSettings(settings); if (realSel.value !== 'auto') toast(`${REAL_VOICES[realSel.value][0].split(':')[0]} will read your video when the site uses its real voices.`); });
+  }
+  if (exprSel) {
+    fillSelect(exprSel, Object.entries(EXPRESSIONS).map(([k, label]) => [k, label]), expressionOf(settings));
+    exprSel.addEventListener('change', () => { settings.expression = exprSel.value; saveSettings(settings); });
   }
 
   const tighten = document.getElementById('autoTighten');

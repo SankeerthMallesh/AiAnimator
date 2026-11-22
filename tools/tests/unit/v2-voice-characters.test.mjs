@@ -49,7 +49,8 @@ export const tests = [
       const js = readFileSync(new URL(p, import.meta.url), 'utf8');
       assert.match(js, /this\.pace\.voice \* \(ch\?\.speed \|\| 1\), characterDelivery\(scene\.delivery, ch\)/);
       assert.match(js, /characterLine\(finishLine/);
-      assert.match(js, /\|\$\{this\.s\.character \|\| ''\}`/);
+      // The voice is made again when the character, the real voice or the expression changes (1.6).
+      assert.match(js, /\|\$\{this\.s\.character \|\| ''\}\|\$\{realVoiceFor\(this\.s\)\}\|\$\{expressionOf\(this\.s\)\}`/);
     }
   } },
 ];

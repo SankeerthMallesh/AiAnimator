@@ -7,7 +7,7 @@ import { Demo } from './demo.js';
 import { fetchPlate, platePrompt, scenePrompt, mapLimit, cloudflareReady, cloudflareOn } from './images.js';
 import { topicPictures } from './wiki.js';
 import { isSafeImage } from './safety.js';
-import { getNarrator, warmNarrator, auraUsed, serverVoiceName, speakAllLines, voiceReport } from './tts.js';
+import { getNarrator, warmNarrator, auraUsed, serverVoiceName, speakAllLines, voiceReport, setRealVoice } from './tts.js';
 import { finishLine } from '../../shared/voicefx.js';
 import { buildTimeline, synthMusic, mixSoundtrack } from './audio.js';
 import { Stage, loadFonts } from './stage.js';
@@ -17,7 +17,7 @@ import { FORMATS, PACES, MOODS, formatOf } from './presets.js';
 import { TownRenderer, townShots } from './town.js';
 import { markTownWeak } from './gpu.js';
 import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
-import { characterOf, characterDelivery, characterLine } from '../../shared/voicechars.js';
+import { characterOf, characterDelivery, characterLine, realVoiceFor, expressionOf } from '../../shared/voicechars.js';
 // How long the voice waits for the fact-check before reading (big upgrade): Fast reads straight away and
 // re-records only lines the check changes.
 const FACT_WAIT = { fast: 0, balanced: 12000, best: 45000 };
@@ -189,7 +189,7 @@ export class Pipeline {
 
   plateKey(scene) { return `${scene.bg}|${scene.seed}|${formatOf(this.p.options)}`; }
   voiceKey(scene) {
-    return `${scene.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}|${this.s.character || ''}`;
+    return `${scene.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}|${this.s.character || ''}|${realVoiceFor(this.s)}|${expressionOf(this.s)}`;
   }
 
   // Painting starts the moment the video starts: the free image service allows about one picture
@@ -334,6 +334,7 @@ export class Pipeline {
       this.h.step('voice', 'skip', this.demo ? 'Test reel has no voice' : 'Captions only');
       return;
     }
+    setRealVoice({ eleven: realVoiceFor(this.s), expression: expressionOf(this.s) });
     const todo = scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s));
     this.narrator = getNarrator(this.s, (m) => this.log(m));
     if (!todo.length) { this.h.step('voice', 'done', this.voiceSummary()); return; }

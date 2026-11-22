@@ -33,6 +33,8 @@ export const DEFAULT_SETTINGS = {
   depth3d: 'off',
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_v3',
+  realVoice: 'auto',              // 1.6: the real (ElevenLabs) voice by name, or auto
+  expression: 'expressive',       // 1.6: expressive | natural | steady
   runwayKey: '', falKey: '', falModel: 'fal-ai/kling-video/v2.1/standard/image-to-video', videoProvider: 'auto',
   fps: 30,                        // Balanced speed (big upgrade): 30 fps renders twice as fast as 60
   speed: 'balanced',              // fast | balanced | best

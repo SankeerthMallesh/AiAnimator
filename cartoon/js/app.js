@@ -1,8 +1,8 @@
 // UI controller for Storyforge.
-import { resetVoiceReport } from './tts.js';
+import { resetVoiceReport, setRealVoice } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
-import { CHARACTERS, characterDelivery, characterLine } from '../../shared/voicechars.js';
+import { CHARACTERS, characterDelivery, characterLine, REAL_VOICES, EXPRESSIONS, realVoiceFor, expressionOf } from '../../shared/voicechars.js';
 import { reviewVideo, quickFixes, revisePrompt } from '../../shared/feedback.js';
 import { attachFeedback } from '../../shared/feedbackui.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
@@ -133,7 +133,7 @@ async function hearVoice() {
   btn.classList.add('busy');
   // With a narrator character picked, the preview is that character: its line, pace, delivery and sound.
   const ch = CHARACTERS[settings.character] || null;
-  const cacheKey = `${settings.ttsEngine}|${id}|${settings.character || ''}`;
+  const cacheKey = `${settings.ttsEngine}|${id}|${settings.character || ''}|${realVoiceFor({ ...settings, voice: id })}|${expressionOf(settings)}`;
   try {
     let clip = voicePreview.cache.get(cacheKey);
     if (!clip) {
@@ -145,6 +145,7 @@ async function hearVoice() {
         if (!n.ready) toast('Loading the free voice model (about 90 MB, one time)…', false, 6000);
         await warmNarrator(n);
       }
+      setRealVoice({ eleven: realVoiceFor(engineSettings), expression: expressionOf(settings) });
       const line = ch ? `Hi, I'm ${ch.label.split(':')[0].replace(/^(The|Your) /, '')}. Want to hear something wild?` : `Hello, my name is ${name}.`;
       clip = await n.speak(line, ch?.speed || 1, ch ? characterDelivery('neutral', ch) : '');
       if (!clip) throw new Error('no audio');
@@ -199,6 +200,17 @@ $('#voice').addEventListener('change', (e) => {
       saveSettings(settings);
       if (ch) toast(`${ch.label.split(':')[0]} will narrate.`);
     });
+  }
+
+  // 1.6: real voices (ElevenLabs on the site) and how expressive they are.
+  const realSel = document.getElementById('realVoice'), exprSel = document.getElementById('expression');
+  if (realSel) {
+    fillSelect(realSel, [['auto', 'Auto: suits the narrator'], ...Object.entries(REAL_VOICES).map(([k, [label]]) => [k, label])], REAL_VOICES[settings.realVoice] ? settings.realVoice : 'auto');
+    realSel.addEventListener('change', () => { settings.realVoice = realSel.value; saveSettings(settings); if (realSel.value !== 'auto') toast(`${REAL_VOICES[realSel.value][0].split(':')[0]} will read your video when the site uses its real voices.`); });
+  }
+  if (exprSel) {
+    fillSelect(exprSel, Object.entries(EXPRESSIONS).map(([k, label]) => [k, label]), expressionOf(settings));
+    exprSel.addEventListener('change', () => { settings.expression = exprSel.value; saveSettings(settings); });
   }
 
   const toonBox = document.getElementById('toonCast');
