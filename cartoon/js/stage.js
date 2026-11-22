@@ -5,6 +5,7 @@ import { Ink, Cast } from './cast.js';
 import { PropKit, SetKit } from './props.js';
 import { wordTimings } from './tts.js';
 import { drawChapterCard } from '../../shared/hooks.js';
+import { glare, gradeLayer } from '../../shared/glare.js';
 
 const BEAT = 3.15;
 
@@ -45,7 +46,9 @@ export class Stage {
     Stage.lastShot = null; Stage.lastBox = null; Stage.lastFace = null;
     Stage.world(ctx, W, H, view, scene, local, shot);
     // Finish: warm light from the top left and a gentle vignette tie every set together.
-    if (!this._finish || this._finish.width !== W || this._finish.height !== H) {
+    const dark = /night|space|underwater|sea/.test(scene.set || ''), glow = view.settings?.glow !== false;
+    const finishKey = `${W}x${H}|${glow}|${dark}`;
+    if (!this._finish || this._finishKey !== finishKey) {
       const f = document.createElement('canvas'); f.width = W; f.height = H;
       const fx = f.getContext('2d');
       const light = fx.createRadialGradient(W * 0.15, H * 0.05, 0, W * 0.15, H * 0.05, Math.hypot(W, H) * 0.7);
@@ -54,9 +57,13 @@ export class Stage {
       const vig = fx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.45, W / 2, H * 0.45, Math.hypot(W, H) * 0.62);
       vig.addColorStop(0, 'rgba(20,18,40,0)'); vig.addColorStop(1, 'rgba(20,18,40,0.15)');
       fx.fillStyle = vig; fx.fillRect(0, 0, W, H);
-      this._finish = f;
+      // 1.2: the glow's colour grade rides along in this layer (one full-frame draw, not two).
+      if (glow) fx.drawImage(gradeLayer(W, H, 1, dark), 0, 0, W, H);
+      this._finish = f; this._finishKey = finishKey;
     }
     ctx.drawImage(this._finish, 0, 0);
+    // 1.2: glow, sparkles, grade and dust (stronger on night, space and underwater sets).
+    if (glow) glare(ctx, W, H, t, { dark, seed: scene.index || 0, grade: false });
     if (shot.whip > 0) { Stage.smear(ctx, W, H, shot.whip * ((scene.index + (shot.setup?.k || 0)) % 2 ? 1 : -1)); Stage.speedLines(ctx, W, H, shot.whip); }
     if (this.log && Stage.lastShot) this.log.shot(t, Stage.lastShot, Stage.lastBox, Stage.lastFace);
     if (view.settings?.captionStyle !== 'off') {

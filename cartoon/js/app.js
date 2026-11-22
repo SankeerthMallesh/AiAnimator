@@ -164,6 +164,8 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  const glowBox = document.getElementById('glow');
+  if (glowBox) { glowBox.checked = settings.glow !== false; glowBox.addEventListener('change', (e) => { settings.glow = e.target.checked; saveSettings(settings); }); }
   const tighten = document.getElementById('autoTighten');
   if (tighten) { tighten.checked = settings.autoTighten !== false; tighten.addEventListener('change', (e) => { settings.autoTighten = e.target.checked; saveSettings(settings); }); }
   // Look: the 3D cartoon town (the best look) on a computer whose graphics can draw it, painted sets
