@@ -130,6 +130,14 @@ export function thingAction(g, act, t, { spot, hand = null, camPos = null, scale
   const anim = g.userData.anim; anim?.(t);
   g.visible = true;
   const s = scale;
+  // A flat thing (a clock, a phone, coins, a book) seen edge-on is a sliver: it rocks toward the lens
+  // instead of turning all the way round.
+  if (g.userData.flat == null) { const b = new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3()); const d = [b.x, b.y, b.z].sort((x, y) => x - y); g.userData.flat = d[0] < d[2] * 0.35; }
+  const turn = (speed) => {
+    if (!g.userData.flat) return t * speed;
+    const face = camPos ? Math.atan2(camPos.x - g.position.x, camPos.z - g.position.z) : 0;
+    return face + Math.sin(t * Math.min(speed, 1.6)) * 0.6;
+  };
   switch (act) {
     case 'hold': case 'show': {
       const h = hand?.();
@@ -138,7 +146,7 @@ export function thingAction(g, act, t, { spot, hand = null, camPos = null, scale
         g.position.copy(h).add(new THREE.Vector3(0, -0.02, 0.04));
         if (camPos) g.rotation.set(0, Math.atan2(camPos.x - g.position.x, camPos.z - g.position.z) + (act === 'show' ? Math.sin(t * 0.8) * 0.4 : 0), 0);
         g.scale.setScalar(s);
-      } else { g.position.copy(spot); g.scale.setScalar(s * easeOutBack(t / 0.4)); g.rotation.y = t * 0.6; }
+      } else { g.position.copy(spot); g.scale.setScalar(s * easeOutBack(t / 0.4)); g.rotation.y = turn(0.6); }
       break;
     }
     case 'drop': {
@@ -149,8 +157,8 @@ export function thingAction(g, act, t, { spot, hand = null, camPos = null, scale
       g.scale.set(s / Math.sqrt(sq), s * sq, s / Math.sqrt(sq)); g.rotation.y = k < 1 ? k * 1.2 : 1.2;
       break;
     }
-    case 'grow': g.position.copy(spot); g.scale.setScalar(s * easeOutBack((t - 0.1) / 0.5) * 1.0 + 0.0001); g.rotation.y = t * 0.5; break;
-    case 'spin': g.position.set(spot.x, spot.y + 0.15 + Math.sin(t * 2.2) * 0.04, spot.z); g.rotation.y = t * 2.4; g.scale.setScalar(s * Math.min(1, easeOut(t / 0.3))); break;
+    case 'grow': g.position.copy(spot); g.scale.setScalar(s * easeOutBack((t - 0.1) / 0.5) * 1.0 + 0.0001); g.rotation.y = turn(0.5); break;
+    case 'spin': g.position.set(spot.x, spot.y + 0.15 + Math.sin(t * 2.2) * 0.04, spot.z); g.rotation.y = turn(2.4); g.scale.setScalar(s * Math.min(1, easeOut(t / 0.3))); break;
     case 'break': {
       g.position.copy(spot); g.scale.setScalar(s);
       if (!g.userData.parts) {

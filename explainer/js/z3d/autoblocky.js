@@ -121,11 +121,13 @@ export function buildShot(spec, { makeStage, W, H }) {
         const h = thing?.userData.h || 0.2;
         tScale = (h < 0.12 ? 2.4 : h > 0.5 ? 1 : 1.6) * 1.2;
         spot = V(0, 0.9, 0);
-        if (A) { at(A, tall ? 0.55 : 0.9, -1.6, -0.35); act(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { onset: 0.3 }); }
-        target = V(0, 0.9 + h * tScale * 0.5, 0);
+        // The speaker stands behind, inside the frame; the lens looks a little down on the thing, so its
+        // stand stays a small base at the bottom instead of a wall across the lower half.
+        if (A) { at(A, tall ? 0.36 : 0.75, -1.6, -0.35); act(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { onset: 0.3 }); }
+        target = V(0, 0.9 + h * tScale * 0.62, 0);
         const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
         const span = Math.max(big.x, big.y, big.z, 0.12) * tScale;
-        frameCam(c, target, { dist: Math.max(0.8, span * (tall ? 4.4 : 2.6)) * near, height: span * 0.45, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
+        frameCam(c, target, { dist: Math.max(0.8, span * (tall ? 4.4 : 2.6)) * near, height: span * 1.1, yaw: 0.22 + yawJ }, spec.camera === 'impact' ? 'push-in' : spec.camera, k, t, spec.seed, fov0);
         eff = target.clone(); break;
       }
       case 'talk': {
