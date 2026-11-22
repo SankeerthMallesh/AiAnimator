@@ -329,7 +329,9 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         // The speaker stands inside the frame behind the thing. The lens aims at the middle of the
         // thing (lifted when it floats for a spin) and looks a little down on it, so the stand is a
         // small base at the bottom, not a table top across the lower half with the thing cut off above.
-        if (A) { at(A, tall ? -0.85 : 0.7, tall ? -3.4 : -1.5, tall ? 0.35 : -0.35); poseNow(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { talk, from: 'stand', seed: spec.seed }); }
+        // In a tall frame the lens looks down on the thing, which leaves no room above it for a speaker
+        // behind (their head was cut off at the top, near or far): the tall close-up is the thing alone.
+        if (A && !tall) { at(A, 0.7, -1.5, -0.35); poseNow(A, spec.pose === 'talk' ? 'think' : spec.pose, t, { talk, from: 'stand', seed: spec.seed }); }
         target = V(0, 0.9 + (spec.do === 'spin' ? 0.15 : 0) + h * tScale * 0.55, 0);
         // Far enough that the thing's widest side fills about 40 % of the frame's width.
         const big = (thing ? new THREE.Box3().setFromObject(thing).getSize(new THREE.Vector3()) : V(0.2, 0.2, 0.2));
