@@ -1,4 +1,5 @@
-// The editor's sound: every part's own audio at its speed and volume (music comes in E3). The same
+// The editor's sound: every part's own audio at its speed and volume, and the music track (E3),
+// ducked under the parts' own sound, with fades at the start and end of the video. The same
 // graph plays the preview (AudioContext) and renders the export (OfflineAudioContext), then the
 // export is levelled to -13.5 LUFS with peaks under -3 dBFS like every Loomy video.
 
@@ -36,6 +37,31 @@ export function schedule(ctx, p, media, { from = 0, when = 0 } = {}) {
     src.stop(t1);
     nodes.push(src, gn);
   }
+  // E3: the music from the start of the video (looped if shorter), under the parts' sound.
+  const mus = p.music && media.get(p.music.id)?.audio;
+  const total = duration(p);
+  if (mus && (p.audio?.musicVol ?? 0) > 0 && total > from) {
+    const vol = p.audio.musicVol, ducked = vol * 0.3;
+    const src = ctx.createBufferSource();
+    src.buffer = mus; src.loop = mus.duration < total;
+    const gn = ctx.createGain();
+    const T = (x) => when + Math.max(0, x - from);
+    const level = (x) => (p.audio.duck && soundAt(p, media, x) ? ducked : vol);
+    gn.gain.setValueAtTime(level(from), when);
+    if (p.audio.duck) for (const e of timeline(p)) {
+      if (e.end <= from) continue;
+      gn.gain.setTargetAtTime(level(e.start + 0.01), T(e.start), 0.08);
+    }
+    src.connect(gn).connect(master);
+    const offset = (p.music.start || 0) + from;
+    src.start(when, src.loop ? offset % mus.duration : Math.min(offset, mus.duration));
+    src.stop(when + (total - from));
+    nodes.push(src, gn);
+  }
+  // Fades of the whole mix at the start and the end.
+  const fi = p.audio?.fadeIn || 0, fo = p.audio?.fadeOut || 0;
+  if (fi > 0 && from < fi) { master.gain.setValueAtTime(Math.max(0.0001, from / fi), when); master.gain.linearRampToValueAtTime(1, when + (fi - from)); }
+  if (fo > 0 && total - fo > from) { master.gain.setValueAtTime(1, when + (total - fo - from)); master.gain.linearRampToValueAtTime(0.0001, when + (total - from)); }
   return { nodes, master, stop() { for (const n of nodes) { try { n.stop?.(); } catch { /* not started */ } try { n.disconnect(); } catch { /* gone */ } } } };
 }
 
@@ -49,4 +75,10 @@ export async function renderAudio(p, media) {
   const info = levelChannels(chans, SR);
   out.levelInfo = info;
   return out;
+}
+
+// Whether a part with its own sound is playing at output time t (the music ducks under it).
+function soundAt(p, media, t) {
+  const e = timeline(p).find(x => t >= x.start && t < x.end);
+  return !!(e && media.get(e.seg.src)?.audio && (e.seg.vol ?? 1) * (p.audio?.sourceVol ?? 1) > 0);
 }

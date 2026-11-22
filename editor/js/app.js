@@ -1,6 +1,6 @@
 // Loomy Edit: wires the project, the media, the preview, the timeline and the inspector together.
 
-import { newProject, addSource, addSegment, split, trim, move, remove, update, setFormat, History, timeline, duration, segLen, fmtTime, uid } from './model.js';
+import { newProject, addSource, addSegment, split, trim, move, remove, update, setFormat, History, timeline, duration, segLen, fmtTime, uid, addText, setCaptions, setMusic, setAudio, setSpeed, setZoom, setTransition, SPEEDS, ZOOMS, TRANSITIONS, TEXT_LOOKS, TEXT_SPOTS } from './model.js';
 import { Media } from './media.js';
 import { Preview } from './preview.js';
 import { Timeline, escapeHtml } from './timeline.js';
@@ -28,12 +28,17 @@ const tl = new Timeline($('#timeline'), {
     if (final) commit(live); else tl.render();
   },
   onMove: (id, to) => commit(move(project, id, to)),
+  onMoveText: (id, dt) => {
+    const x = project.texts.find(y => y.id === id); if (!x) return;
+    const len = x.end - x.start, start = Math.max(0, Math.min(x.start + dt, Math.max(0, duration(project) - 0.1)));
+    commit(update(project, id, { start: Math.round(start * 100) / 100, end: Math.round((start + len) * 100) / 100 }));
+  },
 });
 
 function commit(p, { keepTime = true } = {}) {
   live = null;
   project = history.push(p);
-  if (selected && !project.segments.some(s => s.id === selected)) selected = null;
+  if (selected && !project.segments.some(s => s.id === selected) && !project.texts.some(x => x.id === selected)) selected = null;
   render();
   if (keepTime) preview.refresh();
 }
@@ -49,20 +54,26 @@ function render() {
   $('#btnSplit').disabled = !has;
   $('#btnDelete').disabled = !selected;
   $('#btnExport').disabled = !has;
+  $('#btnText').disabled = !has;
   $('#format').value = p.format;
 }
 
 function select(id) { selected = id; tl.select(id); inspector(); $('#btnDelete').disabled = !selected; }
 
-// ---------- inspector: the selected part ----------
+// ---------- inspector: the selected part, the selected text, or the whole video ----------
+const opt = (v, label, cur) => `<option value="${v}"${String(v) === String(cur) ? ' selected' : ''}>${label}</option>`;
+const LABEL = { cut: 'Cut', fade: 'Fade', whip: 'Whip pan', zoom: 'Zoom', none: 'None', 'push-in': 'Slow push in', 'pull-out': 'Slow pull out', punch: 'Punch in', bold: 'Bold', box: 'White box', outline: 'Outline', top: 'Top', middle: 'Middle', bottom: 'Bottom' };
 function inspector() {
   const box = $('#inspector'), p = get();
+  const text = p.texts.find(x => x.id === selected);
+  if (text) return textInspector(box, p, text);
   const seg = p.segments.find(s => s.id === selected);
-  if (!seg) { box.innerHTML = '<p class="hint">Select a part on the timeline to change it.</p>'; return; }
+  if (!seg) return videoInspector(box, p);
   const src = p.sources[seg.src] || {};
+  const i = p.segments.indexOf(seg);
   box.innerHTML = `
     <h2>${escapeHtml(src.name || 'Video')}</h2>
-    <p class="meta">Part ${p.segments.indexOf(seg) + 1} of ${p.segments.length} · ${fmtTime(segLen(seg))} long · from a ${fmtTime(src.duration || 0)} video</p>
+    <p class="meta">Part ${i + 1} of ${p.segments.length} · ${fmtTime(segLen(seg))} long · from a ${fmtTime(src.duration || 0)} video</p>
     <div class="pair">
       <label class="field"><span>Starts at (s)</span><input type="number" id="inIn" min="0" step="0.1" value="${seg.in.toFixed(2)}"></label>
       <label class="field"><span>Ends at (s)</span><input type="number" id="inOut" min="0" step="0.1" value="${seg.out.toFixed(2)}"></label>
@@ -70,6 +81,14 @@ function inspector() {
     <div class="field"><span>Framing</span><div class="seg-choice" role="group" aria-label="Framing">
       <button type="button" data-fit="fill" aria-pressed="${seg.fit !== 'fit'}">Fill the frame</button>
       <button type="button" data-fit="fit" aria-pressed="${seg.fit === 'fit'}">Whole picture</button></div></div>
+    <div class="row2">
+      <label class="field"><span>Speed</span><select id="inSpeed">${SPEEDS.map(v => opt(v, `${v}×`, seg.speed)).join('')}</select></label>
+      <label class="field"><span>Zoom</span><select id="inZoom">${Object.keys(ZOOMS).map(k => opt(k, LABEL[k], seg.zoom?.kind || 'none')).join('')}</select></label>
+    </div>
+    <div class="row2">
+      <label class="field"><span>${i ? 'Into this part' : 'Into this part (not on the first)'}</span><select id="inTrans" ${i ? '' : 'disabled'}>${TRANSITIONS.map(k => opt(k, LABEL[k], seg.transition?.kind || 'cut')).join('')}</select></label>
+      <label class="field"><span>Its sound</span><input type="range" id="inVol" min="0" max="2" step="0.05" value="${seg.vol ?? 1}" aria-label="Volume of this part"></label>
+    </div>
     <div class="seg-tools">
       <button class="btn" type="button" id="insSplit">Split here</button>
       <button class="btn" type="button" id="insDup">Duplicate</button>
@@ -78,15 +97,81 @@ function inspector() {
   box.querySelector('#inIn').addEventListener('change', (e) => commit(trim(project, seg.id, 'in', e.target.value)));
   box.querySelector('#inOut').addEventListener('change', (e) => commit(trim(project, seg.id, 'out', e.target.value)));
   box.querySelectorAll('[data-fit]').forEach(b => b.addEventListener('click', () => commit(update(project, seg.id, { fit: b.dataset.fit }))));
+  box.querySelector('#inSpeed').addEventListener('change', (e) => commit(setSpeed(project, seg.id, e.target.value)));
+  box.querySelector('#inZoom').addEventListener('change', (e) => commit(setZoom(project, seg.id, e.target.value)));
+  box.querySelector('#inTrans').addEventListener('change', (e) => commit(setTransition(project, seg.id, e.target.value)));
+  box.querySelector('#inVol').addEventListener('change', (e) => commit(update(project, seg.id, { vol: Number(e.target.value) })));
   box.querySelector('#insSplit').addEventListener('click', doSplit);
   box.querySelector('#insDel').addEventListener('click', doDelete);
   box.querySelector('#insDup').addEventListener('click', () => {
-    const i = project.segments.findIndex(s => s.id === seg.id);
+    const j = project.segments.findIndex(s => s.id === seg.id);
     const q = structuredClone(project);
     const copy = { ...structuredClone(seg), id: uid('s') };
-    q.segments.splice(i + 1, 0, copy);
+    q.segments.splice(j + 1, 0, copy);
     selected = copy.id; commit(q);
   });
+}
+
+// E2: one text box.
+function textInspector(box, p, x) {
+  box.innerHTML = `
+    <h2>Text</h2>
+    <label class="field"><span>Words</span><textarea id="txText" maxlength="200">${escapeHtml(x.text)}</textarea></label>
+    <div class="pair">
+      <label class="field"><span>From (s)</span><input type="number" id="txStart" min="0" step="0.1" value="${x.start.toFixed(2)}"></label>
+      <label class="field"><span>To (s)</span><input type="number" id="txEnd" min="0" step="0.1" value="${x.end.toFixed(2)}"></label>
+    </div>
+    <div class="field"><span>Where</span><div class="seg-choice" role="group" aria-label="Where">${Object.keys(TEXT_SPOTS).map(k => `<button type="button" data-spot="${k}" aria-pressed="${x.spot === k}">${LABEL[k]}</button>`).join('')}</div></div>
+    <div class="field"><span>Look</span><div class="seg-choice" role="group" aria-label="Look">${TEXT_LOOKS.map(k => `<button type="button" data-look="${k}" aria-pressed="${x.look === k}">${LABEL[k]}</button>`).join('')}</div></div>
+    <div class="row2">
+      <label class="field"><span>Size</span><input type="range" id="txSize" min="0.5" max="2.5" step="0.1" value="${x.size}" aria-label="Text size"></label>
+      <label class="field"><span>Colour</span><input type="color" id="txColor" value="${x.color || '#ffffff'}" aria-label="Text colour"></label>
+    </div>
+    <div class="seg-tools"><button class="btn" type="button" id="txDel">Delete text</button></div>`;
+  const set = (patch) => commit(update(project, x.id, patch));
+  box.querySelector('#txText').addEventListener('change', (e) => set({ text: e.target.value.slice(0, 200) || ' ' }));
+  box.querySelector('#txStart').addEventListener('change', (e) => { const v = Math.max(0, Number(e.target.value) || 0); set({ start: v, end: Math.max(v + 0.1, x.end) }); });
+  box.querySelector('#txEnd').addEventListener('change', (e) => set({ end: Math.max(x.start + 0.1, Number(e.target.value) || 0) }));
+  box.querySelectorAll('[data-spot]').forEach(b => b.addEventListener('click', () => set({ spot: b.dataset.spot })));
+  box.querySelectorAll('[data-look]').forEach(b => b.addEventListener('click', () => set({ look: b.dataset.look })));
+  box.querySelector('#txSize').addEventListener('change', (e) => set({ size: Number(e.target.value) }));
+  box.querySelector('#txColor').addEventListener('change', (e) => set({ color: e.target.value }));
+  box.querySelector('#txDel').addEventListener('click', () => { selected = null; commit(remove(project, x.id)); });
+}
+
+// Nothing selected: the whole video's sound, captions and texts.
+function videoInspector(box, p) {
+  if (!p.segments.length) { box.innerHTML = '<p class="hint">Select a part on the timeline to change it.</p>'; return; }
+  const a = p.audio, caps = p.captions.length;
+  box.innerHTML = `
+    <h2>The whole video</h2>
+    <p class="meta">${fmtTime(duration(p))} · ${p.segments.length} part${p.segments.length > 1 ? 's' : ''}. Select a part or a text on the timeline to change it.</p>
+    <h3>Music</h3>
+    ${p.music ? `<p class="meta">♪ ${escapeHtml(p.music.name)}</p>
+    <label class="field"><span>Music volume</span><input type="range" id="muVol" min="0" max="1" step="0.05" value="${a.musicVol}" aria-label="Music volume"></label>
+    <label class="check"><input type="checkbox" id="muDuck" ${a.duck ? 'checked' : ''}> Quieter under the videos' own sound</label>
+    <div class="seg-tools"><button class="btn" type="button" id="muDel">Remove music</button></div>` : '<p class="meta">No music. Use Music in the toolbar to add a song or a beat.</p>'}
+    <h3>Sound</h3>
+    <label class="field"><span>Videos' own sound</span><input type="range" id="auSrc" min="0" max="2" step="0.05" value="${a.sourceVol}" aria-label="Volume of the videos"></label>
+    <div class="row2">
+      <label class="field"><span>Fade in (s)</span><input type="number" id="auIn" min="0" max="5" step="0.5" value="${a.fadeIn}"></label>
+      <label class="field"><span>Fade out (s)</span><input type="number" id="auOut" min="0" max="5" step="0.5" value="${a.fadeOut}"></label>
+    </div>
+    <h3>Captions</h3>
+    ${caps ? `<div class="seg-choice" role="group" aria-label="Captions">${['bold', 'outline', 'off'].map(k => `<button type="button" data-cap="${k}" aria-pressed="${(p.captionStyle?.look || 'bold') === k}">${k === 'off' ? 'Off' : LABEL[k]}</button>`).join('')}</div>
+    <label class="field"><span>Caption height</span><input type="range" id="capY" min="0.15" max="0.9" step="0.01" value="${p.captionStyle?.y ?? 0.7}" aria-label="Caption height"></label>` : '<p class="meta">Videos made in Loomy bring their captions here (use Edit on a finished Loomy video; export it with Captions off in Loomy to restyle them here).</p>'}
+    <h3>Texts</h3>
+    ${p.texts.length ? `<div class="list">${p.texts.map(x => `<button type="button" data-text="${x.id}">${fmtTime(x.start)} · ${escapeHtml(x.text)}</button>`).join('')}</div>` : '<p class="meta">Use Text in the toolbar to put words on the video.</p>'}`;
+  const q = (s2) => box.querySelector(s2);
+  q('#muVol')?.addEventListener('change', (e) => commit(setAudio(project, { musicVol: e.target.value })));
+  q('#muDuck')?.addEventListener('change', (e) => commit(setAudio(project, { duck: e.target.checked })));
+  q('#muDel')?.addEventListener('click', () => commit(setMusic(project, null)));
+  q('#auSrc').addEventListener('change', (e) => commit(setAudio(project, { sourceVol: e.target.value })));
+  q('#auIn').addEventListener('change', (e) => commit(setAudio(project, { fadeIn: e.target.value })));
+  q('#auOut').addEventListener('change', (e) => commit(setAudio(project, { fadeOut: e.target.value })));
+  box.querySelectorAll('[data-cap]').forEach(b => b.addEventListener('click', () => { const r = structuredClone(project); r.captionStyle = { ...r.captionStyle, look: b.dataset.cap }; commit(r); }));
+  q('#capY')?.addEventListener('change', (e) => { const r = structuredClone(project); r.captionStyle = { ...r.captionStyle, y: Number(e.target.value) }; commit(r); });
+  box.querySelectorAll('[data-text]').forEach(b => b.addEventListener('click', () => { select(b.dataset.text); preview.show(project.texts.find(x => x.id === b.dataset.text)?.start ?? 0); }));
 }
 
 // ---------- actions ----------
@@ -127,6 +212,24 @@ async function addFiles(files) {
 }
 
 $('#fileInput').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+$('#btnText').addEventListener('click', () => {
+  if (!project.segments.length) { toast('Add a video first.'); return; }
+  const { project: q, id } = addText(project, { text: 'Your text', start: preview.t });
+  selected = id; commit(q);
+  setTimeout(() => $('#txText')?.select(), 0);
+});
+$('#musicInput').addEventListener('change', async (e) => {
+  const f = e.target.files?.[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const id = uid('m');
+    toast(`Opening ${f.name}…`);
+    const info = await media.loadMusic(id, f);
+    selected = null;
+    commit(setMusic(project, id, info));
+    toast('Music added under the whole video. Change its volume with nothing selected.');
+  } catch (err) { toast(err.message, true); }
+});
 $('#btnUndo').addEventListener('click', () => { project = history.undo(); fixSelection(); render(); preview.refresh(); });
 $('#btnRedo').addEventListener('click', () => { project = history.redo(); fixSelection(); render(); preview.refresh(); });
 $('#btnSplit').addEventListener('click', doSplit);
@@ -134,7 +237,7 @@ $('#btnDelete').addEventListener('click', doDelete);
 $('#format').addEventListener('change', (e) => commit(setFormat(project, e.target.value)));
 $('#btnPlay').addEventListener('click', () => { preview.toggle(); setPlaying(); });
 $('#btnBack').addEventListener('click', () => { preview.pause(); setPlaying(); preview.show(0); tl.scroll.scrollLeft = 0; });
-function fixSelection() { if (selected && !project.segments.some(s => s.id === selected)) selected = null; }
+function fixSelection() { if (selected && !project.segments.some(s => s.id === selected) && !project.texts.some(x => x.id === selected)) selected = null; }
 
 // Drop files anywhere on the page.
 let dragDepth = 0;

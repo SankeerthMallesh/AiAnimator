@@ -27,6 +27,14 @@ export class Preview {
   draw(video) {
     this.resize();
     const p = this.get();
+    // Entering a new part: what is on the canvas now is the part before's last frame (for transitions).
+    const hit = at(p, this.t);
+    if (hit && this.state.segId !== hit.seg.id) {
+      const before = hit.index > 0 ? hit.index - 1 : -1;
+      if (this.state.segId && p.segments[before]?.id === this.state.segId) this.state.prev = snapshot(this.canvas, this.state.prev);
+      else this.state.prev = null;
+      this.state.segId = hit.seg.id;
+    }
     this.g.setTransform(this.scale, 0, 0, this.scale, 0, 0);
     compose(this.g, p, this.t, () => video, this.state);
   }
@@ -97,4 +105,11 @@ export class Preview {
     if (was) this.pause();
     return this.show(this.t).then(() => { if (was) this.play(); });
   }
+}
+
+function snapshot(canvas, reuse) {
+  const c = reuse || document.createElement('canvas');
+  c.width = canvas.width; c.height = canvas.height;
+  c.getContext('2d').drawImage(canvas, 0, 0);
+  return c;
 }

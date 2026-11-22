@@ -138,6 +138,86 @@ export function setFormat(p, format) {
   const q = clone(p); q.format = format; return q;
 }
 
+// ---------- E2: text boxes and captions ----------
+export const TEXT_LOOKS = ['bold', 'box', 'outline'];
+export const TEXT_SPOTS = { top: 0.18, middle: 0.5, bottom: 0.78 };
+// A text box shown from `start` to `end` on the output timeline (it stays put through video edits).
+export function addText(p, { text = 'Your text', start = 0, end = null, spot = 'top', look = 'bold', size = 1, color = '#FFFFFF' } = {}) {
+  const q = clone(p);
+  const total = duration(p);
+  const s = round(Math.max(0, Math.min(start, Math.max(0, total - MIN_LEN))));
+  const e = round(Math.max(s + MIN_LEN, Math.min(end ?? s + 3, Math.max(total, s + MIN_LEN))));
+  const item = { id: uid('t'), text: String(text).slice(0, 200), start: s, end: e, spot: TEXT_SPOTS[spot] != null ? spot : 'top', look: TEXT_LOOKS.includes(look) ? look : 'bold', size: Math.max(0.5, Math.min(2.5, Number(size) || 1)), color };
+  q.texts.push(item);
+  q.texts.sort((x, y) => x.start - y.start);
+  return { project: q, id: item.id };
+}
+export const textsAt = (p, t) => p.texts.filter(x => t >= x.start && t < x.end);
+
+// Captions are tied to a source's own time: words [{ text, start, end }] in source seconds. They are
+// grouped 1-3 words a caption, a new one at every pause or punctuation (the Loomy caption rule).
+export function setCaptions(p, src, words) {
+  const q = clone(p);
+  q.captions = q.captions.filter(c => c.src !== src);
+  let cur = [];
+  const flush = () => { if (!cur.length) return; q.captions.push({ id: uid('c'), src, start: round(cur[0].start), end: round(cur[cur.length - 1].end + 0.1), text: cur.map(w => w.text).join(' ').replace(/[.,;:]+$/g, '') }); cur = []; };
+  for (const w of words || []) {
+    if (!w || !String(w.text || '').trim()) continue;
+    if (cur.length && (cur.length >= 3 || w.start - cur[cur.length - 1].end > 0.3)) flush();
+    cur.push({ text: String(w.text).trim(), start: Number(w.start) || 0, end: Number(w.end) || 0 });
+    if (/[.,!?;:]$/.test(w.text)) flush();
+  }
+  flush();
+  return q;
+}
+// The caption showing at output time t: the playing part's source time, inside a caption of that source.
+export function captionAt(p, t) {
+  if (p.captionStyle?.look === 'off') return null;
+  const hit = at(p, t);
+  if (!hit) return null;
+  return p.captions.find(c => c.src === hit.seg.src && hit.srcT >= c.start && hit.srcT < c.end && c.start >= hit.seg.in - 0.05 && c.start < hit.seg.out) || null;
+}
+
+// ---------- E3: music ----------
+// One music track under the whole video. Its sound is in the media store under `id`.
+export function setMusic(p, id, info) {
+  const q = clone(p);
+  q.music = id ? { id, name: info?.name || 'Music', duration: Number(info?.duration) || 0, start: 0 } : null;
+  return q;
+}
+export function setAudio(p, patch) {
+  const q = clone(p);
+  const a = q.audio;
+  if (patch.sourceVol != null) a.sourceVol = Math.max(0, Math.min(2, Number(patch.sourceVol)));
+  if (patch.musicVol != null) a.musicVol = Math.max(0, Math.min(1, Number(patch.musicVol)));
+  if (patch.duck != null) a.duck = !!patch.duck;
+  if (patch.fadeIn != null) a.fadeIn = Math.max(0, Math.min(5, Number(patch.fadeIn)));
+  if (patch.fadeOut != null) a.fadeOut = Math.max(0, Math.min(5, Number(patch.fadeOut)));
+  return q;
+}
+
+// ---------- E4: speed, zoom, transitions ----------
+export const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+export const ZOOMS = { none: { from: 1, to: 1 }, 'push-in': { from: 1, to: 1.18 }, 'pull-out': { from: 1.18, to: 1 }, punch: { from: 1.3, to: 1.3 } };
+export function setSpeed(p, id, speed) {
+  const v = Math.max(0.25, Math.min(4, Number(speed) || 1));
+  return update(p, id, { speed: v });
+}
+export function setZoom(p, id, kind) {
+  const z = ZOOMS[kind] || ZOOMS.none;
+  return update(p, id, { zoom: { from: z.from, to: z.to, kind: ZOOMS[kind] ? kind : 'none' } });
+}
+export function setTransition(p, id, kind, dur = 0.4) {
+  return update(p, id, { transition: { kind: TRANSITIONS.includes(kind) ? kind : 'cut', dur: Math.max(0.1, Math.min(1.5, Number(dur) || 0.4)) } });
+}
+// How far into its transition a part is at `local` seconds (0..1), or 1 when it has none. The first
+// part never transitions in (there is nothing before it).
+export function transitionK(entry, local) {
+  const tr = entry.seg.transition;
+  if (!tr || tr.kind === 'cut' || entry.index === 0) return 1;
+  return Math.max(0, Math.min(1, local / Math.min(tr.dur, (entry.end - entry.start) * 0.5)));
+}
+
 // ---------- undo ----------
 export class History {
   constructor(p, limit = 100) { this.past = []; this.future = []; this.now = p; this.limit = limit; }

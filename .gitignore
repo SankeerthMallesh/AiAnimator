@@ -22,5 +22,6 @@ tools/tests/cliptest/burned-mid.webm
 tools/tests/cliptest/dump_*.json
 tools/tests/cliptest/ed_a.webm
 tools/tests/cliptest/ed_b.webm
+tools/tests/cliptest/ed_music.wav
 tools/tests/z3d/models/
 tools/c3d-src/node_modules/

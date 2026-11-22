@@ -22,6 +22,14 @@ export class Media {
     return { name: name || file.name || 'Video', duration: probe.duration, width: probe.width, height: probe.height, hasAudio: !!item.audio };
   }
 
+  // E3: a music file (any audio the browser reads), decoded once. Throws a readable message.
+  async loadMusic(id, file) {
+    const audio = await decodeAudio(file).catch(() => null);
+    if (!audio) throw new Error(`${file.name || 'That file'} is not a sound file this browser can read. Try MP3, M4A or WAV.`);
+    this.items.set(id, { id, file, url: null, audio, thumbs: [], players: {}, music: true });
+    return { name: file.name || 'Music', duration: audio.duration };
+  }
+
   // A <video> for this source; 'preview' and 'export' are separate elements.
   player(id, role = 'preview') {
     const item = this.items.get(id);
@@ -41,7 +49,7 @@ export class Media {
     const item = this.items.get(id);
     if (!item) return;
     for (const v of Object.values(item.players)) v.remove();
-    URL.revokeObjectURL(item.url);
+    if (item.url) URL.revokeObjectURL(item.url);
     this.items.delete(id);
   }
 }
