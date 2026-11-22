@@ -16,6 +16,7 @@ import { exportVideo } from './encoder.js';
 import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/renderlog.js';
 import { estimateDepth, onDepthProgress } from './depth.js';
 import { FORMATS, PACES, STYLES, MOODS, formatOf } from './presets.js';
+import { characterOf, characterDelivery, characterLine } from '../../shared/voicechars.js';
 import { clipsEnabled, generateClip } from './clips.js';
 
 export const STEPS = [
@@ -279,7 +280,7 @@ export class Pipeline {
         todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
       }
       this.h.step('voice', 'active', 'Reading the whole script…');
-        this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice, todo.map(s => s.delivery || ''));
+        this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice, todo.map(s => characterDelivery(s.delivery, characterOf(this.s.character))));
         if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
       }
       let done = 0;
@@ -292,7 +293,9 @@ export class Pipeline {
         // line while it is being spoken; the key must describe the audio we actually made.
         const narration = scene.narration;
         const key = this.voiceKey(scene);
-        const data = finishLine(await this.narrator.speak(narration, this.pace.voice, scene.delivery));
+        // A narrator character (big upgrade) sets the pace, leans the delivery and gives the line its sound.
+        const ch = characterOf(this.s.character);
+        const data = characterLine(finishLine(await this.narrator.speak(narration, this.pace.voice * (ch?.speed || 1), characterDelivery(scene.delivery, ch))), ch);
         p.voices.set(scene.id, { key, data });
         done++;
         this.h.step('voice', 'active', `${done} / ${todo.length} lines`);
@@ -368,7 +371,7 @@ export class Pipeline {
   }
 
   imageKey(s) { return `${s.visual}|${s.seed}|${this.p.options.style}|${formatOf(this.p.options)}|${this.s.imageProvider}`; }
-  voiceKey(s) { return `${s.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}`; }
+  voiceKey(s) { return `${s.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}|${this.s.character || ''}`; }
 
   async ensureMix() {
     const p = this.p;

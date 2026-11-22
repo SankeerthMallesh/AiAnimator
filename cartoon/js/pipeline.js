@@ -17,6 +17,7 @@ import { FORMATS, PACES, MOODS, formatOf } from './presets.js';
 import { TownRenderer, townShots } from './town.js';
 import { markTownWeak } from './gpu.js';
 import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
+import { characterOf, characterDelivery, characterLine } from '../../shared/voicechars.js';
 import { hookCues } from '../../shared/hooks.js';
 
 export const STEPS = [
@@ -185,7 +186,7 @@ export class Pipeline {
 
   plateKey(scene) { return `${scene.bg}|${scene.seed}|${formatOf(this.p.options)}`; }
   voiceKey(scene) {
-    return `${scene.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}`;
+    return `${scene.narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${this.p.options.pace}|${this.s.elevenVoice || ''}|${this.s.character || ''}`;
   }
 
   // Painting starts the moment the video starts: the free image service allows about one picture
@@ -358,17 +359,19 @@ export class Pipeline {
       todo.splice(0, todo.length, ...scenes.filter(s => p.voices.get(s.id)?.key !== this.voiceKey(s)));
     }
     this.h.step('voice', 'active', 'Reading the whole script…');
-      this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice, todo.map(s => s.delivery || ''));
+      this.narrator.batch = await speakAllLines(todo.map(s => s.narration), this.s.voice, todo.map(s => characterDelivery(s.delivery, characterOf(this.s.character))));
       if (this.narrator.batch) this.log('Narrator read the whole script in one take.');
     }
     let done = 0;
     await mapLimit(todo, this.narrator.engine === 'kokoro' ? 1 : this.narrator.engine === 'elevenlabs' ? 2 : 3, async (scene) => {
       if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
       const narration = scene.narration;
-      const key = `${narration}|${this.s.ttsEngine}|${this.s.voice}|${this.s.voiceSpeed}|${p.options.pace}|${this.s.elevenVoice || ''}`;
+      const key = this.voiceKey(scene);
       let data = null;
       try {
-        data = finishLine(await deadline(this.narrator.speak(narration, this.pace.voice, scene.delivery), 40000, 'Voice line'));
+        // A narrator character (big upgrade) sets the pace, leans the delivery and gives the line its sound.
+        const ch = characterOf(this.s.character);
+        data = characterLine(finishLine(await deadline(this.narrator.speak(narration, this.pace.voice * (ch?.speed || 1), characterDelivery(scene.delivery, ch)), 40000, 'Voice line')), ch);
       } catch (e) {
         if (this.signal.aborted) throw e;
         this.log(`Voice line failed (${e.message}). That line stays as captions.`);

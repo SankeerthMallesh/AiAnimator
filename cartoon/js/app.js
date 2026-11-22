@@ -2,6 +2,7 @@
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
+import { CHARACTERS } from '../../shared/voicechars.js';
 import { attachThumbnail } from '../../shared/thumbnail.js';
 import { chapterLines, withChapters } from '../../shared/upload.js';
 import { MOODS, VOICES, CLOUD_VOICES, LENGTHS, EXAMPLES, PACES, FORMATS, formatOf, townFits, autoLook } from './presets.js';
@@ -165,6 +166,20 @@ $('#voice').addEventListener('change', (e) => {
     saveSettings(settings);
   });
   $('#reviewFirst').addEventListener('change', (e) => { settings.reviewFirst = e.target.checked; saveSettings(settings); });
+  // Narrator characters (big upgrade): a personality on top of the voice.
+  const charSel = document.getElementById('character');
+  if (charSel) {
+    fillSelect(charSel, [['', 'Plain narrator'], ...Object.entries(CHARACTERS).map(([k, c]) => [k, c.label])], settings.character || '');
+    charSel.addEventListener('change', () => {
+      settings.character = charSel.value;
+      const ch = CHARACTERS[charSel.value];
+      // The built-in voice switches to the character's own; other voices keep theirs and take on the pace and sound.
+      if (ch && (settings.ttsEngine === 'kokoro' || settings.ttsEngine === 'kokoro-only' || !settings.ttsEngine)) { settings.voice = ch.voice; refreshVoiceSelect(); }
+      saveSettings(settings);
+      if (ch) toast(`${ch.label.split(':')[0]} will narrate.`);
+    });
+  }
+
   const toonBox = document.getElementById('toonCast');
   if (toonBox) { toonBox.checked = settings.toonCast !== false; toonBox.addEventListener('change', (e) => { settings.toonCast = e.target.checked; saveSettings(settings); }); }
   const glowBox = document.getElementById('glow');
