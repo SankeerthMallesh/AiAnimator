@@ -189,5 +189,8 @@ export function pickLook(text) {
   if (outsideStory) return 'drawn-3d';
   // Inside the body (organs, blood, bones) only pictures can show it, whoever the story is about.
   if (/\byour body\b|\b(stomach|organs?|brain|heart|lungs|blood|bones?|muscles?|cells?|veins?)\b/i.test(t)) return 'story-3d';
+  // "How a speed bump works": a machine or an object explained, not a story about a person. The 3D
+  // render look shows the thing itself (models, cutaways, close-ups), with no invented hero.
+  if (!youStory && people === 0 && /\bhow (does |do |did |a |an |the |)[\w' -]{1,40}?\b(works?|working|functions?|is made|are made|is built|are built|gets? made)\b|\bthe science of\b|\bhow [\w' -]{1,30}? (stops?|slows?|keeps?|makes?) /i.test(t)) return 'cgi-short';
   return youStory || people > things ? 'drawn-3d' : 'story-3d';
 }

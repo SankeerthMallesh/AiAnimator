@@ -98,12 +98,16 @@ async function geminiImage(prompt, { width, height }, s, signal) {
 // The free no-key painter takes one request at a time and answers an overlapping or too-fast one with
 // 402/429/503. Requests are queued, a "busy" answer is waited out and retried, and it is only turned
 // off for the visit after a refusal (401/403) or six busy answers in a row.
-let anonChain = Promise.resolve(), anonStrikes = 0;
+let anonChain = Promise.resolve(), anonStrikes = 0, anonLast = 0;
 function anonFetch(url, signal, ms) {
   const run = async () => {
     let last = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       if (anonRefused) break;
+      // and it refuses requests that start too soon after the last one: keep 8 s between starts.
+      const wait = anonLast + 8000 - Date.now();
+      if (wait > 0) await new Promise(r => setTimeout(r, wait));
+      anonLast = Date.now();
       last = await fetchTimeout(url, { signal }, ms, 'blob');
       const st = last.res.status;
       if (last.res.ok) { anonStrikes = 0; return last; }

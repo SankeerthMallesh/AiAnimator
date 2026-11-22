@@ -26,4 +26,8 @@ export const tests = [
     for (const t of ['What happens to your body if you fall into ice water', 'What would happen if you got lost at sea', 'What happens if you jumped into a frozen lake']) assert.equal(pickLook(t), 'drawn-3d', t);
     for (const t of ['What happens to your body if you swallow a magnet', 'What would happen if you fell into a black hole']) assert.equal(pickLook(t), 'story-3d', t);
   } },
+  { name: 'how a machine or an object works gets the 3D render look, with no invented hero (A2, from the speed-bump video)', fn: () => {
+    for (const t of ['How a speed bump works', 'How does a fridge work', 'How speed bumps slow cars down']) assert.equal(pickLook(t), 'cgi-short', t);
+    for (const t of ['A boy who saves his town', 'What happens to your body if you fall into ice water']) assert.equal(pickLook(t), 'drawn-3d', t);
+  } },
 ];

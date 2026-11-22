@@ -205,7 +205,7 @@ export function buildShot(spec, { makeStage, W, H }) {
         tScale = spec.kind === 'wide' ? 3 : 2;
         if (thing.userData.h > 0.5) tScale = Math.min(tScale, 1.3);
       }
-      thingAction(thing, spec.do, t, { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: hand ? 1.6 : tScale });
+      thingAction(thing, spec.do, t + (spec.teaser ? 1.2 : 0), { spot: spot || V(0, 1, 0), hand, camPos: c.position, scale: hand ? 1.6 : tScale });
     }
     // Hide anyone the shot does not use (a two-shot spec may carry a spare).
     P.forEach((a, i) => { a.object.visible = i < ({ talk: 1, react: 1, walk: 1, point: 1, two: 2, wide: 2, group: 3, object: 1 }[spec.kind] || 1); });

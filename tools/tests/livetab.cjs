@@ -11,6 +11,14 @@ const { chromium } = require('playwright'); const fs = require('fs');
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
   const line = fs.readFileSync('live.txt', 'utf8').split('\n').find(l => /loomy_pass/.test(l)).split('\t');
   await ctx.addCookies([{ name: 'loomy_pass', value: line[6].trim(), domain: 'loomy-app.pages.dev', path: '/', secure: true, httpOnly: true }]);
+  // ELEVEN=<voice id>: use Loomy's own-key ElevenLabs path (Settings), as a person with a key would. The key
+  // here is a placeholder: on this test machine the network proxy adds the real one.
+  if (process.env.ELEVEN) await ctx.addInitScript(([voice]) => {
+    for (const k of ['explainer.settings.v1', 'storyforge.settings.v1']) {
+      let s = {}; try { s = JSON.parse(localStorage.getItem(k) || '{}'); } catch { s = {}; }
+      localStorage.setItem(k, JSON.stringify({ ...s, elevenKey: 'xi-placeholder', elevenVoice: voice, ttsEngine: 'elevenlabs' }));
+    }
+  }, [process.env.ELEVEN]);
   const p = await ctx.newPage(); const msgs = [];
   p.on('console', m => { if (m.type() === 'error') msgs.push(`[error] ${m.text().slice(0, 200)}`); });
   p.on('pageerror', e => msgs.push(`[pageerror] ${e.message}`));

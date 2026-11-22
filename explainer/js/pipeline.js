@@ -285,7 +285,7 @@ export class Pipeline {
       let done = 0;
       // The built-in voice is one worker thread, so it goes line by line; cloud voices are network
       // calls and can run several at once.
-      const lanes = this.narrator.engine === 'kokoro' ? 1 : 3;
+      const lanes = this.narrator.engine === 'kokoro' ? 1 : this.narrator.engine === 'elevenlabs' ? 2 : 3; // free ElevenLabs: 2 at once
       await mapLimit(todo, lanes, async (scene) => {
         if (this.signal.aborted) throw new DOMException('Cancelled', 'AbortError');
         // Capture the text and its key together, before waiting. The fact-check may rewrite this
