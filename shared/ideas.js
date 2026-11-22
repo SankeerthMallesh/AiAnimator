@@ -297,8 +297,8 @@ export function shuffled(list, seed = 1) {
 }
 
 // Ideas for a category ('All' for every one) matching a search (all words, any order).
-export function findIdeas(category = 'All', query = '') {
-  const list = category === 'All' || !IDEAS[category] ? Object.values(IDEAS).flat() : IDEAS[category];
+export function findIdeas(category = 'All', query = '', ideas = IDEAS) {
+  const list = category === 'All' || !ideas[category] ? Object.values(ideas).flat() : ideas[category];
   const words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
   return words.length ? list.filter(t => words.every(w => t.toLowerCase().includes(w))) : list;
 }

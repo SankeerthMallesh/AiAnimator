@@ -2,6 +2,7 @@
 import { resetVoiceReport } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
+import { TOWN_IDEAS } from '../../shared/townideas.js';
 import { CHARACTERS } from '../../shared/voicechars.js';
 import { reviewVideo, quickFixes, revisePrompt } from '../../shared/feedback.js';
 import { attachFeedback } from '../../shared/feedbackui.js';
@@ -125,8 +126,8 @@ const LONG_STARTS = {
     { label: 'History in 3D', hint: '15 min · chapters', seconds: 900, example: 'The whole history of the Titanic, from the shipyard to the seabed', notes: 'A long history documentary in chapters, in time order: who, where and when at the start of each chapter, real dates and places, a cliffhanger at the end of every chapter.' },
   ],
   blocky: [
-    { label: 'Game-world story', hint: '8 min · chapters', seconds: 480, example: 'The server where my best friend became the villain', notes: 'A long first-person game-world story in chapters: a mystery set up in chapter 1, rivals, betrayals and a big reveal; every chapter ends on a cliffhanger.' },
-    { label: 'Game-world saga', hint: '15 min · chapters', seconds: 900, example: 'I built a whole kingdom, and then the griefers came', notes: 'A long first-person game-world saga in chapters: the build-up, the war, the comeback; named friends and rivals, a cliffhanger at the end of every chapter.' },
+    { label: 'Town story', hint: '8 min · chapters', seconds: 480, example: 'In this town, every lie you tell appears written on your forehead', notes: 'A long "In this town" story in chapters: chapter 1 states the rule and shows ordinary life under it, then one named hero, rising stakes, a cliffhanger at the end of every chapter, and an odd twist that changes what the rule means.' },
+    { label: 'Town saga', hint: '15 min · chapters', seconds: 900, example: 'In this town, you can sell one hour of your life for one gold coin', notes: 'A long "In this town" saga in chapters: how the rule began, who profits from it, the hero who breaks it, and an odd twist in the last chapter that changes what the rule meant all along; a cliffhanger at the end of every chapter.' },
   ],
 };
 
@@ -136,15 +137,16 @@ function initComposer() {
   // Blocky stories run longer, like the reference (about 75 s); 3D explainers about 30 s.
   fillSelect($('#duration'), LENGTHS.map(([v, l]) => [v, l]), new URLSearchParams(location.search).get('style') === 'blocky' ? 75 : 30);
   const blockyTab = new URLSearchParams(location.search).get('style') === 'blocky';
-  fillSelect($('#style'), [...(blockyTab ? [] : [[AUTO_STYLE, 'Auto: drawn 3D people or AI pictures, by topic']]), ...Object.entries(STYLES).map(([k, s]) => [k, s.label])], defaultStyle());
+  // 1.6: the Blocky tab only tells blocky "In this town" stories, so it only offers the two blocky looks.
+  fillSelect($('#style'), [...(blockyTab ? [] : [[AUTO_STYLE, 'Auto: drawn 3D people or AI pictures, by topic']]), ...Object.entries(STYLES).filter(([k]) => !blockyTab || /blocky/.test(k)).map(([k, s]) => [k, s.label])], defaultStyle());
   // The Blocky tab opens this page with ?style=blocky: give it its own heading.
   if (new URLSearchParams(location.search).get('style') === 'blocky') {
     const badge = document.querySelector('.hero-badge b'), h = document.querySelector('.view.home .headline'), lede = document.querySelector('.view.home .lede');
     if (badge) badge.textContent = 'Blocky';
     document.title = 'Loomy · Blocky';
-    const topic = document.querySelector('#topic'); if (topic) topic.placeholder = 'The day my best friend and I found a secret door under the spawn';
-    if (h) h.textContent = 'Tell a blocky game story';
-    if (lede) lede.textContent = 'Give it a story or a topic. Loomy writes it like a game story Short, builds every shot in a blocky game world, narrates it with captions and hands you an MP4.';
+    const topic = document.querySelector('#topic'); if (topic) topic.placeholder = 'In this town, if you cry, you lose one year off your life';
+    if (h) h.textContent = 'In this town…';
+    if (lede) lede.textContent = 'Give it one strange rule. Loomy writes an "In this town" story with a hero, rising stakes and an odd twist that changes what the rule means, builds every shot in a blocky town, narrates it with captions and hands you an MP4.';
   }
   fillSelect($('#mood'), Object.entries(MOODS).map(([k, m]) => [k, m.label]), 'curious');
   fillSelect($('#pace'), Object.entries(PACES).map(([k, p]) => [k, p.label]), 'normal');
@@ -213,7 +215,8 @@ function initComposer() {
   });
 
   // Hundreds of ideas: search, categories, shuffle; a click fills the topic.
-  attachIdeas($('#examples'), (t) => { $('#topic').value = t; $('#topic').focus(); });
+  const town = new URLSearchParams(location.search).get('style') === 'blocky';
+  attachIdeas($('#examples'), (t) => { $('#topic').value = t; $('#topic').focus(); }, town ? { ideas: TOWN_IDEAS, label: '"In this town" ideas' } : {});
 
   $('#topic').addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#composer').requestSubmit(); }

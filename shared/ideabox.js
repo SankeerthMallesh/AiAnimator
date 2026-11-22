@@ -1,14 +1,16 @@
 // The ideas panel under each composer: search, pick a category, shuffle, and click an idea to use it.
-import { IDEAS, IDEA_COUNT, findIdeas, shuffled } from './ideas.js';
+import { IDEAS, findIdeas, shuffled } from './ideas.js';
 
-export function attachIdeas(mount, onPick, { show = 8 } = {}) {
+// ideas: { category: [topic, ...] } (default: every tab's ideas); label: what they are called.
+export function attachIdeas(mount, onPick, { show = 8, ideas = IDEAS, label = 'video ideas' } = {}) {
+  const count = Object.values(ideas).reduce((n, list) => n + list.length, 0);
   if (!mount) return null;
   const st = { cat: 'All', q: '', seed: (Date.now() % 997) + 1, shown: show };
   mount.classList.remove('ideas'); // the old example list's card styles do not apply here
   mount.classList.add('ideabox');
   mount.innerHTML = `
     <div class="ib-head">
-      <span class="ib-title">💡 ${IDEA_COUNT} video ideas</span>
+      <span class="ib-title">💡 ${count} ${label}</span>
       <input class="ib-search" type="search" placeholder="Search ideas" aria-label="Search video ideas">
       <button type="button" class="ib-btn" data-k="shuffle" title="Show different ideas">🔀 Shuffle</button>
     </div>
@@ -16,7 +18,7 @@ export function attachIdeas(mount, onPick, { show = 8 } = {}) {
     <div class="ib-list"></div>
     <button type="button" class="ib-more" data-k="more">More ideas</button>`;
   const $ = (s) => mount.querySelector(s);
-  const cats = ['All', ...Object.keys(IDEAS)];
+  const cats = ['All', ...Object.keys(ideas)];
   $('.ib-cats').replaceChildren(...cats.map(c => {
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'ib-cat'; b.textContent = c; b.setAttribute('role', 'tab');
@@ -25,7 +27,7 @@ export function attachIdeas(mount, onPick, { show = 8 } = {}) {
   }));
   function render() {
     mount.querySelectorAll('.ib-cat').forEach(b => { const on = b.textContent === st.cat; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
-    const all = shuffled(findIdeas(st.cat, st.q), st.seed);
+    const all = shuffled(findIdeas(st.cat, st.q, ideas), st.seed);
     $('.ib-list').replaceChildren(...all.slice(0, st.shown).map(t => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'ib-idea'; b.textContent = t;

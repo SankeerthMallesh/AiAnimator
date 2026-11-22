@@ -27,7 +27,7 @@ const sentences = (t) => String(t || '').split(/(?<=[.!?])\s+/).map(s => s.trim(
 const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 const lineOf = (s) => s?.narration || s?.line || '';
 
-const HOOK_GOOD = /^(if you|you |imagine|what if|right now|this |there's|there is|in \d|\d|why |how |nobody|no one|meet |stop|wait)/i;
+const HOOK_GOOD = /^(in this town|if you|you |imagine|what if|right now|this |there's|there is|in \d|\d|why |how |nobody|no one|meet |stop|wait)/i;
 const HOOK_BAD = /^(have you ever wondered|in this video|did you know|today we|hello|hi |welcome|so,? )/i;
 const LOOPS = /\b(but here'?s the (catch|thing|twist)|but (that'?s|that is) not (even )?the|wait|here'?s where|and that'?s when|turns out|the weird part|the crazy part|but then|until|except|the problem\b|plot twist|guess what|you won'?t believe)/i;
 const CURIOUS_TITLE = /\b(why|how|what|secret|never|nobody|actually|really|only|strangest|weird|truth|\d)/i;

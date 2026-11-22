@@ -14,7 +14,7 @@ export const tests = [
   { name: 'drawn-blocky is a drawn blocky look with the Blocky story direction', fn: () => {
     const st = STYLES['drawn-blocky'];
     assert.equal(st.drawn, 'blocky');
-    for (const w of ['first person', 'cliffhanger', 'twist', 'Never say "blocky"', '"frame"', '"act"']) assert.ok(st.direction.includes(w), w);
+    for (const w of ['"In this town,"', 'cliffhanger', 'twist', 'Never say "blocky"', '"frame"', '"act"']) assert.ok(st.direction.includes(w), w);
   } },
   { name: 'the Blocky tab (?style=blocky) opens on drawn-blocky', fn: () => {
     const app = readFileSync(new URL('../../../explainer/js/app.js', import.meta.url), 'utf8');

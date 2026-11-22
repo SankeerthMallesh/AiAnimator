@@ -393,3 +393,6 @@ html:root[data-theme="light"] .lt-brand { color: #111114; }
 html:root[data-theme="light"] .lt-tab { color: #3A3A40; }
 html:root[data-theme="light"] .lt-tab:hover { color: #111114; }
 html:root[data-theme="light"] .lt-tab[aria-current="page"] { color: #FFFFFF; }
+html:root .ideabox .ib-cat.on { background: var(--grad); color: #FFFFFF; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); }
+html:root .ideabox .ib-idea { background: var(--glass), var(--paper); border-color: var(--glass-line); box-shadow: var(--glass-rim); }
+html:root .ideabox .ib-idea:hover { border-color: var(--red-line); background: linear-gradient(180deg, rgba(255, 45, 71, .1), rgba(255, 45, 71, .03)), var(--paper); }
