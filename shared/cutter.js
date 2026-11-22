@@ -5,7 +5,7 @@
 // re-encoded with WebCodecs), so nothing is drawn again and nothing is uploaded. Cuts can be marked
 // while the export is still running: the sound is ready before the pictures are.
 
-import { normalizeCuts, removed, mapTime, cutAt, cutChannels, findPauses, clock } from './cuts.js';
+import { normalizeCuts, removed, mapTime, mapForward, cutAt, cutChannels, findPauses, clock } from './cuts.js';
 import { readVideoTrack } from './mp4read.js';
 import { mp4Writer, canEncode } from './encode.js';
 
@@ -248,7 +248,7 @@ export function attachCutter({ after, player, toast = () => {}, onSaved = () => 
       const r = await cutVideo(st.video.blob, st.cuts, { audio: st.audio, signal: st.abort.signal, onProgress: (f) => { $('progBar').style.width = `${Math.round(f * 100)}%`; } });
       if (st.saved?.url) URL.revokeObjectURL(st.saved.url);
       const cuts = r.cuts.slice();
-      st.saved = { blob: r.blob, url: URL.createObjectURL(r.blob), cuts, duration: r.duration, mapTime: (t) => mapTime(t, cuts) };
+      st.saved = { blob: r.blob, url: URL.createObjectURL(r.blob), cuts, duration: r.duration, mapTime: (t) => mapTime(t, cuts), mapForward: (t) => mapForward(t, cuts) };
       st.savedKey = key();
       onSaved(st.saved);
       toast(`Cut video saved: ${clock(r.duration)} long. Hit Download.`);
