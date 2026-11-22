@@ -191,7 +191,14 @@ autolook.cjs, townmaster.cjs, drawnmaster.cjs (SCRIPT=drawn-things.json), editor
 - **TIGHT1 auto-tighten** (`cutter.ready(..., { tighten, protect })`): after each export the long
   voice pauses are cut and saved at once, chapter cards protected; "Back to the full video" undoes it;
   the setting `autoTighten` (More panel) turns it off.
-Tests: v12-cartoon-objects, v12-auto-look, v12-chapters (unit).
+- **STYLE1-4, from the user's reference screenshots** (a lit 3D cartoon short about astronauts; the
+  channel is not named in Loomy): STYLE1 crew outfits in `cartoon/js/cast.js` (jumpsuit with collar,
+  flag and mission patches and a name tag; lab coat), headset, officer cap, hair bun, faces sleepy and
+  nervous (sweat drop), ring-eyed shock and a toothy smug grin; `Script.normalize` dresses space crews
+  and scientists when the writer gives no outfit and never dresses two people alike. STYLE2
+  `shared/glare.js`: bloom, sparkles on small lights, grade (in the stage's finish layer), dust;
+  setting `glow`. STYLE3 dutch tilts in `Stage.shot`. STYLE4 NARRATOR VOICE in both writers.
+Tests: v12-cartoon-objects, v12-auto-look, v12-chapters, v12-style-cast, v12-narrator (unit).
 
 ## Remaining work
 
