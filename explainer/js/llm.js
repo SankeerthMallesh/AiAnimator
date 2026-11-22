@@ -280,6 +280,7 @@ export function writerPrompt(topic, options) {
 CREATOR'S REQUEST (follow it exactly):
 """${topic}"""
 
+HOOK STACK: the first 3 seconds carry several hooks at once: the spoken first line (a surprising claim, a question or an "imagine" moment), the on-screen "hookText" that adds a second, different reason to stay, and a one-second flash of the "teaser" scene (so make that scene visually dramatic). The second scene must keep the promise moving: no slow setup.
 TARGET LENGTH: about ${options.duration} seconds of narration = about ${plan.words} words total.
 SCENES: exactly ${plan.scenes} scenes, about ${plan.wordsPerScene} words of narration each (the hook scene can be shorter).
 PACING: ${pace}.
@@ -291,6 +292,8 @@ Return JSON with this exact shape:
   "youtubeTitle": "click-worthy but honest title, under 70 characters",
   "description": "2 short sentences describing the video. For factual videos add a blank line and 'Sources: ' with 2-4 well-known sources a viewer could check",
   "hashtags": ["5-8 relevant hashtags"],
+  "hookText": "2-6 word on-screen headline for the first 3 seconds that teases the payoff without giving it away (not the title, not the first narration line), e.g. 'THIS WALL IS 2,000 YEARS OLD' or 'HE HAD 10 MINUTES'",
+  "teaser": index of the most dramatic later scene (a reveal, an impact, a big reaction), flashed for one second before the story starts,
 ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one that fits the topic: hair = an ordinary person in everyday stories, cap = trains/police/pilots, hardhat = building/engineering, laurel = ancient Greece/Rome, helmet = space/diving, chef = food, grad = science/school, crown = kings, tophat = 1800s/business, beanie = winter), "color": "#RRGGBB costume colour that fits the topic"},\n` : ''}  "characters": [{"name": "the main character's short name (a real historical person only if the story is about them)", "look": "specific age, build, hair, face and clothing colours, e.g. 'stocky man in his 40s, short black hair, stubble, red t-shirt, blue jeans'"}],
   "scenes": [
     {
@@ -431,6 +434,8 @@ export function normalizeScript(raw, options) {
     title: cleanText(raw.title || options.topic, 60),
     youtubeTitle: cleanText(raw.youtubeTitle || raw.title || options.topic, 100),
     description: String(raw.description || '').trim().slice(0, 3000),
+    hookText: cleanText(raw.hookText || raw.hook_text || raw.onScreenHook || '', 60).split(' ').slice(0, 6).join(' '),
+    teaser: Number.isInteger(Number(raw.teaser)) && Number(raw.teaser) >= 1 && Number(raw.teaser) < scenes.length ? Number(raw.teaser) : null,
     hashtags: (Array.isArray(raw.hashtags) ? raw.hashtags : []).map(h => cleanText(h, 40)).filter(Boolean)
       .map(h => (h.startsWith('#') ? h : '#' + h.replace(/\s+/g, ''))).slice(0, 10),
     host: {

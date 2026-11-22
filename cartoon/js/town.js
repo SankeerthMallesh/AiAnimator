@@ -4,6 +4,7 @@
 // the encoder: canvas, W, H, drawFrame(t), dispose(), plus a ready promise. Captions are off unless asked for.
 import { planShots } from '../../explainer/js/z3d/plan.js';
 import { Stage } from './stage.js';
+import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash } from '../../shared/hooks.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
 const PLACE = {
@@ -39,16 +40,16 @@ export function townShots(timeline, script) {
   const ids = (script?.cast || []).map(c => String(c.id).toLowerCase());
   const castMap = new Map(ids.map((id, k) => [id, k]));
   const scenes = townScenes(timeline.scenes);
-  const specs = planShots(scenes, castMap);
+  const specs = withTeaser(planShots(scenes, castMap), teaserIndex(scenes, script?.teaser));
   const shots = specs.map((s, k) => {
     const sc = timeline.scenes[s.scene];
     const set = sc?.set || 'city';
-    const place = s.scene === 0 && k === 0 ? 'town' : PLACE[set] || 'bridge';
+    const place = s.scene === 0 && !s.teaser && (k === 0 || specs[k - 1]?.teaser) ? 'town' : PLACE[set] || 'bridge';
     return {
       start: s.start, end: s.end, kind: s.kind, place: place === 'town' && s.kind !== 'wide' ? 'bridge' : place,
       cast: s.cast.map(c => (typeof c === 'number' ? c : ids.length + (k % 3))), pose: s.pose, camera: s.camera,
       light: GOLDEN.has(set) ? 'golden' : 'day', seed: s.seed, words: (s.words || []).map(w => ({ start: (sc?.start || 0) + w.start, end: (sc?.start || 0) + w.end })),
-      effect: s.effect, icon: s.icon,
+      effect: s.effect, icon: s.icon, teaser: !!s.teaser,
     };
   });
   if (shots.length) shots[shots.length - 1].end = Math.max(shots[shots.length - 1].end, timeline.total + 0.5);
@@ -61,6 +62,7 @@ export class TownRenderer {
     canvas.width = W; canvas.height = H;
     this.g = canvas.getContext('2d', { alpha: false });
     this.timeline = timeline; this.captions = captions; this.log = null;
+    this.headline = headlineText(script);
     this.preview = preview; this.lastMs = 0; this.lastAt = -1e9;
     const { specs, shots } = townShots(timeline, script);
     this.specs = specs; this.shots = shots;
@@ -91,6 +93,8 @@ export class TownRenderer {
       const scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];
       if (scene) Stage.caption(this.g, this.W, this.H, scene, Math.max(0, t - scene.start));
     }
+    if (this.shots[0]?.teaser) drawCutFlash(this.g, this.W, this.H, t);
+    drawHeadline(this.g, this.W, this.H, t, this.headline, { top: 0.13 });
   }
 
   dispose() { this.disposed = true; this.engine?.dispose(); this.engine = null; }

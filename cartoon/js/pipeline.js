@@ -16,6 +16,7 @@ import { RenderLog, publishLog, measureAudio, slugName } from '../../shared/rend
 import { FORMATS, PACES, MOODS, formatOf } from './presets.js';
 import { TownRenderer, townShots } from './town.js';
 import { filmScore, cueSheet, scoreSections } from '../../shared/filmsound.js';
+import { hookCues } from '../../shared/hooks.js';
 
 export const STEPS = [
   ['script', 'Write script'],
@@ -406,7 +407,7 @@ export class Pipeline {
           : await synthMusic(mood, p.timeline.total, (p.musicSeed ||= Math.floor(Math.random() * 1e9))));
       p.musicKey = musicKey;
     }
-    const cues = specs ? cueSheet(specs, p.timeline.total) : null;
+    const cues = specs ? [...hookCues(), ...cueSheet(specs, p.timeline.total)].sort((a, b) => a.t - b.t) : null;
     p.audio = await mixSoundtrack(p.timeline, { music: p.music, musicVolume: Number(this.s.musicVolume), stem: p.stem, cues });
     this.h.step('sound', 'done', `${p.timeline.total.toFixed(1)}s · ${mood === 'none' ? 'no music' : p.userMusic ? 'your music' : mood + (sections ? ' film score' : ' score')}${cues ? ` · ${cues.length} sound effects` : ''}`);
   }

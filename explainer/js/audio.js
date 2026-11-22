@@ -334,9 +334,10 @@ export const MUSIC_UNDER_VOICE = 17.5;
 // chain and with the same master gain as the full mix, so the two can be measured against each other.
 // cues: the film sound's effects placed on the shot plan (shared/filmsound.js), used instead of the
 // scene-based effects below for the looks drawn in code.
-export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0, cues = null } = {}) {
+// extraCues: more film-sound cues on top of the scene-based effects (the hook's sounds for picture looks).
+export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55, sfx = true, stem = null, raw = false, probeMusic = 0, cues = null, extraCues = null } = {}) {
   let master = null;
-  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx, cues })).levelInfo; sfx = false; }
+  if (stem) { master = (await mixSoundtrack(timeline, { music, musicVolume, sfx, cues, extraCues })).levelInfo; sfx = false; }
   // The voice as it comes out of the voice chain, measured, so the music can be set against it.
   // The music too, through the same bus at a fixed 0.2 gain (the bus compressor adds makeup gain).
   const lufsOf = (b) => loudness(Array.from({ length: b.numberOfChannels }, (_, c) => b.getChannelData(c)), b.sampleRate);
@@ -442,6 +443,7 @@ export async function mixSoundtrack(timeline, { music = null, musicVolume = 0.55
     const fx = ctx.createGain();
     fx.gain.value = 0.8;
     fx.connect(comp);
+    if (extraCues) renderCues(ctx, fx, extraCues);
     boom(ctx, fx, 0.0, noise, 0.8);
     timeline.scenes.forEach((s, i) => {
       if (i > 0 && s.transition !== 'fade') whoosh(ctx, fx, Math.max(0, s.start - 0.22), noise, s.transition === 'whip' ? 1 : 0.7);

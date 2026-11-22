@@ -24,15 +24,16 @@ export const tests = [
     for (let i = 0; i < f.length; i++) if (f[i] === 'react') assert.ok(!f.slice(Math.max(0, i - 2), i).includes('react'), f.join(','));
     assert.ok(f.filter(x => x === 'react').length >= 2, f.join(','));
   } },
-  { name: 'the first shot is the aerial over the town; sets map to the bridge, the bank and the park', fn: () => {
+  { name: 'after the cold open (the teaser) comes the aerial over the town; sets map to the bridge, the bank and the park', fn: () => {
     const { shots } = townShots(timeline, script);
-    assert.equal(shots[0].place, 'town'); assert.equal(shots[0].kind, 'wide');
+    assert.ok(shots[0].teaser); assert.equal(shots[0].end, 0.9);
+    assert.equal(shots[1].place, 'town'); assert.equal(shots[1].kind, 'wide');
     assert.ok(shots.every(s => ['town', 'bridge', 'bank', 'park'].includes(s.place)));
     assert.equal(shots.find(s => s.start >= 8.5).place, 'park');
   } },
   { name: 'night sets are golden light, the rest daylight', fn: () => {
     const { shots } = townShots(timeline, script);
-    assert.deepEqual(shots.map(s => s.light), ['day', 'day', 'golden', 'day']);
+    assert.deepEqual(shots.map(s => s.light), ['golden', 'day', 'day', 'golden', 'day']); // the teaser is the night scene
   } },
   { name: 'the cast keeps one look per character and words are on the video timeline', fn: () => {
     const { shots } = townShots(timeline, script);
