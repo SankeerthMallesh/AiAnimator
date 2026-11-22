@@ -1,11 +1,27 @@
 // Many full videos in a row with stand-in AI, each with different choices, and every MP4 checked.
 //   node mass.cjs <first> <count> [sections]      e.g.  node mass.cjs 0 25 cartoon,3d,blocky,clip
-// Writes mass/<n>-<section>.mp4 and one JSON line per run to mass/results.jsonl.
-// Needs the site served locally (bash serve.sh) and ffmpeg.
+// Sections: cartoon (painted sets), town (3D cartoon town), 3d (AI pictures), auto (the 3D tab's
+// default), drawn3d, blocky (drawn, the Blocky default), blockyai (Blocky with AI pictures), clip.
+// Writes one JSON line per run to mass/results.jsonl and a 12-frame contact sheet per video
+// (mass/<n>-<section>-sheet.jpg). A video that passes is deleted after its checks (KEEP=1 keeps it),
+// so a 1000-video run fits on a small disk. Needs the site served locally (bash serve.sh) and ffmpeg.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const first = +(process.argv[2] || 0), count = +(process.argv[3] || 4);
-const SECTIONS = (process.argv[4] || 'cartoon,3d,blocky,clip').split(',');
+const SECTIONS = (process.argv[4] || 'cartoon,town,3d,auto,drawn3d,blocky,blockyai,clip').split(',');
+// Looks drawn with WebGL render on the GPU, like a real browser; the rest on software rendering
+// (headless Chromium paints the Cartoons backgrounds about 5x slower with the GPU flags).
+const GPU_SECTIONS = new Set(['town', 'auto', 'drawn3d', 'blocky']);
+const DRAWN_SECTIONS = new Set(['auto', 'drawn3d', 'blocky']);
+// The drawn shot words (explainer/js/z3d/vocab.js), so mocked scripts direct the drawn looks like the writer does.
+const D_SETS = ['studio', 'snow', 'park', 'street', 'room', 'beach', 'night', 'desert', 'lab'];
+const D_FRAMES = ['talk', 'two', 'react', 'wide', 'walk', 'point', 'group', 'object'];
+const D_ACTS = ['stand', 'talk', 'point', 'surprised', 'shrug', 'cheer', 'think', 'show', 'flinch'];
+const D_THINGS = ['brick', 'phone', 'book', 'ball', 'globe', 'magnet', 'coins', 'clock', 'bulb', 'key', 'trophy'];
+const D_THING_ACTS = ['hold', 'show', 'drop', 'grow', 'spin', 'break'];
+const D_CAMS = ['push-in', 'pull-out', 'orbit', 'pan-left', 'pan-right', 'tilt-up', 'impact', 'static'];
+const D_FX = ['none', 'none', 'pulse', 'shockwave', 'sparks', 'snow', 'rain', 'glow', 'bubbles', 'dust'];
+const D_DELIVERY = ['curious', 'excited', 'calm', 'tense', 'urgent', 'shocked', 'dramatic', 'amused', 'firm'];
 const DIR = path.join(__dirname, 'mass');
 fs.mkdirSync(DIR, { recursive: true });
 
@@ -40,8 +56,20 @@ function scriptFor(seed, section) {
     visual: `${t[0].toLowerCase()}, shot ${i + 1}: ${line.replace(/[^\w ,.'-]/g, '')}`,
     icon: ICONS[seed % ICONS.length], who: [{ id: 'a', x: 0.3, pose: ['point', 'idle', 'wave', 'think'][i % 4] }, { id: 'b', x: 0.7, pose: 'idle' }],
   }));
+  if (DRAWN_SECTIONS.has(section)) {
+    // What the writer sends for a drawn look: a place, framing, who, an action, maybe a thing.
+    const pk = (a) => a[Math.floor(r() * a.length)];
+    let set = pk(D_SETS);
+    scenes.forEach((sc, i) => {
+      if (i && r() < 0.35) set = pk(D_SETS);
+      const frame = i === 0 ? pk(['wide', 'react', 'talk']) : pk(D_FRAMES);
+      Object.assign(sc, { set, frame, who: frame === 'two' || frame === 'group' ? [a, b] : [r() < 0.7 ? a : b], act: pk(D_ACTS), camera: pk(D_CAMS), effect: pk(D_FX), delivery: pk(D_DELIVERY) });
+      if (frame === 'object' || r() < 0.2) Object.assign(sc, { thing: pk(D_THINGS), do: pk(D_THING_ACTS) });
+    });
+  }
   return { title: t[0], youtubeTitle: `${t[0]} 🤯`, description: `${t[0]}.\nSources: Wikipedia`, hashtags: ['#shorts', '#facts', '#learn'],
     character: section !== 'cartoon' ? { name: a, look: 'a friendly young explorer in a teal jacket and boots' } : undefined,
+    characters: DRAWN_SECTIONS.has(section) ? [{ name: a, look: r() < 0.5 ? 'woman in her 20s, red coat' : 'man in his 30s, grey jacket' }, { name: b, look: r() < 0.5 ? 'man, blue hoodie' : 'girl, yellow striped shirt' }] : undefined,
     cast: [{ id: 'a', name: a, color: '#E8A33D', hat: 'cap', hair: 'curly', costume: 'shirt' }, { id: 'b', name: b, color: '#3E8FE0', hat: 'none', hair: 'short', costume: 'shirt' }],
     scenes };
 }
@@ -139,6 +167,20 @@ function check(file, want) {
     if (info.maxDb > -0.05) problems.push(`audio clips (${info.maxDb} dB peak)`);
     if (want.lufs && !(info.lufs >= want.lufs[0] && info.lufs <= want.lufs[1])) problems.push(`loudness ${info.lufs} LUFS`);
   } else if (want.audio) problems.push('no audio track');
+  // Picture quality: sharpness (blur 0 = sharp; flagged when most of the video is soft), cuts (a video
+  // whose picture never changes shot is static), and a contact sheet of 12 frames to look at.
+  try {
+    const blur = execFileSync('bash', ['-c', `ffmpeg -v error -i "${file}" -vf "fps=1,scale=540:-2,blurdetect=block_width=32:block_height=32,metadata=print:key=lavfi.blur:file=-" -f null - 2>/dev/null | grep lavfi.blur | cut -d= -f2`]).toString().trim().split('\n').map(Number).filter(n => !isNaN(n));
+    if (blur.length) { const sorted = blur.slice().sort((x, y) => x - y); info.blurMed = +sorted[Math.floor(sorted.length / 2)].toFixed(2); info.blurMax = +sorted[sorted.length - 1].toFixed(2); }
+    const cuts = execFileSync('bash', ['-c', `ffmpeg -v error -i "${file}" -vf "scale=270:-2,scdet=t=12,metadata=print:key=lavfi.scd.time:file=-" -f null - 2>/dev/null | grep -c lavfi.scd.time || true`]).toString().trim();
+    info.cuts = +cuts || 0;
+    if (want.scenes >= 4 && info.cuts === 0) problems.push(`only ${info.cuts} shot changes for ${want.scenes} scenes`);
+    if (want.blurMax != null && info.blurMed > want.blurMax) problems.push(`soft picture (median blur ${info.blurMed})`);
+    const sheet = file.replace(/\.mp4$/, '-sheet.jpg');
+    execFileSync('bash', ['-c', `ffmpeg -v error -y -i "${file}" -vf "fps=12/${Math.max(1, info.dur)},scale=180:-2,tile=6x2" -frames:v 1 -q:v 4 "${sheet}"`]);
+    const ad = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=duration', '-of', 'csv=p=0', file]).toString().trim();
+    if (ad && Math.abs(+ad - info.dur) > 0.6) problems.push(`audio ${(+ad).toFixed(1)} s vs video ${info.dur} s`);
+  } catch (e) { info.qualityError = String(e.message).slice(0, 120); }
   if (info.vcodec !== 'h264') problems.push('video is ' + info.vcodec);
   if (want.w && (info.w !== want.w || info.h !== want.h)) problems.push(`size ${info.w}x${info.h}, wanted ${want.w}x${want.h}`);
   if (want.minDur && info.dur < want.minDur) problems.push(`only ${info.dur} s long`);
@@ -221,8 +263,9 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       for (const [id, on] of [['optHeading', choices.heading], ['optCaptions', choices.captions], ['optEmoji', choices.emoji]]) await p.setChecked('#' + id, on);
       await p.click('#btnGo');
       await p.waitForFunction(() => document.querySelector('#steps li[data-step="clips"]').classList.contains('done') || document.querySelector('#steps li.fail'), null, { timeout: 1500000 });
+      const LOGN = +process.env.LOGN || 3;
       const failed = await p.$$eval('#steps li.fail', l => l.map(x => x.dataset.step + ': ' + x.querySelector('.d').textContent));
-      if (failed.length) throw new Error('step failed: ' + failed.join('; ') + ' | ' + await p.$$eval('#log div', l => l.slice(-3).map(x => x.textContent).join(' | ')));
+      if (failed.length) throw new Error('step failed: ' + failed.join('; ') + ' | ' + await p.$$eval('#log div', (l, n) => l.slice(-n).map(x => x.textContent).join(' | '), LOGN));
       const hrefs = await p.$$eval('.card .dl', l => l.map(a => a.href));
       result.outputs = [];
       const [lo, hi] = choices.length.split('-').map(Number);
@@ -236,14 +279,15 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       if (!hrefs.length) throw new Error('no clips made');
       result.clips = hrefs.length;
     } else {
-      const url = section === 'cartoon' ? '/cartoon/' : section === '3d' ? '/explainer/?style=story-3d' : '/explainer/?style=blocky';
+      const url = { cartoon: '/cartoon/', town: '/cartoon/', '3d': '/explainer/?style=story-3d', auto: '/explainer/', drawn3d: '/explainer/?style=drawn-3d', blocky: '/explainer/?style=blocky', blockyai: '/explainer/?style=blocky' }[section];
+      const cartoonish = section === 'cartoon' || section === 'town';
       // Settings-panel choices are saved the way the app saves them, before the page loads.
       const set = { quality: pick(['720', '1080', '1080', '1080', '1440']), fps: pick(['24', '30', '30', '60']), captionStyle: pick(['word', 'classic', 'bold', 'box', 'minimal', 'off']),
-        bgLook: pick(['3d', '3d', 'flat']), stickers: r() < 0.15, showTitle: r() < 0.3, factCheck: r() < 0.8, settingsVersion: section === 'cartoon' ? 10 : 7 };
+        bgLook: pick(['3d', '3d', 'flat']), stickers: r() < 0.15, showTitle: r() < 0.3, factCheck: r() < 0.8, settingsVersion: cartoonish ? 10 : 7 };
       if (set.quality === '1440' && set.fps === '60') set.fps = '30';
       // Proof renders: the app's defaults at 1080x1920, 30 fps (only the picture service may be off).
-      if (process.env.FIXED) Object.assign(set, { quality: '1080', fps: '30', captionStyle: section === 'cartoon' ? 'word' : 'classic', bgLook: '3d', stickers: false, showTitle: false, factCheck: true });
-      await p.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, [section === 'cartoon' ? 'storyforge.settings.v1' : 'explainer.settings.v1', JSON.stringify(set)]);
+      if (process.env.FIXED) Object.assign(set, { quality: '1080', fps: '30', captionStyle: cartoonish ? 'word' : 'classic', bgLook: '3d', stickers: false, showTitle: false, factCheck: true });
+      await p.addInitScript(([k, v]) => { try { localStorage.setItem(k, v); } catch {} }, [cartoonish ? 'storyforge.settings.v1' : 'explainer.settings.v1', JSON.stringify(set)]);
       // STEM=voice|music renders only that part of the soundtrack (same master gain); MUSICSEED fixes the score.
       const extra = [process.env.STEM && `stem=${process.env.STEM}`, process.env.MUSICSEED && `musicseed=${process.env.MUSICSEED}`].filter(Boolean).join('&');
       await p.goto('http://127.0.0.1:8773' + url + (extra ? (url.includes('?') ? '&' : '?') + extra : '')); await p.waitForTimeout(800);
@@ -251,9 +295,14 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       for (const id of process.env.FIXED ? [] : ['duration', 'pace', 'voice', 'mood']) {
         const vals = await p.$$eval(`#${id} option`, l => l.map(o => o.value)).catch(() => []);
         if (!vals.length) continue;
-        const v = pick(vals);
+        // Lengths: mostly Shorts (up to 90 s); one run in 25 goes long (up to 3 min).
+        const fit = id === 'duration' ? vals.filter(x => +x <= (r() < 0.04 ? 180 : 90)) : vals;
+        const v = pick(fit.length ? fit : vals);
         choices[id] = v; await p.selectOption('#' + id, v).catch(() => {});
       }
+      if (section === 'town' || section === 'cartoon') { const lk = section === 'town' ? 'town3d' : 'painted'; await p.selectOption('#look', lk); choices.look = lk; }
+      if (section === 'blockyai') { await p.selectOption('#style', 'blocky'); choices.style = 'blocky'; }
+      choices.style ||= await p.$eval('#style', el => el.value).catch(() => undefined);
       Object.assign(result, { topic: script.title, choices, picsFail, voiceMode });
       await p.fill('#topic', script.title);
       await p.click('#btnGo');
@@ -264,7 +313,7 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
       const man = await p.evaluate(() => window.loomyManifest || null);
       if (man) fs.writeFileSync(out.replace(/\.mp4$/, '.loomy-manifest.json'), JSON.stringify(man, null, 1));
       const q = +(choices.quality || 1080); const w = q === 720 ? 720 : q === 1440 ? 1440 : 1080;
-      result.outputs = [{ file: path.basename(out), ...check(out, { audio: true, w, h: Math.round(w * 16 / 9), minDur: script.scenes.length * 1.2, motion: true, lufs: [-15, -11] }) }];
+      result.outputs = [{ file: path.basename(out), ...check(out, { audio: true, w, h: Math.round(w * 16 / 9), minDur: script.scenes.length * 1.2, motion: true, lufs: [-15, -11], scenes: script.scenes.length, blurMax: 8 }) }];
       result.log = await p.$$eval('#log div, #log li', l => l.map(x => x.textContent).filter(t => /fail|error|could not|fallback|instead/i.test(t)).slice(-6)).catch(() => []);
     }
   } catch (e) {
@@ -278,13 +327,16 @@ const SUBJ = ['Bro', 'Chat', 'Okay so', 'Wait', 'Honestly', 'Listen', 'No way', 
 }
 
 (async () => {
-  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+  const sw = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+  const gpu = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal'] });
   for (let n = first; n < first + count; n++) {
     let res;
-    try { res = await run(browser, n); } catch (e) { res = { n, ok: false, error: 'harness: ' + e.message }; }
+    try { res = await run(GPU_SECTIONS.has(SECTIONS[n % SECTIONS.length]) ? gpu : sw, n); } catch (e) { res = { n, ok: false, error: 'harness: ' + e.message }; }
+    // A video that passed every check is not kept (the sheet and render log stay); KEEP=1 keeps all.
+    if (res.ok && !process.env.KEEP) for (const o of res.outputs || []) fs.rmSync(path.join(DIR, o.file), { force: true });
     fs.appendFileSync(path.join(DIR, 'results.jsonl'), JSON.stringify(res) + '\n');
-    const o = (res.outputs || []).map(x => `${x.info ? `${x.info.w}x${x.info.h}@${x.info.fps} ${x.info.dur}s ${x.info.lufs}LUFS Y${x.info.meanY} frz${x.info.frozen}` : ''} ${x.problems.join('; ')}`).join(' | ');
+    const o = (res.outputs || []).map(x => `${x.info ? `${x.info.w}x${x.info.h}@${x.info.fps} ${x.info.dur}s ${x.info.lufs}LUFS Y${x.info.meanY} frz${x.info.frozen} blur${x.info.blurMed} cuts${x.info.cuts}` : ''} ${x.problems.join('; ')}`).join(' | ');
     console.log(`${res.ok ? 'PASS' : 'FAIL'} #${n} ${res.section} ${Math.round(res.ms / 1000)}s ${o} ${res.error || ''} ${(res.errors || []).join(' ')}`);
   }
-  await browser.close();
+  await sw.close(); await gpu.close();
 })();
