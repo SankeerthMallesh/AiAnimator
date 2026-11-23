@@ -1,6 +1,7 @@
 // Orchestrates a project: script → fact check → visuals + 3D depth + voice (in parallel) → soundtrack → render.
 // Every step is incremental: editing one scene only regenerates what changed.
 
+import { isPhone } from '../../shared/busy.js';
 import { probeFrames, planRender } from '../../shared/budget.js';
 import { writeScript, factCheck, imagePromptFor, scriptFromText } from './llm.js';
 import { generateImage, imageSize, mapLimit, imageConcurrency, isFreeImageTier, BLOCKED, cloudflareReady, cloudflareUsedUp } from './images.js';
@@ -36,7 +37,9 @@ export const STEPS = [
 
 export function qualityOf(options, settings) {
   const q = String(options.quality || settings.quality || '1080');
-  return q === 'fast' ? 720 : q === 'hd' ? 1080 : (Number(q) || 1080);
+  // 2.3: a phone renders at most 720p (1080p filled its memory and the page crashed or reloaded)
+  const n = q === 'fast' ? 720 : q === 'hd' ? 1080 : (Number(q) || 1080);
+  return isPhone() ? Math.min(720, n) : n;
 }
 
 export function outputSize(options, settings) {

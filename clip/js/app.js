@@ -3,6 +3,7 @@
 // every word.  3. AI picks the strongest moments with a heading each.  4. Each clip is framed to 9:16,
 // captioned and exported as MP4 with the original sound. Nothing is posted anywhere.
 
+import { markBusy } from '../../shared/busy.js';
 import { getFFmpeg, mountFile, run, probeDuration, removeFiles, resetFFmpeg, errText } from './ff.js';
 import { RenderLog, publishLog, measureAudio, loudness } from '../../shared/renderlog.js';
 import { levelChannels } from '../../shared/level.js';
@@ -118,7 +119,7 @@ function options() {
 async function go({ reuseTranscript = false } = {}) {
   if (!state.file || state.running) return;
   if (!canExport()) { toast('Making clips needs Chrome or Edge on a computer.', true); return; }
-  state.running = true; updateGo();
+  state.running = true; markBusy(true); updateGo();
   state.abort = new AbortController();
   const signal = state.abort.signal;
   const o = options();
@@ -164,7 +165,7 @@ async function go({ reuseTranscript = false } = {}) {
       for (const li of document.querySelectorAll('#steps li.active')) { li.className = 'fail'; li.querySelector('.d').textContent = 'Stopped'; }
     }
   } finally {
-    state.running = false; updateGo();
+    state.running = false; markBusy(false); updateGo();
   }
 }
 
@@ -358,10 +359,10 @@ function makeCard(clip, i) {
   };
   el.querySelector('.redo').addEventListener('click', async () => {
     if (state.running) return;
-    state.running = true; updateGo();
+    state.running = true; markBusy(true); updateGo();
     el.querySelector('.wait').hidden = false; el.querySelector('video').hidden = true;
     try { await renderCard(card, options(), new AbortController().signal); } catch (e) { toast(e.message, true); }
-    state.running = false; updateGo();
+    state.running = false; markBusy(false); updateGo();
   });
   return card;
 }

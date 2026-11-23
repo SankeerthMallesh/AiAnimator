@@ -6,6 +6,7 @@ import { Preview } from './preview.js';
 import { Timeline, escapeHtml } from './timeline.js';
 import { exportProject } from './export.js';
 import { canEncode } from '../../shared/encode.js';
+import { markBusy } from '../../shared/busy.js';
 import { takeFromHandoff, onHandoff } from '../../shared/handoff.js';
 
 document.title = 'Loomy · Edit';
@@ -269,7 +270,7 @@ $('#btnExport').addEventListener('click', async () => {
   preview.pause(); setPlaying();
   const box = $('#exportBox'), bar = $('#exportBar'), status = $('#exportStatus'), dl = $('#exportDownload'), vid = $('#exportVideo'), close = $('#exportClose');
   box.hidden = false; dl.hidden = true; vid.hidden = true; bar.style.width = '0%'; close.textContent = 'Cancel';
-  exporting = new AbortController();
+  exporting = new AbortController(); markBusy(true);
   const t0 = performance.now();
   try {
     const blob = await exportProject(project, media, {
@@ -286,7 +287,7 @@ $('#btnExport').addEventListener('click', async () => {
   } catch (e) {
     status.textContent = e.name === 'AbortError' ? 'Export cancelled.' : `Export failed: ${e.message}`;
     close.textContent = 'Close';
-  } finally { exporting = null; }
+  } finally { exporting = null; markBusy(false); }
 });
 $('#exportClose').addEventListener('click', () => { if (exporting) exporting.abort(); else $('#exportBox').hidden = true; });
 

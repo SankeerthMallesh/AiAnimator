@@ -1,6 +1,7 @@
 // Script, optional background plates, voice, score, then a code-drawn render.
 // Plates never hold the video longer than 20 seconds. A missing plate is a drawn set.
 
+import { isPhone } from '../../shared/busy.js';
 import { probeFrames, planRender } from '../../shared/budget.js';
 import { writeScript, factCheck, waitForFreeText } from './llm.js';
 import { Script, propTrigger } from './script.js';
@@ -35,7 +36,9 @@ export const STEPS = [
 
 export function qualityOf(options, settings) {
   const q = String(options.quality || settings.quality || '720');
-  return q === 'fast' ? 720 : q === 'hd' ? 1080 : (Number(q) || 720);
+  // 2.3: a phone renders at most 720p (1080p filled its memory and the page crashed or reloaded)
+  const n = q === 'fast' ? 720 : q === 'hd' ? 1080 : (Number(q) || 720);
+  return isPhone() ? Math.min(720, n) : n;
 }
 
 export function outputSize(options, settings) {

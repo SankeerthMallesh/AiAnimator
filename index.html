@@ -235,7 +235,7 @@ html, body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255,255,
   </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
-<script src="account.js?v=202611231755"></script>
+<script src="account.js?v=202611232004"></script>
 <script>
 (() => {
   const SECTIONS = {
@@ -267,6 +267,14 @@ html, body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255,255,
     if (!SECTIONS[name]) name = 'cartoon';
     const { el } = frame(name, extra);
     for (const [k, f] of Object.entries(frames)) f.classList.toggle('on', k === name);
+    // 2.3: a phone cannot keep several video engines in memory: the other sections are closed when they are idle
+    // (one still making a video stays open and keeps working), and reopen fresh when their tab is tapped
+    const phone = (() => { try { return matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600; } catch { return false; } })();
+    if (phone) for (const [k, f] of Object.entries(frames)) {
+      if (k === name) continue;
+      let busy = false; try { const w = f.contentWindow; busy = !!w?.loomyWorking || !!w?.loomyBusy?.(); } catch { busy = false; }
+      if (!busy) { f.src = 'about:blank'; f.remove(); delete frames[k]; }
+    }
     document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.view === name)));
     document.title = SECTIONS[name].title;
     if (updateHash) history.replaceState(null, '', location.pathname + (name === 'cartoon' ? '' : '#' + name));

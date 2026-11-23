@@ -5,6 +5,7 @@ import { createEngine } from './z3d/engine.js';
 import { composeFrame } from './z3d/film.js';
 import * as A3 from './z3d/auto3d.js';
 import { planExplains, explainAt, drawExplain } from '../../shared/explain.js';
+import { isPhone } from '../../shared/busy.js';
 import { hookFx } from '../../shared/hooks.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
@@ -20,6 +21,8 @@ export class DrawnRenderer {
     this.headline = hooks ? headlineText(script) : '';
     this.scenes = timeline.scenes;
     this.explains = planExplains(timeline.scenes); // 2.2: diagram cutaways for the lines that explain something
+    // 2.3: a phone gets the light engine settings (no MSAA, small shadows, fewer AO samples)
+    if (isPhone()) perf = { msaa: 0, shadowMax: 1024, aoSamples: 6, ...perf };
     this.ready = this.init(timeline, script, perf);
   }
 

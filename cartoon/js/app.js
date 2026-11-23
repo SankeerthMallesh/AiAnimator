@@ -1,4 +1,5 @@
 // UI controller for Storyforge.
+import { markBusy } from '../../shared/busy.js';
 import { resetVoiceReport, setRealVoice } from './tts.js';
 import { attachCutter } from '../../shared/cutter.js';
 import { attachIdeas } from '../../shared/ideabox.js';
@@ -446,6 +447,7 @@ function hooks() {
 
 function setBusy(b) {
   running = b;
+  markBusy(b); // 2.3: keep the phone awake and this tab loaded while it works
   $('#btnCancel').classList.toggle('hidden', !b);
   $('#btnRender').disabled = b || !project?.audio;
   $('#btnApply').disabled = b || !hasDirty();

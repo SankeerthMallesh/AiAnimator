@@ -12,6 +12,7 @@ import { mapFor, actFor, busyFor, outfitLook, mapSeed } from './maps.js';
 import { planExplains, explainAt, drawExplain } from '../../shared/explain.js';
 import { hookFx } from '../../shared/hooks.js';
 import { nextTask } from '../../shared/yieldtask.js';
+import { isPhone } from '../../shared/busy.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
 const PLACE = {
@@ -147,7 +148,8 @@ export class TownRenderer {
     this.ready = (async () => {
       const { createTemplated, setStaticBase } = await import('./c3d/cartoon3d.js');
       setStaticBase(new URL('../c3d-assets/', import.meta.url).href);
-      const engine = await createTemplated({ width: W, height: H, shots, theme: this.theme, looks: this.theme === 'viking' ? [] : townLooks(script?.cast || []) });
+      // 2.3: on a phone the lighter settings (no MSAA, a smaller shadow map and character drawings) so it fits in memory
+      const engine = await createTemplated({ width: W, height: H, shots, theme: this.theme, looks: this.theme === 'viking' ? [] : townLooks(script?.cast || []), perf: isPhone() ? { msaa: 0, shadow: 1024, cardMax: 720 } : {} });
       if (this.disposed) engine.dispose(); else this.engine = engine; // disposed while it was building
     })();
   }
