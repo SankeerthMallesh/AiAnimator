@@ -1,6 +1,7 @@
 // The shot plan for the looks drawn in code, without three.js: who plays whom (castFor), who is in a
 // shot (whoFor) and the cut list (planShots). auto3d.js and autoblocky.js build the shots from it;
 // the film sound (shared/filmsound.js) places its cues on it.
+import { mapFor, actFor } from '../../../cartoon/js/maps.js';
 import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, THINGS, THING_ACTIONS, effect3d } from './vocab.js';
 
 // ---------- the cast for a script ----------
@@ -47,6 +48,9 @@ export function planShots(scenes, castMap) {
       who: Array.isArray(sc.who) ? sc.who : [], words: sc.words || [], scene: i,
       thing: THINGS.includes(sc.thing) ? sc.thing : '',
       chapter: sc.chapter || null,
+      // 2.0: the place built in 3D (the writer's map, else the place the line names) and what the lead does there
+      map: mapFor({ map: sc.map, narration: sc.narration }), act: actFor({ do: sc.action, narration: sc.narration }),
+      acc: Array.isArray(sc.acc) ? sc.acc : [], mapSeed: 1 + ((scenes[0]?.narration || '').length % 97),
     };
     base.do = base.thing ? (THING_ACTIONS.includes(sc.do) ? sc.do : DEFAULT_DO[kind] || 'show') : '';
     const a = sc.start, b = sc.start + sc.dur;

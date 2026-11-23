@@ -10,7 +10,8 @@ import { lam } from "./build";
 import { ctex, rep, rng } from "./paint";
 import { D0 } from "./story";
 import type { V3 } from "./story";
-import { NOINK } from "./ink";
+// the ink pass's no-outline layer (ink.ts NOINK; kept here so the 3D tab's copy needs no post chain)
+const NOINK = 3;
 
 export type SetInfo = { id: string; root: THREE.Group; origin: V3; spots: Record<string, V3>; outdoor: boolean; night?: boolean };
 
@@ -19,9 +20,20 @@ type Mat = THREE.Material;
 const TAU = Math.PI * 2;
 
 // ---------------- materials ----------------
-const C = (c: string) => lam("set_" + c, () => ({ color: c }));
-const T = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D, r: () => number) => void, rx = 1, ry = 1) =>
-  lam(`set_${key}_${rx}x${ry}`, () => ({ map: rep(ctex("set_" + key, w, h, draw), rx, ry) }));
+// The cartoon engine's two-tone materials by default; the 3D tab swaps in its own (useMaterials).
+type MatKit = { color: (c: string) => Mat; map: (key: string, tex: THREE.Texture) => Mat };
+let MK: MatKit = {
+  color: (c) => lam("set_" + c, () => ({ color: c })),
+  map: (key, tex) => lam(key, () => ({ map: tex })),
+};
+const own = new Map<string, Mat>();
+export function useMaterials(kit: MatKit) { MK = kit; own.clear(); }
+const C = (c: string) => { const k = "c" + c; let m = own.get(k); if (!m) { m = MK.color(c); own.set(k, m); } return m; };
+const T = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D, r: () => number) => void, rx = 1, ry = 1) => {
+  const k = `set_${key}_${rx}x${ry}`; let m = own.get(k);
+  if (!m) { m = MK.map(k, rep(ctex("set_" + key, w, h, draw), rx, ry)); own.set(k, m); }
+  return m;
+};
 const glowCache = new Map<string, THREE.Material>();
 /** unlit (screens, window views, lamps): stays bright whatever the light */
 const GLOW = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D, r: () => number) => void) => {
@@ -518,6 +530,19 @@ export function setFor(id: string, seed = 1, parent?: THREE.Object3D): SetInfo |
     if (parent) parent.add(root);
   } else if (parent && s.root.parent !== parent) parent.add(s.root);
   return s;
+}
+/** 2.0, the 3D tab: the map built at the origin of its own scene, turned so its open front faces a lens that looks
+ *  along -z (the 3D engine's convention); spots come back in that scene's coordinates */
+export function buildMapLocal(id: string, seed = 1): { root: THREE.Group; spots: Record<string, V3>; outdoor: boolean } | null {
+  const make = MAPS[id]; if (!make) return null;
+  const inner = new THREE.Group(), root = new THREE.Group(); root.add(inner); root.rotation.y = Math.PI; root.name = "map_" + id;
+  const r = rng(seed * 7919 + id.length * 131);
+  const info = make(inner, r, seed) || {};
+  const sp = info.spots?.sit;
+  if (sp && !info.seated) P_.chair(inner, sp[0], sp[2] + 0.12, 0, pick(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
+  const spots: Record<string, V3> = {};
+  for (const [k, v] of Object.entries(info.spots || {})) spots[k] = [-v[0], v[1], -v[2]];
+  return { root, spots, outdoor: !!info.outdoor };
 }
 /** world position of a spot in a map */
 export const spotIn = (s: SetInfo, name: string, fallback: V3 = [0, 0, 0]): V3 => {

@@ -1,3 +1,4 @@
+import { MAPS, ACTS, ACCESSORIES } from '../../cartoon/js/maps.js';
 import { splitSentences } from '../../shared/speech.js';
 import { writerOrder } from './router.js';
 // Script writing + fact checking with free LLM providers.
@@ -323,6 +324,9 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
       "icon": "one emoji for a measurable thing in this scene (weight, time, speed, money...) or '' for none",
       "effect": one of ${JSON.stringify(style.drawn ? EFFECTS3D : EFFECTS)}${style.drawn ? `,
       "set": one of ${JSON.stringify(SETS)} (the place; keep it until the story moves),
+      "map": one of ${JSON.stringify(MAPS)} or '' (2.0: a full place built in 3D with real objects; pick it whenever the line happens somewhere specific: an inmate: cell, guards: cellblock, a heist: banklobby then vault, astronauts: spacecabin, spacetoilet, control, cockpit, a trial: courtroom),
+      "action": what the main character does, one of ${JSON.stringify(ACTS)} (dug: dig, fell asleep: sleep, stole the cash: carry, ate: eat, called: phone, hacked: type),
+      "acc": accessories for the main character, up to two of ${JSON.stringify(ACCESSORIES)} (a controller's headset, a boss's cigar, a guard's shades),
       "frame": one of ${JSON.stringify(SHOT_KINDS)},
       "who": ["the names of the characters in this shot"],
       "act": one of ${JSON.stringify(POSE_NAMES)},
@@ -425,6 +429,9 @@ function drawnFields(s, i) {
     act: POSE_NAMES.includes(low(s.act)) ? low(s.act) : '',
     thing: THINGS.includes(low(s.thing)) ? low(s.thing) : '',
     do: THING_ACTIONS.includes(low(s.do)) ? low(s.do) : '',
+    map: MAPS.includes(low(s.map)) ? low(s.map) : '',
+    action: ACTS.includes(low(s.action)) ? low(s.action) : '',
+    acc: (Array.isArray(s.acc) ? s.acc : []).map(low).filter(a => ACCESSORIES.includes(a)).slice(0, 2),
     who,
     effect: effect3d(low(s.effect)),
   };

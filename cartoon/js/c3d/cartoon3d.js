@@ -9309,9 +9309,9 @@ var stageTemplate = (people, effects, cam, t, light) => {
   findSun(cam, SUN);
   people.forEach((m, i) => {
     const base2 = FOLK[(m.look % 6 + 6) % 6];
-    const own = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null;
-    const o = m.kid ? KID : own ? { ...base2, ...own } : base2;
-    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
+    const own2 = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null;
+    const o = m.kid ? KID : own2 ? { ...base2, ...own2 } : base2;
+    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own2 ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
     const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
     const prop2 = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone" : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
     const asleep = act === "sleep", dozing = act === "doze";
@@ -10554,9 +10554,31 @@ function aerialAt(light, k) {
 
 // src/sets.ts
 import * as THREE8 from "three";
+var NOINK2 = 3;
 var TAU2 = Math.PI * 2;
-var C2 = (c) => lam("set_" + c, () => ({ color: c }));
-var T3 = (key, w, h, draw, rx = 1, ry = 1) => lam(`set_${key}_${rx}x${ry}`, () => ({ map: rep(ctex("set_" + key, w, h, draw), rx, ry) }));
+var MK = {
+  color: (c) => lam("set_" + c, () => ({ color: c })),
+  map: (key, tex) => lam(key, () => ({ map: tex }))
+};
+var own = /* @__PURE__ */ new Map();
+var C2 = (c) => {
+  const k = "c" + c;
+  let m = own.get(k);
+  if (!m) {
+    m = MK.color(c);
+    own.set(k, m);
+  }
+  return m;
+};
+var T3 = (key, w, h, draw, rx = 1, ry = 1) => {
+  const k = `set_${key}_${rx}x${ry}`;
+  let m = own.get(k);
+  if (!m) {
+    m = MK.map(k, rep(ctex("set_" + key, w, h, draw), rx, ry));
+    own.set(k, m);
+  }
+  return m;
+};
 var glowCache = /* @__PURE__ */ new Map();
 var GLOW = (key, w, h, draw) => {
   let m = glowCache.get(key);
@@ -10889,7 +10911,7 @@ var beam2 = (g, x, y, z, w, h, tilt) => {
   }));
   m.position.set(x, y, z);
   m.rotation.set(0, Math.PI, tilt);
-  m.layers.set(NOINK);
+  m.layers.set(NOINK2);
   g.add(m);
   return m;
 };

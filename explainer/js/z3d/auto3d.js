@@ -2,10 +2,11 @@
 // who, pose, camera move, effect), turned into engine shots for renderFilm / composeFrame.
 // The same craft as the hand-made "frozen lake" short: realistic people posed in code, a short
 // zach-style edit (cuts every 2.5-4.5 s), depth of field on close shots, 1-3 word captions.
+import { buildMapInto, SET_NAMES as MAP_NAMES } from './maps3d.js';
 import * as THREE from 'three';
 import { lerp, smooth, easeOut, easeInOut, range, clamp, V, cam, place, shake } from './anim.js';
 import { glowSprite, sparks } from './props.js';
-import { CAST, loadPerson, POSES, mix, talking, walking } from './people.js';
+import { CAST, loadPerson, POSES, ACTION_POSES, mix, talking, walking } from './people.js';
 import { makeThing, thingAction } from './things.js';
 
 import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D, effect3d } from './vocab.js';
@@ -281,9 +282,60 @@ function poseNow(p, name, t, { talk = 0, onset = 0.25, from = 'stand', seed = 0,
   p.pose({ ...q, ...(extra || {}) }, t, { seed });
 }
 // Builds one engine shot from a spec. people: { id: Person }.
+// 2.0: what each action needs from a map, small things for the hands, and accessories on the head.
+const ACT_SPOT = { sleep: ['bed'], sit: ['sit'], type: ['type', 'sit'], eat: ['eat', 'sit'], drink: ['sit'], dig: ['dig'], phone: ['sit'] };
+const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm']);
+function actPose(act, t, seated = false) {
+  if (act === 'eat' || act === 'drink') { const q = mix(ACTION_POSES.eatDown, ACTION_POSES.eatUp, (Math.sin(t * 2.6) + 1) / 2); return seated ? { ...q, legL: ACTION_POSES.sit.legL, legR: ACTION_POSES.sit.legR, hipDrop: 44 } : q; }
+  if (act === 'dig') return mix(ACTION_POSES.digUp, ACTION_POSES.digDown, (Math.sin(t * 4.2) + 1) / 2);
+  if (act === 'doze') return { ...ACTION_POSES.sit, blink: 1, head: [0.35, 0, 0.12] };
+  return POSES[act] || null;
+}
+function handThing(act) {
+  const g = new THREE.Group();
+  if (act === 'dig') {
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.15, 10), std({ color: 0xc8a24a })); shaft.position.y = -0.35; g.add(shaft);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.02), std({ color: 0x6b7480, metalness: 0.6, roughness: 0.4 })); blade.position.y = -0.98; g.add(blade);
+  } else if (act === 'carry') {
+    const bag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 12), std({ color: 0xb59a68, roughness: 0.95 })); bag.scale.y = 1.2; bag.position.y = -0.15; g.add(bag);
+    const tie = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.08, 10), std({ color: 0xa8935f })); tie.position.y = -0.02; g.add(tie);
+  } else if (act === 'eat') {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), std({ color: 0xc8823a })); m.scale.set(1.3, 0.9, 0.9); g.add(m);
+  } else if (act === 'drink') {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.12, 16), std({ color: 0xf4f1ea })); g.add(cup);
+  } else if (act === 'phone') {
+    const ph = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.15, 0.075), std({ color: 0x22262e, roughness: 0.3 })); g.add(ph);
+  } else return null;
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+/** accessories on a 3D person: built once, placed from the head and the body's facing every frame */
+function accessories(list) {
+  if (!list?.length) return null;
+  const g = new THREE.Group(), dark = std({ color: 0x15171c, roughness: 0.25, metalness: 0.2 });
+  for (const a of list) {
+    if (a === 'shades' || a === 'glasses') { for (const s of [-1, 1]) { const l = new THREE.Mesh(a === 'shades' ? new THREE.BoxGeometry(0.05, 0.03, 0.008) : new THREE.TorusGeometry(0.02, 0.003, 6, 18), a === 'shades' ? dark : std({ color: 0x2b2f38 })); l.position.set(s * 0.032, a === 'shades' ? 0.095 : 0.07, 0.1); g.add(l); } const br = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.005, 0.005), dark); br.position.set(0, a === 'shades' ? 0.1 : 0.075, 0.103); g.add(br); }
+    if (a === 'headset') { const band = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.009, 8, 24, Math.PI), std({ color: 0x2b2f38 })); band.position.set(0, 0.08, 0); g.add(band); for (const s of [-1, 1]) { const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16), std({ color: 0x2b2f38 })); cup.rotation.z = Math.PI / 2; cup.position.set(s * 0.1, 0.07, 0); g.add(cup); } const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.13, 6), std({ color: 0x2b2f38 })); mic.rotation.set(0.25, 0, 1.25); mic.position.set(0.06, 0.02, 0.08); g.add(mic); }
+    if (a === 'cigar') { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.1, 8), std({ color: 0x7a4a2a })); c.rotation.set(Math.PI / 2, 0, 0.3); c.position.set(0.03, 0.015, 0.13); g.add(c); const tip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff7a2a })); tip.position.set(0.045, 0.015, 0.18); g.add(tip); }
+    if (a === 'headlamp') { const band = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.01, 6, 28), std({ color: 0xf4f1ea })); band.rotation.x = Math.PI / 2; band.position.y = 0.15; g.add(band); const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.03, 14), new THREE.MeshBasicMaterial({ color: 0xfff6c8 })); lamp.rotation.x = Math.PI / 2; lamp.position.set(0, 0.15, 0.1); g.add(lamp); }
+    if (a === 'chain') { const gold = std({ color: 0xe8b923, metalness: 0.9, roughness: 0.25 }); const ch = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.007, 8, 28, Math.PI), gold); ch.rotation.z = Math.PI; ch.position.set(0, -0.13, 0.11); g.add(ch); const med = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.008, 18), gold); med.rotation.x = Math.PI / 2; med.position.set(0, -0.23, 0.115); g.add(med); }
+  }
+  return g;
+}
+
 export function buildShot(spec, people, { makeStage, W, H }) {
-  const scene = makeStage(stageFor(spec.set));
-  buildSet(scene, spec.set, spec.seed);
+  // 2.0: a scene in a named place is played in its map (maps3d.js), moved so the action's spot (the bed, the chair,
+  // the hole) is where the lead stands
+  const map = spec.map && MAP_NAMES.includes(spec.map) ? spec.map : '';
+  const scene = makeStage(stageFor(map ? (OUTDOOR_MAPS.has(map) ? 'park' : 'room') : spec.set));
+  let spotY = 0, act = spec.act || '';
+  if (map) {
+    const m = buildMapInto(scene, map, spec.mapSeed || 1);
+    if (act === 'sleep' && !m?.spots.bed) act = 'doze';
+    const name = (ACT_SPOT[act === 'doze' ? 'sit' : act] || []).find(n => m?.spots[n]);
+    if (m && name) { const sp = m.spots[name]; m.root.position.set(-sp[0], 0, -sp[2]); spotY = sp[1]; }
+  } else buildSet(scene, spec.set, spec.seed);
+  if (!map && act === 'sleep') act = 'doze';
   const wide = W > H, fov0 = wide ? 30 : 34;
   const c = cam(fov0); c.near = 0.03; c.far = 400;
   const P = spec.cast.map(id => people[id]).filter(Boolean);
@@ -310,13 +362,20 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   const at = (p, x, z, ry) => { scene.add(p.object); p.object.position.set(x, 0, z); p.object.rotation.set(0, ry, 0); };
   const chest = (p) => { const h = p.headWorld(new THREE.Vector3()); return h.add(new THREE.Vector3(0, -0.32, 0.12)); };
   const lookAt = (p) => p.headWorld(new THREE.Vector3());
+  // the lead's action as a pose (eating and digging swing), its hand thing and accessories
+  const seated = ['sit', 'type', 'doze'].includes(act) || (['eat', 'drink'].includes(act) && map === 'kitchen');
+  const actQ = (t) => (P[0] && act && act !== 'sleep' ? actPose(act, t, seated) : act === 'sleep' ? { ...ACTION_POSES.sleep } : null);
+  const inHand = handThing(act); if (inHand) scene.add(inHand);
+  const acc = accessories(spec.acc); if (acc) scene.add(acc);
+  const laptop = act === 'type' ? (() => { const l = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), std({ color: 0x9aa2ac })); l.add(b); const sc = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.015), std({ color: 0x2b2f38 })); sc.position.set(0, 0.11, -0.12); sc.rotation.x = -0.25; l.add(sc); l.position.set(0, 0.62, 0.36); scene.add(l); return l; })() : null;
 
   return { scene, camera: c, update(t) {
     const k = easeInOut(range(t, 0, dur));
     let focusD = 0, ap = 0, target = V(0, 1.2, 0), eff = null;
     let spot = null, hand = null, tScale = 1;
     const A = P[0], B = P[1], C = P[2];
-    const talk = speakingAt(words, t) ? 0.9 : 0;
+    // 2.0: the narrator is a voice off screen: mouths move with the narration only when a shot asks (lip)
+    const talk = spec.lip && speakingAt(words, t) ? 0.9 : 0;
     // Someone holding the thing raises it in the right hand (the show pose); the thing follows the hand.
     if (holds && A) hand = () => A.handWorld('r', new THREE.Vector3());
     const pose0 = holds ? 'show' : null;
@@ -341,15 +400,19 @@ export function buildShot(spec, people, { makeStage, W, H }) {
       }
       case 'talk': {
         at(A, 0, 0, 0.18);
-        poseNow(A, pose0 || (spec.pose === 'stand' ? 'talk' : spec.pose), t, { talk, from: 'talk', seed: spec.seed });
-        target = lookAt(A).add(V(0, -0.12, 0));
-        focusD = frameCam(c, target, { dist: 1.9 * near, height: 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
+        if (actQ(t)) A.pose(actQ(t), t, { seed: spec.seed });
+        else poseNow(A, pose0 || (spec.pose === 'stand' ? (spec.lip ? 'talk' : 'stand') : spec.pose), t, { talk, from: 'stand', seed: spec.seed });
+        if (act === 'sleep' && A) { A.object.position.set(0.9, spotY + 0.12, 0); A.object.rotation.set(0, 0, Math.PI / 2); }
+        // an action is framed wide enough to see it: the whole body and what is in the hands, the place around
+        const acting = act && act !== 'phone' && act !== 'drink' && act !== 'eat';
+        target = acting ? (act === 'sleep' ? lookAt(A).add(V(0.7, -0.05, 0)) : chest(A).add(V(0, -0.25, 0))) : lookAt(A).add(V(0, -0.12, 0));
+        focusD = frameCam(c, target, { dist: (acting ? (tall ? 3.3 : 2.7) : act ? 2.4 : 1.9) * near, height: acting ? 0.45 : 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
         ap = 0.0018; eff = chest(A); break;
       }
       case 'two': {
         const gap = tall ? 0.34 : 0.55;
         at(A, -gap, 0, tall ? 0.55 : 0.9); at(B, gap, 0.05, tall ? -0.55 : -0.9);
-        poseNow(A, pose0 || 'talk', t, { talk, from: 'talk', seed: spec.seed });
+        if (actQ(t)) A.pose(actQ(t), t, { seed: spec.seed }); else poseNow(A, pose0 || (spec.lip ? 'talk' : 'stand'), t, { talk, from: 'stand', seed: spec.seed });
         poseNow(B, spec.pose, t, { from: 'stand', onset: dur * 0.4, seed: spec.seed + 1 });
         if (thing && !holds) { spot = lookAt(A).lerp(lookAt(B), 0.5).add(V(0, -0.75, 0.25)); tScale = 1.4; }
         target = lookAt(A).lerp(lookAt(B), 0.5).add(V(0, -0.2, 0));
@@ -365,7 +428,7 @@ export function buildShot(spec, people, { makeStage, W, H }) {
       }
       case 'wide': {
         at(A, -0.4, 0, 0.3); if (B) at(B, 0.7, -0.6, -0.4);
-        poseNow(A, spec.pose, t, { from: 'stand', onset: 0.4, seed: spec.seed }); if (B) poseNow(B, 'stand', t, { seed: spec.seed + 3 });
+        if (actQ(t)) A.pose(actQ(t), t, { seed: spec.seed }); else poseNow(A, spec.pose, t, { from: 'stand', onset: 0.4, seed: spec.seed }); if (B) poseNow(B, 'stand', t, { seed: spec.seed + 3 });
         target = V(0.1, 1.0, -0.2);
         focusD = frameCam(c, target, { dist: 7.5 * near, height: 1.6, yaw: 0.35 }, spec.camera === 'impact' ? 'pull-out' : spec.camera, k, t, spec.seed, fov0);
         eff = chest(A); break;
@@ -398,6 +461,13 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         ap = 0.0009; eff = chest(A); break;
       }
     }
+    if (A && inHand) {
+      const hp = A.handWorld('r', new THREE.Vector3());
+      inHand.position.copy(hp); inHand.rotation.set(act === 'dig' ? 0.45 : 0, A.object.rotation.y, act === 'dig' ? -0.25 : 0);
+      if (act === 'phone') inHand.position.add(V(0.02, 0.04, 0.02));
+    }
+    if (A && acc) { acc.position.copy(lookAt(A)); acc.rotation.set(0, A.object.rotation.y, A.object.rotation.z); }
+    if (laptop && A) laptop.position.set(A.object.position.x, 0.62, A.object.position.z + 0.36);
     if (thing) {
       if (!spot && !hand) {
         // Not held and not placed by the shot: it lands or spins beside the first person.

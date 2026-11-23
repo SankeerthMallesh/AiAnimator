@@ -1,0 +1,152 @@
+{
+ "title": "The Prisoner Who Tunneled Into a Bank",
+ "hookText": "He dug with a spoon",
+ "characters": [
+  {
+   "name": "Rick",
+   "look": "man, casual clothes"
+  },
+  {
+   "name": "Hank",
+   "look": "man, white shirt"
+  }
+ ],
+ "scenes": [
+  {
+   "narration": "In 1971 an inmate named Rick had a crazy plan.",
+   "set": "room",
+   "frame": "wide",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cell",
+   "action": "",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "Every night he dug through his cell floor.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cell",
+   "action": "dig",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "The guard was supposed to watch him.",
+   "set": "room",
+   "frame": "two",
+   "who": [
+    "Hank",
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cellblock",
+   "action": "",
+   "acc": [
+    "shades"
+   ]
+  },
+  {
+   "narration": "But the guard always fell asleep.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Hank"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cellblock",
+   "action": "sleep",
+   "acc": [
+    "shades"
+   ]
+  },
+  {
+   "narration": "Rick stuffed his pockets with cash.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "vault",
+   "action": "carry",
+   "acc": [
+    "cigar",
+    "chain"
+   ]
+  },
+  {
+   "narration": "Mission control called the warden.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Hank"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "control",
+   "action": "phone",
+   "acc": [
+    "headset"
+   ]
+  },
+  {
+   "narration": "Then he hacked the bank computer.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "office",
+   "action": "type",
+   "acc": [
+    "glasses"
+   ]
+  },
+  {
+   "narration": "And ate breakfast like nothing happened.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "kitchen",
+   "action": "eat",
+   "acc": []
+  }
+ ]
+}

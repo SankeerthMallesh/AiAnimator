@@ -181,6 +181,19 @@ export const POSES = {
   show: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.22, -0.82, 0.5, 0.02, 0.3, 1, { fist: 0.55 }), head: [0.12, 0.08, 0], brows: 0.3 },
   flinch: { armL: A(0.3, -0.3, 0.8, -0.4, 1, 0.3, { fist: 0.5 }), armR: A(-0.3, -0.3, 0.8, 0.4, 1, 0.3, { fist: 0.5 }), head: [0.25, 0.3, 0], spine: [0.25, 0.2, 0], blink: 1, brows: -0.6, hipDrop: 4 },
 };
+// 2.0: actions (not pose words the writer uses: a scene's "action" picks them). Sitting: thighs forward, shins down,
+// hips lowered to a chair seat (cm); hands on the knees.
+export const ACTION_POSES = {
+  sit: { legL: A(0.06, -0.08, 1, 0.02, -1, 0.08), legR: A(-0.06, -0.08, 1, -0.02, -1, 0.08), armL: A(0.2, -0.85, 0.45, 0.05, -0.35, 1), armR: A(-0.2, -0.85, 0.45, -0.05, -0.35, 1), hipDrop: 44, spine: [0.04, 0, 0] },
+  type: { legL: A(0.06, -0.08, 1, 0.02, -1, 0.08), legR: A(-0.06, -0.08, 1, -0.02, -1, 0.08), armL: A(0.18, -0.6, 0.75, 0.1, -0.2, 1, { fist: 0.1 }), armR: A(-0.18, -0.6, 0.75, -0.1, -0.2, 1, { fist: 0.1 }), hipDrop: 44, spine: [0.12, 0, 0], head: [0.2, 0, 0] },
+  eatDown: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.25, -0.85, 0.45, -0.05, -0.1, 1, { fist: 0.75 }), head: [0.05, 0, 0] },
+  eatUp: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.22, -0.55, 0.75, 0.45, 0.8, 0.4, { fist: 0.75 }), head: [-0.04, 0, 0], jaw: 0.6 },
+  phone: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.55, -0.45, 0.3, 0.35, 1, 0.1, { fist: 0.65 }), head: [0, 0, -0.1], brows: 0.2 },
+  digUp: { armL: A(0.25, -0.55, 0.8, -0.1, 0.25, 1, { fist: 0.9 }), armR: A(-0.25, -0.8, 0.55, 0.08, -0.35, 1, { fist: 0.9 }), spine: [0.15, 0, 0] },
+  digDown: { armL: A(0.2, -0.85, 0.5, 0, -0.85, 0.6, { fist: 0.9 }), armR: A(-0.2, -0.92, 0.3, 0, -0.95, 0.35, { fist: 0.9 }), spine: [0.5, 0, 0], head: [0.25, 0, 0] },
+  carry: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.28, -1, 0.05, -0.2, -1, 0.15, { fist: 0.95 }), spine: [0, 0, -0.06] },
+  sleep: { armL: A(0.1, -1, 0.2, 0.3, -0.2, 1), armR: A(-0.1, -1, 0.2, -0.3, -0.2, 1), blink: 1, head: [0, 0, 0.15] },
+};
 
 // Blends two poses (k = 0 gives a, 1 gives b). Directions are mixed and renormalised in pose().
 export function mix(a, b, k) {
