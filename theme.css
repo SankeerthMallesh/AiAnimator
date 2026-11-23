@@ -396,3 +396,54 @@ html:root[data-theme="light"] .lt-tab[aria-current="page"] { color: #FFFFFF; }
 html:root .ideabox .ib-cat.on { background: var(--grad); color: #FFFFFF; border-color: transparent; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3); }
 html:root .ideabox .ib-idea { background: var(--glass), var(--paper); border-color: var(--glass-line); box-shadow: var(--glass-rim); }
 html:root .ideabox .ib-idea:hover { border-color: var(--red-line); background: linear-gradient(180deg, rgba(255, 45, 71, .1), rgba(255, 45, 71, .03)), var(--paper); }
+
+/* =====================================================================================================
+   Loomy 1.6.1: calmer red. Red is kept for three things only: the main action button, the chosen tab and
+   the version badge. Everything else is white and grey glass (chips, menus, focus, hovers, backdrops).
+   ===================================================================================================== */
+html:root:not([data-theme="light"]) {
+  --accent: #FAFAFA; --accent-ink: #FFFFFF; --accent-soft: rgba(255, 255, 255, .08); --accent-tint: #1A1A1D; --on-accent: #0A0A0A;
+  --value: #EDEDED; --tag: #D4D4D8; --tag-bg: rgba(255, 255, 255, .08);
+  --sel-line: rgba(255, 255, 255, .55); --sel-fill: rgba(255, 255, 255, .07); --glow: rgba(255, 255, 255, .06);
+}
+html:root[data-theme="light"] {
+  --accent: #111114; --accent-ink: #111114; --accent-soft: rgba(0, 0, 0, .05); --accent-tint: #F1F1F3; --on-accent: #FFFFFF;
+  --value: #111114; --tag: #3F3F46; --tag-bg: rgba(0, 0, 0, .05);
+  --sel-line: rgba(0, 0, 0, .45); --sel-fill: rgba(0, 0, 0, .04);
+}
+/* Plain backdrops: no red lights behind the glass. */
+html:root body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255, 255, 255, .05), transparent 62%), var(--bg) fixed; }
+html:root[data-theme="light"] body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255, 255, 255, .9), transparent 62%), var(--bg) fixed; }
+::selection { background: rgba(255, 255, 255, .22); }
+html:root[data-theme="light"] ::selection { background: rgba(0, 0, 0, .14); }
+:focus-visible { outline-color: var(--accent); }
+
+/* Chosen chips and segments: solid white (black in light mode), not red. */
+html:root .view.home .sheet-tabs button.on, html:root .view.home .frames button.on,
+html:root .thumbkit .seg button.on, html:root .ideabox .ib-cat.on {
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25); }
+html:root[data-theme="light"] .view.home .sheet-tabs button.on, html:root[data-theme="light"] .view.home .frames button.on { background: #111114; color: #FFFFFF; border-color: #111114; }
+/* Hovers and selections: grey glass. */
+html:root .btn.ghost:hover, html:root .masthead .nav-btn.primary:hover { background: var(--sel-fill); border-color: var(--sel-line); }
+html:root .view.home .frames button:hover, html:root .view.home .sheet-tabs button:hover, .lt-tab:hover { border-color: var(--sel-line); }
+html:root .view.home .sheet:focus-within, html:root:not([data-theme="light"]) .view.home .sheet:focus-within {
+  border-color: var(--sel-line); box-shadow: var(--glass-rim), 0 0 0 1px var(--sel-line), 0 22px 60px -30px rgba(0, 0, 0, .8); }
+html:root .board .scene.sel, html:root .history .item.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+html:root .track li.active { box-shadow: 0 0 0 1px var(--accent); }
+html:root .edit-shot:hover { background: var(--accent); color: var(--on-accent); }
+html:root .thumbkit .thumb-frame.on { border-color: var(--accent); }
+html:root .long-start.on { box-shadow: 0 0 0 1px var(--sel-line); background: var(--sel-fill); }
+html:root .ideabox .ib-idea:hover { border-color: var(--sel-line); background: var(--glass), var(--paper); }
+html:root input[type="range"], html:root input[type="checkbox"], html:root input[type="radio"] { accent-color: var(--accent); }
+/* Hero: white headline, neutral badge and dots. */
+html:root:not([data-theme="light"]) .view.home .headline { background: linear-gradient(180deg, #FFFFFF 45%, #C9C9CF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html:root:not([data-theme="light"]) .view.home .brief-col { background: radial-gradient(60% 42% at 18% 0%, rgba(255, 255, 255, .06), transparent 70%); }
+html:root .view.home .hero-badge b { background: var(--tag-bg); color: var(--ink); border: 1px solid var(--glass-line); }
+.feature-pills li::before { background: var(--muted); box-shadow: none; }
+html:root .view.home .ideas button:hover { background: var(--glass), var(--panel); }
+html:root .view.home .ideas button:hover::after { color: var(--ink); }
+html:root .view.home .how-list li::before { border-color: var(--line-2); color: var(--ink); }
+/* The main action keeps the red; the glow is smaller. */
+html:root .view.home .go, html:root .go, html:root .btn.primary, html:root .runway-btn {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), inset 0 -1px 0 rgba(0, 0, 0, .18), 0 6px 18px -10px rgba(255, 45, 71, .55); }
+html:root .lt-tab[aria-current="page"] { background: var(--grad); color: #FFFFFF; border-color: transparent; }

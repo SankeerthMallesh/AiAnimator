@@ -115,6 +115,14 @@ html, body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255,45,7
 .news-card .ok { border-radius: 999px; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 30px -10px rgba(255,45,71,.8); }
 .toast { background: rgba(255,255,255,.92); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-radius: 14px; }
 @media (prefers-reduced-transparency: reduce) { .top, .acct-menu, .news-card { -webkit-backdrop-filter: none; backdrop-filter: none; background: #111114; } }
+/* 1.6.1: calmer red: only the chosen tab and the version badge are red here. */
+html, body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255,255,255,.05), transparent 62%), var(--bg); }
+.top::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent); }
+.tab:hover { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.06); }
+.tab[aria-selected="true"] { box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 6px 18px -10px rgba(255,45,71,.6); }
+.acct-menu, .news-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 30px 80px -20px rgba(0,0,0,.8); }
+.acct-menu button:hover { background: rgba(255,255,255,.08); }
+.news-card li::before { background: #A1A1AA; }
 </style>
 </head>
 <body>
@@ -199,7 +207,7 @@ html, body { background: radial-gradient(1100px 620px at 88% -12%, rgba(255,45,7
   </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
-<script src="account.js?v=202611222330"></script>
+<script src="account.js?v=202611230238"></script>
 <script>
 (() => {
   const SECTIONS = {
