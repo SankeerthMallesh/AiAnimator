@@ -506,7 +506,8 @@ export class Pipeline {
           canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
           renderer = this.makeRenderer(canvas, { width, height });
           if (renderer.ready) await renderer.ready;
-          this.log(`To finish within the 7-minute limit this video renders at ${plan.short}p, ${plan.fps} fps (this computer draws a frame in about ${Math.round(ms)} ms; about ${plan.estS} s to render, ${plan.leftS} s left).`);
+          this.log(plan.fits ? `To finish within the 7-minute limit this video renders at ${plan.short}p, ${plan.fps} fps (this computer draws a frame in about ${Math.round(ms)} ms; about ${plan.estS} s to render, ${plan.leftS} s left).`
+            : `This computer draws a frame in about ${Math.round(ms)} ms, so the video renders at ${plan.short}p, ${plan.fps} fps (smooth motion is kept): about ${Math.round(plan.estS / 60)} min to render, longer than the 7-minute target.`);
         } else this.log(`Render fits the 7-minute limit: about ${plan.estS} s for ${Math.round(total)} s of video (${Math.round(ms)} ms a frame).`);
       } catch (e) { this.log(`Could not time the render (${e?.message || e}); keeping the chosen quality.`); }
     }
