@@ -1,11 +1,14 @@
 // L5: the Cartoons tab's "3D cartoon town, drawn in code" look: the cartoon-3d-short engine (cartoon/js/c3d,
 // source tools/c3d-src) playing the script's scenes as templated shots in its riverside town (the bridge
-// deck, the riverbank, the park, an aerial over the river), cut on Loomy's shot plan. Same face as Stage for
+// deck, the riverbank, the park, an aerial over the river), cut on Loomy's shot plan. 2.0: lines about a place
+// (a prison, a bank vault, mission control...) are played in that place's 2.5D map (maps.js), the lead doing the
+// line's action, while the narrator stays off screen. Same face as Stage for
 // the encoder: canvas, W, H, drawFrame(t), dispose(), plus a ready promise. Captions are off unless asked for.
 import { planShots } from '../../explainer/js/z3d/plan.js';
 import { Stage } from './stage.js';
 import { glare } from '../../shared/glare.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt } from '../../shared/hooks.js';
+import { mapFor, actFor, outfitLook, mapSeed } from './maps.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
 const PLACE = {
@@ -28,6 +31,8 @@ const HAIR = { brown: '#7a4a28', black: '#2a2422', blonde: '#d8a845', red: '#b85
 export function townLooks(cast = []) {
   return cast.map((c) => {
     if (!c) return null;
+    // 2.0: outfits (prison, guard, astronaut...), the right hats and accessories (headsets, cigars, shades...)
+    if (c.outfit || c.acc || ['beanie', 'hardhat', 'chef', 'crown', 'helmet', 'headset'].includes(c.hat)) return outfitLook(c);
     const hair = HAIR[c.hair] || HAIR.brown;
     const jacket = c.costume === 'labcoat' ? '#f2f4f7' : c.costume === 'suit' ? '#2c3e6b' : c.color || '#3f6fb5';
     const capped = ['cap', 'officer', 'conductor', 'hardhat', 'beanie', 'flatcap', 'helmet'].includes(c.hat);
@@ -60,12 +65,23 @@ export function townShots(timeline, script, theme = 'town') {
   const castMap = new Map(ids.map((id, k) => [id, k]));
   const scenes = townScenes(timeline.scenes);
   const specs = withTeaser(planShots(scenes, castMap), teaserIndex(scenes, script?.teaser));
+  const topic = `${script?.title || ''} ${script?.topic || ''}`, seed = mapSeed(script || {});
   const shots = specs.map((s, k) => {
     const sc = timeline.scenes[s.scene];
     const set = sc?.set || 'city';
-    const place = s.scene === 0 && !s.teaser && (k === 0 || specs[k - 1]?.teaser) ? 'town' : theme === 'viking' ? VIKING_PLACE(set) : PLACE[set] || 'bridge';
+    // 2.0: the line's own 2.5D map (a prison cell, a bank vault...); the town only when the story is in the street
+    const map = theme === 'viking' ? '' : mapFor(sc || {}, topic);
+    const place = map || (s.scene === 0 && !s.teaser && (k === 0 || specs[k - 1]?.teaser) ? 'town' : theme === 'viking' ? VIKING_PLACE(set) : PLACE[set] || 'bridge');
+    // the line's action is always shown: a walking shot of a line with an action becomes a shot of the action
+    const lineAct = map ? actFor(sc || {}) : '';
+    const kind = lineAct && s.kind === 'walk' ? 'talk' : s.kind;
+    const act = ['talk', 'wide', 'two', 'point'].includes(kind) ? lineAct : '';
+    // background people: the cast members not in this shot (up to two), only inside a map
+    const inShot = new Set(s.cast.filter(c => typeof c === 'number'));
+    const extras = map ? ids.map((_, i) => i).filter(i => !inShot.has(i)).slice(0, 2) : [];
     return {
-      start: s.start, end: s.end, kind: s.kind, place: place === 'town' && s.kind !== 'wide' ? 'bridge' : place,
+      mapSeed: seed, act, extras,
+      start: s.start, end: s.end, kind, place: place === 'town' && kind !== 'wide' ? 'bridge' : place,
       cast: s.cast.map(c => (typeof c === 'number' ? c : ids.length + (k % 3))), pose: s.pose, camera: s.camera,
       light: GOLDEN.has(set) ? 'golden' : 'day', seed: s.seed, words: (s.words || []).map(w => ({ start: (sc?.start || 0) + w.start, end: (sc?.start || 0) + w.end })),
       effect: s.effect, icon: s.icon, teaser: !!s.teaser,

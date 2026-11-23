@@ -9314,12 +9314,13 @@ var stageTemplate = (people, effects, cam, t, light) => {
     const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
     const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
     const prop2 = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone" : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
-    const asleep = act === "sleep";
+    const asleep = act === "sleep", dozing = act === "doze";
     const fo = {
-      mode: act === "sit" || act === "type" ? "sit" : walking ? "stroll" : "stand",
+      mode: act === "sit" || act === "type" || dozing ? "sit" : walking ? "stroll" : "stand",
       phase: walking ? q(m.walk % 1, 120) : 0,
-      expr: asleep ? "relief" : m.expr,
-      blink: asleep ? 1 : lidAt(t, 500 + i * 7),
+      expr: asleep || dozing ? "relief" : m.expr,
+      blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7),
+      ...dozing ? { headTilt: 14 } : {},
       wave: m.wave == null || prop2 ? void 0 : q(m.wave, 30),
       facing: m.facing ?? 0,
       ...prop2 ? { prop: prop2 } : {}
@@ -9328,7 +9329,7 @@ var stageTemplate = (people, effects, cam, t, light) => {
     const pl = person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1);
     if (asleep) pl.roll = Math.PI / 2;
     out.places.push(pl);
-    if (asleep) out.fx.push({ key: `zz${q(t * 0.8 % 1, 8)}`, cw: 300, ch: 300, draw: (p) => fxZz(p, t * 0.8 % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
+    if (asleep || dozing) out.fx.push({ key: `zz${q(t * 0.8 % 1, 8)}`, cw: 300, ch: 300, draw: (p) => fxZz(p, t * 0.8 % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
     if (!asleep) blob(out, m.x, D0 + (m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {
@@ -10516,6 +10517,25 @@ function frameAt(s, t) {
     lookY = 1.25;
     fov = 40;
   }
+  if (s.at && s.kind === "talk") {
+    dist = 4;
+    h = 1.55;
+    lookY = 1.15;
+    fov = 38;
+    cInf = 6;
+  }
+  if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
+    const back = -1.9, a = s.extras[0], b = s.extras[1];
+    const across = lerp(-1.4, 1.4, clamp012((t + s.seed % 3) / Math.max(dur, 2.5)));
+    {
+      const [x, z] = at(across * (s.seed % 2 ? 1 : -1), back);
+      people.push({ look: a, x, z, expr: "neutral", walk: t * 0.9, facing: s.seed % 2 ? -1 : 1 });
+    }
+    if (b != null) {
+      const [x, z] = at(s.seed % 2 ? -0.95 : 0.95, back + 0.3);
+      people.push({ look: b, x, z, expr: FACE2[s.pose] === "shock" ? "shock" : "neutral" });
+    }
+  }
   const pos = [mx + dx * dist + rx * side, my + h, mz + dz * dist + rz * side];
   const look = [mx + rx * (lookSide + side * 0.6), my + lookY, mz + rz * (lookSide + side * 0.6)];
   const L = LIGHTS[s.light], az = L.az * Math.PI / 180, el = L.el * Math.PI / 180;
@@ -11372,7 +11392,7 @@ var MAPS = {
     }), C2("#5a6270"), 4);
     beam2(g, 0.4, 1.4, 1.2, 1.4, 3.6, -0.5);
     P_.shelf(g, 2.2, 1.6, 2.45, 1, 3, 7);
-    return { spots: { bed: [-2, 0.6, 1.5], sit: [-1.4, 0.45, 1.1], dig: [0.9, 0, 0.6] } };
+    return { spots: { bed: [-2, 0.6, 1.5], sit: [0.3, 0.45, 0.5], dig: [0.9, 0, 0.6] } };
   },
   // a cell block: a corridor of barred cell fronts, ceiling lights and painted numbers
   cellblock(g, r) {
@@ -11436,7 +11456,7 @@ var MAPS = {
     P_.paper(g, 1.8, 1, 2.2);
     P_.plant(g, 2, 1.43, 2.25, 0.8);
     B(g, 0.08, 2.6, 0.08, C2("#e8823a"), 2.6, 0.2, 2.2);
-    return { spots: { sit: [1, 0.45, 1.6] } };
+    return { seated: true, spots: { sit: [1, 0.45, 1.6] } };
   },
   // mission control: rows of consoles, a big screen counting down, a clock strip, ceiling light panels
   control(g, r) {
@@ -11465,7 +11485,7 @@ var MAPS = {
     for (let k = 0; k < 4; k++) P_.monitor(g, -1.5 + k, 0.9, 1.85, k + 11);
     P_.seat(g, -0.9, 0.9);
     P_.seat(g, 0.9, 0.9);
-    return { spots: { sit: [-0.9, 0.45, 0.8] }, night: true };
+    return { seated: true, spots: { sit: [-0.9, 0.45, 0.8] }, night: true };
   },
   classroom(g, r) {
     room(g, { w: 9, zb: 3, h: 3.4, floor: T3("clsfloor", 512, 512, planksFloor("#c99a66", "#bb8c5a"), 4, 6), wall: T3("clswall", 512, 512, blocks("#f1ead6", pick2(r, ["#6f9a6a", "#7a8fb8", "#c9a06a"]), "#4a5a3a"), 3, 1), ceil: C2("#efe9dc") });
@@ -11485,7 +11505,7 @@ var MAPS = {
     side.rotation.y = -Math.PI / 2;
     g.add(side);
     P_.window(side, 0, 1.8, 0, 2.4, 1.2, GLOW("skyline", 1024, 512, skyline));
-    return { spots: { sit: [-1.2, 0.45, -2] } };
+    return { seated: true, spots: { sit: [-1.2, 0.45, -2] } };
   },
   office(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.2, floor: T3("offfloor", 512, 512, carpet("#7d8792", "#6d7782"), 6, 8), wall: T3("offwall", 512, 512, panels("#e9eef4", "#c9d1db"), 3, 1), ceil: C2("#f2f4f7") });
@@ -11497,7 +11517,7 @@ var MAPS = {
     }
     P_.waterCooler(g, 4.3, 2.8);
     P_.plant(g, -4.3, 0, 2.9, 3);
-    return { spots: { sit: [0, 0.45, 0.8], type: [0, 0, 0.9] } };
+    return { seated: true, spots: { sit: [0, 0.45, 0.8], type: [0, 0, 0.9] } };
   },
   kitchen(g, r) {
     room(g, { w: 8, zb: 3, h: 3.2, floor: T3("kfloor", 512, 512, checker("#f4f1ea", pick2(r, ["#c8102e", "#2f6b8f", "#2b2f38"]), 6), 4, 6), wall: T3("kwall", 512, 512, tiles("#f6f2ea", "#ddd5c6", 10), 3, 1), ceil: C2("#f2ede4") });
@@ -11508,7 +11528,7 @@ var MAPS = {
     P_.table(g, -1.5, -0.6, 1.2, 0.8, "#c79260");
     P_.chair(g, -2.3, -0.6, Math.PI / 2, "#a8724a");
     P_.chair(g, -0.7, -0.6, -Math.PI / 2, "#a8724a");
-    return { spots: { sit: [-2.3, 0.45, -0.6], eat: [-1.5, 0.78, -0.6] } };
+    return { seated: true, spots: { sit: [-2.3, 0.45, -0.6], eat: [-1.5, 0.78, -0.6] } };
   },
   diner(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.4, floor: T3("dfloor", 512, 512, checker("#f4f1ea", "#1e1f24", 6), 5, 8), wall: T3("dwall", 512, 512, blocks("#fbe9c8", "#c8102e", "#f4f1ea"), 3, 1), ceil: C2("#f2ede4") });
@@ -11523,7 +11543,7 @@ var MAPS = {
       c.font = "700 40px Arial";
       c.fillText("BURGERS  SHAKES  FRIES", 24, 78);
     }));
-    return { spots: { sit: [-0.6, 0.7, 1.9], eat: [-3.4, 0.78, 1] } };
+    return { seated: true, spots: { sit: [-0.6, 0.7, 1.9], eat: [-3.4, 0.78, 1] } };
   },
   livingroom(g, r) {
     room(g, { w: 9, zb: 3, h: 3.2, floor: T3("lfloor", 512, 512, planksFloor("#b07a4a", "#9e6c40"), 4, 6), wall: T3("lwall", 512, 512, blocks(pick2(r, ["#f3ddb0", "#d9e6f2", "#e8d8f0"]), "#c9935e", "#8a5a3c"), 3, 1), ceil: C2("#f2ede4") });
@@ -11537,7 +11557,7 @@ var MAPS = {
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(-0.5, 0.01, 0.8);
     g.add(rug);
-    return { spots: { sit: [-1, 0.45, 2.1] } };
+    return { seated: true, spots: { sit: [-1, 0.45, 2.1] } };
   },
   bedroom(g, r) {
     room(g, { w: 8, zb: 3, h: 3, floor: T3("bfloor", 512, 512, carpet("#b8a6d9", "#a896c9"), 4, 6), wall: T3("bwall", 512, 512, blocks(pick2(r, ["#cfe3f5", "#f5d9cf", "#e3f5cf"]), "#7a8fb8", "#4a5a8a"), 3, 1), ceil: C2("#f2ede4") });
@@ -11546,7 +11566,7 @@ var MAPS = {
     B(g, 0.2, 0.3, 0.2, glowCol("#ffe8a8"), -0.4, 0.6, 2.6);
     P_.frame(g, 1.6, 1.9, 2.97, 1, 1.3, GLOW("poster", 256, 256, painting("#5b7fd6", "#f2a65a")));
     B(g, 1.2, 2, 0.6, C2("#a8724a"), 3.2, 0, 2.5);
-    return { spots: { bed: [-1.4, 0.5, 1.6], sit: [-0.8, 0.45, 0.6] } };
+    return { seated: true, spots: { bed: [-1.4, 0.5, 1.6], sit: [-0.8, 0.45, 0.6] } };
   },
   hospital(g, r) {
     room(g, { w: 8, zb: 3, h: 3.2, floor: T3("hfloor", 512, 512, tiles("#d8e6ea", "#c2d2d7", 6), 4, 6), wall: T3("hwall", 512, 512, blocks("#eef6f7", "#9fcfd8", "#6fa9b6"), 3, 1), ceil: C2("#f4f8fa") });
@@ -11576,7 +11596,7 @@ var MAPS = {
     P_.bench(g, -2.6, -3, 2.6);
     P_.bench(g, 2.6, -3, 2.6);
     P_.clock(g, 0, 3.4, 3.55);
-    return { spots: { sit: [-2.6, 0.45, -1.4] } };
+    return { seated: true, spots: { sit: [-2.6, 0.45, -1.4] } };
   },
   museum(g, r) {
     room(g, { w: 11, zb: 3.4, h: 4, floor: T3("mfloor", 512, 512, planksFloor("#9c7350", "#8c6646"), 5, 7), wall: T3("mwall", 512, 512, blocks("#e2d6bf", "#cbbb9c", "#a8977a"), 3, 1), ceil: C2("#efe9dc") });
@@ -11603,7 +11623,7 @@ var MAPS = {
       P_.torch(g, x * 0.6, 2, 4.9);
       P_.column(g, x, 0, 5.5);
     }
-    return { spots: { sit: [0, 0.75, 3.8] } };
+    return { seated: true, spots: { sit: [0, 0.75, 3.8] } };
   },
   shop(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.4, floor: T3("sfloor", 512, 512, tiles("#eef0f3", "#d4d8de", 6), 5, 8), wall: T3("swall", 512, 512, blocks("#f6e6a6", "#e9876b", "#c8102e"), 3, 1), ceil: C2("#f4f4f0") });
@@ -11652,7 +11672,7 @@ var MAPS = {
     P_.log(g, 0.8, 0.2, 0);
     P_.log(g, 1.9, 1.2, 1.4);
     for (let k = 0; k < 10; k++) P_.pine(g, -8 + k * 1.8 + r(), 6 + r() * 6, 1.1 + r() * 0.8);
-    return { spots: { sit: [1.9, 0.3, 1.2] }, outdoor: true };
+    return { seated: true, spots: { sit: [1.9, 0.3, 1.2] }, outdoor: true };
   },
   beach(g, r) {
     P2(g, 40, 22, T3("sand", 512, 512, dirt("#efd9a0", "#e2c78a"), 8, 5), 0, 0, -2, 0, -Math.PI / 2);
@@ -11679,7 +11699,7 @@ var MAPS = {
     P_.cactus(g, 3.4, 4);
     P_.rock(g, 1.6, 1.4, 0.5, "#b8864f");
     P_.rock(g, -4, 4, 0.7, "#a8784a");
-    return { spots: { sit: [1.6, 0.4, 1.4] }, outdoor: true };
+    return { seated: true, spots: { sit: [1.6, 0.4, 1.4] }, outdoor: true };
   },
   farm(g, r) {
     P2(g, 50, 50, T3("farmgr", 512, 512, dirt("#79b85a", "#6aa84f"), 8, 8), 0, 0, 0, 0, -Math.PI / 2);
@@ -11693,7 +11713,7 @@ var MAPS = {
     P_.hay(g, 2.4, 1.6);
     P_.hay(g, 3.6, 2.2);
     P_.tree(g, 5.2, 6, 1.4);
-    return { spots: { sit: [2.4, 1, 1.6] }, outdoor: true };
+    return { seated: true, spots: { sit: [2.4, 1, 1.6] }, outdoor: true };
   }
 };
 var SET_NAMES = Object.keys(MAPS);
@@ -11711,6 +11731,8 @@ function setFor(id, seed = 1, parent) {
     root.position.set(x, D0, 0);
     const r = rng(seed * 7919 + id.length * 131);
     const info = make(root, r, seed) || {};
+    const sp = info.spots?.sit;
+    if (sp && !info.seated) P_.chair(root, sp[0], sp[2] + 0.12, 0, pick2(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
     s = { id, root, origin: [x, D0, 0], spots: info.spots || {}, outdoor: !!info.outdoor, night: !!info.night };
     slots.set(key, s);
     if (parent) parent.add(root);
@@ -11906,7 +11928,8 @@ var View = class {
       at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (s.act === "sit" || s.act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
       actY = sp && s.act === "sleep" ? sp[1] + 0.3 : 0;
     }
-    const fr = frameAt(set ? { ...s, at, actY } : s, local);
+    const act = s.act === "sleep" && !(set && set.spots.bed) ? "doze" : s.act;
+    const fr = frameAt(set ? { ...s, act, at, actY } : s, local);
     if (s.place === "town") {
       fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start));
       fr.people = [];

@@ -2,6 +2,7 @@
 // The free writer often returns truncated or slightly wrong JSON. Repair it.
 // Never fail a video because one field is missing.
 
+import { MAPS, TOWN, ACTS, OUTFITS, ACCESSORIES, storyOutfits } from './maps.js';
 import { splitSentences } from '../../shared/speech.js';
 import { DELIVERIES } from '../../shared/voicefx.js';
 import { lowerTags, compactTitle } from '../../shared/upload.js';
@@ -410,6 +411,9 @@ export class Script {
       hat: Script.oneOf(Cast.HATS, c.hat, ['cap', 'hardhat', 'beanie', 'fedora'][i % 4]),
       hair: Script.oneOf(Cast.HAIR, c.hair, ['brown', 'black', 'blonde', 'red'][i % 4]),
       costume: Script.oneOf(Cast.COSTUMES, c.costume, i === 2 ? 'suit' : 'vest'),
+      // 2.0: what they wear for the story (a prison jumpsuit, a guard's uniform...) and on top of it
+      outfit: OUTFITS.includes(String(c.outfit || '').toLowerCase()) ? String(c.outfit).toLowerCase() : '',
+      acc: (Array.isArray(c.acc) ? c.acc : String(c.acc || '').split(/[\s,]+/)).map(a => String(a).toLowerCase()).filter(a => ACCESSORIES.includes(a)).slice(0, 3),
     }));
     // Every character gets its own colour so they never look like twins.
     {
@@ -425,6 +429,11 @@ export class Script {
       if (c.hair === 'none') c.hair = ['brown', 'black', 'blonde', 'red'][i % 4];
       if (c.hat === 'none' && i % 2 === 1) c.hat = ['cap', 'beanie', 'fedora'][i % 3];
     });
+    // 2.0: no outfits from the writer: dress the cast for the story (inmates and a guard, astronauts...)
+    if (!cast.some(c => c.outfit)) {
+      const dress = storyOutfits(`${options.topic || ''} ${raw.title || ''}`, cast.length);
+      cast.forEach((c, i) => { if (dress[i]) { c.outfit = dress[i].outfit; if (!c.acc.length) c.acc = dress[i].acc.slice(); } });
+    }
     // 1.2: outfits that fit the story when the writer gave none (crews in jumpsuits and headsets,
     // scientists in lab coats), and never two people in the same outfit and hat.
     {
@@ -655,6 +664,9 @@ export class Script {
         cam: Script.cam(s.cam || s.camera, i),
         cut: Script.oneOf(Script.CUTS, s.cut || s.transition, i === 0 ? 'cut' : (i % 3 === 0 ? 'zoom' : 'whip')),
         say,
+        // 2.0: the 2.5D map the line plays in and what the lead does there (maps.js fills in what is missing)
+        map: MAPS.includes(String(s.map || '').toLowerCase()) || TOWN.includes(String(s.map || '').toLowerCase()) ? String(s.map).toLowerCase() : '',
+        do: ACTS.includes(String(s.do || '').toLowerCase()) ? String(s.do).toLowerCase() : '',
         who, props, acts,
         hold: Number(s.hold) > 0 ? Number(s.hold) : 0,
         seed: Number.isFinite(Number(s.seed)) ? Number(s.seed) : Math.floor(Math.random() * 1e9),
@@ -1030,6 +1042,10 @@ Facts: dates, names and numbers must be right. If a popular belief is a myth, sa
 Safety: no nudity, no gore, no blood. People stay clothed. The human body is shown with clothed characters and cute standalone organ props (heart, lungs, stomach), never skin.
 ${Script.crewRule(options)}hats: ${Cast.HATS.join(' ')}. costumes: ${Cast.COSTUMES.join(' ')}. hair: ${Cast.HAIR.join(' ')}.
 sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CUTS.join(' ')}.
+maps (2.5D places drawn in 3D): ${MAPS.join(' ')}, or ${TOWN.join(' ')} for the town. Every scene gets "map": the place the line is happening in, so the picture shows what the narrator talks about (a man in jail: cell, and cellblock when the guards come; a bank heist: banklobby, then vault; astronauts: spacecabin, spacetoilet, control, cockpit; a trial: courtroom). Change the map when the story moves; 3 to 6 different maps per video.
+do: what the main character in "who" is doing in that scene, one of ${ACTS.join(' ')} (dug a tunnel: dig; fell asleep: sleep; stole the cash: carry; ate lunch: eat; called the police: phone; hacked the computer: type).
+outfits: ${OUTFITS.join(' ')}. accessories: ${ACCESSORIES.join(' ')}. Give every character an "outfit" that fits their role (inmates: prison, guards: guard, astronauts: astro, scientists and doctors: coat, bosses and lawyers: suit) and 1 or 2 "acc" that make them memorable (a mission controller's headset, a boss's cigar and gold chain, a guard's shades, a digger's headlamp).
+THE NARRATOR IS ONLY A VOICE: nobody on screen tells the story or talks to the camera. The cast ACTS OUT what the narrator says (digging, eating, sleeping, typing, sneaking, reacting), like characters in a cartoon while a narrator speaks over it.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}. Give every character a different outfit and headwear that fit their job (crews in jumpsuits with a headset or an officer's cap, scientists in lab coats), and change faces with the story (smug when they think they are right, shocked, sleepy, nervous with a sweat drop, skeptical).
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give show drop grow spin break (show/drop/grow/spin/break act on the thing in that character's \"hold\": show raises it to the camera, drop lets it fall, grow makes it swell, spin turns it, break smashes it; use them when the line does that to the thing).
 ${options.crew?.length ? '' : `Cast: at least 3 named characters: the hero, a rival and one more. Name them after the real people in the story when there are any (for example Aristotle, Eratosthenes), otherwise short everyday names. Give each a DIFFERENT period costume that fits the era: flatcap = 1900s workers, bowler = 1900s gentlemen, tophat = the 1800s, conductor = trains and railways, apron = shops, kitchens and workshops, laurel = ancient Greece or Rome, viking = Vikings and Norse warriors (with costume tunic), crown = royalty, tunic = clothes for Vikings, the Middle Ages and the ancient world, chef = food, helmet = space, grad = science; hardhat ONLY for building sites. Give each a different colour.`}
@@ -1045,7 +1061,7 @@ bg is scenery only: no people, no bodies, no text.
 acts: t is seconds from the start of that scene. id is a cast id or a prop id. do is the action. x is the destination from 0 to 1.
 Stay compact so the answer is never cut off: "bg" is 3 to 8 words of scenery for that scene (things and places only, no people, no words or numbers), at most 2 acts per scene, short names, no extra keys.
 Output ONLY compact JSON on one line:
-{"title":"","youtubeTitle":"","thumbText":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":""}],"scenes":[{"line":"","bg":"","set":"","cam":"push","cut":"whip","say":"a","read":"curious","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
+{"title":"","youtubeTitle":"","thumbText":"","description":"","hashtags":["#shorts","#topic"],"cast":[{"id":"a","name":"","color":"#RRGGBB","hat":"","hair":"","costume":"","outfit":"","acc":[]},{"id":"b","name":"","color":"#RRGGBB","hat":"","hair":"","costume":"","outfit":"","acc":[]},{"id":"c","name":"","color":"#RRGGBB","hat":"","hair":"","costume":"","outfit":"","acc":[]}],"scenes":[{"line":"","bg":"","set":"","map":"","do":"","cam":"push","cut":"whip","say":"a","read":"curious","who":[{"id":"a","x":0.3,"pose":"point","feel":"neutral","face":1,"hold":""},{"id":"b","x":0.7,"pose":"shrug","feel":"smug","face":-1}],"icon":"","props":[{"id":"p","kind":"","x":0.5}],"acts":[{"t":0.3,"id":"a","do":"walk","x":0.42}]}]}`;
   }
 
   // Parts 2..n of a long video: more scenes with the same cast, continuing the story.

@@ -520,16 +520,16 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
     const prop: FrontOpts["prop"] = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone"
       : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
-    const asleep = act === "sleep";
-    const fo: FrontOpts = { mode: act === "sit" || act === "type" ? "sit" : walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
-      expr: asleep ? "relief" : m.expr, blink: asleep ? 1 : lidAt(t, 500 + i * 7),
+    const asleep = act === "sleep", dozing = act === "doze";
+    const fo: FrontOpts = { mode: act === "sit" || act === "type" || dozing ? "sit" : walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
+      expr: asleep || dozing ? "relief" : m.expr, blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7), ...(dozing ? { headTilt: 14 } : {}),
       wave: m.wave == null || prop ? undefined : q(m.wave, 30), facing: m.facing ?? 0, ...(prop ? { prop } : {}) };
     const y = D0 + (m.y || 0) + (m.hop || 0);
     const pl = person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1);
     // asleep: the drawing lies down on its side, feet toward screen right
     if (asleep) pl.roll = Math.PI / 2;
     out.places.push(pl);
-    if (asleep) out.fx.push({ key: `zz${q((t * 0.8) % 1, 8)}`, cw: 300, ch: 300, draw: (p: Pen) => fxZz(p, (t * 0.8) % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
+    if (asleep || dozing) out.fx.push({ key: `zz${q((t * 0.8) % 1, 8)}`, cw: 300, ch: 300, draw: (p: Pen) => fxZz(p, (t * 0.8) % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
     if (!asleep) blob(out, m.x, D0 + (m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {

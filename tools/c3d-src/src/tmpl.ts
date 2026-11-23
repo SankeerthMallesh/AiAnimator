@@ -18,6 +18,8 @@ export type TSpec = {
   /** 2.0: the lead's action (sit, sleep, dig, eat, drink, type, phone, carry) and its height (a bed, a chair); lip: mouths
    *  move with the narration (off: the narrator is off screen and the cast acts) */
   act?: string; actY?: number; lip?: boolean;
+  /** 2.0: other people in the place (cast looks), going about their business behind the lead */
+  extras?: number[];
 };
 export type TFrame = {
   cam: { pos: V3; look: V3; fov: number; roll: number }; light: "day" | "golden"; sun: [number, number, number];
@@ -122,8 +124,17 @@ export function frameAt(s: TSpec, t: number): TFrame {
     // asleep: the drawing lies along the bed (it turns about its feet, so they go at the bed's screen-right end)
     if (s.act === "sleep") { people[0].x = mx + rx * 0.95; people[0].z = mz + rz * 0.95; lookY = 0.85; h = Math.min(h, 1.5); }
   }
-  // 2.0: inside a map the lens comes in closer and stays at eye height (less empty floor, the cast bigger)
+  // 2.0: inside a map the lens comes in closer and stays at eye height (less empty floor, the cast bigger), and
+  // single shots are medium shots, so the place and what is in it stay in the picture
   if (s.at && s.kind === "wide") { dist = Math.min(dist, 6.2); h = Math.min(h, 1.85); lookY = 1.25; fov = 40; }
+  if (s.at && s.kind === "talk") { dist = 4.0; h = 1.55; lookY = 1.15; fov = 38; cInf = 6; }
+  // 2.0: background people: one walks across the back of the room, another stands at the side
+  if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
+    const back = -1.9, a = s.extras[0], b = s.extras[1];
+    const across = lerp(-1.4, 1.4, clamp01((t + (s.seed % 3)) / Math.max(dur, 2.5)));
+    { const [x, z] = at(across * (s.seed % 2 ? 1 : -1), back); people.push({ look: a, x, z, expr: "neutral", walk: t * 0.9, facing: s.seed % 2 ? -1 : 1 }); }
+    if (b != null) { const [x, z] = at(s.seed % 2 ? -0.95 : 0.95, back + 0.3); people.push({ look: b, x, z, expr: FACE[s.pose] === "shock" ? "shock" : "neutral" }); }
+  }
   const pos: V3 = [mx + dx * dist + rx * side, my + h, mz + dz * dist + rz * side];
   const look: V3 = [mx + rx * (lookSide + side * 0.6), my + lookY, mz + rz * (lookSide + side * 0.6)];
   // the sun: camera-relative like the film (its azimuth from the light preset, toward screen right)

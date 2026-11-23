@@ -294,7 +294,7 @@ const P_ = {
 };
 
 // ---------------- the maps ----------------
-type Build = (g: THREE.Group, r: () => number, seed: number) => { spots?: Record<string, V3>; outdoor?: boolean; night?: boolean };
+type Build = (g: THREE.Group, r: () => number, seed: number) => { spots?: Record<string, V3>; outdoor?: boolean; night?: boolean; seated?: boolean };
 const pick = <T>(r: () => number, xs: T[]) => xs[Math.floor(r() * xs.length) % xs.length];
 
 const MAPS: Record<string, Build> = {
@@ -307,7 +307,7 @@ const MAPS: Record<string, Build> = {
     P_.window(g, 1.0, 2.75, 2.58, 0.7, 0.45, GLOW("sky", 256, 128, (c) => { c.fillStyle = "#cfe8ff"; c.fillRect(0, 0, 256, 128); }), C("#5a6270"), 4);
     beam(g, 0.4, 1.4, 1.2, 1.4, 3.6, -0.5);
     P_.shelf(g, 2.2, 1.6, 2.45, 1.0, 3, 7);
-    return { spots: { bed: [-2.0, 0.6, 1.5], sit: [-1.4, 0.45, 1.1], dig: [0.9, 0, 0.6] } };
+    return { spots: { bed: [-2.0, 0.6, 1.5], sit: [0.3, 0.45, 0.5], dig: [0.9, 0, 0.6] } };
   },
   // a cell block: a corridor of barred cell fronts, ceiling lights and painted numbers
   cellblock(g, r) {
@@ -348,7 +348,7 @@ const MAPS: Record<string, Build> = {
     P_.window(g, 0, 2.2, 2.38, 3.4, 1.4, GLOW("earth2", 1024, 512, spaceView), C("#6b7280"));
     B(g, 5.5, 0.08, 0.35, C("#7a5232"), 0, 1.35, 2.2);
     P_.toilet(g, 1.0, 1.6, Math.PI, false); P_.paper(g, 1.8, 1.0, 2.2); P_.plant(g, 2.0, 1.43, 2.25, 0.8); B(g, 0.08, 2.6, 0.08, C("#e8823a"), 2.6, 0.2, 2.2);
-    return { spots: { sit: [1.0, 0.45, 1.6] } };
+    return { seated: true, spots: { sit: [1.0, 0.45, 1.6] } };
   },
   // mission control: rows of consoles, a big screen counting down, a clock strip, ceiling light panels
   control(g, r) {
@@ -366,7 +366,7 @@ const MAPS: Record<string, Build> = {
     P_.window(g, 0, 1.9, 2.38, 4.2, 1.3, GLOW("stars", 1024, 512, starView), C("#2e333e"));
     B(g, 4.6, 0.9, 0.7, C("#3c4250"), 0, 0, 2.0); for (let k = 0; k < 4; k++) P_.monitor(g, -1.5 + k, 0.9, 1.85, k + 11);
     P_.seat(g, -0.9, 0.9); P_.seat(g, 0.9, 0.9);
-    return { spots: { sit: [-0.9, 0.45, 0.8] }, night: true };
+    return { seated: true, spots: { sit: [-0.9, 0.45, 0.8] }, night: true };
   },
   classroom(g, r) {
     room(g, { w: 9, zb: 3, h: 3.4, floor: T("clsfloor", 512, 512, planksFloor("#c99a66", "#bb8c5a"), 4, 6), wall: T("clswall", 512, 512, blocks("#f1ead6", pick(r, ["#6f9a6a", "#7a8fb8", "#c9a06a"]), "#4a5a3a"), 3, 1), ceil: C("#efe9dc") });
@@ -375,41 +375,41 @@ const MAPS: Record<string, Build> = {
     for (const x of [1.6, 3.2]) for (const z of [-1.5, -3.5]) { P_.schoolDesk(g, x, z); P_.chair(g, x, z - 0.5, Math.PI); }
     const side = new THREE.Group(); side.position.set(4.48, 0, 0); side.rotation.y = -Math.PI / 2; g.add(side);
     P_.window(side, 0, 1.8, 0, 2.4, 1.2, GLOW("skyline", 1024, 512, skyline));
-    return { spots: { sit: [-1.2, 0.45, -2.0] } };
+    return { seated: true, spots: { sit: [-1.2, 0.45, -2.0] } };
   },
   office(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.2, floor: T("offfloor", 512, 512, carpet("#7d8792", "#6d7782"), 6, 8), wall: T("offwall", 512, 512, panels("#e9eef4", "#c9d1db"), 3, 1), ceil: C("#f2f4f7") });
     P_.window(g, 0, 1.9, 3.38, 7, 1.8, GLOW("skyline2", 1024, 512, skyline), C("#c9d1db"));
     for (const x of [-3, 0, 3]) { P_.desk(g, x, 1.4, 1.6, 0.8); P_.monitor(g, x, 0.8, 1.55, Math.floor(x + 9)); P_.chair(g, x, 0.8, Math.PI); }
     P_.waterCooler(g, 4.3, 2.8); P_.plant(g, -4.3, 0, 2.9, 3);
-    return { spots: { sit: [0, 0.45, 0.8], type: [0, 0, 0.9] } };
+    return { seated: true, spots: { sit: [0, 0.45, 0.8], type: [0, 0, 0.9] } };
   },
   kitchen(g, r) {
     room(g, { w: 8, zb: 3, h: 3.2, floor: T("kfloor", 512, 512, checker("#f4f1ea", pick(r, ["#c8102e", "#2f6b8f", "#2b2f38"]), 6), 4, 6), wall: T("kwall", 512, 512, tiles("#f6f2ea", "#ddd5c6", 10), 3, 1), ceil: C("#f2ede4") });
     P_.counter(g, -1.2, 2.6, 4.4); P_.stove(g, 1.4, 2.6); P_.fridge(g, 2.8, 2.6);
     for (let k = 0; k < 4; k++) B(g, 1.0, 0.8, 0.4, C(pick(r, ["#e9876b", "#7fb3d9", "#f2d06b"])), -3.0 + k * 1.1, 2.0, 2.8);
     P_.table(g, -1.5, -0.6, 1.2, 0.8, "#c79260"); P_.chair(g, -2.3, -0.6, Math.PI / 2, "#a8724a"); P_.chair(g, -0.7, -0.6, -Math.PI / 2, "#a8724a");
-    return { spots: { sit: [-2.3, 0.45, -0.6], eat: [-1.5, 0.78, -0.6] } };
+    return { seated: true, spots: { sit: [-2.3, 0.45, -0.6], eat: [-1.5, 0.78, -0.6] } };
   },
   diner(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.4, floor: T("dfloor", 512, 512, checker("#f4f1ea", "#1e1f24", 6), 5, 8), wall: T("dwall", 512, 512, blocks("#fbe9c8", "#c8102e", "#f4f1ea"), 3, 1), ceil: C("#f2ede4") });
     P_.counter(g, 1.6, 2.7, 5, "#c9ced6", "#c8102e"); for (let x = -0.6; x < 4; x += 0.9) P_.stool(g, x, 1.9);
     P_.booth(g, -3.4, 1.6); P_.booth(g, -3.4, -1.4);
     P_.frame(g, 1.6, 2.6, 3.35, 3, 0.7, GLOW("menu", 512, 128, (c) => { c.fillStyle = "#1e1f24"; c.fillRect(0, 0, 512, 128); c.fillStyle = "#ffd24a"; c.font = "700 40px Arial"; c.fillText("BURGERS  SHAKES  FRIES", 24, 78); }));
-    return { spots: { sit: [-0.6, 0.7, 1.9], eat: [-3.4, 0.78, 1.0] } };
+    return { seated: true, spots: { sit: [-0.6, 0.7, 1.9], eat: [-3.4, 0.78, 1.0] } };
   },
   livingroom(g, r) {
     room(g, { w: 9, zb: 3, h: 3.2, floor: T("lfloor", 512, 512, planksFloor("#b07a4a", "#9e6c40"), 4, 6), wall: T("lwall", 512, 512, blocks(pick(r, ["#f3ddb0", "#d9e6f2", "#e8d8f0"]), "#c9935e", "#8a5a3c"), 3, 1), ceil: C("#f2ede4") });
     P_.sofa(g, -1.0, 2.2, pick(r, ["#5b7fd6", "#c8102e", "#46b07a"])); P_.tv(g, 2.8, 0.6, 2.9); B(g, 1.6, 0.6, 0.5, C("#6b4a2e"), 2.8, 0, 2.7);
     P_.bookshelf(g, -3.8, 2.6, 4); P_.plant(g, 4.0, 0, 2.6, 2.4); P_.window(g, 0.8, 2.0, 2.98, 1.8, 1.1, GLOW("skyday", 1024, 512, skyline));
     const rug = mesh(new THREE.PlaneGeometry(3.4, 2.2), C("#d9534f"), false); rug.rotation.x = -Math.PI / 2; rug.position.set(-0.5, 0.01, 0.8); g.add(rug);
-    return { spots: { sit: [-1.0, 0.45, 2.1] } };
+    return { seated: true, spots: { sit: [-1.0, 0.45, 2.1] } };
   },
   bedroom(g, r) {
     room(g, { w: 8, zb: 3, h: 3.0, floor: T("bfloor", 512, 512, carpet("#b8a6d9", "#a896c9"), 4, 6), wall: T("bwall", 512, 512, blocks(pick(r, ["#cfe3f5", "#f5d9cf", "#e3f5cf"]), "#7a8fb8", "#4a5a8a"), 3, 1), ceil: C("#f2ede4") });
     P_.bed(g, -1.4, 1.6, Math.PI / 2, pick(r, ["#7fb3d9", "#e5484d", "#f0b429"])); B(g, 0.5, 0.6, 0.45, C("#8a5a3c"), -0.4, 0, 2.6); B(g, 0.2, 0.3, 0.2, glowCol("#ffe8a8"), -0.4, 0.6, 2.6);
     P_.frame(g, 1.6, 1.9, 2.97, 1.0, 1.3, GLOW("poster", 256, 256, painting("#5b7fd6", "#f2a65a"))); B(g, 1.2, 2.0, 0.6, C("#a8724a"), 3.2, 0, 2.5);
-    return { spots: { bed: [-1.4, 0.5, 1.6], sit: [-0.8, 0.45, 0.6] } };
+    return { seated: true, spots: { bed: [-1.4, 0.5, 1.6], sit: [-0.8, 0.45, 0.6] } };
   },
   hospital(g, r) {
     room(g, { w: 8, zb: 3, h: 3.2, floor: T("hfloor", 512, 512, tiles("#d8e6ea", "#c2d2d7", 6), 4, 6), wall: T("hwall", 512, 512, blocks("#eef6f7", "#9fcfd8", "#6fa9b6"), 3, 1), ceil: C("#f4f8fa") });
@@ -428,7 +428,7 @@ const MAPS: Record<string, Build> = {
     P_.judgeBench(g, 0, 3.0); P_.chair(g, 0, 3.4, Math.PI, "#3a2a20"); B(g, 1.2, 1.0, 0.8, C("#7a4f33"), 3.2, 0, 2.4);
     P_.bench(g, -2.6, -1.4, 2.6); P_.bench(g, 2.6, -1.4, 2.6); P_.bench(g, -2.6, -3.0, 2.6); P_.bench(g, 2.6, -3.0, 2.6);
     P_.clock(g, 0, 3.4, 3.55);
-    return { spots: { sit: [-2.6, 0.45, -1.4] } };
+    return { seated: true, spots: { sit: [-2.6, 0.45, -1.4] } };
   },
   museum(g, r) {
     room(g, { w: 11, zb: 3.4, h: 4.0, floor: T("mfloor", 512, 512, planksFloor("#9c7350", "#8c6646"), 5, 7), wall: T("mwall", 512, 512, blocks("#e2d6bf", "#cbbb9c", "#a8977a"), 3, 1), ceil: C("#efe9dc") });
@@ -441,7 +441,7 @@ const MAPS: Record<string, Build> = {
     room(g, { w: 10, zb: 5, h: 5.5, floor: T("castfloor", 512, 512, tiles("#a8a092", "#8a8274", 4), 5, 8), wall: T("castwall", 512, 512, blocks("#b8b2a6", "#a8a092", "#8a8274"), 3, 2), ceil: C("#6b6358") });
     const carpet_ = mesh(new THREE.PlaneGeometry(2, 16), C("#c8102e"), false); carpet_.rotation.x = -Math.PI / 2; carpet_.position.set(0, 0.01, -3); g.add(carpet_);
     P_.throne(g, 0, 4.0); for (const x of [-3.5, 3.5]) { P_.banner(g, x, 3.0, 4.95, pick(r, ["#c8102e", "#2f4fa8", "#2e7d4f"])); P_.torch(g, x * 0.6, 2.0, 4.9); P_.column(g, x, 0, 5.5); }
-    return { spots: { sit: [0, 0.75, 3.8] } };
+    return { seated: true, spots: { sit: [0, 0.75, 3.8] } };
   },
   shop(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.4, floor: T("sfloor", 512, 512, tiles("#eef0f3", "#d4d8de", 6), 5, 8), wall: T("swall", 512, 512, blocks("#f6e6a6", "#e9876b", "#c8102e"), 3, 1), ceil: C("#f4f4f0") });
@@ -471,7 +471,7 @@ const MAPS: Record<string, Build> = {
     P(g, 40, 40, T("forestgr", 512, 512, dirt("#5f9a4a", "#4f8a3e"), 8, 8), 0, 0, 0, 0, -Math.PI / 2);
     P_.tent(g, -2.4, 2.6, pick(r, ["#e8823a", "#3f7fd9", "#46b07a"])); P_.campfire(g, 0.8, 1.0); P_.log(g, 0.8, 0.2, 0); P_.log(g, 1.9, 1.2, 1.4);
     for (let k = 0; k < 10; k++) P_.pine(g, -8 + k * 1.8 + r(), 6 + r() * 6, 1.1 + r() * 0.8);
-    return { spots: { sit: [1.9, 0.3, 1.2] }, outdoor: true };
+    return { seated: true, spots: { sit: [1.9, 0.3, 1.2] }, outdoor: true };
   },
   beach(g, r) {
     P(g, 40, 22, T("sand", 512, 512, dirt("#efd9a0", "#e2c78a"), 8, 5), 0, 0, -2, 0, -Math.PI / 2);
@@ -484,14 +484,14 @@ const MAPS: Record<string, Build> = {
     P(g, 50, 50, T("dsand", 512, 512, dirt("#e8c48a", "#d9b06e"), 8, 8), 0, 0, 0, 0, -Math.PI / 2);
     for (let k = 0; k < 6; k++) { const d = S(g, 3 + r() * 2, C("#e2b56a"), -12 + k * 5, -1.5, 12 + r() * 6, 0.4); d.receiveShadow = true; }
     P_.cactus(g, -2.6, 2.0); P_.cactus(g, 3.4, 4.0); P_.rock(g, 1.6, 1.4, 0.5, "#b8864f"); P_.rock(g, -4, 4, 0.7, "#a8784a");
-    return { spots: { sit: [1.6, 0.4, 1.4] }, outdoor: true };
+    return { seated: true, spots: { sit: [1.6, 0.4, 1.4] }, outdoor: true };
   },
   farm(g, r) {
     P(g, 50, 50, T("farmgr", 512, 512, dirt("#79b85a", "#6aa84f"), 8, 8), 0, 0, 0, 0, -Math.PI / 2);
     B(g, 5, 3.4, 4, C("#b8322a"), -2.5, 0, 7); const roof_ = mesh(new THREE.ConeGeometry(3.6, 1.6, 4), C("#5a3b2a")); roof_.position.set(-2.5, 4.2, 7); roof_.rotation.y = Math.PI / 4; g.add(roof_);
     P(g, 1.4, 2.0, C("#f4f1ea"), -2.5, 1.0, 4.98);
     P_.fence(g, -6, 6, 2.6); P_.hay(g, 2.4, 1.6); P_.hay(g, 3.6, 2.2); P_.tree(g, 5.2, 6, 1.4);
-    return { spots: { sit: [2.4, 1.0, 1.6] }, outdoor: true };
+    return { seated: true, spots: { sit: [2.4, 1.0, 1.6] }, outdoor: true };
   },
 };
 /** maps that have no ceiling show the sky; the rest are rooms */
@@ -510,6 +510,9 @@ export function setFor(id: string, seed = 1, parent?: THREE.Object3D): SetInfo |
     root.position.set(x, D0, 0);
     const r = rng(seed * 7919 + id.length * 131);
     const info = make(root, r, seed) || {};
+    // someone sits where the map has no seat of its own: a chair goes there, its back away from the lens
+    const sp = info.spots?.sit;
+    if (sp && !info.seated) P_.chair(root, sp[0], sp[2] + 0.12, 0, pick(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
     s = { id, root, origin: [x, D0, 0], spots: info.spots || {}, outdoor: !!info.outdoor, night: !!info.night };
     slots.set(key, s);
     if (parent) parent.add(root);

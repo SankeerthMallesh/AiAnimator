@@ -350,12 +350,13 @@ export class Stage {
       PropKit.draw(ctx, { kind: 'chair', x: a.x * W }, u, ground, local);
     }
     const talkId = scene.say || actors[0]?.id;
-    const talk = Stage.mouth(scene, local);
+    // 2.0: the narrator is a voice off screen: nobody mouths the narration (unless asked for in Settings).
+    const talk = view.settings?.narratorOnScreen ? Stage.mouth(scene, local) : 0;
     // Talking with the hands: the speaker gestures on the first word of each sentence and on
     // long, important words, timed to the voice, then relaxes back.
     {
       const sp = actors.find(a => a.id === talkId);
-      if (sp && sp.pose === 'idle') {
+      if (sp && sp.pose === 'idle' && view.settings?.narratorOnScreen) {
         const vt = local - (scene.voiceOffset || 0);
         const ws = scene.words || [];
         const moves = ['present', 'point', 'shrug', 'present'];

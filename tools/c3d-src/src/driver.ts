@@ -88,7 +88,9 @@ class View {
       at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (s.act === "sit" || s.act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
       actY = sp && s.act === "sleep" ? sp[1] + 0.3 : 0;
     }
-    const fr = frameAt(set ? { ...s, at: at!, actY } : s, local);
+    // asleep with no bed in the map: dozing in a chair instead of lying on the floor
+    const act = s.act === "sleep" && !(set && set.spots.bed) ? "doze" : s.act;
+    const fr = frameAt(set ? { ...s, act, at: at!, actY } : s, local);
     if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }
     this.world.updateTemplate(fr, t, cam, this.scene);
     noInkFallback(this.world.root);

@@ -160,8 +160,9 @@ export function townFits(topic) {
 
 // 1.2 Auto look: the 3D town when the story happens in a modern town and this computer can draw it,
 // painted sets otherwise. -> { look, why } (why is said to the person in a toast).
+// 2.0: the 2.5D maps (a prison, a vault, mission control... or the town) fit any story, so Auto picks them whenever
+// the computer's graphics can draw them; painted sets stay for weaker computers.
 export function autoLook(topic, gpu = { ok: false }) {
-  if (!townFits(topic)) return { look: 'painted', why: 'painted sets can show this place' };
   if (!gpu?.ok) return { look: 'painted', why: 'painted sets run smoothly on this computer' };
-  return { look: 'town3d', why: 'the 3D town fits this story' };
+  return { look: 'town3d', why: townFits(topic) ? 'the 3D town fits this story' : 'its places are built in 2.5D' };
 }
