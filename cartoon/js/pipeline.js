@@ -1,6 +1,7 @@
 // Script, optional background plates, voice, score, then a code-drawn render.
 // Plates never hold the video longer than 20 seconds. A missing plate is a drawn set.
 
+import { probeFrames, planRender } from '../../shared/budget.js';
 import { writeScript, factCheck, waitForFreeText } from './llm.js';
 import { Script, propTrigger } from './script.js';
 import { Demo } from './demo.js';
@@ -62,6 +63,7 @@ export function newProject(topic, options) {
 
 export class Pipeline {
   constructor(project, settings, hooks) {
+    this.born = performance.now(); // 2.0: the 7-minute budget counts from here
     this.p = project;
     this.s = settings;
     this.h = hooks || {};
@@ -482,15 +484,33 @@ export class Pipeline {
     if (p.factStatus === 'unchecked') this.log('Exporting without a fact-check. This film is marked not fact-checked.');
     if (p.factStatus === 'flagged') this.log('Exporting with a quantity still flagged.');
     this.h.step('render', 'active', 'Starting encoder…');
-    const { width, height } = outputSize(p.options, this.s);
-    const canvas = document.createElement('canvas');
+    let { width, height } = outputSize(p.options, this.s);
+    let fps = Number(p.options.fps || this.s.fps) || 24;
+    let canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
-    const renderer = this.makeRenderer(canvas, { width, height });
+    let renderer = this.makeRenderer(canvas, { width, height });
     if (renderer.ready) { this.h.step('render', 'active', 'Building the 3D cartoon town…'); await renderer.ready; }
-    renderer.log = new RenderLog({ tab: 'cartoons', style: this.town ? 'town3d' : this.s.bgLook || 'cartoon' });
     const t0 = performance.now();
-    const fps = Number(p.options.fps || this.s.fps) || 24;
+    // 2.0: the 7-minute budget: time a few frames, and step down (fps, then pixels) only if the asked quality
+    // would not finish in time. "Best" never steps down.
+    if (this.s.speed !== 'best' && p.timeline?.total) {
+      const total = p.timeline.total, short = Math.min(width, height);
+      try {
+        const ms = await probeFrames(renderer, total);
+        const plan = planRender({ elapsedS: (performance.now() - this.born) / 1000, durationS: total, asked: { short, fps }, msPerFrame: ms });
+        if (plan.changed) {
+          const k = plan.short / short, even = (n) => Math.round(n / 2) * 2;
+          renderer.dispose?.();
+          width = even(width * k); height = even(height * k); fps = plan.fps;
+          canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+          renderer = this.makeRenderer(canvas, { width, height });
+          if (renderer.ready) await renderer.ready;
+          this.log(`To finish within the 7-minute limit this video renders at ${plan.short}p, ${plan.fps} fps (this computer draws a frame in about ${Math.round(ms)} ms; about ${plan.estS} s to render, ${plan.leftS} s left).`);
+        } else this.log(`Render fits the 7-minute limit: about ${plan.estS} s for ${Math.round(total)} s of video (${Math.round(ms)} ms a frame).`);
+      } catch (e) { this.log(`Could not time the render (${e?.message || e}); keeping the chosen quality.`); }
+    }
+    renderer.log = new RenderLog({ tab: 'cartoons', style: this.town ? 'town3d' : this.s.bgLook || 'cartoon' });
     try {
       const out = await exportVideo({
         renderer, audio: p.audio, fps, signal: this.signal,

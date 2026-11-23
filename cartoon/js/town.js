@@ -9,6 +9,7 @@ import { Stage } from './stage.js';
 import { glare } from '../../shared/glare.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt } from '../../shared/hooks.js';
 import { mapFor, actFor, outfitLook, mapSeed } from './maps.js';
+import { nextTask } from '../../shared/yieldtask.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
 const PLACE = {
@@ -114,7 +115,12 @@ export class TownRenderer {
 
   // The export waits a moment after each frame, so the graphics card finishes it before the next one is
   // queued (a long unbroken queue can make a weaker card's driver reset).
-  async prepareFrame() { await new Promise(r => setTimeout(r, Math.min(40, 4 + this.lastMs * 0.25))); }
+  // 2.0: in a background tab a timer waits a second or more, so there the pause is a message-channel task instead.
+  async prepareFrame(_t, o = {}) {
+    if (o.probe) return;
+    if (typeof document !== 'undefined' && document.hidden) { await nextTask(); await nextTask(); return; }
+    await new Promise(r => setTimeout(r, Math.min(40, 4 + this.lastMs * 0.25)));
+  }
 
   drawFrame(t) {
     if (!this.engine) return;
