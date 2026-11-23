@@ -276,6 +276,22 @@ Tests: v16-town, v16-visuals, v16-voices, v16-speed (unit).
 - **CLIP1** Clips frames carry a duration (the export had stopped).
 Tests: v20-maps, v20-budget (unit).
 
+## Loomy 2.1 (2026-11-23, "make the stickman actually do things", quality and smoothness)
+
+- **Q1/Q2** quality: `LIGHTS/LOOK/GRADES.indoor` for indoor maps (town.js picks it), lens blur and glare capped in maps,
+  faces from feel/delivery/act (`expr`), react close-ups frame the whole head; seated people go `front` m in front of
+  the seat spot (per map in sets.ts) and are lifted onto high seats (`actY`); `clearView` in driver.ts hides props
+  between the lens and the cast (wide/group shots: only face-height ones). Stills: proof/sits-a.json (every map).
+- **A1** actions, all three engines: `ACTS` + `ITEMS` + `actFor(scene, map, n)` / `busyFor` / `actBeat` in
+  cartoon/js/maps.js ("hold:key" = act + thing; with no verb in the line, BUSY[map] picks what people do there).
+  Cartoons: toon.ts props + `drawItem`, tmpl.ts `beatOf`, walk-in on even seeds, `act2` (two-shot partner),
+  `extraAct` (background). 3D: people.js ACTION_POSES (hold, read, write, pressOut/In, liftDown/Up, look, panic,
+  salute, clap, wave, sweep), `explainer/js/z3d/actprops.js` (things in hands, the button pedestal), walking across.
+  Blocky: blocky.js pose cases + autoblocky.js (sit/type/sleep become standing actions; action shots framed wider).
+  Stills: proof/acts-b.json (c3dshot), proof/drawn-3d-acts.json (d3shot; KIND=blocky for Blocky).
+- **S1** smoothness: shared/budget.js keeps 30 fps and steps 1080p → 900p → 720p only.
+- makevideo.cjs takes SPEED= and QUALITY=. Tests: v21-actions (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
