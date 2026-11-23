@@ -23,9 +23,12 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
     entries = [f'  "./js/{m}": "./js/{m}?v={v}"' for m in mods]
     if app == 'explainer':
         entries.append(f'  "../cartoon/js/worlds.js": "../cartoon/js/worlds.js?v={v}"')
-        # three.js for the code-drawn 3D engine (js/z3d/).
+        # 2.0: the maps, actions and outfits are shared with the Cartoons tab.
+        entries.append(f'  "../cartoon/js/maps.js": "../cartoon/js/maps.js?v={v}"')
+        # three.js for the code-drawn 3D engine (js/z3d/); the maps (js/z3d/maps3d.js) use its examples path.
         entries.append(f'  "three": "../vendor/three/three.module.min.js?v={v}"')
         entries.append(f'  "three/addons/": "../vendor/three/addons/"')
+        entries.append(f'  "three/examples/jsm/": "../vendor/three/addons/"')
     if app == 'cartoon':
         # The 3D cartoon town (js/c3d, built from tools/c3d-src) needs three.js; town.js plans its shots
         # with the 3D tab's shot planner.

@@ -45,3 +45,9 @@ export const tests = [
     assert.ok(shots.every(s => s.mapSeed === mapSeed({ title: 'The Tunnel' })));
   } },
 ];
+tests.push({ name: 'the 3D tab page can load the maps: its import map has three.js examples and the shared maps.js', fn: () => {
+  const html = readFileSync(new URL('../../../explainer/index.html', import.meta.url), 'utf8');
+  assert.match(html, /"three\/examples\/jsm\/": "\.\.\/vendor\/three\/addons\/"/);
+  assert.match(html, /"\.\.\/cartoon\/js\/maps\.js": "\.\.\/cartoon\/js\/maps\.js\?v=/);
+  assert.match(html, /"\.\/js\/z3d\/maps3d\.js"/);
+} });

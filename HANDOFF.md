@@ -256,6 +256,26 @@ Tests: v2-ideas, v2-curiosity-moods, v2-voice-characters, v2-feedback, v2-speed 
   slows them; the ElevenLabs read runs 3 lines at a time with 429 retries.
 Tests: v16-town, v16-visuals, v16-voices, v16-speed (unit).
 
+## Loomy 2.0 (2026-11-23, "the biggest and most important update")
+
+- **MAP1** `tools/c3d-src/src/sets.ts`: 26 2.5D maps (cell, cellblock, banklobby, vault, spacecabin, spacetoilet, control,
+  cockpit, classroom, office, kitchen, diner, livingroom, bedroom, hospital, lab, courtroom, museum, castle, shop, tunnel,
+  trench, camp, beach, desert, farm) from ~70 code-built objects; built once per video seed in a far slot; spots (bed,
+  sit, dig, type, eat) for actions; a chair is added where someone sits in a map with no seat. Render stills:
+  `node tools/tests/c3dshot.cjs <shots.json> <out> [w h]` (LOOKS=<looks.json>), proof/sets-*.json, acts-a, prison-shots.
+- **CHAR1** toon.ts: actions (eat, drink, phone, type, dig, carry, sleep lying with Zz, doze), accessories (headset, shades,
+  glasses, cigar, headlamp, chain, tie, badge, nametag, patch), hats (beanie, hardhat, chef, crown, helmet), suits
+  (prison, guard, astro, coat, suit, chef). tmpl.ts: `act`, `lip` (mouths only move with the narration when set), `extras`.
+- **WR1/NAR1** `cartoon/js/maps.js`: mapFor/actFor/outfitLook/storyOutfits; writer fields `map`, `do`, cast `outfit`, `acc`;
+  "THE NARRATOR IS ONLY A VOICE"; painted look has no lip-sync unless `settings.narratorOnScreen`; Auto picks 2.5D on
+  any capable GPU.
+- **3D1** `explainer/js/z3d/maps3d.js` (built from sets.ts via maps3d.ts, standard materials); `ACTION_POSES` in people.js;
+  hand things and head accessories in auto3d.js; 3D writer fields `map`, `action`, `acc`. Stills: `node tools/tests/d3shot.cjs`.
+- **SPEED4** `shared/budget.js`: 7 minutes for a video under a minute: probe frames, step down fps then pixels (not with
+  Speed Best). The town no longer pauses on timers in a background tab.
+- **CLIP1** Clips frames carry a duration (the export had stopped).
+Tests: v20-maps, v20-budget (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min
