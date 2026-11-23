@@ -2,6 +2,7 @@
 // Kokoro voice (downloaded from Hugging Face; the network must allow huggingface.co, us.aws.cdn.hf.co and
 // cdn.jsdelivr.net), with the page's own pipeline. CHARACTER= and MOOD= pick a narrator character and a score. No AI writer or picture
 // service is called: the script is the one given, pictures fall back to Loomy's painted sets.
+// SPEED=best keeps the asked quality (no step-down for the time budget); QUALITY=720 asks for 720p.
 //   SCRIPT=ww1.json OUT=out/ww1 CHARACTER=storyteller MOOD=tickingclock node makevideo.cjs
 const { chromium } = require('playwright'); const fs = require('fs');
 const script = JSON.parse(fs.readFileSync('proof/' + (process.env.SCRIPT || 'ww1.json'), 'utf8'));
@@ -10,13 +11,13 @@ const out = process.env.OUT || 'out/video';
   const proxy = process.env.HTTPS_PROXY;
   const b = await chromium.launch({ proxy: proxy ? { server: proxy, bypass: '127.0.0.1' } : undefined });
   const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
-  await ctx.addInitScript(() => {
+  await ctx.addInitScript((SET) => {
     try {
       const k = 'storyforge.settings.v1', s = JSON.parse(localStorage.getItem(k) || '{}');
       // settingsVersion matches the page's, so these choices are not reset to the defaults on load.
-      localStorage.setItem(k, JSON.stringify({ ...s, settingsVersion: 11, ttsEngine: 'kokoro', captionStyle: 'punch', quality: '1080', fps: 30, speed: 'balanced', reviewFirst: false }));
+      localStorage.setItem(k, JSON.stringify({ ...s, settingsVersion: 11, ttsEngine: 'kokoro', captionStyle: 'punch', quality: SET.quality || '1080', fps: 30, speed: SET.speed || 'balanced', reviewFirst: false }));
     } catch { /* storage off */ }
-  });
+  }, { speed: process.env.SPEED, quality: process.env.QUALITY });
   await ctx.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/api/config')) return route.fulfill({ json: { googleClientId: null, sync: false, ai: true } });

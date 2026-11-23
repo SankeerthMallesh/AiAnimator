@@ -95,7 +95,7 @@ class View {
     }
     const fr = frameAt(set ? { ...s, act, at: at!, actY } : s, local);
     if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }
-    if (set) clearView(set, fr);
+    if (set) clearView(set, fr, s.kind === "wide" || s.kind === "group");
     this.world.updateTemplate(fr, t, cam, this.scene);
     noInkFallback(this.world.root);
     const fwd = new THREE.Vector3(), fpt = new THREE.Vector3(...fr.focus);
@@ -167,7 +167,8 @@ export async function createBridge({ width = 1080, height = 1920 } = {}) {
 
 // 2.0: a film set's "wild walls": props standing between the lens and the cast (a front row of desks, a counter, a
 // bench) are left out of that shot, as a film crew moves them, so a desk never hides who the story is about
-function clearView(set: SetInfo, fr: ReturnType<typeof frameAt>) {
+// in a wide shot the room's furniture is the point: only what is tall enough to hide a face goes
+function clearView(set: SetInfo, fr: ReturnType<typeof frameAt>, wide = false) {
   if (!set.boxes) {
     set.root.updateMatrixWorld(true);
     set.boxes = set.root.children.map((o) => ({ o, b: new THREE.Box3().setFromObject(o) }));
@@ -176,7 +177,7 @@ function clearView(set: SetInfo, fr: ReturnType<typeof frameAt>) {
   const cast = lead ? fr.people.filter((p) => Math.abs(p.z - lead.z) < 0.6) : [];
   for (const { o, b } of set.boxes) {
     o.visible = !cast.length || !cast.some((p) =>
-      b.max.z < p.z - 0.08 && b.min.z > camZ && b.max.y > set.origin[1] + 0.25 && b.min.y < set.origin[1] + 1.7 &&
+      b.max.z < p.z - 0.08 && b.min.z > camZ && b.max.y > set.origin[1] + (wide ? 1.15 : 0.25) && b.min.y < set.origin[1] + 1.7 &&
       b.max.x > p.x - 0.55 && b.min.x < p.x + 0.55 && b.max.x - b.min.x < 8);
   }
 }
