@@ -289,6 +289,10 @@ Tests: v20-maps, v20-budget (unit).
   salute, clap, wave, sweep), `explainer/js/z3d/actprops.js` (things in hands, the button pedestal), walking across.
   Blocky: blocky.js pose cases + autoblocky.js (sit/type/sleep become standing actions; action shots framed wider).
   Stills: proof/acts-b.json (c3dshot), proof/drawn-3d-acts.json (d3shot; KIND=blocky for Blocky).
+- **R1** (third set of references): `insert` shot kind (tmpl.ts) drawing `drawInsert` (toon.ts) as a 1000x1000 fx card
+  in front of the lens with the lead blurred behind; town.js splits every other hands shot (and any line naming its
+  thing) 58/42 into shot + insert, `label` = the line (headline, button label, who is called). Bigger props, a
+  newspaper for reading, medium shots a little closer. Stills: proof/inserts-a.json.
 - **S1** smoothness: shared/budget.js keeps 30 fps and steps 1080p → 900p → 720p only.
 - makevideo.cjs takes SPEED= and QUALITY=. Tests: v21-actions (unit).
 
