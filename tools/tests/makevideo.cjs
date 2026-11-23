@@ -42,6 +42,7 @@ const out = process.env.OUT || 'out/video';
   const f = p.frameLocator('#view-cartoon');
   if (process.env.CHARACTER) await f.locator('#character').selectOption(process.env.CHARACTER);
   if (process.env.MOOD) await f.locator('#mood').selectOption(process.env.MOOD);
+  if (process.env.LOOK) await f.locator('#look').selectOption(process.env.LOOK);
   await f.locator('#topic').fill(script.title);
   const t0 = Date.now();
   await f.locator('#btnGo').click();

@@ -1,0 +1,217 @@
+{
+ "title": "The Prisoner Who Tunneled Into a Bank",
+ "youtubeTitle": "He Tunneled Into a Bank \ud83d\ude33",
+ "thumbText": "HE DUG INTO A BANK",
+ "description": "A prisoner, a spoon and forty feet of dirt.\n\nSources: stand-in story for a Loomy test.",
+ "hashtags": [
+  "#shorts",
+  "#prison",
+  "#heist",
+  "#story"
+ ],
+ "cast": [
+  {
+   "id": "r",
+   "name": "Rick",
+   "color": "#F08A2C",
+   "hat": "none",
+   "hair": "brown",
+   "costume": "jumpsuit",
+   "outfit": "prison",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "id": "h",
+   "name": "Hank",
+   "color": "#8A97A8",
+   "hat": "officer",
+   "hair": "black",
+   "costume": "suit",
+   "outfit": "guard",
+   "acc": [
+    "shades"
+   ]
+  },
+  {
+   "id": "m",
+   "name": "Moe",
+   "color": "#F08A2C",
+   "hat": "beanie",
+   "hair": "black",
+   "costume": "jumpsuit",
+   "outfit": "prison",
+   "acc": [
+    "cigar",
+    "chain"
+   ]
+  }
+ ],
+ "scenes": [
+  {
+   "line": "In 1971, an inmate named Rick had a crazy plan.",
+   "map": "cell",
+   "do": "",
+   "set": "room",
+   "say": "r",
+   "read": "mysterious",
+   "who": [
+    {
+     "id": "r",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Every night, he dug through his cell floor with a spoon.",
+   "map": "cell",
+   "do": "dig",
+   "set": "room",
+   "say": "r",
+   "read": "curious",
+   "who": [
+    {
+     "id": "r",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "The guards counted every inmate each morning.",
+   "map": "cellblock",
+   "do": "",
+   "set": "room",
+   "say": "h",
+   "read": "tense",
+   "who": [
+    {
+     "id": "h",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    },
+    {
+     "id": "m",
+     "x": 0.6499999999999999,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "But Hank always fell asleep on the night shift.",
+   "map": "cellblock",
+   "do": "sleep",
+   "set": "room",
+   "say": "h",
+   "read": "amused",
+   "who": [
+    {
+     "id": "h",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Forty feet later, Rick hit something hard.",
+   "map": "tunnel",
+   "do": "dig",
+   "set": "room",
+   "say": "r",
+   "read": "dramatic",
+   "who": [
+    {
+     "id": "r",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "It was the floor of the bank vault next door!",
+   "map": "vault",
+   "do": "",
+   "set": "room",
+   "say": "r",
+   "read": "shocked",
+   "who": [
+    {
+     "id": "r",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "He stuffed his pockets with cash.",
+   "map": "vault",
+   "do": "carry",
+   "set": "room",
+   "say": "r",
+   "read": "excited",
+   "who": [
+    {
+     "id": "r",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  },
+  {
+   "line": "Then he crawled back and ate breakfast like nothing happened.",
+   "map": "cell",
+   "do": "eat",
+   "set": "room",
+   "say": "r",
+   "read": "deadpan",
+   "who": [
+    {
+     "id": "r",
+     "x": 0.35,
+     "pose": "idle",
+     "feel": "neutral"
+    },
+    {
+     "id": "m",
+     "x": 0.6499999999999999,
+     "pose": "idle",
+     "feel": "neutral"
+    }
+   ],
+   "acts": [],
+   "icon": "",
+   "props": []
+  }
+ ]
+}
