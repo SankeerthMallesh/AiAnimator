@@ -442,7 +442,7 @@ export class World {
     for (let i = 0; i < this.clouds.length; i++) {
       const m = this.clouds[i], mat = m.material as THREE.MeshBasicMaterial;
       m.lookAt(cam.position.x, m.position.y, cam.position.z);
-      mat.map = this.cloudMaps[light][i % 4];
+      mat.map = (this.cloudMaps[light] || this.cloudMaps.day)[i % 4];
     }
     // ---- river colours (on-screen targets, tone-map-inverted) ----
     const W = this.WU, wc = K.water;

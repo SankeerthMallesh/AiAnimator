@@ -12,7 +12,7 @@ export type LightPreset = {
   sunCol: string; sunI: number; sky: string; ground: string; hemiI: number;         // three lights (unpatched mats only)
   bias: number; normalBias: number;
 };
-export const LIGHTS: Record<"day" | "golden", LightPreset> = {
+export const LIGHTS: Record<"day" | "golden" | "indoor", LightPreset> = {
   day: {
     az: 75, el: 48,
     lit: [1.58, 1.5, 1.33], shade: [0.3, 0.29, 0.36], lift: [0.05, 0.06, 0.11], lambert: 0.35, sideK: 0.84, term: 0.2,
@@ -20,6 +20,16 @@ export const LIGHTS: Record<"day" | "golden", LightPreset> = {
     blob: [0.62, 0.58, 0.58], actorShadow: false,
     top: "#3e7fd2", hor: "#b8d0ec", skyCurve: [0.0, 0.5, 0.6], fog: "#b8d0ec", fogNear: 25, fogFar: 300, sunDisc: "#000000",
     sunCol: "#fff3e0", sunI: 2.8, sky: "#dcecff", ground: "#b49a78", hemiI: 0.55,
+    bias: -0.00025, normalBias: 0.015,
+  },
+  // 2.0: inside a map: light from above and a little in front, warm, deeper shadows without the violet lift, no haze
+  indoor: {
+    az: 35, el: 62,
+    lit: [1.5, 1.4, 1.22], shade: [0.34, 0.31, 0.34], lift: [0.02, 0.02, 0.035], lambert: 0.4, sideK: 0.8, term: 0.22,
+    charTint: [1.0, 0.97, 0.94], charShade: 0.85, charGrad: 0.08, bodyGrad: 0.22, sideTint: [0.94, 0.92, 0.95],
+    blob: [0.55, 0.52, 0.52], actorShadow: false,
+    top: "#3e7fd2", hor: "#b8d0ec", skyCurve: [0.0, 0.5, 0.6], fog: "#b8d0ec", fogNear: 400, fogFar: 900, sunDisc: "#000000",
+    sunCol: "#fff1dc", sunI: 2.6, sky: "#f2ead8", ground: "#8a7a66", hemiI: 0.6,
     bias: -0.00025, normalBias: 0.015,
   },
   golden: {
@@ -42,7 +52,7 @@ export type WorldLook = {
   sat: number;                                                // shade.ts uSat: world albedo saturation (1 = as painted)
   cloud: { lit: string; mid: string; shade: string };
 };
-export const LOOK: Record<"day" | "golden", WorldLook> = {
+export const LOOK: Record<"day" | "golden" | "indoor", WorldLook> = {
   day: {
     // depth.md 2.2: horizon #9fb6e6 just above the skyline, upper sky #5e93d9 at ~20 deg (grade: frame top #5997e2)
     sky: { c: ["#b8d0ec", "#9cbfea", "#6a9fe0", "#4f8cdb", "#3373cc"], e: [0, 3, 8, 16, 40] },
@@ -50,6 +60,13 @@ export const LOOK: Record<"day" | "golden", WorldLook> = {
     cloud: { lit: "#fbf8f1", mid: "#e1e5f3", shade: "#c3cbe9" },
     bounce: [0, 0, 0],
     sat: 1.08,
+  },
+  indoor: {
+    sky: { c: ["#b8d0ec", "#9cbfea", "#6a9fe0", "#4f8cdb", "#3373cc"], e: [0, 3, 8, 16, 40] },
+    water: { near: "#22a7b6", mid: "#167fb2", far: "#1a5596", crest: "#7ddfe8", trough: "#0e4a80", glint: "#ffffff", shade: [0.5, 0.56, 0.72] },
+    cloud: { lit: "#fbf8f1", mid: "#e1e5f3", shade: "#c3cbe9" },
+    bounce: [0.03, 0.02, 0.0],
+    sat: 1.22,
   },
   golden: {
     // sunset, not dusk: #ffd08a horizon, peach/orange through ~10 deg, warm rose at 20, muted warm mauve only near the top

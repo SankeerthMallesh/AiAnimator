@@ -18,6 +18,11 @@ const PLACE = {
   bridge: 'bridge', water: 'bridge', sea: 'bridge', deck: 'bridge', underwater: 'bridge', lab: 'bridge', sky: 'town', space: 'town', night: 'bridge',
 };
 const GOLDEN = new Set(['night', 'space', 'sky']);
+// 2.0: maps under the open sky keep daylight; rooms get the indoor light
+const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm']);
+const FEEL_FACE = { happy: 'grin', smug: 'smile', shocked: 'shock', scared: 'shock', nervous: 'nervous', sad: 'pained', angry: 'stern', skeptical: 'neutral', sleepy: 'whistle' };
+const READ_FACE = { shocked: 'shock', dramatic: 'shock', excited: 'grin', amused: 'grin', happy: 'grin', tense: 'nervous', urgent: 'nervous', sad: 'pained', annoyed: 'stern', firm: 'stern', proud: 'smile', mysterious: 'smile', curious: 'smile', deadpan: 'neutral' };
+const ACT_FACE = { dig: 'stern', carry: 'grin', eat: 'smile_closed', drink: 'smile', type: 'neutral', phone: 'nervous' };
 // Viking-era stories: the town dresses its people as Vikings and puts longships on the river; their shots
 // stay by the river (the bank faces the moored ships) and the park, away from the iron bridge.
 export const VIKING = /\b(vikings?|norse|norsemen|longships?|danes|lindisfarne|ragnar|danelaw)\b/i;
@@ -80,11 +85,14 @@ export function townShots(timeline, script, theme = 'town') {
     // background people: the cast members not in this shot (up to two), only inside a map
     const inShot = new Set(s.cast.filter(c => typeof c === 'number'));
     const extras = map ? ids.map((_, i) => i).filter(i => !inShot.has(i)).slice(0, 2) : [];
+    // the lead's face: their feeling in the script, else how the narrator reads the line, else what they are doing
+    const lead = (sc?.who || [])[0] || {};
+    const expr = FEEL_FACE[lead.feel] || READ_FACE[sc?.delivery] || ACT_FACE[act] || '';
     return {
-      mapSeed: seed, act, extras,
+      mapSeed: seed, act, extras, expr,
       start: s.start, end: s.end, kind, place: place === 'town' && kind !== 'wide' ? 'bridge' : place,
       cast: s.cast.map(c => (typeof c === 'number' ? c : ids.length + (k % 3))), pose: s.pose, camera: s.camera,
-      light: GOLDEN.has(set) ? 'golden' : 'day', seed: s.seed, words: (s.words || []).map(w => ({ start: (sc?.start || 0) + w.start, end: (sc?.start || 0) + w.end })),
+      light: map ? (OUTDOOR_MAPS.has(map) ? 'day' : 'indoor') : GOLDEN.has(set) ? 'golden' : 'day', seed: s.seed, words: (s.words || []).map(w => ({ start: (sc?.start || 0) + w.start, end: (sc?.start || 0) + w.end })),
       effect: s.effect, icon: s.icon, teaser: !!s.teaser,
     };
   });
@@ -131,7 +139,8 @@ export class TownRenderer {
     this.g.drawImage(this.engine.renderAt(t), 0, 0, this.W, this.H);
     this.lastMs = performance.now() - t0; this.lastAt = performance.now();
     // 1.4: the 1.3 glow over the town too (bloom, sparkles, dust); the engine grades its own colour.
-    if (this.glow) glare(this.g, this.W, this.H, t, { grade: false, seed: 7 });
+    // a gentle glow inside the maps (a strong one washed the rooms out); the full one over the town
+    if (this.glow) { const sh = this.shots.find(s => t >= s.start && t < s.end); glare(this.g, this.W, this.H, t, { grade: false, seed: 7, strength: sh?.mapSeed && !['bridge', 'bank', 'park', 'town'].includes(sh.place) ? 0.35 : 1 }); }
     if (this.captions) {
       const scenes = this.timeline.scenes;
       const scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];

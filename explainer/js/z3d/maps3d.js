@@ -392,7 +392,6 @@ var lam = (key, make) => {
 var UB = new THREE3.BoxGeometry(1, 1, 1);
 
 // src/sets.ts
-var NOINK = 3;
 var TAU2 = Math.PI * 2;
 var MK = {
   color: (c) => lam("set_" + c, () => ({ color: c })),
@@ -735,27 +734,6 @@ var room = (g, o) => {
   P(g, d, o.h, side, -o.w / 2, o.h / 2, (o.zb + zf) / 2, Math.PI / 2);
   P(g, d, o.h, side, o.w / 2, o.h / 2, (o.zb + zf) / 2, -Math.PI / 2);
   if (o.ceil) P(g, o.w, d, o.ceil, 0, o.h, (o.zb + zf) / 2, 0, Math.PI / 2);
-};
-var beam = (g, x, y, z, w, h, tilt) => {
-  const m = new THREE4.Mesh(new THREE4.PlaneGeometry(w, h), new THREE4.MeshBasicMaterial({
-    map: ctex("set_beam", 64, 256, (c) => {
-      const gr = c.createLinearGradient(0, 0, 0, 256);
-      gr.addColorStop(0, "rgba(255,250,230,0.55)");
-      gr.addColorStop(1, "rgba(255,250,230,0)");
-      c.fillStyle = gr;
-      c.fillRect(0, 0, 64, 256);
-    }),
-    transparent: true,
-    depthWrite: false,
-    blending: THREE4.AdditiveBlending,
-    side: THREE4.DoubleSide,
-    toneMapped: false
-  }));
-  m.position.set(x, y, z);
-  m.rotation.set(0, Math.PI, tilt);
-  m.layers.set(NOINK);
-  g.add(m);
-  return m;
 };
 var P_ = {
   bunk(g, x, z, ry = 0, sheet = "#3f63b8") {
@@ -1254,7 +1232,6 @@ var MAPS = {
       c.fillStyle = "#cfe8ff";
       c.fillRect(0, 0, 256, 128);
     }), C("#5a6270"), 4);
-    beam(g, 0.4, 1.4, 1.2, 1.4, 3.6, -0.5);
     P_.shelf(g, 2.2, 1.6, 2.45, 1, 3, 7);
     return { spots: { bed: [-2, 0.6, 1.5], sit: [0.3, 0.45, 0.5], dig: [0.9, 0, 0.6] } };
   },
@@ -1320,7 +1297,7 @@ var MAPS = {
     P_.paper(g, 1.8, 1, 2.2);
     P_.plant(g, 2, 1.43, 2.25, 0.8);
     B(g, 0.08, 2.6, 0.08, C("#e8823a"), 2.6, 0.2, 2.2);
-    return { seated: true, spots: { sit: [1, 0.45, 1.6] } };
+    return { seated: true, front: 0.45, spots: { sit: [1, 0.45, 1.6] } };
   },
   // mission control: rows of consoles, a big screen counting down, a clock strip, ceiling light panels
   control(g, r) {
@@ -1349,7 +1326,7 @@ var MAPS = {
     for (let k = 0; k < 4; k++) P_.monitor(g, -1.5 + k, 0.9, 1.85, k + 11);
     P_.seat(g, -0.9, 0.9);
     P_.seat(g, 0.9, 0.9);
-    return { seated: true, spots: { sit: [-0.9, 0.45, 0.8] }, night: true };
+    return { seated: true, front: 0.4, spots: { sit: [-0.9, 0.48, 0.8] }, night: true };
   },
   classroom(g, r) {
     room(g, { w: 9, zb: 3, h: 3.4, floor: T2("clsfloor", 512, 512, planksFloor("#c99a66", "#bb8c5a"), 4, 6), wall: T2("clswall", 512, 512, blocks("#f1ead6", pick(r, ["#6f9a6a", "#7a8fb8", "#c9a06a"]), "#4a5a3a"), 3, 1), ceil: C("#efe9dc") });
@@ -1421,7 +1398,7 @@ var MAPS = {
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(-0.5, 0.01, 0.8);
     g.add(rug);
-    return { seated: true, spots: { sit: [-1, 0.45, 2.1] } };
+    return { seated: true, front: 0.5, spots: { sit: [-1, 0.45, 2.1] } };
   },
   bedroom(g, r) {
     room(g, { w: 8, zb: 3, h: 3, floor: T2("bfloor", 512, 512, carpet("#b8a6d9", "#a896c9"), 4, 6), wall: T2("bwall", 512, 512, blocks(pick(r, ["#cfe3f5", "#f5d9cf", "#e3f5cf"]), "#7a8fb8", "#4a5a8a"), 3, 1), ceil: C("#f2ede4") });
@@ -1487,7 +1464,7 @@ var MAPS = {
       P_.torch(g, x * 0.6, 2, 4.9);
       P_.column(g, x, 0, 5.5);
     }
-    return { seated: true, spots: { sit: [0, 0.75, 3.8] } };
+    return { seated: true, front: 0.55, spots: { sit: [0, 0.82, 3.8] } };
   },
   shop(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.4, floor: T2("sfloor", 512, 512, tiles("#eef0f3", "#d4d8de", 6), 5, 8), wall: T2("swall", 512, 512, blocks("#f6e6a6", "#e9876b", "#c8102e"), 3, 1), ceil: C("#f4f4f0") });
@@ -1534,9 +1511,9 @@ var MAPS = {
     P_.tent(g, -2.4, 2.6, pick(r, ["#e8823a", "#3f7fd9", "#46b07a"]));
     P_.campfire(g, 0.8, 1);
     P_.log(g, 0.8, 0.2, 0);
-    P_.log(g, 1.9, 1.2, 1.4);
+    P_.log(g, 1.9, 1.2, 0.08);
     for (let k = 0; k < 10; k++) P_.pine(g, -8 + k * 1.8 + r(), 6 + r() * 6, 1.1 + r() * 0.8);
-    return { seated: true, spots: { sit: [1.9, 0.3, 1.2] }, outdoor: true };
+    return { seated: true, spots: { sit: [1.9, 0.32, 1.2] }, outdoor: true };
   },
   beach(g, r) {
     P(g, 40, 22, T2("sand", 512, 512, dirt("#efd9a0", "#e2c78a"), 8, 5), 0, 0, -2, 0, -Math.PI / 2);
@@ -1563,7 +1540,7 @@ var MAPS = {
     P_.cactus(g, 3.4, 4);
     P_.rock(g, 1.6, 1.4, 0.5, "#b8864f");
     P_.rock(g, -4, 4, 0.7, "#a8784a");
-    return { seated: true, spots: { sit: [1.6, 0.4, 1.4] }, outdoor: true };
+    return { seated: true, front: 0.55, spots: { sit: [1.6, 0.45, 1.4] }, outdoor: true };
   },
   farm(g, r) {
     P(g, 50, 50, T2("farmgr", 512, 512, dirt("#79b85a", "#6aa84f"), 8, 8), 0, 0, 0, 0, -Math.PI / 2);
@@ -1577,7 +1554,7 @@ var MAPS = {
     P_.hay(g, 2.4, 1.6);
     P_.hay(g, 3.6, 2.2);
     P_.tree(g, 5.2, 6, 1.4);
-    return { seated: true, spots: { sit: [2.4, 1, 1.6] }, outdoor: true };
+    return { seated: true, front: 0.55, spots: { sit: [2.4, 1, 1.6] }, outdoor: true };
   }
 };
 var SET_NAMES = Object.keys(MAPS);
@@ -1591,7 +1568,7 @@ function buildMapLocal(id, seed = 1) {
   const r = rng(seed * 7919 + id.length * 131);
   const info = make(inner, r, seed) || {};
   const sp = info.spots?.sit;
-  if (sp && !info.seated) P_.chair(inner, sp[0], sp[2] + 0.12, 0, pick(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
+  if (sp && !info.seated) P_.chair(inner, sp[0], sp[2], 0, pick(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
   const spots = {};
   for (const [k, v] of Object.entries(info.spots || {})) spots[k] = [-v[0], v[1], -v[2]];
   return { root, spots, outdoor: !!info.outdoor };

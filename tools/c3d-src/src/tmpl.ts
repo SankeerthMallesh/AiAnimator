@@ -18,6 +18,8 @@ export type TSpec = {
   /** 2.0: the lead's action (sit, sleep, dig, eat, drink, type, phone, carry) and its height (a bed, a chair); lip: mouths
    *  move with the narration (off: the narrator is off screen and the cast acts) */
   act?: string; actY?: number; lip?: boolean;
+  /** 2.0: the lead's face for this line (from the script's feeling or the narrator's read) */
+  expr?: string;
   /** 2.0: other people in the place (cast looks), going about their business behind the lead */
   extras?: number[];
 };
@@ -128,6 +130,10 @@ export function frameAt(s: TSpec, t: number): TFrame {
   // single shots are medium shots, so the place and what is in it stay in the picture
   if (s.at && s.kind === "wide") { dist = Math.min(dist, 6.2); h = Math.min(h, 1.85); lookY = 1.25; fov = 40; }
   if (s.at && s.kind === "talk") { dist = 4.0; h = 1.55; lookY = 1.15; fov = 38; cInf = 6; }
+  if (s.at && s.kind === "react") { dist = 2.9; h = 1.85; lookY = 1.82; fov = 34; }
+  // background people stay readable (a strong blur turned the flat drawings into ghosts)
+  if (s.at) cInf = Math.min(cInf, 2);
+  if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr as Expr;
   // 2.0: background people: one walks across the back of the room, another stands at the side
   if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
     const back = -1.9, a = s.extras[0], b = s.extras[1];

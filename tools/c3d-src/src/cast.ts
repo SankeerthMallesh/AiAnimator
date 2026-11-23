@@ -224,7 +224,7 @@ const person = (cam: CamInfo, who: Who, x: number, y: number, z: number, view: {
 /** ground shadow under a standing / sitting card (review rounds 2-4), multiply, blue-violet: a TIGHT contact pool right under
  *  the feet (~.5 on screen at the core) so nobody floats, plus by day (cards cast no real shadow) a lighter soft tail
  *  stretched AWAY from the sun, length ~1.6 m / tan(sun elevation), capped. Golden: world.ts casts real card shadows. */
-const CONTACT: Record<"day" | "golden", [number, number, number]> = { day: [0.2, 0.21, 0.33], golden: [0.24, 0.2, 0.33] };
+const CONTACT: Record<"day" | "golden" | "indoor", [number, number, number]> = { day: [0.2, 0.21, 0.33], golden: [0.24, 0.2, 0.33], indoor: [0.22, 0.2, 0.24] };
 const TAIL: [number, number, number] = [0.42, 0.44, 0.62];
 const toSrgb = (v: number) => { const c = clamp01(v); return c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055; };
 const hexOf = (c: [number, number, number], k: number) => "#" + c.map((v) => Math.round(255 * toSrgb(1 - (1 - v) * k)).toString(16).padStart(2, "0")).join("");
@@ -520,8 +520,8 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
     const prop: FrontOpts["prop"] = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone"
       : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
-    const asleep = act === "sleep", dozing = act === "doze";
-    const fo: FrontOpts = { mode: act === "sit" || act === "type" || dozing ? "sit" : walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
+    const asleep = act === "sleep", dozing = act === "doze" || act === "dozeup";
+    const fo: FrontOpts = { mode: act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
       expr: asleep || dozing ? "relief" : m.expr, blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7), ...(dozing ? { headTilt: 14 } : {}),
       wave: m.wave == null || prop ? undefined : q(m.wave, 30), facing: m.facing ?? 0, ...(prop ? { prop } : {}) };
     const y = D0 + (m.y || 0) + (m.hop || 0);
@@ -530,7 +530,8 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     if (asleep) pl.roll = Math.PI / 2;
     out.places.push(pl);
     if (asleep || dozing) out.fx.push({ key: `zz${q((t * 0.8) % 1, 8)}`, cw: 300, ch: 300, draw: (p: Pen) => fxZz(p, (t * 0.8) % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
-    if (!asleep) blob(out, m.x, D0 + (m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+    // seated up on something, the shadow stays on the floor under the seat
+    if (!asleep) blob(out, m.x, D0 + (act === "sit" || act === "doze" ? 0 : m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {
     const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;

@@ -12,7 +12,7 @@ import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt, D0 } from "./story";
 import { frameAt, aerialAt, TSpec, PLACE_NAMES } from "./tmpl";
 import type { V3 } from "./story";
 import { setCardMax, setTheme, setLooks } from "./cast";
-import { setFor, SET_NAMES, disposeSets } from "./sets";
+import { setFor, SET_NAMES, disposeSets, SetInfo } from "./sets";
 export { SET_NAMES };
 import { longship, themeFor } from "./viking";
 export { themeFor };
@@ -80,18 +80,22 @@ class View {
     const set = SET_NAMES.includes(s.place) ? setFor(s.place, s.mapSeed ?? 1, this.world.root) : null;
     for (const c of this.world.root.children) if (c.name.startsWith("set_")) c.visible = !!set && c === set.root;
     // the lead's action happens at its spot in the map (the bed, the chair, the hole): the shot is anchored there
-    const SPOT: Record<string, string[]> = { sleep: ["bed"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
+    // asleep with no bed in the map: dozing in the map's chair, or nodding off on their feet where it has no seat
+    const act = s.act === "sleep" && !(set && set.spots.bed) ? (set && set.spots.sit ? "doze" : "dozeup") : s.act;
+    const SPOT: Record<string, string[]> = { sleep: ["bed"], doze: ["sit"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
     let at: { m: V3; d: [number, number] } | null = null, actY = 0;
     if (set) {
-      const name = (SPOT[s.act || ""] || []).find((n) => set.spots[n]);
+      const name = (SPOT[act || ""] || []).find((n) => set.spots[n]);
       const sp = name ? set.spots[name] : null;
-      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (s.act === "sit" || s.act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
-      actY = sp && s.act === "sleep" ? sp[1] + 0.3 : 0;
+      // a seat's spot is its middle: the flat drawing goes just in front of the seat's edge, so the legs hang over
+      // it instead of disappearing behind it
+      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (name === "sit" ? set.front : act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
+      // a high seat (a stool, a throne, a hay bale) lifts the seated drawing to it; its feet hang in front
+      actY = sp && s.act === "sleep" ? sp[1] + 0.3 : sp && name === "sit" && (act === "sit" || act === "doze") ? Math.max(-0.15, sp[1] - 0.45) : 0;
     }
-    // asleep with no bed in the map: dozing in a chair instead of lying on the floor
-    const act = s.act === "sleep" && !(set && set.spots.bed) ? "doze" : s.act;
     const fr = frameAt(set ? { ...s, act, at: at!, actY } : s, local);
     if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }
+    if (set) clearView(set, fr);
     this.world.updateTemplate(fr, t, cam, this.scene);
     noInkFallback(this.world.root);
     const fwd = new THREE.Vector3(), fpt = new THREE.Vector3(...fr.focus);
@@ -159,4 +163,20 @@ export async function createBridge({ width = 1080, height = 1920 } = {}) {
       return canvas;
     },
   };
+}
+
+// 2.0: a film set's "wild walls": props standing between the lens and the cast (a front row of desks, a counter, a
+// bench) are left out of that shot, as a film crew moves them, so a desk never hides who the story is about
+function clearView(set: SetInfo, fr: ReturnType<typeof frameAt>) {
+  if (!set.boxes) {
+    set.root.updateMatrixWorld(true);
+    set.boxes = set.root.children.map((o) => ({ o, b: new THREE.Box3().setFromObject(o) }));
+  }
+  const lead = fr.people[0], camZ = fr.cam.pos[2];
+  const cast = lead ? fr.people.filter((p) => Math.abs(p.z - lead.z) < 0.6) : [];
+  for (const { o, b } of set.boxes) {
+    o.visible = !cast.length || !cast.some((p) =>
+      b.max.z < p.z - 0.08 && b.min.z > camZ && b.max.y > set.origin[1] + 0.25 && b.min.y < set.origin[1] + 1.7 &&
+      b.max.x > p.x - 0.55 && b.min.x < p.x + 0.55 && b.max.x - b.min.x < 8);
+  }
 }

@@ -8206,6 +8206,38 @@ var LIGHTS = {
     bias: -25e-5,
     normalBias: 0.015
   },
+  // 2.0: inside a map: light from above and a little in front, warm, deeper shadows without the violet lift, no haze
+  indoor: {
+    az: 35,
+    el: 62,
+    lit: [1.5, 1.4, 1.22],
+    shade: [0.34, 0.31, 0.34],
+    lift: [0.02, 0.02, 0.035],
+    lambert: 0.4,
+    sideK: 0.8,
+    term: 0.22,
+    charTint: [1, 0.97, 0.94],
+    charShade: 0.85,
+    charGrad: 0.08,
+    bodyGrad: 0.22,
+    sideTint: [0.94, 0.92, 0.95],
+    blob: [0.55, 0.52, 0.52],
+    actorShadow: false,
+    top: "#3e7fd2",
+    hor: "#b8d0ec",
+    skyCurve: [0, 0.5, 0.6],
+    fog: "#b8d0ec",
+    fogNear: 400,
+    fogFar: 900,
+    sunDisc: "#000000",
+    sunCol: "#fff1dc",
+    sunI: 2.6,
+    sky: "#f2ead8",
+    ground: "#8a7a66",
+    hemiI: 0.6,
+    bias: -25e-5,
+    normalBias: 0.015
+  },
   golden: {
     az: 6,
     el: 7,
@@ -8246,6 +8278,13 @@ var LOOK = {
     cloud: { lit: "#fbf8f1", mid: "#e1e5f3", shade: "#c3cbe9" },
     bounce: [0, 0, 0],
     sat: 1.08
+  },
+  indoor: {
+    sky: { c: ["#b8d0ec", "#9cbfea", "#6a9fe0", "#4f8cdb", "#3373cc"], e: [0, 3, 8, 16, 40] },
+    water: { near: "#22a7b6", mid: "#167fb2", far: "#1a5596", crest: "#7ddfe8", trough: "#0e4a80", glint: "#ffffff", shade: [0.5, 0.56, 0.72] },
+    cloud: { lit: "#fbf8f1", mid: "#e1e5f3", shade: "#c3cbe9" },
+    bounce: [0.03, 0.02, 0],
+    sat: 1.22
   },
   golden: {
     // sunset, not dusk: #ffd08a horizon, peach/orange through ~10 deg, warm rose at 20, muted warm mauve only near the top
@@ -8992,7 +9031,7 @@ var person = (cam, who, x, y, z, view, fo, so, scale = 1) => {
     size: [w, h, k]
   };
 };
-var CONTACT = { day: [0.2, 0.21, 0.33], golden: [0.24, 0.2, 0.33] };
+var CONTACT = { day: [0.2, 0.21, 0.33], golden: [0.24, 0.2, 0.33], indoor: [0.22, 0.2, 0.24] };
 var TAIL = [0.42, 0.44, 0.62];
 var toSrgb = (v) => {
   const c = clamp01(v);
@@ -9314,9 +9353,9 @@ var stageTemplate = (people, effects, cam, t, light) => {
     const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own2 ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
     const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
     const prop2 = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone" : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
-    const asleep = act === "sleep", dozing = act === "doze";
+    const asleep = act === "sleep", dozing = act === "doze" || act === "dozeup";
     const fo = {
-      mode: act === "sit" || act === "type" || dozing ? "sit" : walking ? "stroll" : "stand",
+      mode: act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? "stroll" : "stand",
       phase: walking ? q(m.walk % 1, 120) : 0,
       expr: asleep || dozing ? "relief" : m.expr,
       blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7),
@@ -9330,7 +9369,7 @@ var stageTemplate = (people, effects, cam, t, light) => {
     if (asleep) pl.roll = Math.PI / 2;
     out.places.push(pl);
     if (asleep || dozing) out.fx.push({ key: `zz${q(t * 0.8 % 1, 8)}`, cw: 300, ch: 300, draw: (p) => fxZz(p, t * 0.8 % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
-    if (!asleep) blob(out, m.x, D0 + (m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+    if (!asleep) blob(out, m.x, D0 + (act === "sit" || act === "doze" ? 0 : m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {
     const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;
@@ -9904,7 +9943,7 @@ var World = class {
     for (let i = 0; i < this.clouds.length; i++) {
       const m = this.clouds[i], mat = m.material;
       m.lookAt(cam.position.x, m.position.y, cam.position.z);
-      mat.map = this.cloudMaps[light][i % 4];
+      mat.map = (this.cloudMaps[light] || this.cloudMaps.day)[i % 4];
     }
     const W = this.WU, wc = K.water;
     untone(wc.near, W.wNearC.value);
@@ -10341,8 +10380,8 @@ var GRADE_GOLDEN2 = {
   tintH: [-0.012, 6e-3],
   vig: [0.2, 0.4]
 };
-var GRADES = { day: GRADE_DAY2, golden: GRADE_GOLDEN2 };
-var GRADE_STRENGTH = { day: 1, golden: 1 };
+var GRADES = { day: GRADE_DAY2, golden: GRADE_GOLDEN2, indoor: GRADE_DAY2 };
+var GRADE_STRENGTH = { day: 1, golden: 1, indoor: 1 };
 function gradeFor(fx, light) {
   const tag = fx;
   if (tag._light !== light) {
@@ -10524,6 +10563,14 @@ function frameAt(s, t) {
     fov = 38;
     cInf = 6;
   }
+  if (s.at && s.kind === "react") {
+    dist = 2.9;
+    h = 1.85;
+    lookY = 1.82;
+    fov = 34;
+  }
+  if (s.at) cInf = Math.min(cInf, 2);
+  if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr;
   if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
     const back = -1.9, a = s.extras[0], b = s.extras[1];
     const across = lerp(-1.4, 1.4, clamp012((t + s.seed % 3) / Math.max(dur, 2.5)));
@@ -10554,7 +10601,6 @@ function aerialAt(light, k) {
 
 // src/sets.ts
 import * as THREE8 from "three";
-var NOINK2 = 3;
 var TAU2 = Math.PI * 2;
 var MK = {
   color: (c) => lam("set_" + c, () => ({ color: c })),
@@ -10893,27 +10939,6 @@ var room = (g, o) => {
   P2(g, d, o.h, side, -o.w / 2, o.h / 2, (o.zb + zf) / 2, Math.PI / 2);
   P2(g, d, o.h, side, o.w / 2, o.h / 2, (o.zb + zf) / 2, -Math.PI / 2);
   if (o.ceil) P2(g, o.w, d, o.ceil, 0, o.h, (o.zb + zf) / 2, 0, Math.PI / 2);
-};
-var beam2 = (g, x, y, z, w, h, tilt) => {
-  const m = new THREE8.Mesh(new THREE8.PlaneGeometry(w, h), new THREE8.MeshBasicMaterial({
-    map: ctex("set_beam", 64, 256, (c) => {
-      const gr = c.createLinearGradient(0, 0, 0, 256);
-      gr.addColorStop(0, "rgba(255,250,230,0.55)");
-      gr.addColorStop(1, "rgba(255,250,230,0)");
-      c.fillStyle = gr;
-      c.fillRect(0, 0, 64, 256);
-    }),
-    transparent: true,
-    depthWrite: false,
-    blending: THREE8.AdditiveBlending,
-    side: THREE8.DoubleSide,
-    toneMapped: false
-  }));
-  m.position.set(x, y, z);
-  m.rotation.set(0, Math.PI, tilt);
-  m.layers.set(NOINK2);
-  g.add(m);
-  return m;
 };
 var P_ = {
   bunk(g, x, z, ry = 0, sheet = "#3f63b8") {
@@ -11412,7 +11437,6 @@ var MAPS = {
       c.fillStyle = "#cfe8ff";
       c.fillRect(0, 0, 256, 128);
     }), C2("#5a6270"), 4);
-    beam2(g, 0.4, 1.4, 1.2, 1.4, 3.6, -0.5);
     P_.shelf(g, 2.2, 1.6, 2.45, 1, 3, 7);
     return { spots: { bed: [-2, 0.6, 1.5], sit: [0.3, 0.45, 0.5], dig: [0.9, 0, 0.6] } };
   },
@@ -11478,7 +11502,7 @@ var MAPS = {
     P_.paper(g, 1.8, 1, 2.2);
     P_.plant(g, 2, 1.43, 2.25, 0.8);
     B(g, 0.08, 2.6, 0.08, C2("#e8823a"), 2.6, 0.2, 2.2);
-    return { seated: true, spots: { sit: [1, 0.45, 1.6] } };
+    return { seated: true, front: 0.45, spots: { sit: [1, 0.45, 1.6] } };
   },
   // mission control: rows of consoles, a big screen counting down, a clock strip, ceiling light panels
   control(g, r) {
@@ -11507,7 +11531,7 @@ var MAPS = {
     for (let k = 0; k < 4; k++) P_.monitor(g, -1.5 + k, 0.9, 1.85, k + 11);
     P_.seat(g, -0.9, 0.9);
     P_.seat(g, 0.9, 0.9);
-    return { seated: true, spots: { sit: [-0.9, 0.45, 0.8] }, night: true };
+    return { seated: true, front: 0.4, spots: { sit: [-0.9, 0.48, 0.8] }, night: true };
   },
   classroom(g, r) {
     room(g, { w: 9, zb: 3, h: 3.4, floor: T3("clsfloor", 512, 512, planksFloor("#c99a66", "#bb8c5a"), 4, 6), wall: T3("clswall", 512, 512, blocks("#f1ead6", pick2(r, ["#6f9a6a", "#7a8fb8", "#c9a06a"]), "#4a5a3a"), 3, 1), ceil: C2("#efe9dc") });
@@ -11579,7 +11603,7 @@ var MAPS = {
     rug.rotation.x = -Math.PI / 2;
     rug.position.set(-0.5, 0.01, 0.8);
     g.add(rug);
-    return { seated: true, spots: { sit: [-1, 0.45, 2.1] } };
+    return { seated: true, front: 0.5, spots: { sit: [-1, 0.45, 2.1] } };
   },
   bedroom(g, r) {
     room(g, { w: 8, zb: 3, h: 3, floor: T3("bfloor", 512, 512, carpet("#b8a6d9", "#a896c9"), 4, 6), wall: T3("bwall", 512, 512, blocks(pick2(r, ["#cfe3f5", "#f5d9cf", "#e3f5cf"]), "#7a8fb8", "#4a5a8a"), 3, 1), ceil: C2("#f2ede4") });
@@ -11645,7 +11669,7 @@ var MAPS = {
       P_.torch(g, x * 0.6, 2, 4.9);
       P_.column(g, x, 0, 5.5);
     }
-    return { seated: true, spots: { sit: [0, 0.75, 3.8] } };
+    return { seated: true, front: 0.55, spots: { sit: [0, 0.82, 3.8] } };
   },
   shop(g, r) {
     room(g, { w: 10, zb: 3.4, h: 3.4, floor: T3("sfloor", 512, 512, tiles("#eef0f3", "#d4d8de", 6), 5, 8), wall: T3("swall", 512, 512, blocks("#f6e6a6", "#e9876b", "#c8102e"), 3, 1), ceil: C2("#f4f4f0") });
@@ -11692,9 +11716,9 @@ var MAPS = {
     P_.tent(g, -2.4, 2.6, pick2(r, ["#e8823a", "#3f7fd9", "#46b07a"]));
     P_.campfire(g, 0.8, 1);
     P_.log(g, 0.8, 0.2, 0);
-    P_.log(g, 1.9, 1.2, 1.4);
+    P_.log(g, 1.9, 1.2, 0.08);
     for (let k = 0; k < 10; k++) P_.pine(g, -8 + k * 1.8 + r(), 6 + r() * 6, 1.1 + r() * 0.8);
-    return { seated: true, spots: { sit: [1.9, 0.3, 1.2] }, outdoor: true };
+    return { seated: true, spots: { sit: [1.9, 0.32, 1.2] }, outdoor: true };
   },
   beach(g, r) {
     P2(g, 40, 22, T3("sand", 512, 512, dirt("#efd9a0", "#e2c78a"), 8, 5), 0, 0, -2, 0, -Math.PI / 2);
@@ -11721,7 +11745,7 @@ var MAPS = {
     P_.cactus(g, 3.4, 4);
     P_.rock(g, 1.6, 1.4, 0.5, "#b8864f");
     P_.rock(g, -4, 4, 0.7, "#a8784a");
-    return { seated: true, spots: { sit: [1.6, 0.4, 1.4] }, outdoor: true };
+    return { seated: true, front: 0.55, spots: { sit: [1.6, 0.45, 1.4] }, outdoor: true };
   },
   farm(g, r) {
     P2(g, 50, 50, T3("farmgr", 512, 512, dirt("#79b85a", "#6aa84f"), 8, 8), 0, 0, 0, 0, -Math.PI / 2);
@@ -11735,7 +11759,7 @@ var MAPS = {
     P_.hay(g, 2.4, 1.6);
     P_.hay(g, 3.6, 2.2);
     P_.tree(g, 5.2, 6, 1.4);
-    return { seated: true, spots: { sit: [2.4, 1, 1.6] }, outdoor: true };
+    return { seated: true, front: 0.55, spots: { sit: [2.4, 1, 1.6] }, outdoor: true };
   }
 };
 var SET_NAMES = Object.keys(MAPS);
@@ -11754,8 +11778,8 @@ function setFor(id, seed = 1, parent) {
     const r = rng(seed * 7919 + id.length * 131);
     const info = make(root, r, seed) || {};
     const sp = info.spots?.sit;
-    if (sp && !info.seated) P_.chair(root, sp[0], sp[2] + 0.12, 0, pick2(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
-    s = { id, root, origin: [x, D0, 0], spots: info.spots || {}, outdoor: !!info.outdoor, night: !!info.night };
+    if (sp && !info.seated) P_.chair(root, sp[0], sp[2], 0, pick2(r, ["#3a3f4b", "#5a6270", "#7a4f33"]));
+    s = { id, root, origin: [x, D0, 0], spots: info.spots || {}, outdoor: !!info.outdoor, night: !!info.night, front: info.front ?? 0.3 };
     slots.set(key, s);
     if (parent) parent.add(root);
   } else if (parent && s.root.parent !== parent) parent.add(s.root);
@@ -11942,15 +11966,15 @@ var View = class {
     const cam = this.camera, local = t - s.start;
     const set = SET_NAMES.includes(s.place) ? setFor(s.place, s.mapSeed ?? 1, this.world.root) : null;
     for (const c of this.world.root.children) if (c.name.startsWith("set_")) c.visible = !!set && c === set.root;
-    const SPOT = { sleep: ["bed"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
+    const act = s.act === "sleep" && !(set && set.spots.bed) ? set && set.spots.sit ? "doze" : "dozeup" : s.act;
+    const SPOT = { sleep: ["bed"], doze: ["sit"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
     let at = null, actY = 0;
     if (set) {
-      const name = (SPOT[s.act || ""] || []).find((n) => set.spots[n]);
+      const name = (SPOT[act || ""] || []).find((n) => set.spots[n]);
       const sp = name ? set.spots[name] : null;
-      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (s.act === "sit" || s.act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
-      actY = sp && s.act === "sleep" ? sp[1] + 0.3 : 0;
+      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (name === "sit" ? set.front : act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
+      actY = sp && s.act === "sleep" ? sp[1] + 0.3 : sp && name === "sit" && (act === "sit" || act === "doze") ? Math.max(-0.15, sp[1] - 0.45) : 0;
     }
-    const act = s.act === "sleep" && !(set && set.spots.bed) ? "doze" : s.act;
     const fr = frameAt(set ? { ...s, act, at, actY } : s, local);
     if (s.place === "town") {
       fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start));
@@ -11959,6 +11983,7 @@ var View = class {
       fr.cInf = 0;
       fr.focus = fr.cam.look;
     }
+    if (set) clearView(set, fr);
     this.world.updateTemplate(fr, t, cam, this.scene);
     noInkFallback(this.world.root);
     const fwd = new THREE10.Vector3(), fpt = new THREE10.Vector3(...fr.focus);
@@ -12049,6 +12074,17 @@ async function createBridge({ width = 1080, height = 1920 } = {}) {
       return canvas;
     }
   };
+}
+function clearView(set, fr) {
+  if (!set.boxes) {
+    set.root.updateMatrixWorld(true);
+    set.boxes = set.root.children.map((o) => ({ o, b: new THREE10.Box3().setFromObject(o) }));
+  }
+  const lead = fr.people[0], camZ = fr.cam.pos[2];
+  const cast = lead ? fr.people.filter((p) => Math.abs(p.z - lead.z) < 0.6) : [];
+  for (const { o, b } of set.boxes) {
+    o.visible = !cast.length || !cast.some((p) => b.max.z < p.z - 0.08 && b.min.z > camZ && b.max.y > set.origin[1] + 0.25 && b.min.y < set.origin[1] + 1.7 && b.max.x > p.x - 0.55 && b.min.x < p.x + 0.55 && b.max.x - b.min.x < 8);
+  }
 }
 export {
   PLACE_NAMES,
