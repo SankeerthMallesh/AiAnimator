@@ -85,6 +85,8 @@ for (const [i, src] of ['mandelbrot=s=768x1344', 'testsrc2=s=768x1344', 'cellaut
 // ---------- the stand-in voice ----------
 // The fixture read looped and cut so each line lasts as long as its words take at 190 words a
 // minute: lengths and pacing like a real narrator (the sound itself is the same clip throughout).
+// Made once from the speech.mp3 fixture when it is missing (it is not kept in the repository).
+if (!fs.existsSync(path.join(DIR, 'speech.pcm'))) execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', path.join(__dirname, 'speech.mp3'), '-f', 's16le', '-ac', '1', '-ar', '24000', path.join(DIR, 'speech.pcm')]);
 const PCM = fs.readFileSync(path.join(DIR, 'speech.pcm'));
 const WPM = 190;
 function speechPcm(text) {
