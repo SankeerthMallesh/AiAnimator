@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import {
   Pen, bodyFront, bodySide, swingKid, soldier, townsfolk, OFFICER, KID, PARENT, fxNote, fxBurst, fxSplash, fxStars, fxCreak, fxRing, fxBlob, fxShadow, fxContact, fxPlank, fxDrum,
-  Outfit, Expr, FrontOpts, SideOpts, vikingfolk,
+  Outfit, Expr, FrontOpts, SideOpts, vikingfolk, drawInsert,
 } from "./toon";
 import {
   FPS, D0, FILES, ROW_GAP, COUNT, PARK, SHOTS, SNAP, DROP0, DROP1, DROP_H, V3, front, marchPhase, stomp, deckY, dropW, dropU, shapeZ,
@@ -498,7 +498,9 @@ export { FPS };
 export type TPerson = { look: number; x: number; z: number; expr: Expr; wave?: number; hop?: number; walk?: number; kid?: boolean; facing?: -1 | 0 | 1;
   /** 2.0: what they are doing (sit, sleep, dig, eat, drink, type, phone, carry), its swing 0..1, and the height of what they are on */
   act?: string; k?: number; y?: number };
-export type TFx = { kind: "burst" | "stars" | "ring" | "note"; x: number; y: number; z: number; u: number; size?: number };
+export type TFx = { kind: "burst" | "stars" | "ring" | "note" | "insert"; x: number; y: number; z: number; u: number; size?: number;
+  /** 2.1 insert: the action, its thing, the line's words for a headline, and whose sleeves the hands wear */
+  act?: string; item?: string; label?: string; look?: number };
 /** a Stage from template people (front view, standing or strolling) and pop effects, lit by the template's light */
 /** sleeping: three Z's drifting up */
 const fxZz = (p: Pen, t: number) => {
@@ -537,6 +539,12 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     if (!asleep) blob(out, m.x, D0 + (act === "sit" || act === "doze" ? 0 : m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {
+    if (e.kind === "insert") {
+      const base = FOLK[(((e.look ?? 0) % 6) + 6) % 6], own = (e.look ?? -1) >= 0 && FOLK === TOWNFOLK ? LOOKS[e.look!] : null;
+      const sleeve = (own?.jacket || base.jacket) as string, kk = q(clamp01(e.u), 40), sz = e.size ?? 1;
+      out.fx.push({ key: `ins|${e.act}|${e.item}|${kk}|${e.label}|${sleeve}`, cw: 1000, ch: 1000, draw: (p: Pen) => drawInsert(p, e.act || "", e.item || "", kk, e.label || "", sleeve), x: e.x, y: e.y, z: e.z, w: sz, h: sz });
+      continue;
+    }
     const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;
     const draw = e.kind === "stars" ? (p: Pen) => fxStars(p, u) : e.kind === "ring" ? (p: Pen) => fxRing(p, u) : e.kind === "note" ? (p: Pen) => fxNote(p, Math.floor(u * 3) % 3) : (p: Pen) => fxBurst(p, u);
     out.fx.push({ key: `t${e.kind}${u}`, cw: e.kind === "stars" ? 420 : 500, ch: e.kind === "stars" ? 210 : 500, draw, x: e.x, y: e.y, z: e.z, w, h: e.kind === "stars" ? w / 2 : w });

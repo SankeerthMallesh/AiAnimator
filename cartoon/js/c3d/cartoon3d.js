@@ -7571,6 +7571,14 @@ var drawItem = (p, item, x, y, s) => {
       for (let i = 0; i < 4; i++) p.stroke([[x - 11 * s, y - 12 * s + i * 7 * s], [x + (i === 3 ? 2 : 11) * s, y - 12 * s + i * 7 * s]], 1.8 * s, "#9aa2ac");
       if (item === "sign") p.stroke([[x - 18 * s, y - 14 * s], [x + 18 * s, y - 14 * s]], 3 * s, "#c8102e");
       break;
+    case "news": {
+      p.poly([[x - 30 * s, y - 34 * s], [x + 30 * s, y - 32 * s], [x + 31 * s, y + 34 * s], [x - 31 * s, y + 33 * s]], "#f4ecd6", 2.4 * s);
+      p.poly([[x - 26 * s, y - 29 * s], [x + 26 * s, y - 27 * s], [x + 26 * s, y - 19 * s], [x - 26 * s, y - 21 * s]], "#2b2622", 0);
+      for (let i = 0; i < 2; i++) p.stroke([[x - 24 * s, y - 13 * s + i * 7 * s], [x + 24 * s, y - 12 * s + i * 7 * s]], 4 * s, "#2b2622");
+      p.poly([[x - 24 * s, y + 3 * s], [x - 2 * s, y + 3 * s], [x - 2 * s, y + 20 * s], [x - 24 * s, y + 20 * s]], "#d8ccae", 1.2 * s);
+      for (let i = 0; i < 5; i++) p.stroke([[x + 3 * s, y + 4 * s + i * 6 * s], [x + 24 * s, y + 4 * s + i * 6 * s]], 1.6 * s, "#9a8f78");
+      break;
+    }
     case "book":
       p.poly([[x - 26 * s, y - 16 * s], [x, y - 12 * s], [x + 26 * s, y - 16 * s], [x + 26 * s, y + 16 * s], [x, y + 20 * s], [x - 26 * s, y + 16 * s]], "#fbfaf6", 2.2 * s);
       p.stroke([[x, y - 12 * s], [x, y + 20 * s]], 2 * s, "#8a5a3c");
@@ -7633,6 +7641,152 @@ var drawItem = (p, item, x, y, s) => {
       p.poly([[x - 24 * s, y - 18 * s], [x + 24 * s, y - 18 * s], [x + 24 * s, y - 11 * s], [x - 24 * s, y - 11 * s]], "#7d5230", 1.8 * s);
       p.band([[x, y - 18 * s], [x, y - 2 * s]], "#efe0bd", 6 * s, 1.2 * s);
       p.stroke([[x - 16 * s, y + 8 * s], [x - 6 * s, y + 8 * s]], 2 * s, "#5a3b22");
+  }
+};
+var drawInsert = (p, act, item, k, label, sleeve, skin = SKIN) => {
+  const g = p.g, ink = INK;
+  const hand = (fx, fy, x, y, point = 0) => {
+    p.band([[fx, fy], [x, y]], sleeve, 92, 7, "round");
+    p.ell(x, y, 50, 46, skin, 6);
+    if (point) {
+      const a = Math.atan2(y - fy, x - fx);
+      p.band([[x, y], [x + Math.cos(a) * point, y + Math.sin(a) * point]], skin, 30, 6, "round");
+    }
+  };
+  const text = (t, x, y, size, col, font = "900", max = 900) => {
+    g.save();
+    g.font = `${font} ${size}px "Arial Black", Arial, sans-serif`;
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    let sz = size;
+    while (g.measureText(t).width > max && sz > 12) {
+      sz -= 4;
+      g.font = `${font} ${sz}px "Arial Black", Arial, sans-serif`;
+    }
+    g.fillStyle = col;
+    g.fillText(t, x, y);
+    g.restore();
+  };
+  const words = String(label || "").toUpperCase().replace(/[^A-Z0-9 '!?$]/g, "").split(/\s+/).filter(Boolean);
+  switch (act) {
+    case "press": {
+      const d = 16 * k;
+      p.poly([[170, 560], [830, 560], [920, 770], [80, 770]], "#4a5160", 7);
+      p.poly([[80, 770], [920, 770], [920, 900], [80, 900]], "#353b47", 7);
+      p.poly([[250, 790], [750, 790], [750, 880], [250, 880]], "#f2c230", 5);
+      text(words.length ? words.slice(-2).join(" ") : "DO NOT PRESS", 500, 836, 58, "#c8102e", "900", 470);
+      for (const [x, y] of [[200, 600], [800, 600], [140, 740], [860, 740]]) p.dot(x, y, 9, "#2b2f38");
+      p.ell(500, 660, 250, 92, "#f2c230", 6);
+      g.save();
+      p.path([[250, 660], [500, 568], [750, 660], [500, 752]], true);
+      g.clip();
+      for (let i = -6; i < 8; i++) p.band([[250 + i * 70, 760], [330 + i * 70, 560]], "#1e1f24", 24, 0);
+      g.restore();
+      p.ell(500, 660, 250, 92, null, 6);
+      p.ell(500, 655 + d, 165, 62, "#7a1414", 6);
+      p.ell(500, 640 + d, 155, 112 - d * 2, k > 0.6 ? "#ff5a4e" : "#e5484d", 6, 180, 360);
+      p.ell(440, 580 + d, 46, 24, "#ffb3ab", 0);
+      if (k > 0.6) for (let i = 0; i < 8; i++) {
+        const a = i / 8 * Math.PI * 2;
+        p.band([[500 + Math.cos(a) * 200, 560 + Math.sin(a) * 120], [500 + Math.cos(a) * 250, 560 + Math.sin(a) * 150]], "#fff4b0", 12, 0, "round");
+      }
+      hand(1060, 60, 600, 360 + 170 * k, 120);
+      break;
+    }
+    case "read": {
+      g.save();
+      g.translate(500, 520);
+      g.rotate(-0.06);
+      g.translate(-500, -520);
+      p.poly([[150, 90], [850, 110], [860, 930], [140, 940]], "#f4ecd6", 7);
+      text("THE DAILY TIMES", 500, 170, 64, "#2b2622", "700", 640);
+      p.stroke([[190, 215], [810, 225]], 5, "#2b2622");
+      p.stroke([[190, 232], [810, 242]], 2.5, "#2b2622");
+      const h1 = words.slice(0, Math.ceil(Math.min(words.length, 6) / 2)).join(" ") || "BREAKING", h2 = words.slice(Math.ceil(Math.min(words.length, 6) / 2), 6).join(" ");
+      text(h1, 500, 320, 104, "#1e1f24", "900", 660);
+      if (h2) text(h2, 500, 430, 104, "#1e1f24", "900", 660);
+      p.poly([[330, 500], [670, 500], [670, 720], [330, 720]], "#d8ccae", 4);
+      p.ell(500, 610, 70, 70, "#b8a77f", 3);
+      p.ell(500, 720, 120, 70, "#b8a77f", 3, 180, 360);
+      for (let i = 0; i < 8; i++) {
+        p.stroke([[190, 500 + i * 28], [300, 500 + i * 28]], 5, "#9a8f78");
+        p.stroke([[700, 500 + i * 28], [810, 500 + i * 28]], 5, "#9a8f78");
+      }
+      for (let i = 0; i < 5; i++) p.stroke([[190, 770 + i * 30], [810, 770 + i * 30]], 5, "#9a8f78");
+      g.restore();
+      hand(-60, 1080, 140, 700 + 8 * k);
+      hand(1060, 1080, 860, 680 - 8 * k);
+      break;
+    }
+    case "write": {
+      p.poly([[200, 140], [800, 140], [820, 960], [180, 960]], "#8a5a3c", 7);
+      p.poly([[240, 210], [760, 210], [770, 930], [230, 930]], "#fbfaf6", 5);
+      p.poly([[400, 110], [600, 110], [600, 200], [400, 200]], "#c9ced6", 5);
+      const n = 1 + Math.floor(k * 7);
+      for (let i = 0; i < n; i++) {
+        const y = 290 + i * 80, len = i === n - 1 ? 0.25 + 0.75 * (k * 7 % 1) : 1, pts = [];
+        for (let x = 0; x <= 440 * len; x += 22) pts.push([290 + x, y + Math.sin(x * 0.11 + i) * 12]);
+        if (pts.length > 1) p.stroke(pts, 7, "#2b3a6b");
+      }
+      const last = 290 + (n - 1) * 80, px = 290 + 440 * (n === 0 ? 0 : 0.25 + 0.75 * (k * 7 % 1));
+      p.band([[px, last], [px + 150, last - 210]], "#f2c230", 34, 6, "round");
+      p.poly([[px - 14, last + 8], [px + 14, last - 22], [px - 2, last + 22]], "#2b2622", 3);
+      hand(1060, 900, px + 110, last - 140);
+      hand(-60, 1060, 200, 700);
+      break;
+    }
+    case "type": {
+      p.poly([[60, 420], [940, 420], [1e3, 900], [0, 900]], "#3a3f4b", 7);
+      const hit = Math.floor(k * 37) % 30;
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) {
+        const y = 470 + r * 105, x0 = 110 + r * 18 - (y - 470) * 0.12, w = (780 + (y - 470) * 0.24) / 10, x = x0 + c * w;
+        p.poly([[x + 6, y], [x + w - 6, y], [x + w - 4, y + 86], [x + 4, y + 86]], r * 10 + c === hit ? "#ffd24a" : "#e8ebf0", 4);
+      }
+      hand(-60, 1080, 320 + 30 * Math.sin(k * 20), 620 + 20 * Math.cos(k * 17), 70);
+      hand(1060, 1080, 680 - 30 * Math.sin(k * 23), 640 + 20 * Math.cos(k * 19), 70);
+      break;
+    }
+    case "phone": {
+      p.poly([[300, 60], [700, 60], [720, 960], [280, 960]], "#1e1f24", 8);
+      p.poly([[330, 130], [670, 130], [688, 890], [312, 890]], "#3f6fb5", 0);
+      text("CALLING", 500, 260, 62, "#ffffff", "700", 320);
+      const ci = words.findIndex((w) => /^(CALL|CALLS|CALLED|CALLING|PHONED|DIALED|TEXTED|RANG)$/.test(w));
+      const callee = (ci >= 0 ? words.slice(ci + 1) : []).find((w) => !/^(HIS|HER|THE|A|AN|THEIR|MY|OUR|UP|BACK|TO)$/.test(w));
+      text(callee || words.slice(-1)[0] || "MOM", 500, 340, 70, "#ffffff", "900", 330);
+      p.ell(500, 520, 100, 100, "#d8e4f5", 5);
+      p.ell(500, 495, 40, 40, "#3f6fb5", 0);
+      p.ell(500, 580, 64, 40, "#3f6fb5", 0, 180, 360);
+      p.ell(410, 780, 52, 52, "#e5484d", 5);
+      p.ell(590, 780, 52, 52, "#46b07a", 5);
+      hand(1080, 1080, 700, 700 + 10 * Math.sin(k * 6));
+      break;
+    }
+    case "count": {
+      for (let i = 0; i < 5; i++) {
+        const a = -0.5 + i * 0.25 + (i === 4 ? -0.35 * k : 0);
+        g.save();
+        g.translate(500, 760);
+        g.rotate(a);
+        g.translate(-500, -760);
+        p.poly([[300, 300], [700, 300], [700, 760], [300, 760]], "#7fc27a", 6);
+        p.poly([[330, 330], [670, 330], [670, 730], [330, 730]], null, 3);
+        p.ell(500, 520, 80, 90, "#a8dca0", 4);
+        text("$", 500, 525, 110, "#2e6b2a");
+        text("100", 380, 380, 42, "#2e6b2a", "900", 120);
+        g.restore();
+      }
+      hand(-60, 1080, 420, 800);
+      hand(1060, 980, 700 - 60 * k, 520 + 80 * k);
+      break;
+    }
+    default: {
+      const it = item || (act === "eat" ? "food" : act === "drink" ? "cup" : act === "dig" ? "tool" : "box");
+      const bob = Math.sin(k * Math.PI * 2) * 10;
+      p.ell(500, 520 + bob, 360, 300, "#ffffff22", 0);
+      drawItem(p, it, 500, 470 + bob, 13);
+      hand(-60, 1080, 250, 640 + bob);
+      hand(1060, 1080, 750, 640 + bob);
+    }
   }
 };
 var BUILD = {
@@ -7989,9 +8143,9 @@ var bodyFront = (p, o, opts) => {
   }
   if (Array.isArray(prop2) && arms.length === 2 && ["hold", "count", "read", "write", "lift"].includes(prop2[0])) {
     const L = arms[0].pts[2], R = arms[1].pts[2], mx = (L[0] + R[0]) / 2, my = (L[1] + R[1]) / 2;
-    const it = prop2[0] === "read" ? "book" : prop2[0] === "write" ? "paper" : prop2[0] === "count" ? "money" : String(prop2[2] || "box");
+    const it = prop2[0] === "read" ? "news" : prop2[0] === "write" ? "paper" : prop2[0] === "count" ? "money" : String(prop2[2] || "box");
     const lifted = prop2[0] === "lift";
-    drawItem(p, it, mx, my + (lifted ? -10 * u : prop2[0] === "write" ? 8 * u : -6 * u), u * (lifted ? 1.9 : 1.5));
+    drawItem(p, it, mx, my + (lifted ? -10 * u : prop2[0] === "write" ? 8 * u : prop2[0] === "read" ? -14 * u : -6 * u), u * (lifted ? 2.1 : prop2[0] === "read" ? 2.3 : 1.9));
     if (prop2[0] === "write") {
       const [hx, hy] = R;
       p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round");
@@ -9564,6 +9718,12 @@ var stageTemplate = (people, effects, cam, t, light) => {
     if (!asleep) blob(out, m.x, D0 + (act === "sit" || act === "doze" ? 0 : m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {
+    if (e.kind === "insert") {
+      const base2 = FOLK[((e.look ?? 0) % 6 + 6) % 6], own2 = (e.look ?? -1) >= 0 && FOLK === TOWNFOLK ? LOOKS[e.look] : null;
+      const sleeve = own2?.jacket || base2.jacket, kk = q(clamp01(e.u), 40), sz = e.size ?? 1;
+      out.fx.push({ key: `ins|${e.act}|${e.item}|${kk}|${e.label}|${sleeve}`, cw: 1e3, ch: 1e3, draw: (p) => drawInsert(p, e.act || "", e.item || "", kk, e.label || "", sleeve), x: e.x, y: e.y, z: e.z, w: sz, h: sz });
+      continue;
+    }
     const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;
     const draw = e.kind === "stars" ? (p) => fxStars(p, u) : e.kind === "ring" ? (p) => fxRing(p, u) : e.kind === "note" ? (p) => fxNote(p, Math.floor(u * 3) % 3) : (p) => fxBurst(p, u);
     out.fx.push({ key: `t${e.kind}${u}`, cw: e.kind === "stars" ? 420 : 500, ch: e.kind === "stars" ? 210 : 500, draw, x: e.x, y: e.y, z: e.z, w, h: e.kind === "stars" ? w / 2 : w });
@@ -10692,6 +10852,17 @@ function frameAt(s, t) {
       cInf = 13;
       break;
     }
+    case "insert": {
+      const [x, z] = at(0, 0), [ix, iz] = at(0.03, 0.95), [a02, it = ""] = (s.act || "hold").split(":");
+      people.push({ look: who(0), x, z, expr: s.expr || "neutral", act: "clap", k: 1 });
+      effects.push({ kind: "insert", x: ix, y: my + 1.12, z: iz, u: beatOf(s.act || "hold", t), size: 0.42, act: a02, item: it, label: s.label || "", look: who(0) });
+      dist = 2;
+      h = 1.2;
+      lookY = 1.12;
+      fov = 34;
+      cInf = 14;
+      break;
+    }
     case "walk": {
       const d = lerp(-3.2, 0, clamp012(t / dur));
       const [x, z] = at(0, d);
@@ -10782,7 +10953,7 @@ function frameAt(s, t) {
       p0.facing = 1;
     }
     Object.assign(p0, { act: a0, walk: t * (fast ? 1.7 : 0.9), wave: void 0 });
-  } else if (s.act && people.length) {
+  } else if (s.act && people.length && s.kind !== "insert") {
     const into = s.kind !== "react" && s.seed % 2 === 0 && WALK_IN.includes(a0) && !s.actY, tin = 0.85;
     const swing = beatOf(s.act, into ? Math.max(0, t - tin) : t);
     Object.assign(people[0], { act: s.act, k: swing, y: s.actY ?? 0, wave: void 0, walk: void 0 });
@@ -10798,15 +10969,15 @@ function frameAt(s, t) {
     }
   }
   if (s.at && s.kind === "wide") {
-    dist = Math.min(dist, 6.2);
-    h = Math.min(h, 1.85);
-    lookY = 1.25;
+    dist = Math.min(dist, 5.6);
+    h = Math.min(h, 1.8);
+    lookY = 1.2;
     fov = 40;
   }
   if (s.at && s.kind === "talk") {
-    dist = 4;
-    h = 1.55;
-    lookY = 1.15;
+    dist = 3.4;
+    h = 1.5;
+    lookY = 1.12;
     fov = 38;
     cInf = 6;
   }
@@ -10816,7 +10987,7 @@ function frameAt(s, t) {
     lookY = 1.82;
     fov = 34;
   }
-  if (s.at) cInf = Math.min(cInf, 2);
+  if (s.at && s.kind !== "insert") cInf = Math.min(cInf, 2);
   if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr;
   if (s.act2 && s.kind === "two" && people[1]) Object.assign(people[1], { act: s.act2, k: beatOf(s.act2, t, 0.7) });
   if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
@@ -10837,7 +11008,8 @@ function frameAt(s, t) {
   const fx = -dx, fz = -dz, hx = fx * Math.cos(az) - fz * Math.sin(az), hz = fz * Math.cos(az) + fx * Math.sin(az);
   const n = Math.hypot(hx * Math.cos(el), Math.sin(el), hz * Math.cos(el)) || 1;
   const sun = [hx * Math.cos(el) / n, Math.sin(el) / n, hz * Math.cos(el) / n];
-  const focus = people.length ? [people[0].x, my + 1.4, people[0].z] : look;
+  const ins = effects.find((e) => e.kind === "insert");
+  const focus = ins ? [ins.x, ins.y, ins.z] : people.length ? [people[0].x, my + 1.4, people[0].z] : look;
   return { cam: { pos, look, fov, roll }, light: s.light, sun, people, effects, cInf, focus };
 }
 function aerialAt(light, k) {

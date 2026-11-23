@@ -27,6 +27,10 @@ const ACT_FACE = { dig: 'stern', carry: 'grin', eat: 'smile_closed', drink: 'smi
   shrug: 'nervous', panic: 'shock', sweep: 'neutral', look: 'smile', salute: 'stern', wave: 'grin', count: 'grin', run: 'nervous', walk: 'smile' };
 // 2.1: a reaction close-up shows the reaction with the hands too (they are near the face, so the close-up holds them)
 const REACT_ACT = { surprised: 'panic', flinch: 'panic', cheer: 'cheer', think: 'think', shrug: 'shrug', point: 'point', talk: 'think', stand: 'shrug' };
+// 2.1: actions with a thing worth a close-up, and the words written on it (a headline, a label, who is called)
+const INSERTS = new Set(['press', 'read', 'write', 'type', 'phone', 'count', 'hold', 'lift', 'eat', 'drink']);
+export const insertLabel = (line = '') => String(line).replace(/^(and |but |so |then |that night,? |one day,? )+/i, '').replace(/^(he|she|they|we|i)\s+/i, '')
+  .replace(/[^A-Za-z0-9 '!?$]/g, ' ').split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
 // in the riverside town there is no seat, desk or bed: those actions become ones the hands can do anywhere
 const TOWN_ACT = { sit: 'think', sleep: 'shrug', type: 'phone', eat: 'hold:food', drink: 'hold:cup' };
 // Viking-era stories: the town dresses its people as Vikings and puts longships on the river; their shots
@@ -78,7 +82,7 @@ export function townShots(timeline, script, theme = 'town') {
   const scenes = townScenes(timeline.scenes);
   const specs = withTeaser(planShots(scenes, castMap), teaserIndex(scenes, script?.teaser));
   const topic = `${script?.title || ''} ${script?.topic || ''}`, seed = mapSeed(script || {});
-  const shots = specs.map((s, k) => {
+  const shots0 = specs.map((s, k) => {
     const sc = timeline.scenes[s.scene];
     const set = sc?.set || 'city';
     // 2.0: the line's own 2.5D map (a prison cell, a bank vault...); the town only when the story is in the street
@@ -108,8 +112,21 @@ export function townShots(timeline, script, theme = 'town') {
       cast: s.cast.map(c => (typeof c === 'number' ? c : ids.length + (k % 3))), pose: s.pose, camera: s.camera,
       light: map ? (OUTDOOR_MAPS.has(map) ? 'day' : 'indoor') : GOLDEN.has(set) ? 'golden' : 'day', seed: s.seed, words: (s.words || []).map(w => ({ start: (sc?.start || 0) + w.start, end: (sc?.start || 0) + w.end })),
       effect: s.effect, icon: s.icon, teaser: !!s.teaser,
+      line: String(sc?.narration || ''), own: !!actFor(sc || {}, '', k),
     };
   });
+  // 2.1: close-up inserts: the end of a shot whose hands are busy with something cuts to that thing up close (the
+  // button being pressed, the headline, the cash, the key), on every other such shot and whenever the line names it
+  const shots = [];
+  let n = 0;
+  for (const sh of shots0) {
+    const a0 = sh.act.split(':')[0], dur = sh.end - sh.start, { line, own, ...rest } = sh;
+    const fits = !sh.teaser && INSERTS.has(a0) && ['talk', 'two', 'point', 'wide'].includes(sh.kind) && dur >= 2.4;
+    if (fits && (own || n++ % 2 === 1)) {
+      const cut = sh.start + dur * 0.58;
+      shots.push({ ...rest, end: cut }, { ...rest, start: cut, kind: 'insert', camera: 'push-in', extras: [], label: insertLabel(line) });
+    } else shots.push(rest);
+  }
   if (shots.length) shots[shots.length - 1].end = Math.max(shots[shots.length - 1].end, timeline.total + 0.5);
   return { specs, shots };
 }

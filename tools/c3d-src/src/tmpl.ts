@@ -24,6 +24,8 @@ export type TSpec = {
   extras?: number[];
   /** 2.1: what the second person in the shot and the background people are busy with */
   act2?: string; extraAct?: string;
+  /** 2.1 insert shots: the line's words, for a headline or a label on the thing */
+  label?: string;
 };
 export type TFrame = {
   cam: { pos: V3; look: V3; fov: number; roll: number }; light: "day" | "golden"; sun: [number, number, number];
@@ -105,6 +107,14 @@ export function frameAt(s: TSpec, t: number): TFrame {
       if (s.pose === "surprised" || s.pose === "flinch") effects.push({ kind: "stars", x: x + rx * 0.05, y: my + 2.2, z, u: clamp01((t - 0.15) / 0.5), size: 0.8 });
       dist = 2.5; h = 1.7; lookY = 1.72; fov = 32; cInf = 13; break;
     }
+    case "insert": {
+      // 2.1: the close-up of what the hands are doing, big in front of the lens; the lead stands soft behind it
+      // (their own hands are together in front of them, hidden by the close-up, so no second pair shows)
+      const [x, z] = at(0, 0), [ix, iz] = at(0.03, 0.95), [a0, it = ""] = (s.act || "hold").split(":");
+      people.push({ look: who(0), x, z, expr: (s.expr as Expr) || "neutral", act: "clap", k: 1 });
+      effects.push({ kind: "insert", x: ix, y: my + 1.12, z: iz, u: beatOf(s.act || "hold", t), size: 0.42, act: a0, item: it, label: s.label || "", look: who(0) });
+      dist = 2.0; h = 1.2; lookY = 1.12; fov = 34; cInf = 14; break;
+    }
     case "walk": {
       const d = lerp(-3.2, 0, clamp01(t / dur));
       const [x, z] = at(0, d);
@@ -150,7 +160,7 @@ export function frameAt(s: TSpec, t: number): TFrame {
     const fast = a0 === "run", p0 = people[0];
     if (s.kind !== "walk") { const r = lerp(fast ? -2.2 : -1.3, fast ? 2.2 : 1.3, clamp01(t / dur)); const [x, z] = at(r, 0); p0.x = x; p0.z = z; p0.facing = 1; }
     Object.assign(p0, { act: a0, walk: t * (fast ? 1.7 : 0.9), wave: undefined });
-  } else if (s.act && people.length) {
+  } else if (s.act && people.length && s.kind !== "insert") {
     // 2.1: hand actions start with a few steps onto the mark on every other shot, so the cut lands on movement
     const into = s.kind !== "react" && s.seed % 2 === 0 && WALK_IN.includes(a0) && !s.actY, tin = 0.85;
     const swing = beatOf(s.act, into ? Math.max(0, t - tin) : t);
@@ -164,11 +174,12 @@ export function frameAt(s: TSpec, t: number): TFrame {
   }
   // 2.0: inside a map the lens comes in closer and stays at eye height (less empty floor, the cast bigger), and
   // single shots are medium shots, so the place and what is in it stay in the picture
-  if (s.at && s.kind === "wide") { dist = Math.min(dist, 6.2); h = Math.min(h, 1.85); lookY = 1.25; fov = 40; }
-  if (s.at && s.kind === "talk") { dist = 4.0; h = 1.55; lookY = 1.15; fov = 38; cInf = 6; }
+  // 2.1 (references): the cast a little bigger in the picture (medium shots fill about half the height)
+  if (s.at && s.kind === "wide") { dist = Math.min(dist, 5.6); h = Math.min(h, 1.8); lookY = 1.2; fov = 40; }
+  if (s.at && s.kind === "talk") { dist = 3.4; h = 1.5; lookY = 1.12; fov = 38; cInf = 6; }
   if (s.at && s.kind === "react") { dist = 2.9; h = 1.85; lookY = 1.82; fov = 34; }
   // background people stay readable (a strong blur turned the flat drawings into ghosts)
-  if (s.at) cInf = Math.min(cInf, 2);
+  if (s.at && s.kind !== "insert") cInf = Math.min(cInf, 2);
   if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr as Expr;
   // 2.0: background people: one walks across the back of the room, another stands at the side
   // 2.1: the second person in a two-shot is busy too (reacting with their hands or doing their own thing)
@@ -189,7 +200,8 @@ export function frameAt(s: TSpec, t: number): TFrame {
   const fx = -dx, fz = -dz, hx = fx * Math.cos(az) - fz * Math.sin(az), hz = fz * Math.cos(az) + fx * Math.sin(az);
   const n = Math.hypot(hx * Math.cos(el), Math.sin(el), hz * Math.cos(el)) || 1;
   const sun: [number, number, number] = [(hx * Math.cos(el)) / n, Math.sin(el) / n, (hz * Math.cos(el)) / n];
-  const focus: V3 = people.length ? [people[0].x, my + 1.4, people[0].z] : look;
+  const ins = effects.find((e) => e.kind === "insert");
+  const focus: V3 = ins ? [ins.x, ins.y, ins.z] : people.length ? [people[0].x, my + 1.4, people[0].z] : look;
   return { cam: { pos, look, fov, roll }, light: s.light, sun, people, effects, cInf, focus };
 }
 

@@ -469,6 +469,14 @@ export const drawItem = (p: Pen, item: string, x: number, y: number, s: number) 
       box(item === "sign" ? 26 : 17, item === "sign" ? 17 : 22, item === "sign" ? "#f4f1ea" : "#fbfaf6");
       for (let i = 0; i < 4; i++) p.stroke([[x - 11 * s, y - 12 * s + i * 7 * s], [x + (i === 3 ? 2 : 11) * s, y - 12 * s + i * 7 * s]], 1.8 * s, "#9aa2ac");
       if (item === "sign") p.stroke([[x - 18 * s, y - 14 * s], [x + 18 * s, y - 14 * s]], 3 * s, "#c8102e"); break;
+    case "news": {
+      p.poly([[x - 30 * s, y - 34 * s], [x + 30 * s, y - 32 * s], [x + 31 * s, y + 34 * s], [x - 31 * s, y + 33 * s]], "#f4ecd6", 2.4 * s);
+      p.poly([[x - 26 * s, y - 29 * s], [x + 26 * s, y - 27 * s], [x + 26 * s, y - 19 * s], [x - 26 * s, y - 21 * s]], "#2b2622", 0);
+      for (let i = 0; i < 2; i++) p.stroke([[x - 24 * s, y - 13 * s + i * 7 * s], [x + 24 * s, y - 12 * s + i * 7 * s]], 4 * s, "#2b2622");
+      p.poly([[x - 24 * s, y + 3 * s], [x - 2 * s, y + 3 * s], [x - 2 * s, y + 20 * s], [x - 24 * s, y + 20 * s]], "#d8ccae", 1.2 * s);
+      for (let i = 0; i < 5; i++) p.stroke([[x + 3 * s, y + 4 * s + i * 6 * s], [x + 24 * s, y + 4 * s + i * 6 * s]], 1.6 * s, "#9a8f78");
+      break;
+    }
     case "book":
       p.poly([[x - 26 * s, y - 16 * s], [x, y - 12 * s], [x + 26 * s, y - 16 * s], [x + 26 * s, y + 16 * s], [x, y + 20 * s], [x - 26 * s, y + 16 * s]], "#fbfaf6", 2.2 * s);
       p.stroke([[x, y - 12 * s], [x, y + 20 * s]], 2 * s, "#8a5a3c");
@@ -508,6 +516,118 @@ export const drawItem = (p: Pen, item: string, x: number, y: number, s: number) 
     default: // a cardboard box
       box(24, 18, "#9c6a3c", 2.6); p.poly([[x - 24 * s, y - 18 * s], [x + 24 * s, y - 18 * s], [x + 24 * s, y - 11 * s], [x - 24 * s, y - 11 * s]], "#7d5230", 1.8 * s);
       p.band([[x, y - 18 * s], [x, y - 2 * s]], "#efe0bd", 6 * s, 1.2 * s); p.stroke([[x - 16 * s, y + 8 * s], [x - 6 * s, y + 8 * s]], 2 * s, "#5a3b22");
+  }
+};
+
+/** 2.1: an insert, the close-up of what the hands are doing (1000 x 1000 units): the button being pressed, the
+ *  newspaper with its headline, the key or the cash held up, the page being written. k = the action's beat. */
+export const drawInsert = (p: Pen, act: string, item: string, k: number, label: string, sleeve: string, skin = SKIN) => {
+  const g = p.g, ink = INK;
+  const hand = (fx: number, fy: number, x: number, y: number, point = 0) => {
+    p.band([[fx, fy], [x, y]], sleeve, 92, 7, "round");
+    p.ell(x, y, 50, 46, skin, 6);
+    if (point) { const a = Math.atan2(y - fy, x - fx); p.band([[x, y], [x + Math.cos(a) * point, y + Math.sin(a) * point]], skin, 30, 6, "round"); }
+  };
+  const text = (t: string, x: number, y: number, size: number, col: string, font = "900", max = 900) => {
+    g.save(); g.font = `${font} ${size}px "Arial Black", Arial, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    let sz = size; while (g.measureText(t).width > max && sz > 12) { sz -= 4; g.font = `${font} ${sz}px "Arial Black", Arial, sans-serif`; }
+    g.fillStyle = col; g.fillText(t, x, y); g.restore();
+  };
+  const words = String(label || "").toUpperCase().replace(/[^A-Z0-9 '!?$]/g, "").split(/\s+/).filter(Boolean);
+  switch (act) {
+    case "press": {
+      const d = 16 * k;
+      p.poly([[170, 560], [830, 560], [920, 770], [80, 770]], "#4a5160", 7);
+      p.poly([[80, 770], [920, 770], [920, 900], [80, 900]], "#353b47", 7);
+      p.poly([[250, 790], [750, 790], [750, 880], [250, 880]], "#f2c230", 5);
+      text(words.length ? words.slice(-2).join(" ") : "DO NOT PRESS", 500, 836, 58, "#c8102e", "900", 470);
+      for (const [x, y] of [[200, 600], [800, 600], [140, 740], [860, 740]]) p.dot(x, y, 9, "#2b2f38");
+      p.ell(500, 660, 250, 92, "#f2c230", 6);
+      g.save(); p.path([[250, 660], [500, 568], [750, 660], [500, 752]], true); g.clip();
+      for (let i = -6; i < 8; i++) p.band([[250 + i * 70, 760], [330 + i * 70, 560]], "#1e1f24", 24, 0);
+      g.restore();
+      p.ell(500, 660, 250, 92, null, 6);
+      p.ell(500, 655 + d, 165, 62, "#7a1414", 6);
+      p.ell(500, 640 + d, 155, 112 - d * 2, k > 0.6 ? "#ff5a4e" : "#e5484d", 6, 180, 360);
+      p.ell(440, 580 + d, 46, 24, "#ffb3ab", 0);
+      if (k > 0.6) for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; p.band([[500 + Math.cos(a) * 200, 560 + Math.sin(a) * 120], [500 + Math.cos(a) * 250, 560 + Math.sin(a) * 150]], "#fff4b0", 12, 0, "round"); }
+      hand(1060, 60, 600, 360 + 170 * k, 120);
+      break;
+    }
+    case "read": {
+      g.save(); g.translate(500, 520); g.rotate(-0.06); g.translate(-500, -520);
+      p.poly([[150, 90], [850, 110], [860, 930], [140, 940]], "#f4ecd6", 7);
+      text("THE DAILY TIMES", 500, 170, 64, "#2b2622", "700", 640);
+      p.stroke([[190, 215], [810, 225]], 5, "#2b2622"); p.stroke([[190, 232], [810, 242]], 2.5, "#2b2622");
+      const h1 = words.slice(0, Math.ceil(Math.min(words.length, 6) / 2)).join(" ") || "BREAKING", h2 = words.slice(Math.ceil(Math.min(words.length, 6) / 2), 6).join(" ");
+      text(h1, 500, 320, 104, "#1e1f24", "900", 660); if (h2) text(h2, 500, 430, 104, "#1e1f24", "900", 660);
+      p.poly([[330, 500], [670, 500], [670, 720], [330, 720]], "#d8ccae", 4); p.ell(500, 610, 70, 70, "#b8a77f", 3); p.ell(500, 720, 120, 70, "#b8a77f", 3, 180, 360);
+      for (let i = 0; i < 8; i++) { p.stroke([[190, 500 + i * 28], [300, 500 + i * 28]], 5, "#9a8f78"); p.stroke([[700, 500 + i * 28], [810, 500 + i * 28]], 5, "#9a8f78"); }
+      for (let i = 0; i < 5; i++) p.stroke([[190, 770 + i * 30], [810, 770 + i * 30]], 5, "#9a8f78");
+      g.restore();
+      hand(-60, 1080, 140, 700 + 8 * k); hand(1060, 1080, 860, 680 - 8 * k);
+      break;
+    }
+    case "write": {
+      p.poly([[200, 140], [800, 140], [820, 960], [180, 960]], "#8a5a3c", 7);
+      p.poly([[240, 210], [760, 210], [770, 930], [230, 930]], "#fbfaf6", 5);
+      p.poly([[400, 110], [600, 110], [600, 200], [400, 200]], "#c9ced6", 5);
+      const n = 1 + Math.floor(k * 7);
+      for (let i = 0; i < n; i++) {
+        const y = 290 + i * 80, len = i === n - 1 ? 0.25 + 0.75 * ((k * 7) % 1) : 1, pts: P2[] = [];
+        for (let x = 0; x <= 440 * len; x += 22) pts.push([290 + x, y + Math.sin(x * 0.11 + i) * 12]);
+        if (pts.length > 1) p.stroke(pts, 7, "#2b3a6b");
+      }
+      const last = 290 + (n - 1) * 80, px = 290 + 440 * (n === 0 ? 0 : 0.25 + 0.75 * ((k * 7) % 1));
+      p.band([[px, last], [px + 150, last - 210]], "#f2c230", 34, 6, "round"); p.poly([[px - 14, last + 8], [px + 14, last - 22], [px - 2, last + 22]], "#2b2622", 3);
+      hand(1060, 900, px + 110, last - 140);
+      hand(-60, 1060, 200, 700);
+      break;
+    }
+    case "type": {
+      p.poly([[60, 420], [940, 420], [1000, 900], [0, 900]], "#3a3f4b", 7);
+      const hit = Math.floor(k * 37) % 30;
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) {
+        const y = 470 + r * 105, x0 = 110 + r * 18 - (y - 470) * 0.12, w = (780 + (y - 470) * 0.24) / 10, x = x0 + c * w;
+        p.poly([[x + 6, y], [x + w - 6, y], [x + w - 4, y + 86], [x + 4, y + 86]], r * 10 + c === hit ? "#ffd24a" : "#e8ebf0", 4);
+      }
+      hand(-60, 1080, 320 + 30 * Math.sin(k * 20), 620 + 20 * Math.cos(k * 17), 70);
+      hand(1060, 1080, 680 - 30 * Math.sin(k * 23), 640 + 20 * Math.cos(k * 19), 70);
+      break;
+    }
+    case "phone": {
+      p.poly([[300, 60], [700, 60], [720, 960], [280, 960]], "#1e1f24", 8);
+      p.poly([[330, 130], [670, 130], [688, 890], [312, 890]], "#3f6fb5", 0);
+      text("CALLING", 500, 260, 62, "#ffffff", "700", 320);
+      const ci = words.findIndex((w) => /^(CALL|CALLS|CALLED|CALLING|PHONED|DIALED|TEXTED|RANG)$/.test(w));
+      const callee = (ci >= 0 ? words.slice(ci + 1) : []).find((w) => !/^(HIS|HER|THE|A|AN|THEIR|MY|OUR|UP|BACK|TO)$/.test(w));
+      text(callee || words.slice(-1)[0] || "MOM", 500, 340, 70, "#ffffff", "900", 330);
+      p.ell(500, 520, 100, 100, "#d8e4f5", 5); p.ell(500, 495, 40, 40, "#3f6fb5", 0); p.ell(500, 580, 64, 40, "#3f6fb5", 0, 180, 360);
+      p.ell(410, 780, 52, 52, "#e5484d", 5); p.ell(590, 780, 52, 52, "#46b07a", 5);
+      hand(1080, 1080, 700, 700 + 10 * Math.sin(k * 6));
+      break;
+    }
+    case "count": {
+      for (let i = 0; i < 5; i++) {
+        const a = -0.5 + i * 0.25 + (i === 4 ? -0.35 * k : 0);
+        g.save(); g.translate(500, 760); g.rotate(a); g.translate(-500, -760);
+        p.poly([[300, 300], [700, 300], [700, 760], [300, 760]], "#7fc27a", 6);
+        p.poly([[330, 330], [670, 330], [670, 730], [330, 730]], null, 3);
+        p.ell(500, 520, 80, 90, "#a8dca0", 4); text("$", 500, 525, 110, "#2e6b2a");
+        text("100", 380, 380, 42, "#2e6b2a", "900", 120);
+        g.restore();
+      }
+      hand(-60, 1080, 420, 800); hand(1060, 980, 700 - 60 * k, 520 + 80 * k);
+      break;
+    }
+    default: {
+      // the thing held up to the lens in both hands (a key, the gold, a flask, the box...)
+      const it = item || (act === "eat" ? "food" : act === "drink" ? "cup" : act === "dig" ? "tool" : "box");
+      const bob = Math.sin(k * Math.PI * 2) * 10;
+      p.ell(500, 520 + bob, 360, 300, "#ffffff22", 0);
+      drawItem(p, it, 500, 470 + bob, 13);
+      hand(-60, 1080, 250, 640 + bob); hand(1060, 1080, 750, 640 + bob);
+    }
   }
 };
 
@@ -825,9 +945,10 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   // 2.1: the held thing sits between the hands, in front of the body (the hands are drawn over it)
   if (Array.isArray(prop) && arms.length === 2 && ["hold", "count", "read", "write", "lift"].includes(prop[0] as string)) {
     const L = arms[0].pts[2], R = arms[1].pts[2], mx = (L[0] + R[0]) / 2, my = (L[1] + R[1]) / 2;
-    const it = prop[0] === "read" ? "book" : prop[0] === "write" ? "paper" : prop[0] === "count" ? "money" : String(prop[2] || "box");
+    const it = prop[0] === "read" ? "news" : prop[0] === "write" ? "paper" : prop[0] === "count" ? "money" : String(prop[2] || "box");
     const lifted = prop[0] === "lift";
-    drawItem(p, it, mx, my + (lifted ? -10 * u : prop[0] === "write" ? 8 * u : -6 * u), u * (lifted ? 1.9 : 1.5));
+    // 2.1 (references): props big enough to read on a phone; a newspaper covers half the body
+    drawItem(p, it, mx, my + (lifted ? -10 * u : prop[0] === "write" ? 8 * u : prop[0] === "read" ? -14 * u : -6 * u), u * (lifted ? 2.1 : prop[0] === "read" ? 2.3 : 1.9));
     if (prop[0] === "write") { const [hx, hy] = R; p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round"); }
   }
   if (Array.isArray(prop) && prop[0] === "press") {

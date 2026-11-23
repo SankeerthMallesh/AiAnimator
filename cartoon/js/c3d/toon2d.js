@@ -511,6 +511,14 @@ var drawItem = (p, item, x, y, s) => {
       for (let i = 0; i < 4; i++) p.stroke([[x - 11 * s, y - 12 * s + i * 7 * s], [x + (i === 3 ? 2 : 11) * s, y - 12 * s + i * 7 * s]], 1.8 * s, "#9aa2ac");
       if (item === "sign") p.stroke([[x - 18 * s, y - 14 * s], [x + 18 * s, y - 14 * s]], 3 * s, "#c8102e");
       break;
+    case "news": {
+      p.poly([[x - 30 * s, y - 34 * s], [x + 30 * s, y - 32 * s], [x + 31 * s, y + 34 * s], [x - 31 * s, y + 33 * s]], "#f4ecd6", 2.4 * s);
+      p.poly([[x - 26 * s, y - 29 * s], [x + 26 * s, y - 27 * s], [x + 26 * s, y - 19 * s], [x - 26 * s, y - 21 * s]], "#2b2622", 0);
+      for (let i = 0; i < 2; i++) p.stroke([[x - 24 * s, y - 13 * s + i * 7 * s], [x + 24 * s, y - 12 * s + i * 7 * s]], 4 * s, "#2b2622");
+      p.poly([[x - 24 * s, y + 3 * s], [x - 2 * s, y + 3 * s], [x - 2 * s, y + 20 * s], [x - 24 * s, y + 20 * s]], "#d8ccae", 1.2 * s);
+      for (let i = 0; i < 5; i++) p.stroke([[x + 3 * s, y + 4 * s + i * 6 * s], [x + 24 * s, y + 4 * s + i * 6 * s]], 1.6 * s, "#9a8f78");
+      break;
+    }
     case "book":
       p.poly([[x - 26 * s, y - 16 * s], [x, y - 12 * s], [x + 26 * s, y - 16 * s], [x + 26 * s, y + 16 * s], [x, y + 20 * s], [x - 26 * s, y + 16 * s]], "#fbfaf6", 2.2 * s);
       p.stroke([[x, y - 12 * s], [x, y + 20 * s]], 2 * s, "#8a5a3c");
@@ -929,9 +937,9 @@ var bodyFront = (p, o, opts) => {
   }
   if (Array.isArray(prop) && arms.length === 2 && ["hold", "count", "read", "write", "lift"].includes(prop[0])) {
     const L = arms[0].pts[2], R = arms[1].pts[2], mx = (L[0] + R[0]) / 2, my = (L[1] + R[1]) / 2;
-    const it = prop[0] === "read" ? "book" : prop[0] === "write" ? "paper" : prop[0] === "count" ? "money" : String(prop[2] || "box");
+    const it = prop[0] === "read" ? "news" : prop[0] === "write" ? "paper" : prop[0] === "count" ? "money" : String(prop[2] || "box");
     const lifted = prop[0] === "lift";
-    drawItem(p, it, mx, my + (lifted ? -10 * u : prop[0] === "write" ? 8 * u : -6 * u), u * (lifted ? 1.9 : 1.5));
+    drawItem(p, it, mx, my + (lifted ? -10 * u : prop[0] === "write" ? 8 * u : prop[0] === "read" ? -14 * u : -6 * u), u * (lifted ? 2.1 : prop[0] === "read" ? 2.3 : 1.9));
     if (prop[0] === "write") {
       const [hx, hy] = R;
       p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round");

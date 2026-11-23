@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ACTS, ITEMS, actFor, itemFor, busyFor, actBeat } from '../../../cartoon/js/maps.js';
-import { townShots } from '../../../cartoon/js/town.js';
+import { townShots, insertLabel } from '../../../cartoon/js/town.js';
 
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 export const tests = [
@@ -44,6 +44,20 @@ export const tests = [
     assert.ok(shots.some(s => s.act === 'press'));
     assert.ok(shots.filter(s => s.kind === 'two').every(s => s.act2), 'the second person is busy');
     assert.ok(shots.filter(s => s.extras.length).every(s => s.extraAct), 'the people behind are busy');
+  } },
+  { name: 'close-up inserts: a shot whose hands use a thing ends on that thing up close, with the line written on it', fn: () => {
+    const who = [{ id: 'a' }];
+    const scenes = [{ start: 0, dur: 3, narration: 'He was locked in a prison cell.', who, set: 'room' },
+      { start: 3, dur: 3.5, narration: 'Then he pressed the big red button.', who, set: 'room', map: 'control' },
+      { start: 6.5, dur: 3.5, narration: 'He read the morning newspaper.', who, set: 'room', map: 'cell' }];
+    const { shots } = townShots({ scenes, total: 10 }, { title: 'The Button', cast: [{ id: 'a' }] });
+    const ins = shots.filter(s => s.kind === 'insert');
+    assert.ok(ins.some(s => s.act === 'press' && /button/i.test(s.label)), JSON.stringify(ins));
+    for (const s of ins) { const before = shots[shots.indexOf(s) - 1]; assert.equal(before.end, s.start); assert.equal(before.act, s.act); }
+    for (let i = 1; i < shots.length; i++) assert.ok(shots[i].start >= shots[i - 1].start, 'shots stay in order');
+    assert.equal(insertLabel('Then he pressed the big red button.'), 'pressed the big red button');
+    assert.match(read('tools/c3d-src/src/toon.ts'), /export const drawInsert/);
+    assert.match(read('tools/c3d-src/src/tmpl.ts'), /case "insert"/);
   } },
   { name: 'the three engines draw every hands action', fn: () => {
     const toon = read('tools/c3d-src/src/toon.ts'), blocky = read('explainer/js/z3d/blocky.js'), people = read('explainer/js/z3d/people.js'), auto3d = read('explainer/js/z3d/auto3d.js');
