@@ -394,7 +394,8 @@ export async function exportClip(painter, audio, { onProgress, signal } = {}) {
   const put = (t) => {
     const ts = Math.max(lastTs + 1000, Math.round((t - clip.s) * 1e6));
     painter.draw(t);
-    const frame = new VideoFrame(painter.canvas, { timestamp: ts });
+    // The muxer needs every chunk's duration (a frame without one made the export fail).
+    const frame = new VideoFrame(painter.canvas, { timestamp: ts, duration: Math.round(1e6 / fps) });
     venc.encode(frame, { keyFrame: frames % (fps * 2) === 0 });
     frame.close();
     lastTs = ts; frames++;
