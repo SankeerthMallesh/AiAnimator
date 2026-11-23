@@ -1,0 +1,132 @@
+[
+ {
+  "start": 0,
+  "end": 3,
+  "kind": "talk",
+  "place": "cell",
+  "cast": [
+   0
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 1,
+  "mapSeed": 2,
+  "words": [],
+  "act": "dig"
+ },
+ {
+  "start": 3,
+  "end": 6,
+  "kind": "two",
+  "place": "cellblock",
+  "cast": [
+   1,
+   0
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 2,
+  "mapSeed": 2,
+  "words": [],
+  "act": ""
+ },
+ {
+  "start": 6,
+  "end": 9,
+  "kind": "talk",
+  "place": "control",
+  "cast": [
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 3,
+  "mapSeed": 2,
+  "words": [],
+  "act": "type"
+ },
+ {
+  "start": 9,
+  "end": 12,
+  "kind": "talk",
+  "place": "vault",
+  "cast": [
+   3
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 4,
+  "mapSeed": 2,
+  "words": [],
+  "act": "carry"
+ },
+ {
+  "start": 12,
+  "end": 15,
+  "kind": "talk",
+  "place": "kitchen",
+  "cast": [
+   4
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 5,
+  "mapSeed": 2,
+  "words": [],
+  "act": "eat"
+ },
+ {
+  "start": 15,
+  "end": 18,
+  "kind": "wide",
+  "place": "cell",
+  "cast": [
+   0
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 6,
+  "mapSeed": 2,
+  "words": [],
+  "act": "sleep"
+ },
+ {
+  "start": 18,
+  "end": 21,
+  "kind": "talk",
+  "place": "office",
+  "cast": [
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 7,
+  "mapSeed": 2,
+  "words": [],
+  "act": "phone"
+ },
+ {
+  "start": 21,
+  "end": 24,
+  "kind": "two",
+  "place": "diner",
+  "cast": [
+   2,
+   3
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 8,
+  "mapSeed": 2,
+  "words": [],
+  "act": "drink"
+ }
+]

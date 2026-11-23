@@ -1,0 +1,63 @@
+[
+ {
+  "jacket": "#f08a2c",
+  "pants": "#e07a22",
+  "hat": "hair",
+  "hair": "#5a3b2a",
+  "suit": "prison",
+  "acc": [
+   "headlamp"
+  ],
+  "buttons": "#f4f1ea",
+  "dress": ""
+ },
+ {
+  "jacket": "#8a97a8",
+  "pants": "#3b3f52",
+  "hat": "cap",
+  "cap": "#2e3f73",
+  "suit": "guard",
+  "acc": [
+   "shades",
+   "badge"
+  ],
+  "moustache": "#3a2a20",
+  "buttons": "#f4f1ea",
+  "dress": ""
+ },
+ {
+  "jacket": "#f2c230",
+  "pants": "#d9a920",
+  "hat": "hair",
+  "hair": "#c8823a",
+  "suit": "astro",
+  "acc": [
+   "headset"
+  ],
+  "buttons": "#f4f1ea",
+  "dress": ""
+ },
+ {
+  "jacket": "#f08a2c",
+  "pants": "#e07a22",
+  "hat": "hair",
+  "hair": "#5a3b2a",
+  "suit": "prison",
+  "acc": [
+   "shades",
+   "chain",
+   "cigar"
+  ],
+  "buttons": "#f4f1ea",
+  "dress": ""
+ },
+ {
+  "jacket": "#f4f1ea",
+  "pants": "#3b3f52",
+  "hat": "chef",
+  "suit": "chef",
+  "acc": [],
+  "buttons": "#c9ced6",
+  "dress": ""
+ }
+]

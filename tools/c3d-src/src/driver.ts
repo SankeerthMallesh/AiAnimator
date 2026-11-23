@@ -10,7 +10,10 @@ import { LensBlur } from "./lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "./grade";
 import { TOTAL, FLASH_AT, SHOTS, layersAt, dofAt, D0 } from "./story";
 import { frameAt, aerialAt, TSpec, PLACE_NAMES } from "./tmpl";
+import type { V3 } from "./story";
 import { setCardMax, setTheme, setLooks } from "./cast";
+import { setFor, SET_NAMES, disposeSets } from "./sets";
+export { SET_NAMES };
 import { longship, themeFor } from "./viking";
 export { themeFor };
 export { PLACE_NAMES };
@@ -64,6 +67,7 @@ class View {
   }
   /** frees the GPU: the post chain, the world, the drawings and the WebGL context itself */
   dispose() {
+    disposeSets();
     this.composer.dispose(); this.ink.dispose(); this.lens.dispose();
     this.world.dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss();
@@ -72,7 +76,19 @@ class View {
   /** one frame of a Loomy template shot (tmpl.ts) */
   drawTemplate(s: TSpec, t: number) {
     const cam = this.camera, local = t - s.start;
-    const fr = frameAt(s, local);
+    // 2.0: a map from sets.ts: built once per video seed, the only one shown; the lens looks in from its open front
+    const set = SET_NAMES.includes(s.place) ? setFor(s.place, s.mapSeed ?? 1, this.world.root) : null;
+    for (const c of this.world.root.children) if (c.name.startsWith("set_")) c.visible = !!set && c === set.root;
+    // the lead's action happens at its spot in the map (the bed, the chair, the hole): the shot is anchored there
+    const SPOT: Record<string, string[]> = { sleep: ["bed"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
+    let at: { m: V3; d: [number, number] } | null = null, actY = 0;
+    if (set) {
+      const name = (SPOT[s.act || ""] || []).find((n) => set.spots[n]);
+      const sp = name ? set.spots[name] : null;
+      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (s.act === "sit" || s.act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
+      actY = sp && s.act === "sleep" ? sp[1] + 0.3 : 0;
+    }
+    const fr = frameAt(set ? { ...s, at: at!, actY } : s, local);
     if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }
     this.world.updateTemplate(fr, t, cam, this.scene);
     noInkFallback(this.world.root);

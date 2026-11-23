@@ -13,6 +13,11 @@ export type TWord = { start: number; end: number };
 export type TSpec = {
   start: number; end: number; kind: string; place: string; cast: number[]; pose: string; camera: string;
   light: "day" | "golden"; seed: number; words: TWord[]; effect?: string; icon?: string;
+  /** 2.0: the map's build seed (one per video, so every shot in a place sees the same room) and its resolved anchor */
+  mapSeed?: number; at?: { m: V3; d: [number, number] };
+  /** 2.0: the lead's action (sit, sleep, dig, eat, drink, type, phone, carry) and its height (a bed, a chair); lip: mouths
+   *  move with the narration (off: the narrator is off screen and the cast acts) */
+  act?: string; actY?: number; lip?: boolean;
 };
 export type TFrame = {
   cam: { pos: V3; look: V3; fov: number; roll: number }; light: "day" | "golden"; sun: [number, number, number];
@@ -39,7 +44,7 @@ const TALK: Expr[] = ["relief_open", "smile"];
 /** the frame of one template shot at local time t (seconds from the shot's start) */
 export function frameAt(s: TSpec, t: number): TFrame {
   const dur = Math.max(0.1, s.end - s.start), k = glide(t / dur);
-  const place = PLACES[s.place] || PLACES.bridge;
+  const place = s.at || PLACES[s.place] || PLACES.bridge;
   const [mx, my, mz] = place.m;
   let [dx, dz] = place.d;
   // orbit: the lens drifts around the cast by up to 0.3 rad (both ways keep it on the film's side)
@@ -47,7 +52,7 @@ export function frameAt(s: TSpec, t: number): TFrame {
   const rx = dz, rz = -dx; // screen right
   const at = (r: number, d: number): [number, number] => [mx + rx * r + dx * d, mz + rz * r + dz * d];
   const words = s.words.map((w) => ({ start: w.start - s.start, end: w.end - s.start }));
-  const talking = speaking(words, t);
+  const talking = s.lip ? speaking(words, t) : false;
   const face = (pose: string, i: number): Expr => (pose === "talk" || (pose === "stand" && i === 0)) && talking && i === 0 ? TALK[Math.floor(t * 9) % 2] : FACE[pose] || "smile";
   const people: TPerson[] = [], effects: TFx[] = [];
   const who = (i: number) => s.cast[i % Math.max(1, s.cast.length)] ?? i;
@@ -110,6 +115,15 @@ export function frameAt(s: TSpec, t: number): TFrame {
     case "vertigo": dist *= lerp(1.3, 0.85, k); fov *= lerp(0.8, 1.15, k); break;
     default: dist *= lerp(1.03, 0.97, k);
   }
+  // 2.0: the lead does the shot's action (an even swing for eating, drinking and digging)
+  if (s.act && people.length) {
+    const swing = s.act === "dig" ? (Math.sin(t * 4.2) + 1) / 2 : (Math.sin(t * 2.6) + 1) / 2;
+    Object.assign(people[0], { act: s.act, k: swing, y: s.actY ?? 0, wave: undefined, walk: undefined });
+    // asleep: the drawing lies along the bed (it turns about its feet, so they go at the bed's screen-right end)
+    if (s.act === "sleep") { people[0].x = mx + rx * 0.95; people[0].z = mz + rz * 0.95; lookY = 0.85; h = Math.min(h, 1.5); }
+  }
+  // 2.0: inside a map the lens comes in closer and stays at eye height (less empty floor, the cast bigger)
+  if (s.at && s.kind === "wide") { dist = Math.min(dist, 6.2); h = Math.min(h, 1.85); lookY = 1.25; fov = 40; }
   const pos: V3 = [mx + dx * dist + rx * side, my + h, mz + dz * dist + rz * side];
   const look: V3 = [mx + rx * (lookSide + side * 0.6), my + lookY, mz + rz * (lookSide + side * 0.6)];
   // the sun: camera-relative like the film (its azimuth from the light preset, toward screen right)

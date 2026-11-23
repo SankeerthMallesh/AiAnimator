@@ -495,9 +495,19 @@ export { FPS };
 
 // ---------------- Loomy templates: a script's characters on a place (tmpl.ts plans the shots) ----------------
 /** someone in a template shot: x, z on the ground, the face to wear, an arm wave (-1..1) or none, a hop */
-export type TPerson = { look: number; x: number; z: number; expr: Expr; wave?: number; hop?: number; walk?: number; kid?: boolean; facing?: -1 | 0 | 1 };
+export type TPerson = { look: number; x: number; z: number; expr: Expr; wave?: number; hop?: number; walk?: number; kid?: boolean; facing?: -1 | 0 | 1;
+  /** 2.0: what they are doing (sit, sleep, dig, eat, drink, type, phone, carry), its swing 0..1, and the height of what they are on */
+  act?: string; k?: number; y?: number };
 export type TFx = { kind: "burst" | "stars" | "ring" | "note"; x: number; y: number; z: number; u: number; size?: number };
 /** a Stage from template people (front view, standing or strolling) and pop effects, lit by the template's light */
+/** sleeping: three Z's drifting up */
+const fxZz = (p: Pen, t: number) => {
+  for (let i = 0; i < 3; i++) {
+    const s = 26 + i * 14, x = 70 + i * 60 + Math.sin((t + i) * 6) * 6, y = 230 - i * 70 - t * 30;
+    p.stroke([[x, y], [x + s, y], [x, y + s], [x + s, y + s]], 9, "#2b2f45");
+    p.stroke([[x, y], [x + s, y], [x, y + s], [x + s, y + s]], 5, "#ffffff");
+  }
+};
 export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t: number, light: "day" | "golden"): Stage => {
   const out: Stage = { places: [], fx: [] };
   LNAME = light;
@@ -507,12 +517,20 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     const own = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null; // Viking stories keep their themed clothes
     const o = m.kid ? KID : own ? { ...base, ...own } : base;
     const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${((m.look % 6) + 6) % 6}` };
-    const walking = m.walk != null;
-    const fo: FrontOpts = { mode: walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0, expr: m.expr, blink: lidAt(t, 500 + i * 7),
-      wave: m.wave == null ? undefined : q(m.wave, 30), facing: m.facing ?? 0 };
-    const y = D0 + (m.hop || 0);
-    out.places.push(person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1));
-    blob(out, m.x, D0, m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+    const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
+    const prop: FrontOpts["prop"] = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone"
+      : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
+    const asleep = act === "sleep";
+    const fo: FrontOpts = { mode: act === "sit" || act === "type" ? "sit" : walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
+      expr: asleep ? "relief" : m.expr, blink: asleep ? 1 : lidAt(t, 500 + i * 7),
+      wave: m.wave == null || prop ? undefined : q(m.wave, 30), facing: m.facing ?? 0, ...(prop ? { prop } : {}) };
+    const y = D0 + (m.y || 0) + (m.hop || 0);
+    const pl = person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1);
+    // asleep: the drawing lies down on its side, feet toward screen right
+    if (asleep) pl.roll = Math.PI / 2;
+    out.places.push(pl);
+    if (asleep) out.fx.push({ key: `zz${q((t * 0.8) % 1, 8)}`, cw: 300, ch: 300, draw: (p: Pen) => fxZz(p, (t * 0.8) % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
+    if (!asleep) blob(out, m.x, D0 + (m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
   });
   for (const e of effects) {
     const u = q(clamp01(e.u), 30), w = e.size ?? 0.9;

@@ -23,7 +23,8 @@ const shots = await (await fetch(`../proof/${q.get('shots') || 'c3d-tmpl.json'}`
 const W = +(q.get('w') || 1080), H = +(q.get('h') || 1920);
 const view = document.getElementById('view'); view.width = W; view.height = H;
 const g = view.getContext('2d');
-const eng = await createTemplated({ width: W, height: H, shots });
+const looks = q.get('looks') ? await (await fetch(`../proof/${q.get('looks')}`)).json() : [];
+const eng = await createTemplated({ width: W, height: H, shots, looks });
 window.SHOTS = shots;
 window.still = async (t) => { const t0 = performance.now(); g.drawImage(eng.renderAt(t), 0, 0); return { ms: Math.round(performance.now() - t0) }; };
 window.ready = true;

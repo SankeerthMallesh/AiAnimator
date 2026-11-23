@@ -1,0 +1,138 @@
+[
+ {
+  "start": 0,
+  "end": 3,
+  "kind": "wide",
+  "place": "cell",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 1,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 3,
+  "end": 6,
+  "kind": "talk",
+  "place": "cellblock",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 2,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 6,
+  "end": 9,
+  "kind": "two",
+  "place": "banklobby",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 3,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 9,
+  "end": 12,
+  "kind": "group",
+  "place": "vault",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 4,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 12,
+  "end": 15,
+  "kind": "wide",
+  "place": "spacecabin",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 5,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 15,
+  "end": 18,
+  "kind": "talk",
+  "place": "spacetoilet",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 6,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 18,
+  "end": 21,
+  "kind": "two",
+  "place": "control",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 7,
+  "mapSeed": 3,
+  "words": []
+ },
+ {
+  "start": 21,
+  "end": 24,
+  "kind": "group",
+  "place": "cockpit",
+  "cast": [
+   0,
+   1,
+   2
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 8,
+  "mapSeed": 3,
+  "words": []
+ }
+]

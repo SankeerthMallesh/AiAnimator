@@ -1,0 +1,290 @@
+[
+ {
+  "start": 0,
+  "end": 3,
+  "kind": "wide",
+  "place": "classroom",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 1,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 3,
+  "end": 6,
+  "kind": "wide",
+  "place": "office",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 2,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 6,
+  "end": 9,
+  "kind": "wide",
+  "place": "kitchen",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 3,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 9,
+  "end": 12,
+  "kind": "wide",
+  "place": "diner",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 4,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 12,
+  "end": 15,
+  "kind": "wide",
+  "place": "livingroom",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 5,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 15,
+  "end": 18,
+  "kind": "wide",
+  "place": "bedroom",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 6,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 18,
+  "end": 21,
+  "kind": "wide",
+  "place": "hospital",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 7,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 21,
+  "end": 24,
+  "kind": "wide",
+  "place": "lab",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 8,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 24,
+  "end": 27,
+  "kind": "wide",
+  "place": "courtroom",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 9,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 27,
+  "end": 30,
+  "kind": "wide",
+  "place": "museum",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 10,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 30,
+  "end": 33,
+  "kind": "wide",
+  "place": "castle",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 11,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 33,
+  "end": 36,
+  "kind": "wide",
+  "place": "shop",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 12,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 36,
+  "end": 39,
+  "kind": "wide",
+  "place": "tunnel",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 13,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 39,
+  "end": 42,
+  "kind": "wide",
+  "place": "trench",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 14,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 42,
+  "end": 45,
+  "kind": "wide",
+  "place": "camp",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 15,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 45,
+  "end": 48,
+  "kind": "wide",
+  "place": "beach",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 16,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 48,
+  "end": 51,
+  "kind": "wide",
+  "place": "desert",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 17,
+  "mapSeed": 5,
+  "words": []
+ },
+ {
+  "start": 51,
+  "end": 54,
+  "kind": "wide",
+  "place": "farm",
+  "cast": [
+   0,
+   1
+  ],
+  "pose": "stand",
+  "camera": "push-in",
+  "light": "day",
+  "seed": 18,
+  "mapSeed": 5,
+  "words": []
+ }
+]
