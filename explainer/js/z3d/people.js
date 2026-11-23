@@ -193,6 +193,24 @@ export const ACTION_POSES = {
   digDown: { armL: A(0.2, -0.85, 0.5, 0, -0.85, 0.6, { fist: 0.9 }), armR: A(-0.2, -0.92, 0.3, 0, -0.95, 0.35, { fist: 0.9 }), spine: [0.5, 0, 0], head: [0.25, 0, 0] },
   carry: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.28, -1, 0.05, -0.2, -1, 0.15, { fist: 0.95 }), spine: [0, 0, -0.06] },
   sleep: { armL: A(0.1, -1, 0.2, 0.3, -0.2, 1), armR: A(-0.1, -1, 0.2, -0.3, -0.2, 1), blink: 1, head: [0, 0, 0.15] },
+  // 2.1: hands that do things. hold / count / read / write: both hands in front of the chest; press: the right hand
+  // reaches out to a button (pressOut -> pressIn); lift: from bent over (liftDown) up to the chest; look: binoculars
+  hold: { armL: A(0.12, -0.9, 0.38, -0.3, -0.05, 1, { fist: 0.55 }), armR: A(-0.12, -0.9, 0.38, 0.3, -0.05, 1, { fist: 0.55 }), head: [0.12, 0, 0], brows: 0.3 },
+  read: { armL: A(0.12, -0.85, 0.45, -0.28, 0.12, 1, { fist: 0.4 }), armR: A(-0.12, -0.85, 0.45, 0.28, 0.12, 1, { fist: 0.4 }), head: [0.32, 0, 0] },
+  write: { armL: A(0.12, -0.88, 0.42, -0.35, 0.05, 1, { fist: 0.4 }), armR: A(-0.1, -0.88, 0.45, 0.1, -0.15, 1, { fist: 0.85 }), head: [0.35, 0.05, 0] },
+  pressOut: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.5, -0.82, 0.3, -0.3, -0.4, 0.7, { fist: 0.85, point: true }), head: [0.3, -0.3, 0], spine: [0.05, -0.1, 0] },
+  pressIn: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.52, -0.82, 0.25, -0.38, -0.85, 0.35, { fist: 0.85, point: true }), head: [0.38, -0.32, 0], spine: [0.1, -0.12, -0.04] },
+  liftDown: { armL: A(0.15, -0.8, 0.6, 0.05, -0.9, 0.4, { fist: 0.6 }), armR: A(-0.15, -0.8, 0.6, -0.05, -0.9, 0.4, { fist: 0.6 }), spine: [0.55, 0, 0], head: [0.1, 0, 0], hipDrop: 8 },
+  liftUp: { armL: A(0.15, -0.85, 0.4, -0.2, 0.15, 1, { fist: 0.6 }), armR: A(-0.15, -0.85, 0.4, 0.2, 0.15, 1, { fist: 0.6 }), spine: [-0.08, 0, 0], head: [-0.05, 0, 0], brows: 0.4 },
+  look: { armL: A(0.3, -0.45, 0.8, -0.45, 0.88, 0.2, { fist: 0.6 }), armR: A(-0.3, -0.45, 0.8, 0.45, 0.88, 0.2, { fist: 0.6 }), head: [-0.05, 0, 0] },
+  panic: { armL: A(0.95, 0.2, 0.2, -0.8, 0.55, 0.15, { fist: 0 }), armR: A(-0.95, 0.2, 0.2, 0.8, 0.55, 0.15, { fist: 0 }), head: [-0.08, 0, 0], jaw: 0.9, brows: 1 },
+  salute: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.85, 0.15, 0.3, 0.45, 0.85, 0.1, { fist: 0 }), head: [-0.04, 0, 0], spine: [-0.04, 0, 0] },
+  clapOpen: { armL: A(0.25, -0.75, 0.55, 0.15, 0.25, 1, { fist: 0 }), armR: A(-0.25, -0.75, 0.55, -0.15, 0.25, 1, { fist: 0 }), jaw: 0.5, brows: 0.5 },
+  clapShut: { armL: A(0.15, -0.75, 0.6, -0.4, 0.25, 1, { fist: 0 }), armR: A(-0.15, -0.75, 0.6, 0.4, 0.25, 1, { fist: 0 }), jaw: 0.5, brows: 0.5 },
+  waveA: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.8, 0.2, 0.2, -0.45, 0.9, 0.1, { fist: 0 }), brows: 0.4 },
+  waveB: { armL: A(0.2, -1, 0.02, 0.12, -1, 0.2), armR: A(-0.8, 0.2, 0.2, 0.15, 1, 0.1, { fist: 0 }), brows: 0.4 },
+  sweepA: { armL: A(0.2, -0.7, 0.6, -0.1, -0.5, 0.8, { fist: 0.9 }), armR: A(-0.2, -0.85, 0.4, 0.15, -0.8, 0.5, { fist: 0.9 }), spine: [0.18, 0.2, 0] },
+  sweepB: { armL: A(0.2, -0.7, 0.6, -0.3, -0.5, 0.8, { fist: 0.9 }), armR: A(-0.2, -0.85, 0.4, -0.1, -0.8, 0.5, { fist: 0.9 }), spine: [0.18, -0.2, 0] },
 };
 
 // Blends two poses (k = 0 gives a, 1 gives b). Directions are mixed and renormalised in pose().

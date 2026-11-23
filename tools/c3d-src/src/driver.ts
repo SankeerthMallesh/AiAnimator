@@ -85,13 +85,15 @@ class View {
     const SPOT: Record<string, string[]> = { sleep: ["bed"], doze: ["sit"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
     let at: { m: V3; d: [number, number] } | null = null, actY = 0;
     if (set) {
-      const name = (SPOT[act || ""] || []).find((n) => set.spots[n]);
+      const name = (SPOT[(act || "").split(":")[0]] || []).find((n) => set.spots[n]);
       const sp = name ? set.spots[name] : null;
       // a seat's spot is its middle: the flat drawing goes just in front of the seat's edge, so the legs hang over
       // it instead of disappearing behind it
-      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (name === "sit" ? set.front : act === "type" ? 0.05 : 0)] : set.origin, d: [0, -1] };
+      // 2.1: a shot that does not use the map's seat stands to one side of it, so an empty chair is never centre frame
+      const seat = set.spots.sit, aside = !sp && seat && Math.abs(seat[0]) < 1.2 && Math.abs(seat[2]) < 1.6 ? (seat[0] >= 0 ? seat[0] - 1.5 : seat[0] + 1.5) : 0;
+      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (name === "sit" ? set.front : act === "type" ? 0.05 : 0)] : [set.origin[0] + aside, set.origin[1], set.origin[2]], d: [0, -1] };
       // a high seat (a stool, a throne, a hay bale) lifts the seated drawing to it; its feet hang in front
-      actY = sp && s.act === "sleep" ? sp[1] + 0.3 : sp && name === "sit" && (act === "sit" || act === "doze") ? Math.max(-0.15, sp[1] - 0.45) : 0;
+      actY = sp && act === "sleep" ? sp[1] + 0.3 : sp && name === "sit" && (act === "sit" || act === "doze") ? Math.max(-0.15, sp[1] - 0.45) : 0;
     }
     const fr = frameAt(set ? { ...s, act, at: at!, actY } : s, local);
     if (s.place === "town") { fr.cam = aerialAt(s.light, local / Math.max(0.1, s.end - s.start)); fr.people = []; fr.effects = []; fr.cInf = 0; fr.focus = fr.cam.look; }

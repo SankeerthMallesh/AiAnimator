@@ -517,13 +517,16 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     const own = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null; // Viking stories keep their themed clothes
     const o = m.kid ? KID : own ? { ...base, ...own } : base;
     const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${((m.look % 6) + 6) % 6}` };
-    const walking = m.walk != null, act = m.act || "", k = q(m.k ?? 0.5, 12);
+    // 2.1: the beat of an action in 40 steps (12 made eating and digging look jerky); "hold:key" = the act and its thing
+    const walking = m.walk != null, [act, item = ""] = (m.act || "").split(":"), k = q(m.k ?? 0.5, 40);
+    const HANDS = ["press", "point", "write", "read", "cheer", "think", "shrug", "panic", "sweep", "look", "salute", "clap", "count"];
     const prop: FrontOpts["prop"] = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone"
-      : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : null;
+      : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : act === "hold" || act === "lift" ? [act, k, item || "box"] as FrontOpts["prop"]
+      : HANDS.includes(act) && !walking ? [act, k] as FrontOpts["prop"] : null;
     const asleep = act === "sleep", dozing = act === "doze" || act === "dozeup";
-    const fo: FrontOpts = { mode: act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? "stroll" : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
+    const fo: FrontOpts = { mode: act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? (act === "run" ? "march" : "stroll") : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
       expr: asleep || dozing ? "relief" : m.expr, blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7), ...(dozing ? { headTilt: 14 } : {}),
-      wave: m.wave == null || prop ? undefined : q(m.wave, 30), facing: m.facing ?? 0, ...(prop ? { prop } : {}) };
+      wave: act === "wave" ? q(Math.sin((m.k ?? 0.5) * Math.PI * 2), 30) : m.wave == null || prop ? undefined : q(m.wave, 30), facing: m.facing ?? 0, ...(prop ? { prop } : {}) };
     const y = D0 + (m.y || 0) + (m.hop || 0);
     const pl = person(cam, who, m.x, y, m.z, { side: false, mirror: false }, fo, {}, m.kid ? 0.72 : 1);
     // asleep: the drawing lies down on its side, feet toward screen right

@@ -166,7 +166,7 @@ export class Avatar {
   }
 
   // Poses as joint angles (radians): arms swing forward (+x) and out (z); t animates the cycles.
-  pose(name, t = 0, { face = null, talking = false } = {}) {
+  pose(name, t = 0, { face = null, talking = false, k = 0.5 } = {}) {
     const s = Math.sin, set = (o, x = 0, y = 0, z = 0) => o.rotation.set(x, y, z);
     for (const o of [this.armL, this.armR, this.legL, this.legR, this.neck, this.torso]) set(o);
     this.hips.position.y = 2 * U; this.hips.rotation.set(0, 0, 0);
@@ -192,6 +192,22 @@ export class Avatar {
       case 'think': set(this.armR, -2.3, 0, 0.55); set(this.armL, -0.6, 0, -0.4); set(this.neck, 0.05, 0.15, 0.12); f = 'worried'; break;
       case 'shrug': set(this.armL, -0.35, 0, 0.75); set(this.armR, -0.35, 0, -0.75); set(this.neck, 0, 0, 0.15); f = 'smug'; break;
       case 'sit': set(this.legL, -1.5); set(this.legR, -1.5); this.hips.position.y = 1.15 * U; set(this.armL, -0.5); set(this.armR, -0.5); break;
+      // 2.1: hands that do things (k is the action's beat, 0..1). Arms raise forward with -x, spread out with z.
+      case 'hold': case 'read': case 'write': case 'count':
+        set(this.armL, -1.25, 0, -0.5); set(this.armR, -1.25 + (name === 'write' ? s(k * 12) * 0.08 : name === 'count' ? -k * 0.25 : 0), 0, 0.5);
+        set(this.neck, name === 'read' || name === 'write' ? 0.3 : 0.12); f = name === 'count' ? 'grin' : 'smile'; break;
+      case 'lift': set(this.armL, -0.3 - k * 1.0, 0, -0.45); set(this.armR, -0.3 - k * 1.0, 0, 0.45); set(this.torso, 0.35 * (1 - k)); f = 'angry'; break;
+      case 'press': set(this.armR, -0.95 - k * 0.2, 0, -0.22); set(this.neck, 0.25, -0.3); f = 'grin'; break;
+      case 'look': set(this.armL, -2.3, 0, -0.5); set(this.armR, -2.3, 0, 0.5); set(this.neck, -0.05, s(t * 0.9) * 0.2); f = 'smile'; break;
+      case 'panic': set(this.armL, -2.7, 0, 0.75 + s(t * 9) * 0.08); set(this.armR, -2.7, 0, -0.75 - s(t * 9) * 0.08); f = 'scared'; break;
+      case 'salute': set(this.armR, -2.5, 0, 0.85); set(this.neck, -0.05); f = 'angry'; break;
+      case 'clap': set(this.armL, -1.3, 0, -0.1 - k * 0.3); set(this.armR, -1.3, 0, 0.1 + k * 0.3); f = 'grin'; break;
+      case 'sweep': case 'dig': set(this.armL, -1.0 + (k - 0.5) * 0.4, 0.3, -0.2); set(this.armR, -0.7 + (k - 0.5) * 0.4, 0.3, 0.2); set(this.torso, 0.2 + k * 0.15); f = 'angry'; break;
+      case 'eat': case 'drink': set(this.armR, -1.2 - k * 1.2, 0, 0.45); set(this.armL, 0, 0, 0.06); f = 'smile'; break;
+      case 'phone': set(this.armR, -2.5, 0, 0.75); f = 'worried'; break;
+      case 'type': set(this.legL, -1.5); set(this.legR, -1.5); this.hips.position.y = 1.15 * U; set(this.armL, -1.3 + s(t * 11) * 0.06, 0, -0.15); set(this.armR, -1.3 + s(t * 13 + 1) * 0.06, 0, 0.15); set(this.neck, 0.2); break;
+      case 'carry': set(this.armR, -0.1, 0, -0.15); set(this.armL, 0, 0, 0.06); f = 'grin'; break;
+      case 'sleep': set(this.legL, -1.5); set(this.legR, -1.5); this.hips.position.y = 1.15 * U; set(this.armL, -0.4); set(this.armR, -0.4); set(this.neck, 0.45, 0, 0.2); f = 'blink'; break;
       default: set(this.armL, 0, 0, 0.06); set(this.armR, 0, 0, -0.06); f = 'smile';
     }
     this.torso.rotation.x += breath;

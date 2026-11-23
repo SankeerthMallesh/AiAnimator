@@ -325,7 +325,7 @@ ${style.mascot ? `  "host": {"hat": one of ${JSON.stringify(HATS)} (pick the one
       "effect": one of ${JSON.stringify(style.drawn ? EFFECTS3D : EFFECTS)}${style.drawn ? `,
       "set": one of ${JSON.stringify(SETS)} (the place; keep it until the story moves),
       "map": one of ${JSON.stringify(MAPS)} or '' (2.0: a full place built in 3D with real objects; pick it whenever the line happens somewhere specific: an inmate: cell, guards: cellblock, a heist: banklobby then vault, astronauts: spacecabin, spacetoilet, control, cockpit, a trial: courtroom),
-      "action": what the main character does, one of ${JSON.stringify(ACTS)} (dug: dig, fell asleep: sleep, stole the cash: carry, ate: eat, called: phone, hacked: type),
+      "action": what the main character does, one of ${JSON.stringify(ACTS)} (dug: dig, fell asleep: sleep, stole the cash: carry, ate: eat, called: phone, hacked: type, found the key: hold, hit the button: press, signed it: write, checked the map: read, spotted someone: look, freaked out: panic, got away: run); never "stand",
       "acc": accessories for the main character, up to two of ${JSON.stringify(ACCESSORIES)} (a controller's headset, a boss's cigar, a guard's shades),
       "frame": one of ${JSON.stringify(SHOT_KINDS)},
       "who": ["the names of the characters in this shot"],

@@ -7,7 +7,11 @@ export const MAPS = ['cell', 'cellblock', 'banklobby', 'vault', 'spacecabin', 's
   'beach', 'desert', 'farm'];
 /** the riverside town's own places (street = the bank by the bridge) */
 export const TOWN = ['street', 'park', 'bridge'];
-export const ACTS = ['sit', 'sleep', 'dig', 'eat', 'drink', 'type', 'phone', 'carry', 'walk', 'point', 'cheer', 'think', 'stand'];
+export const ACTS = ['sit', 'sleep', 'dig', 'eat', 'drink', 'type', 'phone', 'carry', 'walk', 'run', 'point', 'cheer', 'think', 'stand',
+  // 2.1: hands that do things
+  'hold', 'press', 'write', 'read', 'lift', 'sweep', 'look', 'panic', 'shrug', 'clap', 'salute', 'wave', 'count'];
+/** things a hand can hold (hold:key, lift:box); the line's words pick one */
+export const ITEMS = ['box', 'key', 'map', 'paper', 'book', 'money', 'gold', 'flask', 'cup', 'tool', 'gem', 'flashlight', 'sign', 'remote', 'food', 'bomb'];
 export const OUTFITS = ['prison', 'guard', 'astro', 'coat', 'suit', 'chef', 'soldier', 'worker', 'royal', 'casual'];
 export const ACCESSORIES = ['headset', 'cigar', 'shades', 'glasses', 'chain', 'headlamp', 'tie', 'badge', 'nametag', 'patch'];
 
@@ -77,23 +81,99 @@ export function mapFor(scene = {}, topic = '') {
   return own || SET_MAP[scene.set] || guessMap('', topic);
 }
 
+// Ordered: the first rule whose words are in the line wins (a line can say "he grabbed the key and dug", the key wins
+// only if it comes first in this list: the bigger, clearer action goes first).
 const ACT_RULES = [
   [/\b(dig\w*|dug|shovel\w*|tunnel(ed|ing)?)\b/, 'dig'],
   [/\b(asleep|slept|sleep\w*|nap\w*|snor\w*|bedtime)\b/, 'sleep'],
-  [/\b(ate|eat\w*|lunch|dinner|breakfast|burgers?|pizza|sandwich\w*|snacks?|food)\b/, 'eat'],
+  [/\b(ate|eat\w*|lunch|dinner|breakfast|burgers?|pizza|sandwich\w*|snacks?)\b/, 'eat'],
   [/\b(drank|drink\w*|coffee|tea|soda|juice|sip\w*)\b/, 'drink'],
   [/\b(typ(e|ed|ing)|computers?|hack\w*|keyboard|cod(e|ing)|laptop)\b/, 'type'],
   [/\b(phone\w*|called|calling|texted|dial\w*|radio(ed)?)\b/, 'phone'],
+  [/\b(press(ed|es|ing)?|push(ed|es|ing)? (the|a|that|one) (button|switch|lever)|buttons?|switch(ed)?|levers?|launch(ed)?|detonat\w*|activat\w*|turned on|turned off)\b/, 'press'],
+  [/\b(count(ed|ing)?|paid|pay(ing)?|bills?|dollars?|bribe\w*)\b/, 'count'],
   [/\b(stole|steal\w*|cash|money|loot|carr(y|ied|ies|ying)|bags?)\b/, 'carry'],
+  [/\b(lift(ed|ing)?|raised?|heav(y|ed)|boxes|crates?)\b/, 'lift'],
+  [/\b(wrote|writ(e|es|ing|ten)|signed|sign(ing)? (the|a)|notes?|letters?|draw(s|ing)?|drew|sketch\w*)\b/, 'write'],
+  [/\b(read(s|ing)?|newspaper|studied|stud(y|ying)|books?|manual|instructions)\b/, 'read'],
+  [/\b(held|hold(s|ing)?|grab(bed|s|bing)?|found|picked up|took|keys?|maps?|plans?|blueprints?|gems?|diamonds?|treasure|flashlight|torch)\b/, 'hold'],
+  [/\b(sweep\w*|swept|mop\w*|clean(ed|ing)?|scrub\w*)\b/, 'sweep'],
+  [/\b(watch(ed|ing)(?! tv)|spott(ed|ing)|spied|spy(ing)?|looked out|binoculars|lookout|search(ed|ing)?|scan(ned|ning)?)\b/, 'look'],
+  [/\b(panic\w*|terrified|screamed|freak(ed|ing) out|horrified|alarm(s|ed)?|sirens?)\b/, 'panic'],
+  [/\b(cheer\w*|celebrat\w*|won|win(s|ning)?|victory|hooray|yes!|escaped|made it)\b/, 'cheer'],
+  [/\b(clap\w*|applau\w*)\b/, 'clap'],
+  [/\b(salut\w*|sir|captain|general|sergeant|officer)\b/, 'salute'],
+  [/\b(wav(e|ed|ing)|hello|goodbye|bye)\b/, 'wave'],
+  [/\b(shrug\w*|no idea|didn'?t know|nobody knew|who knows|confused|weird)\b/, 'shrug'],
+  [/\b(thought|think\w*|wonder\w*|plan(ned|ning)?|idea|figured|realiz\w*|secret)\b/, 'think'],
+  [/\b(ran|run(s|ning)?|rushed|sprint\w*|chas(e|ed|ing)|fled|escap(e|ing))\b/, 'run'],
+  [/\b(walk(ed|s|ing)?|went|came|arriv\w*|enter(ed|s)?|left|snuck|sneak\w*|crept|follow(ed|ing)?|moved?)\b/, 'walk'],
+  [/\b(pointed|point(s|ing)? (at|to)|showed|look at|over there)\b/, 'point'],
   [/\b(sat|sits?|sitting|waited|waiting|watch(ed|ing)? tv|seated)\b/, 'sit'],
 ];
-/** what the lead does in a scene: the writer's "do", else the line's verbs ('' = they just stand and react) */
-export function actFor(scene = {}) {
+const ITEM_RULES = [
+  [/\b(keys?|keycard|lock(ed)?)\b/, 'key'], [/\b(maps?|plans?|blueprints?)\b/, 'map'], [/\b(letters?|notes?|papers?|documents?|files?|reports?|contracts?|tickets?)\b/, 'paper'],
+  [/\b(books?|manual|diary|newspaper)\b/, 'book'], [/\b(cash|money|dollars?|bills?|bribe\w*)\b/, 'money'], [/\b(gold|bars?|coins?|treasure)\b/, 'gold'],
+  [/\b(gems?|diamonds?|jewels?|rub(y|ies))\b/, 'gem'], [/\b(flasks?|potions?|chemicals?|formula|vials?|samples?)\b/, 'flask'],
+  [/\b(cups?|mugs?|coffee|tea)\b/, 'cup'], [/\b(tools?|wrench|hammer|screwdriver|spoon)\b/, 'tool'], [/\b(flashlight|torch|light)\b/, 'flashlight'],
+  [/\b(signs?|posters?)\b/, 'sign'], [/\b(remote|controller|detonator|devices?|gadgets?)\b/, 'remote'], [/\b(food|burgers?|pizza|cake|sandwich\w*)\b/, 'food'],
+  [/\b(bombs?|dynamite|explosives?)\b/, 'bomb'], [/\b(box(es)?|packages?|crates?|parcels?|gifts?|presents?)\b/, 'box'],
+];
+/** what a place's people are usually busy with, when the line says nothing about hands (one per shot, in turn) */
+const BUSY = {
+  cell: ['think', 'sit', 'read', 'hold:map', 'write'], cellblock: ['sweep', 'look', 'hold:key', 'write'], banklobby: ['count', 'write', 'hold:paper', 'phone'],
+  vault: ['count', 'hold:gold', 'lift:box', 'look'], spacecabin: ['press', 'hold:tool', 'read', 'type'], spacetoilet: ['sit', 'read', 'press'],
+  control: ['press', 'type', 'look', 'phone'], cockpit: ['press', 'look', 'sit', 'phone'], classroom: ['write', 'read', 'point', 'think'],
+  office: ['type', 'phone', 'write', 'hold:paper'], kitchen: ['eat', 'hold:food', 'drink', 'sweep'], diner: ['eat', 'drink', 'sit', 'hold:food'],
+  livingroom: ['sit', 'hold:remote', 'drink', 'read'], bedroom: ['read', 'sit', 'hold:book', 'think'], hospital: ['write', 'hold:flask', 'press', 'look'],
+  lab: ['hold:flask', 'press', 'write', 'look'], courtroom: ['point', 'hold:paper', 'sit', 'write'], museum: ['look', 'hold:gem', 'point', 'write'],
+  castle: ['sit', 'hold:gold', 'point', 'salute'], shop: ['count', 'hold:box', 'lift:box', 'sweep'], tunnel: ['dig', 'hold:flashlight', 'look', 'lift:box'],
+  trench: ['look', 'salute', 'dig', 'hold:map'], camp: ['sit', 'hold:map', 'eat', 'look'], beach: ['sit', 'look', 'drink', 'wave'],
+  desert: ['look', 'hold:map', 'sit', 'drink'], farm: ['sweep', 'lift:box', 'hold:tool', 'sit'],
+  street: ['walk', 'phone', 'hold:box', 'wave'], park: ['walk', 'sit', 'read', 'wave'], bridge: ['walk', 'look', 'point', 'phone'],
+};
+/** the thing in the hand for a holding action: the line's own words, else what the place has to hand */
+export function itemFor(text = '', map = '') {
+  const t = String(text).toLowerCase();
+  for (const [re, it] of ITEM_RULES) if (re.test(t)) return it;
+  const own = (BUSY[map] || []).find((a) => a.includes(':'));
+  return own ? own.split(':')[1] : 'box';
+}
+const HANDED = ['hold', 'lift'];
+/** what the lead does in a scene: the writer's "do", else the line's verbs, else (2.1) what people do in that place,
+ *  so nobody just stands there. Holding actions carry their thing: "hold:key", "lift:box". n varies the place's pick. */
+export function actFor(scene = {}, map = '', n = 0) {
   const d = String(scene.do || '').toLowerCase();
-  if (ACTS.includes(d)) return ['walk', 'point', 'cheer', 'think', 'stand'].includes(d) ? '' : d;
   const t = String(scene.narration || scene.line || '').toLowerCase();
-  for (const [re, a] of ACT_RULES) if (re.test(t)) return a;
-  return '';
+  let a = ACTS.includes(d) && d !== 'stand' ? d : '';
+  if (!a) for (const [re, x] of ACT_RULES) if (re.test(t)) { a = x; break; }
+  if (!a) {
+    const busy = BUSY[map] || [];
+    if (!busy.length) return '';
+    return busy[((n % busy.length) + busy.length) % busy.length];
+  }
+  return HANDED.includes(a) ? `${a}:${itemFor(t, map)}` : a;
+}
+/** 2.1: the beat (0..1) of an action at time t, the same rhythms the Cartoons engine uses (tmpl.ts beatOf) */
+export function actBeat(act = '', t = 0) {
+  const a = String(act).split(':')[0], ease = (x) => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, x)));
+  switch (a) {
+    case 'dig': return (Math.sin(t * 4.2) + 1) / 2;
+    case 'press': { const u = (t % 1.3) / 1.3; return u < 0.22 ? ease(u / 0.22) : u < 0.4 ? 1 : u < 0.7 ? 1 - ease((u - 0.4) / 0.3) : 0; }
+    case 'write': return (t * 0.7) % 1;
+    case 'count': return (t * 1.8) % 1;
+    case 'cheer': case 'wave': return (t * 1.7) % 1;
+    case 'clap': return Math.abs(Math.sin(t * 6.5));
+    case 'panic': return (t * 1.4) % 1;
+    case 'lift': return ease(t / 1.1) * (0.94 + 0.06 * Math.sin(t * 3));
+    case 'sweep': return (Math.sin(t * 3.2) + 1) / 2;
+    default: return 0.5 + 0.5 * Math.sin(t * 2);
+  }
+}
+/** a background person's business in a place (never the lead's own action twice) */
+export function busyFor(map = '', n = 0, not = '') {
+  const busy = (BUSY[map] || ['phone', 'read', 'drink', 'write']).filter((a) => a !== not && !['sit', 'sleep', 'dig', 'type', 'eat', 'walk'].includes(a));
+  return busy.length ? busy[((n % busy.length) + busy.length) % busy.length] : 'phone';
 }
 
 const HAIR = { brown: '#7a4a28', black: '#2a2422', blonde: '#d8a845', red: '#b8522c', gray: '#9a9a9a', grey: '#9a9a9a' };

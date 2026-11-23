@@ -1,0 +1,152 @@
+{
+ "title": "The Prisoner Who Tunneled Into a Bank",
+ "hookText": "He dug with a spoon",
+ "characters": [
+  {
+   "name": "Rick",
+   "look": "man, casual clothes"
+  },
+  {
+   "name": "Hank",
+   "look": "man, white shirt"
+  }
+ ],
+ "scenes": [
+  {
+   "narration": "He found a rusty key under the bed.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cell",
+   "action": "hold",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "Then he pressed the big red button.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "control",
+   "action": "press",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "He lifted a heavy crate of gold.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "vault",
+   "action": "lift",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "He watched the guards through binoculars.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "trench",
+   "action": "look",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "He signed the letter.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "office",
+   "action": "write",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "The alarms went off.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cellblock",
+   "action": "panic",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "He studied the map all night.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "bedroom",
+   "action": "read",
+   "acc": [
+    "headlamp"
+   ]
+  },
+  {
+   "narration": "He ran down the hall.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "cellblock",
+   "action": "run",
+   "acc": [
+    "headlamp"
+   ]
+  }
+ ]
+}

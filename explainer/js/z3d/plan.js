@@ -49,7 +49,9 @@ export function planShots(scenes, castMap) {
       thing: THINGS.includes(sc.thing) ? sc.thing : '',
       chapter: sc.chapter || null,
       // 2.0: the place built in 3D (the writer's map, else the place the line names) and what the lead does there
-      map: mapFor({ map: sc.map, narration: sc.narration }), act: actFor({ do: sc.action, narration: sc.narration }),
+      // 2.1: nobody just stands there: with no action in the line, they do what people do in that place
+      map: mapFor({ map: sc.map, narration: sc.narration }),
+      act: actFor({ do: sc.action, narration: sc.narration }, mapFor({ map: sc.map, narration: sc.narration }) || (['park', 'street'].includes(set) ? set : ''), i),
       acc: Array.isArray(sc.acc) ? sc.acc : [], mapSeed: 1 + ((scenes[0]?.narration || '').length % 97),
     };
     base.do = base.thing ? (THING_ACTIONS.includes(sc.do) ? sc.do : DEFAULT_DO[kind] || 'show') : '';

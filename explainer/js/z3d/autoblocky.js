@@ -10,6 +10,8 @@ import { fort, flag, pile, shovel, plow } from './blockyprops.js';
 import { makeThing, thingAction } from './things.js';
 import { frameCam, narrowMove, emojiSprite, makeEffect, speakingAt, rnd } from './auto3d.js';
 import { planShots as plan3d } from './plan.js';
+import { actBeat } from '../../../cartoon/js/maps.js';
+import { handThing, TWO_HANDS } from './actprops.js';
 export { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D } from './vocab.js';
 
 // ---------- places: the shot library's sets as blocky worlds ----------
@@ -51,6 +53,8 @@ export function planShots(scenes, castMap) {
 // ---------- poses: the library's pose words in the blocky rig ----------
 const POSE = { stand: 'stand', talk: 'talk', point: 'point', surprised: 'surprised', shrug: 'shrug', cheer: 'cheer', think: 'think', show: 'point', flinch: 'scared' };
 const poseOf = (name) => POSE[name] || 'stand';
+// 2.1: the blocky world has no chairs, desks or beds: those actions become ones the hands can do standing
+const BLOCKY_ACT = { sit: 'think', type: 'press', sleep: 'think', doze: 'think' };
 
 // ---------- props for a scene: snow sets get the fort film's props, others a flag or nothing ----------
 function setDressing(scene, set, r) {
@@ -94,6 +98,10 @@ export function buildShot(spec, { makeStage, W, H }) {
   const thing = spec.thing ? makeThing(spec.thing) : null;
   if (thing) scene.add(thing);
   const holds = thing && (spec.do === 'hold' || spec.do === 'show') && spec.kind !== 'object';
+  // 2.1: what the lead does with their hands ("hold:key" = the act and its thing), and the thing itself
+  let [bact = '', bitem = ''] = String(spec.act || '').split(':'); bact = BLOCKY_ACT[bact] ?? bact;
+  const moving = bact === 'walk' || bact === 'run';
+  const inHand = !holds && bact && !moving ? handThing(bact, bitem) : null; if (inHand) { if (bact !== 'press') inHand.scale.setScalar(1.6); scene.add(inHand); }
   const icon = !thing && spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.6) : null;
   if (icon) scene.add(icon);
   if (spec.kind === 'object') { const st = new THREE.Mesh(roundBox(0.7, 0.9, 0.7, 0.05), plainMat('#8a5a33')); st.position.y = 0.45; st.castShadow = st.receiveShadow = true; scene.add(st); }
@@ -139,15 +147,20 @@ export function buildShot(spec, { makeStage, W, H }) {
       }
       case 'talk': {
         at(A, 0, 0, 0.18);
-        act(A, holds ? 'show' : spec.pose === 'stand' ? 'talk' : spec.pose, t, { onset: 0, talking: talk });
-        target = head(A).add(V(0, -0.05, 0));
-        frameCam(c, target, { dist: 3.2 * near, height: 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
+        if (moving) { const fast = bact === 'run'; at(A, lerp(fast ? -1.8 : -1.1, fast ? 1.8 : 1.1, k), 0, Math.PI / 2 - 0.5); A.pose(bact, t); }
+        else if (bact && !holds) A.pose(bact, t, { talking: talk, k: actBeat(bact, t) });
+        else act(A, holds ? 'show' : spec.pose === 'stand' ? 'talk' : spec.pose, t, { onset: 0, talking: talk });
+        // 2.1: an action is framed wide enough to see the hands, what is in them and the body doing it
+        const acting = bact && !holds;
+        target = acting ? chest(A).add(V(0, 0.3, 0)) : head(A).add(V(0, -0.05, 0));
+        frameCam(c, target, { dist: (acting ? (tall ? 4.8 : 3.9) : 3.2) * near, height: acting ? 0.1 : 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
         eff = chest(A); break;
       }
       case 'two': {
         const gap = tall ? 0.42 : 0.6;
         at(A, -gap, 0, tall ? 0.5 : 0.85); at(B, gap, 0.05, tall ? -0.5 : -0.85);
-        act(A, holds ? 'show' : 'talk', t, { onset: 0, talking: talk });
+        if (bact && !holds && !moving) A.pose(bact, t, { talking: talk, k: actBeat(bact, t) });
+        else act(A, holds ? 'show' : 'talk', t, { onset: 0, talking: talk });
         act(B, spec.pose, t, { onset: dur * 0.4 });
         target = head(A).lerp(head(B), 0.5);
         frameCam(c, target, { dist: (tall ? 4.6 : 3.4) * near, height: 0.1, yaw: tall ? 0.12 : 0.25 }, spec.camera === 'impact' ? 'push-in' : (tall ? narrowMove(spec.camera) : spec.camera), k, t, spec.seed, fov0);
@@ -197,6 +210,26 @@ export function buildShot(spec, { makeStage, W, H }) {
         frameCam(c, target, { dist: (tall ? 6.0 : 4.4) * near, height: 0.25, yaw: 0.1 }, tall ? narrowMove(spec.camera) : spec.camera, k, t, spec.seed, fov0);
         eff = chest(A); break;
       }
+    }
+    // 2.1: the thing in the hands follows them (between both hands, at the eyes for binoculars, in the right hand
+    // for a broom or a cup); the button pedestal stands where the finger lands at full reach
+    if (inHand && A && A.object.visible !== false && ['talk', 'two'].includes(spec.kind)) {
+      const end = (arm) => { A.object.updateMatrixWorld(true); return arm.localToWorld(new THREE.Vector3(0, -1.6 * 0.32, 0.1)); };
+      const yaw = A.object.rotation.y, fwd = (d) => new THREE.Vector3(0, 0, d).applyAxisAngle(V(0, 1, 0), yaw);
+      if (bact === 'press') {
+        if (!inHand.userData.at) {
+          A.pose('press', t, { k: 1 });
+          const h = end(A.armR), top = Math.max(0.5, h.y - 0.2);
+          inHand.userData.at = new THREE.Vector3(h.x, 0, h.z);
+          const ped = inHand.getObjectByName('ped'), btn = inHand.getObjectByName('btn');
+          ped.scale.set(1.3, top, 1.3); ped.position.y = top / 2; btn.scale.setScalar(1.7); btn.position.y = top + 0.04;
+          A.pose('press', t, { talking: talk, k: actBeat('press', t) });
+        }
+        inHand.position.copy(inHand.userData.at);
+      } else if (TWO_HANDS.includes(bact)) inHand.position.copy(end(A.armL).lerp(end(A.armR), 0.5)).add(fwd(0.16)).add(V(0, bact === 'lift' ? 0.08 : 0.02, 0));
+      else if (bact === 'look') inHand.position.copy(head(A)).add(fwd(0.26)).add(V(0, 0.02, 0));
+      else inHand.position.copy(end(A.armR));
+      inHand.rotation.set(bact === 'dig' || bact === 'sweep' ? 0.45 : 0, yaw, bact === 'dig' || bact === 'sweep' ? -0.25 : 0);
     }
     if (thing) {
       if (!spot && !hand) {

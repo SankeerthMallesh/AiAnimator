@@ -8,6 +8,8 @@ import { lerp, smooth, easeOut, easeInOut, range, clamp, V, cam, place, shake } 
 import { glowSprite, sparks } from './props.js';
 import { CAST, loadPerson, POSES, ACTION_POSES, mix, talking, walking } from './people.js';
 import { makeThing, thingAction } from './things.js';
+import { actBeat } from '../../../cartoon/js/maps.js';
+import { handThing, TWO_HANDS } from './actprops.js';
 
 import { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D, effect3d } from './vocab.js';
 export { SETS, SHOT_KINDS, POSE_NAMES, CAMERA_MOVES, EFFECTS3D };
@@ -289,25 +291,25 @@ function actPose(act, t, seated = false) {
   if (act === 'eat' || act === 'drink') { const q = mix(ACTION_POSES.eatDown, ACTION_POSES.eatUp, (Math.sin(t * 2.6) + 1) / 2); return seated ? { ...q, legL: ACTION_POSES.sit.legL, legR: ACTION_POSES.sit.legR, hipDrop: 44 } : q; }
   if (act === 'dig') return mix(ACTION_POSES.digUp, ACTION_POSES.digDown, (Math.sin(t * 4.2) + 1) / 2);
   if (act === 'doze') return { ...ACTION_POSES.sit, blink: 1, head: [0.35, 0, 0.12] };
+  // 2.1: hands that do things, each on its own beat
+  const b = actBeat(act, t), AP = ACTION_POSES;
+  const wob = (q, k = 0.06) => ({ ...q, armR: q.armR && { ...q.armR, lower: [q.armR.lower[0], q.armR.lower[1] + Math.sin(t * 5) * k, q.armR.lower[2]] } });
+  const sitLegs = (q) => (seated ? { ...q, legL: AP.sit.legL, legR: AP.sit.legR, hipDrop: 44 } : q);
+  switch (act) {
+    case 'hold': case 'count': return sitLegs(act === 'count' ? wob(AP.hold, 0.12) : { ...AP.hold, head: [0.12 + 0.04 * Math.sin(t * 1.8), 0, 0] });
+    case 'read': return sitLegs(AP.read);
+    case 'write': return sitLegs(wob(AP.write, 0.1));
+    case 'press': return mix(AP.pressOut, AP.pressIn, b);
+    case 'lift': return mix(AP.liftDown, AP.liftUp, b);
+    case 'look': return { ...AP.look, head: [-0.05, Math.sin(t * 0.9) * 0.25, 0] };
+    case 'panic': return { ...AP.panic, head: [-0.08, Math.sin(t * 7) * 0.08, 0] };
+    case 'salute': return AP.salute;
+    case 'clap': return mix(AP.clapOpen, AP.clapShut, b);
+    case 'wave': return mix(AP.waveA, AP.waveB, (Math.sin(t * 7) + 1) / 2);
+    case 'sweep': return mix(AP.sweepA, AP.sweepB, b);
+    case 'cheer': case 'think': case 'shrug': case 'point': return POSES[act];
+  }
   return POSES[act] || null;
-}
-function handThing(act) {
-  const g = new THREE.Group();
-  if (act === 'dig') {
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.15, 10), std({ color: 0xc8a24a })); shaft.position.y = -0.35; g.add(shaft);
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.02), std({ color: 0x6b7480, metalness: 0.6, roughness: 0.4 })); blade.position.y = -0.98; g.add(blade);
-  } else if (act === 'carry') {
-    const bag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 12), std({ color: 0xb59a68, roughness: 0.95 })); bag.scale.y = 1.2; bag.position.y = -0.15; g.add(bag);
-    const tie = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.08, 10), std({ color: 0xa8935f })); tie.position.y = -0.02; g.add(tie);
-  } else if (act === 'eat') {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), std({ color: 0xc8823a })); m.scale.set(1.3, 0.9, 0.9); g.add(m);
-  } else if (act === 'drink') {
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.12, 16), std({ color: 0xf4f1ea })); g.add(cup);
-  } else if (act === 'phone') {
-    const ph = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.15, 0.075), std({ color: 0x22262e, roughness: 0.3 })); g.add(ph);
-  } else return null;
-  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-  return g;
 }
 /** accessories on a 3D person: built once, placed from the head and the body's facing every frame */
 function accessories(list) {
@@ -328,7 +330,8 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   // the hole) is where the lead stands
   const map = spec.map && MAP_NAMES.includes(spec.map) ? spec.map : '';
   const scene = makeStage(stageFor(map ? (OUTDOOR_MAPS.has(map) ? 'park' : 'room') : spec.set));
-  let spotY = 0, act = spec.act || '';
+  // 2.1: "hold:key" = the act and the thing in the hands
+  let spotY = 0, [act = '', item = ''] = String(spec.act || '').split(':');
   if (map) {
     const m = buildMapInto(scene, map, spec.mapSeed || 1);
     if (act === 'sleep' && !m?.spots.bed) act = 'doze';
@@ -365,7 +368,8 @@ export function buildShot(spec, people, { makeStage, W, H }) {
   // the lead's action as a pose (eating and digging swing), its hand thing and accessories
   const seated = ['sit', 'type', 'doze'].includes(act) || (['eat', 'drink'].includes(act) && map === 'kitchen');
   const actQ = (t) => (P[0] && act && act !== 'sleep' ? actPose(act, t, seated) : act === 'sleep' ? { ...ACTION_POSES.sleep } : null);
-  const inHand = handThing(act); if (inHand) scene.add(inHand);
+  const inHand = handThing(act, item); if (inHand) scene.add(inHand);
+  const moving = act === 'walk' || act === 'run';
   const acc = accessories(spec.acc); if (acc) scene.add(acc);
   const laptop = act === 'type' ? (() => { const l = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), std({ color: 0x9aa2ac })); l.add(b); const sc = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.015), std({ color: 0x2b2f38 })); sc.position.set(0, 0.11, -0.12); sc.rotation.x = -0.25; l.add(sc); l.position.set(0, 0.62, 0.36); scene.add(l); return l; })() : null;
 
@@ -400,7 +404,9 @@ export function buildShot(spec, people, { makeStage, W, H }) {
       }
       case 'talk': {
         at(A, 0, 0, 0.18);
-        if (actQ(t)) A.pose(actQ(t), t, { seed: spec.seed });
+        // 2.1: walking or running across the place, turned the way they go
+        if (moving && A) { const fast = act === 'run'; A.object.position.x = lerp(fast ? -1.8 : -1.1, fast ? 1.8 : 1.1, k); A.object.rotation.y = Math.PI / 2 - 0.5; A.pose(walking(t, fast ? 1.8 : 1), t, { seed: spec.seed }); }
+        else if (actQ(t)) A.pose(actQ(t), t, { seed: spec.seed });
         else poseNow(A, pose0 || (spec.pose === 'stand' ? (spec.lip ? 'talk' : 'stand') : spec.pose), t, { talk, from: 'stand', seed: spec.seed });
         if (act === 'sleep' && A) { A.object.position.set(0.9, spotY + 0.12, 0); A.object.rotation.set(0, 0, Math.PI / 2); }
         // an action is framed wide enough to see it: the whole body and what is in the hands, the place around
@@ -463,7 +469,23 @@ export function buildShot(spec, people, { makeStage, W, H }) {
     }
     if (A && inHand) {
       const hp = A.handWorld('r', new THREE.Vector3());
+      // between the two hands (lifted a little so the fingers are under it), or at the eyes for binoculars
+      if (TWO_HANDS.includes(act)) hp.lerp(A.handWorld('l', new THREE.Vector3()), 0.5).add(V(0, act === 'lift' ? 0.05 : 0.04, 0.03));
+      if (act === 'look') { hp.copy(lookAt(A)).add(new THREE.Vector3(0, 0.07, 0.14).applyAxisAngle(V(0, 1, 0), A.object.rotation.y)); }
       inHand.position.copy(hp); inHand.rotation.set(act === 'dig' ? 0.45 : 0, A.object.rotation.y, act === 'dig' ? -0.25 : 0);
+      // the button panel stands still where the finger lands (in front of the right shoulder, at chest height)
+      if (inHand.userData.fixed) {
+        if (!inHand.userData.at) {
+          // where the fingertip is at full reach: posed once that way, measured, then posed back for this frame
+          A.pose(ACTION_POSES.pressIn, t, { seed: spec.seed });
+          const hp2 = A.handWorld('r', new THREE.Vector3()), floor = A.object.position.y, top = Math.max(0.5, hp2.y - floor - 0.1);
+          inHand.userData.at = new THREE.Vector3(hp2.x, floor, hp2.z);
+          const ped = inHand.getObjectByName('ped'), btn = inHand.getObjectByName('btn');
+          ped.scale.y = top; ped.position.y = top / 2; btn.position.y = top + 0.025;
+          const q = actQ(t); if (q) A.pose(q, t, { seed: spec.seed });
+        }
+        inHand.position.copy(inHand.userData.at);
+      }
       if (act === 'phone') inHand.position.add(V(0.02, 0.04, 0.02));
     }
     if (A && acc) { acc.position.copy(lookAt(A)); acc.rotation.set(0, A.object.rotation.y, A.object.rotation.z); }

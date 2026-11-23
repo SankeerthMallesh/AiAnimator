@@ -22,6 +22,8 @@ export type TSpec = {
   expr?: string;
   /** 2.0: other people in the place (cast looks), going about their business behind the lead */
   extras?: number[];
+  /** 2.1: what the second person in the shot and the background people are busy with */
+  act2?: string; extraAct?: string;
 };
 export type TFrame = {
   cam: { pos: V3; look: V3; fov: number; roll: number }; light: "day" | "golden"; sun: [number, number, number];
@@ -39,6 +41,28 @@ export const PLACE_NAMES = ["bridge", "bank", "park", "town"];
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const glide = (u: number) => { const x = clamp01(u); return x * x * x * (x * (6 * x - 15) + 10); };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+/** 2.1: the beat of an action (0..1) at time t: each action has its own rhythm, eased so the hands never snap */
+const ease = (x: number) => 0.5 - 0.5 * Math.cos(Math.PI * clamp01(x));
+export function beatOf(act: string, t: number, off = 0): number {
+  const a = act.split(":")[0], T = t + off;
+  switch (a) {
+    case "dig": return (Math.sin(T * 4.2) + 1) / 2;
+    case "press": { const u = (T % 1.3) / 1.3; return u < 0.22 ? ease(u / 0.22) : u < 0.4 ? 1 : u < 0.7 ? 1 - ease((u - 0.4) / 0.3) : 0; }
+    case "write": return (T * 0.7) % 1;
+    case "count": return (T * 1.8) % 1;
+    case "cheer": case "wave": return (T * 1.7) % 1;
+    case "clap": return Math.abs(Math.sin(T * 6.5));
+    case "panic": return (T * 1.4) % 1;
+    case "lift": return ease(t / 1.1) * (0.94 + 0.06 * Math.sin(T * 3));
+    case "hold": return 0.5 + 0.5 * Math.sin(T * 1.8);
+    case "sweep": return (Math.sin(T * 3.2) + 1) / 2;
+    case "think": case "shrug": case "look": case "salute": case "point": return 0.5 + 0.5 * Math.sin(T * 2);
+    default: return (Math.sin(T * 2.6) + 1) / 2;
+  }
+}
+const MOVING = ["walk", "run"];
+/** hand actions a person walks in to start, rather than already doing them when the shot cuts in */
+const WALK_IN = ["press", "point", "write", "read", "hold", "lift", "count", "look", "think", "shrug", "salute", "wave", "phone", "sweep", "cheer", "clap"];
 const speaking = (ws: TWord[], t: number) => ws.some((w) => t >= w.start - 0.04 && t <= w.end + 0.04);
 
 /** Loomy pose words -> the toon faces (talking alternates an open and a closed mouth on the words) */
@@ -120,9 +144,21 @@ export function frameAt(s: TSpec, t: number): TFrame {
     default: dist *= lerp(1.03, 0.97, k);
   }
   // 2.0: the lead does the shot's action (an even swing for eating, drinking and digging)
-  if (s.act && people.length) {
-    const swing = s.act === "dig" ? (Math.sin(t * 4.2) + 1) / 2 : (Math.sin(t * 2.6) + 1) / 2;
+  const a0 = (s.act || "").split(":")[0];
+  if (s.act && people.length && MOVING.includes(a0)) {
+    // 2.1: walking or running across the place, past the lens's mark (in a walk shot they come toward the lens)
+    const fast = a0 === "run", p0 = people[0];
+    if (s.kind !== "walk") { const r = lerp(fast ? -2.2 : -1.3, fast ? 2.2 : 1.3, clamp01(t / dur)); const [x, z] = at(r, 0); p0.x = x; p0.z = z; p0.facing = 1; }
+    Object.assign(p0, { act: a0, walk: t * (fast ? 1.7 : 0.9), wave: undefined });
+  } else if (s.act && people.length) {
+    // 2.1: hand actions start with a few steps onto the mark on every other shot, so the cut lands on movement
+    const into = s.kind !== "react" && s.seed % 2 === 0 && WALK_IN.includes(a0) && !s.actY, tin = 0.85;
+    const swing = beatOf(s.act, into ? Math.max(0, t - tin) : t);
     Object.assign(people[0], { act: s.act, k: swing, y: s.actY ?? 0, wave: undefined, walk: undefined });
+    if (into && t < tin) {
+      const [x, z] = at(lerp(-0.9, 0, ease(t / tin)), 0);
+      Object.assign(people[0], { x: x + (people[0].x - mx), z: z + (people[0].z - mz), walk: t * 0.9, facing: 1 });
+    }
     // asleep: the drawing lies along the bed (it turns about its feet, so they go at the bed's screen-right end)
     if (s.act === "sleep") { people[0].x = mx + rx * 0.95; people[0].z = mz + rz * 0.95; lookY = 0.85; h = Math.min(h, 1.5); }
   }
@@ -135,11 +171,16 @@ export function frameAt(s: TSpec, t: number): TFrame {
   if (s.at) cInf = Math.min(cInf, 2);
   if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr as Expr;
   // 2.0: background people: one walks across the back of the room, another stands at the side
+  // 2.1: the second person in a two-shot is busy too (reacting with their hands or doing their own thing)
+  if (s.act2 && s.kind === "two" && people[1]) Object.assign(people[1], { act: s.act2, k: beatOf(s.act2, t, 0.7) });
   if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
     const back = -1.9, a = s.extras[0], b = s.extras[1];
     const across = lerp(-1.4, 1.4, clamp01((t + (s.seed % 3)) / Math.max(dur, 2.5)));
-    { const [x, z] = at(across * (s.seed % 2 ? 1 : -1), back); people.push({ look: a, x, z, expr: "neutral", walk: t * 0.9, facing: s.seed % 2 ? -1 : 1 }); }
-    if (b != null) { const [x, z] = at(s.seed % 2 ? -0.95 : 0.95, back + 0.3); people.push({ look: b, x, z, expr: FACE[s.pose] === "shock" ? "shock" : "neutral" }); }
+    { const [x, z] = at(across * (s.seed % 2 ? 1 : -1), back); people.push({ look: a, x, z, expr: "neutral", walk: t * 0.9, facing: s.seed % 2 ? -1 : 1, ...(s.extraAct?.startsWith("hold") ? { act: s.extraAct } : {}) }); }
+    if (b != null) {
+      const [x, z] = at(s.seed % 2 ? -0.95 : 0.95, back + 0.3), ea = s.extraAct || "";
+      people.push({ look: b, x, z, expr: FACE[s.pose] === "shock" ? "shock" : "neutral", ...(ea ? { act: ea, k: beatOf(ea, t, 1.3) } : {}) });
+    }
   }
   const pos: V3 = [mx + dx * dist + rx * side, my + h, mz + dz * dist + rz * side];
   const look: V3 = [mx + rx * (lookSide + side * 0.6), my + lookY, mz + rz * (lookSide + side * 0.6)];

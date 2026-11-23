@@ -447,7 +447,69 @@ export type Arms = [P2[], P2[]];
 /** held prop; for the hammer the number is the strike 0 (raised) .. 1 (struck) */
 export type Prop = null | "icecream" | "shako" | ["hammer", number] | ["reach", number]
   // 2.0: actions with the hands
-  | "phone" | "type" | "bag" | ["eat", number] | ["drink", number] | ["shovel", number];
+  | "phone" | "type" | "bag" | ["eat", number] | ["drink", number] | ["shovel", number]
+  // 2.1: hands that do things (the number is the action's beat 0..1; hold and lift carry their thing)
+  | ["hold", number, string] | ["lift", number, string] | ["press", number] | ["point", number] | ["write", number] | ["read", number]
+  | ["cheer", number] | ["think", number] | ["shrug", number] | ["panic", number] | ["sweep", number] | ["look", number]
+  | ["salute", number] | ["clap", number] | ["count", number];
+
+/** 2.1: a thing held in the hands, drawn about its middle (x, y); s = size unit */
+export const drawItem = (p: Pen, item: string, x: number, y: number, s: number) => {
+  const box = (w: number, h: number, fill: string, ol = 2.2) => p.poly([[x - w, y - h], [x + w, y - h], [x + w, y + h], [x - w, y + h]], fill, ol * s);
+  switch (item) {
+    case "key":
+      p.ell(x - 10 * s, y, 9 * s, 9 * s, "#e8b93a", 2.2 * s); p.ell(x - 10 * s, y, 3.5 * s, 3.5 * s, "#8a6a1e", 0);
+      p.band([[x - 2 * s, y], [x + 20 * s, y]], "#e8b93a", 4.5 * s, 1.6 * s); p.band([[x + 14 * s, y], [x + 14 * s, y + 7 * s]], "#e8b93a", 3.5 * s, 1.4 * s);
+      p.band([[x + 19 * s, y], [x + 19 * s, y + 6 * s]], "#e8b93a", 3.5 * s, 1.4 * s); break;
+    case "map":
+      p.poly([[x - 26 * s, y - 18 * s], [x - 8 * s, y - 14 * s], [x + 9 * s, y - 18 * s], [x + 26 * s, y - 14 * s], [x + 26 * s, y + 18 * s], [x + 9 * s, y + 14 * s], [x - 8 * s, y + 18 * s], [x - 26 * s, y + 14 * s]], "#efd9a6", 2.2 * s);
+      p.stroke([[x - 18 * s, y + 8 * s], [x - 6 * s, y - 2 * s], [x + 6 * s, y + 4 * s], [x + 15 * s, y - 6 * s]], 2 * s, "#c8102e");
+      p.stroke([[x + 12 * s, y - 9 * s], [x + 18 * s, y - 3 * s]], 2.2 * s, "#c8102e"); p.stroke([[x + 18 * s, y - 9 * s], [x + 12 * s, y - 3 * s]], 2.2 * s, "#c8102e"); break;
+    case "paper": case "sign":
+      box(item === "sign" ? 26 : 17, item === "sign" ? 17 : 22, item === "sign" ? "#f4f1ea" : "#fbfaf6");
+      for (let i = 0; i < 4; i++) p.stroke([[x - 11 * s, y - 12 * s + i * 7 * s], [x + (i === 3 ? 2 : 11) * s, y - 12 * s + i * 7 * s]], 1.8 * s, "#9aa2ac");
+      if (item === "sign") p.stroke([[x - 18 * s, y - 14 * s], [x + 18 * s, y - 14 * s]], 3 * s, "#c8102e"); break;
+    case "book":
+      p.poly([[x - 26 * s, y - 16 * s], [x, y - 12 * s], [x + 26 * s, y - 16 * s], [x + 26 * s, y + 16 * s], [x, y + 20 * s], [x - 26 * s, y + 16 * s]], "#fbfaf6", 2.2 * s);
+      p.stroke([[x, y - 12 * s], [x, y + 20 * s]], 2 * s, "#8a5a3c");
+      for (let i = 0; i < 3; i++) for (const d of [-1, 1]) p.stroke([[x + d * 5 * s, y - 6 * s + i * 7 * s], [x + d * 20 * s, y - 8 * s + i * 7 * s]], 1.6 * s, "#9aa2ac"); break;
+    case "money":
+      for (let i = 2; i >= 0; i--) { p.poly([[x - 22 * s + i * 3 * s, y - 11 * s - i * 3 * s], [x + 22 * s + i * 3 * s, y - 11 * s - i * 3 * s], [x + 22 * s + i * 3 * s, y + 11 * s - i * 3 * s], [x - 22 * s + i * 3 * s, y + 11 * s - i * 3 * s]], "#7fc27a", 2 * s); }
+      p.ell(x + 6 * s, y - 6 * s, 6 * s, 6 * s, "#a8dca0", 1.6 * s); p.stroke([[x + 6 * s, y - 9 * s], [x + 6 * s, y - 3 * s]], 1.6 * s, "#2e6b2a"); break;
+    case "gold":
+      p.poly([[x - 22 * s, y + 10 * s], [x + 22 * s, y + 10 * s], [x + 15 * s, y - 10 * s], [x - 15 * s, y - 10 * s]], "#f2c230", 2.2 * s);
+      p.poly([[x - 11 * s, y - 6 * s], [x + 11 * s, y - 6 * s], [x + 8 * s, y - 1 * s], [x - 8 * s, y - 1 * s]], "#ffe28a", 0); break;
+    case "gem":
+      p.poly([[x - 16 * s, y - 6 * s], [x - 8 * s, y - 15 * s], [x + 8 * s, y - 15 * s], [x + 16 * s, y - 6 * s], [x, y + 16 * s]], "#5bc8f0", 2.2 * s);
+      p.poly([[x - 6 * s, y - 12 * s], [x + 2 * s, y - 12 * s], [x - 4 * s, y - 4 * s]], "#c8f0ff", 0); break;
+    case "flask":
+      p.poly([[x - 5 * s, y - 20 * s], [x + 5 * s, y - 20 * s], [x + 5 * s, y - 8 * s], [x + 16 * s, y + 14 * s], [x - 16 * s, y + 14 * s], [x - 5 * s, y - 8 * s]], "#e8f4f8", 2.2 * s);
+      p.poly([[x - 11 * s, y + 4 * s], [x + 11 * s, y + 4 * s], [x + 15 * s, y + 12 * s], [x - 15 * s, y + 12 * s]], "#46d07a", 0);
+      p.dot(x - 3 * s, y + 7 * s, 2 * s, "#c8f8d8"); p.dot(x + 4 * s, y + 9 * s, 1.5 * s, "#c8f8d8"); break;
+    case "cup":
+      p.poly([[x - 11 * s, y - 13 * s], [x + 11 * s, y - 13 * s], [x + 9 * s, y + 13 * s], [x - 9 * s, y + 13 * s]], "#f4f1ea", 2.2 * s);
+      p.arc(x + 13 * s, y, 6 * s, 7 * s, -90, 90, 2.6 * s); p.poly([[x - 10 * s, y - 6 * s], [x + 10 * s, y - 6 * s], [x + 9.6 * s, y - 1 * s], [x - 9.6 * s, y - 1 * s]], "#c8102e", 0); break;
+    case "tool":
+      p.band([[x - 18 * s, y + 14 * s], [x + 10 * s, y - 8 * s]], "#9aa2ac", 5 * s, 1.6 * s, "round");
+      p.ell(x + 14 * s, y - 12 * s, 8 * s, 8 * s, "#9aa2ac", 2.2 * s); p.poly([[x + 12 * s, y - 22 * s], [x + 20 * s, y - 18 * s], [x + 16 * s, y - 12 * s]], "#f4f1ea", 0); break;
+    case "flashlight":
+      p.poly([[x - 6 * s, y + 18 * s], [x + 6 * s, y + 18 * s], [x + 7 * s, y - 8 * s], [x - 7 * s, y - 8 * s]], "#3a3f4b", 2 * s);
+      p.poly([[x - 10 * s, y - 8 * s], [x + 10 * s, y - 8 * s], [x + 9 * s, y - 16 * s], [x - 9 * s, y - 16 * s]], "#c9ced6", 2 * s);
+      p.ell(x, y - 16 * s, 8 * s, 2.5 * s, "#fff4b0", 1.2 * s); break;
+    case "remote":
+      p.poly([[x - 7 * s, y - 18 * s], [x + 7 * s, y - 18 * s], [x + 7 * s, y + 18 * s], [x - 7 * s, y + 18 * s]], "#2b2f38", 2 * s);
+      p.dot(x, y - 10 * s, 3.2 * s, "#e5484d"); for (let i = 0; i < 3; i++) p.dot(x, y + i * 6 * s, 2 * s, "#9aa2ac"); break;
+    case "food":
+      p.ell(x, y + 6 * s, 20 * s, 8 * s, "#f4f1ea", 2 * s);
+      p.ell(x, y - 2 * s, 14 * s, 9 * s, "#c8823a", 2 * s, 180, 360); p.band([[x - 14 * s, y + 1 * s], [x + 14 * s, y + 1 * s]], "#46b07a", 3 * s, 1 * s); break;
+    case "bomb":
+      p.ell(x, y + 3 * s, 15 * s, 15 * s, "#2b2f38", 2.2 * s); p.band([[x + 8 * s, y - 10 * s], [x + 14 * s, y - 18 * s]], "#8a5a3c", 3 * s, 1 * s);
+      p.dot(x + 15 * s, y - 20 * s, 4 * s, "#ffb04a"); p.dot(x - 5 * s, y - 3 * s, 3 * s, "#5a6270"); break;
+    default: // a cardboard box
+      box(24, 18, "#9c6a3c", 2.6); p.poly([[x - 24 * s, y - 18 * s], [x + 24 * s, y - 18 * s], [x + 24 * s, y - 11 * s], [x - 24 * s, y - 11 * s]], "#7d5230", 1.8 * s);
+      p.band([[x, y - 18 * s], [x, y - 2 * s]], "#efe0bd", 6 * s, 1.2 * s); p.stroke([[x - 16 * s, y + 8 * s], [x - 6 * s, y + 8 * s]], 2 * s, "#5a3b22");
+  }
+};
 
 const BUILD: Record<Build, { a: number; torso: number; legs: number; tw: number }> = {
   adult: { a: 118, torso: 1.1, legs: 1.4, tw: 0.8 },
@@ -664,6 +726,45 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
       arms.push({ pts: [S0, [tcx - 0.95 * T.a, S0[1] + 0.32 * HH], [tcx - 0.15 * T.a, chin + 0.28 * HH - lift]], front: true });
       arms.push({ pts: [S1, [tcx + 1.1 * T.a + 4 * u, S1[1] + 0.36 * HH], [tcx + 0.6 * T.a, torsoBot - 0.04 * HH - lift]], front: true });
     } else if (prop === "bag") arms[last] = { pts: hang(1, 0), front: true };
+    else if (Array.isArray(prop)) {
+      // 2.1: both hands at work; k is the beat of the action
+      const k = clamp(prop[1] as number, 0, 1), two = (L: P2, R: P2, eL: P2, eR: P2) => { arms.length = 0; arms.push({ pts: [S0, eL, L], front: true }, { pts: [S1, eR, R], front: true }); };
+      const elbow = (side: number, dy: number, out = 0): P2 => [tcx + side * (1.12 * T.a + (4 + out) * u), sh(side)[1] + dy * HH];
+      const chest = chin + 0.55 * HH;
+      switch (prop[0]) {
+        case "hold": case "count": {
+          const y = chest - 0.08 * HH * k;
+          two([tcx - 0.42 * T.a, y], [tcx + 0.42 * T.a, y + (prop[0] === "count" ? -0.06 * HH * k : 0)], elbow(-1, 0.42), elbow(1, 0.42)); break;
+        }
+        case "lift": {
+          // heaved up from the waist to the chest (above the head it would leave the drawing)
+          const y = lerp2([0, torsoBot + 0.02 * HH], [0, chin + 0.42 * HH], k)[1];
+          two([tcx - 0.55 * T.a, y], [tcx + 0.55 * T.a, y], elbow(-1, lerp2([0, 0.5], [0, 0.3], k)[1], 6), elbow(1, lerp2([0, 0.5], [0, 0.3], k)[1], 6)); break;
+        }
+        case "read": two([tcx - 0.5 * T.a, chest - 0.02 * HH], [tcx + 0.5 * T.a, chest - 0.02 * HH - 0.02 * HH * k], elbow(-1, 0.4), elbow(1, 0.4)); break;
+        case "write": two([tcx - 0.35 * T.a, chest], [tcx + (0.05 + 0.3 * k) * T.a, chest - 0.04 * HH + 3 * u * Math.sin(k * 12)], elbow(-1, 0.42), elbow(1, 0.45)); break;
+        case "press": {
+          const reach = 1.85 * T.a - 8 * u * k;
+          arms[last] = { pts: [S1, [tcx + 1.2 * T.a + 10 * u, S1[1] + 0.2 * HH], [tcx + reach, S1[1] + 0.18 * HH]], front: true }; break;
+        }
+        case "point": arms[last] = { pts: [S1, [tcx + 1.4 * T.a + 12 * u, S1[1] - 0.08 * HH], [tcx + 1.95 * T.a + 2 * u * k, S1[1] - 0.24 * HH - 2 * u * k]], front: true }; break;
+        case "cheer": {
+          const a = Math.sin(k * Math.PI * 2) * 6 * u;
+          two([tcx - 1.3 * T.a - 12 * u + a, crown - 0.05 * HH], [tcx + 1.3 * T.a + 12 * u + a, crown - 0.05 * HH], elbow(-1, -0.25, 8), elbow(1, -0.25, 8)); break;
+        }
+        case "clap": { const g = (1 - k) * 0.35 * T.a + 4 * u; two([300 - g, chest - 0.05 * HH], [300 + g, chest - 0.05 * HH], elbow(-1, 0.4), elbow(1, 0.4)); break; }
+        case "think": two([tcx + 0.15 * T.a, chest + 0.02 * HH], [300 + H.a * 0.5, chin - 0.04 * HH - 2 * u * k], elbow(-1, 0.45), [tcx + 1.05 * T.a, S1[1] + 0.42 * HH]); break;
+        case "shrug": two([tcx - 1.7 * T.a, S0[1] + 0.05 * HH - 4 * u * k], [tcx + 1.7 * T.a, S1[1] + 0.05 * HH - 4 * u * k], elbow(-1, 0.38, 4), elbow(1, 0.38, 4)); break;
+        case "panic": { const j = Math.sin(k * Math.PI * 4) * 2 * u; two([300 - H.a * 0.98 + j, hc + 0.1 * H.b], [300 + H.a * 0.98 + j, hc + 0.1 * H.b], elbow(-1, 0.05, 14), elbow(1, 0.05, 14)); break; }
+        case "look": two([300 - 0.32 * H.a, hc + 0.22 * H.b], [300 + 0.32 * H.a, hc + 0.22 * H.b], elbow(-1, 0.35, -6), elbow(1, 0.35, -6)); break;
+        case "salute": arms[last] = { pts: [S1, [tcx + 1.35 * T.a + 8 * u, S1[1] - 0.05 * HH], [300 + H.a * 0.55, hc - 0.35 * H.b]], front: true }; break;
+        case "wave": break;
+        case "sweep": {
+          const sx = (k - 0.5) * 14 * u;
+          two([tcx - 0.2 * T.a + sx, chin + 0.3 * HH], [tcx + 0.45 * T.a + sx, torsoBot - 0.02 * HH], elbow(-1, 0.32), elbow(1, 0.38)); break;
+        }
+      }
+    }
   }
   const drawArm = (a: Arm) => { p.stroke(curve(a.pts[0], a.pts[1], a.pts[2]), 5.2 * u, armCol); p.dot(a.pts[2][0], a.pts[2][1], 5.5 * u); };
   // behind the body: rifle, sword, arms
@@ -714,6 +815,30 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     const n = Math.hypot(dx, dy) || 1, ux = dx / n, uy = dy / n, px = -uy, py = ux;
     p.poly([[tip[0] + px * 11 * u, tip[1] + py * 11 * u], [tip[0] - px * 11 * u, tip[1] - py * 11 * u], [tip[0] - px * 9 * u + ux * 24 * u, tip[1] - py * 9 * u + uy * 24 * u], [tip[0] + ux * 30 * u, tip[1] + uy * 30 * u], [tip[0] + px * 9 * u + ux * 24 * u, tip[1] + py * 9 * u + uy * 24 * u]], "#6b7480", 2 * u);
   }
+  // 2.1: a broom is held across the body like the shovel
+  if (Array.isArray(prop) && prop[0] === "sweep" && arms.length === 2) {
+    const L = arms[0].pts[2], R = arms[1].pts[2], dx = R[0] - L[0], dy = R[1] - L[1];
+    const top: P2 = [L[0] - dx * 0.6, L[1] - dy * 0.6], foot: P2 = [R[0] + dx * 1.1, Math.min(sole - 10 * u, R[1] + dy * 1.6)];
+    p.band([top, foot], "#b5824f", 4 * u, 1.3 * u, "round");
+    p.poly([[foot[0] - 16 * u, foot[1] - 4 * u], [foot[0] + 16 * u, foot[1] - 4 * u], [foot[0] + 20 * u, foot[1] + 14 * u], [foot[0] - 20 * u, foot[1] + 14 * u]], "#e8c86a", 2 * u);
+  }
+  // 2.1: the held thing sits between the hands, in front of the body (the hands are drawn over it)
+  if (Array.isArray(prop) && arms.length === 2 && ["hold", "count", "read", "write", "lift"].includes(prop[0] as string)) {
+    const L = arms[0].pts[2], R = arms[1].pts[2], mx = (L[0] + R[0]) / 2, my = (L[1] + R[1]) / 2;
+    const it = prop[0] === "read" ? "book" : prop[0] === "write" ? "paper" : prop[0] === "count" ? "money" : String(prop[2] || "box");
+    const lifted = prop[0] === "lift";
+    drawItem(p, it, mx, my + (lifted ? -10 * u : prop[0] === "write" ? 8 * u : -6 * u), u * (lifted ? 1.9 : 1.5));
+    if (prop[0] === "write") { const [hx, hy] = R; p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round"); }
+  }
+  if (Array.isArray(prop) && prop[0] === "press") {
+    const [hx, hy] = arms[arms.length - 1].pts[2];
+    p.poly([[hx + 4 * u, hy - 26 * u], [hx + 30 * u, hy - 26 * u], [hx + 30 * u, hy + 26 * u], [hx + 4 * u, hy + 26 * u]], "#5a6270", 2.2 * u);
+    p.ell(hx + 17 * u, hy - 10 * u, 7 * u, 7 * u, (prop[1] as number) > 0.6 ? "#ff7a6e" : "#e5484d", 1.8 * u);
+    p.ell(hx + 17 * u, hy + 10 * u, 5 * u, 5 * u, "#46d07a", 1.6 * u);
+  }
+  if (Array.isArray(prop) && prop[0] === "point") {
+    const [hx, hy] = arms[arms.length - 1].pts[2]; p.band([[hx, hy], [hx + 14 * u, hy - 5 * u]], armCol, 3.2 * u, 1.2 * u, "round");
+  }
   for (const a of arms) if (a.front) {
     drawArm(a);
     const [hx, hy] = a.pts[2];
@@ -760,6 +885,11 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   const brim = !!o.hat && o.hat !== "hair" && o.hat !== "bonnet" && o.hat !== "cap" && !EXTRA_HATS.includes(o.hat);
   faceFront(p, 300, hc, W, expr, facing, look, lid, brim, skin, o.moustache, o.build === "stout");
   headAcc(p, o, H, 300, hc, u, facing);
+  if (Array.isArray(prop) && prop[0] === "look") {
+    for (const d of [-1, 1]) { p.ell(300 + d * 0.32 * H.a, hc - 0.02 * H.b, 0.27 * H.a, 0.25 * H.a, "#2b2f38", 2.4 * u); p.ell(300 + d * 0.32 * H.a, hc - 0.02 * H.b, 0.15 * H.a, 0.14 * H.a, "#5bc8f0", 1.2 * u); }
+    p.band([[300 - 0.1 * H.a, hc - 0.02 * H.b], [300 + 0.1 * H.a, hc - 0.02 * H.b]], "#2b2f38", 4 * u, 1 * u);
+    for (const a of arms) { p.dot(a.pts[2][0], a.pts[2][1] + 8 * u, 5.5 * u); }
+  }
   if (prop === "phone") { const [hx, hy] = arms[arms.length - 1].pts[2]; p.poly([[hx - 6 * u, hy - 20 * u], [hx + 6 * u, hy - 20 * u], [hx + 6 * u, hy + 12 * u], [hx - 6 * u, hy + 12 * u]], "#22262e", 1.8 * u); p.dot(hx, hy + 4 * u, 5.5 * u); }
   p.rot = null;
   // Loomy 1.5: where the hands and the head are (600 x 1000 design units), for things held in the hand.

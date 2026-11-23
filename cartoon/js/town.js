@@ -8,7 +8,7 @@ import { planShots } from '../../explainer/js/z3d/plan.js';
 import { Stage } from './stage.js';
 import { glare } from '../../shared/glare.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt } from '../../shared/hooks.js';
-import { mapFor, actFor, outfitLook, mapSeed } from './maps.js';
+import { mapFor, actFor, busyFor, outfitLook, mapSeed } from './maps.js';
 import { nextTask } from '../../shared/yieldtask.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
@@ -22,7 +22,13 @@ const GOLDEN = new Set(['night', 'space', 'sky']);
 const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm']);
 const FEEL_FACE = { happy: 'grin', smug: 'smile', shocked: 'shock', scared: 'shock', nervous: 'nervous', sad: 'pained', angry: 'stern', skeptical: 'neutral', sleepy: 'whistle' };
 const READ_FACE = { shocked: 'shock', dramatic: 'shock', excited: 'grin', amused: 'grin', happy: 'grin', tense: 'nervous', urgent: 'nervous', sad: 'pained', annoyed: 'stern', firm: 'stern', proud: 'smile', mysterious: 'smile', curious: 'smile', deadpan: 'neutral' };
-const ACT_FACE = { dig: 'stern', carry: 'grin', eat: 'smile_closed', drink: 'smile', type: 'neutral', phone: 'nervous' };
+const ACT_FACE = { dig: 'stern', carry: 'grin', eat: 'smile_closed', drink: 'smile', type: 'neutral', phone: 'nervous',
+  hold: 'grin', lift: 'stern', press: 'grin', point: 'grin', write: 'neutral', read: 'neutral', cheer: 'laugh', clap: 'laugh', think: 'nervous',
+  shrug: 'nervous', panic: 'shock', sweep: 'neutral', look: 'smile', salute: 'stern', wave: 'grin', count: 'grin', run: 'nervous', walk: 'smile' };
+// 2.1: a reaction close-up shows the reaction with the hands too (they are near the face, so the close-up holds them)
+const REACT_ACT = { surprised: 'panic', flinch: 'panic', cheer: 'cheer', think: 'think', shrug: 'shrug', point: 'point', talk: 'think', stand: 'shrug' };
+// in the riverside town there is no seat, desk or bed: those actions become ones the hands can do anywhere
+const TOWN_ACT = { sit: 'think', sleep: 'shrug', type: 'phone', eat: 'hold:food', drink: 'hold:cup' };
 // Viking-era stories: the town dresses its people as Vikings and puts longships on the river; their shots
 // stay by the river (the bank faces the moored ships) and the park, away from the iron bridge.
 export const VIKING = /\b(vikings?|norse|norsemen|longships?|danes|lindisfarne|ragnar|danelaw)\b/i;
@@ -78,18 +84,26 @@ export function townShots(timeline, script, theme = 'town') {
     // 2.0: the line's own 2.5D map (a prison cell, a bank vault...); the town only when the story is in the street
     const map = theme === 'viking' ? '' : mapFor(sc || {}, topic);
     const place = map || (s.scene === 0 && !s.teaser && (k === 0 || specs[k - 1]?.teaser) ? 'town' : theme === 'viking' ? VIKING_PLACE(set) : PLACE[set] || 'bridge');
-    // the line's action is always shown: a walking shot of a line with an action becomes a shot of the action
-    const lineAct = map ? actFor(sc || {}) : '';
-    const kind = lineAct && s.kind === 'walk' ? 'talk' : s.kind;
-    const act = ['talk', 'wide', 'two', 'point'].includes(kind) ? lineAct : '';
+    // the line's action is always shown: a walking shot of a line with an action becomes a shot of the action.
+    // 2.1: nobody just stands there: with no action in the line, they are busy with what people do in that place
+    const where = map || (place === 'town' ? '' : place === 'bank' ? 'street' : place);
+    let lineAct = actFor(sc || {}, where, k);
+    if (!map) lineAct = TOWN_ACT[lineAct] ?? lineAct;
+    const moving = /^(walk|run)$/.test(lineAct);
+    const kind = lineAct && !moving && s.kind === 'walk' ? 'talk' : s.kind;
+    const act = kind === 'react' ? (theme === 'viking' ? '' : REACT_ACT[s.pose] || 'think')
+      : ['talk', 'wide', 'two', 'point', 'walk'].includes(kind) ? lineAct : '';
+    // the second person in a two-shot and the people behind are doing their own things
+    const act2 = kind === 'two' && where ? busyFor(where, k + 1, act.split(':')[0]) : '';
+    const extraAct = map ? busyFor(map, k + 2, act.split(':')[0]) : '';
     // background people: the cast members not in this shot (up to two), only inside a map
     const inShot = new Set(s.cast.filter(c => typeof c === 'number'));
     const extras = map ? ids.map((_, i) => i).filter(i => !inShot.has(i)).slice(0, 2) : [];
     // the lead's face: their feeling in the script, else how the narrator reads the line, else what they are doing
     const lead = (sc?.who || [])[0] || {};
-    const expr = FEEL_FACE[lead.feel] || READ_FACE[sc?.delivery] || ACT_FACE[act] || '';
+    const expr = FEEL_FACE[lead.feel] || READ_FACE[sc?.delivery] || ACT_FACE[act.split(':')[0]] || '';
     return {
-      mapSeed: seed, act, extras, expr,
+      mapSeed: seed, act, act2, extraAct, extras, expr,
       start: s.start, end: s.end, kind, place: place === 'town' && kind !== 'wide' ? 'bridge' : place,
       cast: s.cast.map(c => (typeof c === 'number' ? c : ids.length + (k % 3))), pose: s.pose, camera: s.camera,
       light: map ? (OUTDOOR_MAPS.has(map) ? 'day' : 'indoor') : GOLDEN.has(set) ? 'golden' : 'day', seed: s.seed, words: (s.words || []).map(w => ({ start: (sc?.start || 0) + w.start, end: (sc?.start || 0) + w.end })),

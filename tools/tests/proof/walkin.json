@@ -1,0 +1,1 @@
+[{"start": 0, "end": 3, "kind": "talk", "place": "control", "cast": [0], "pose": "stand", "camera": "push-in", "light": "indoor", "seed": 2, "mapSeed": 2, "words": [], "act": "press"}, {"start": 3, "end": 6, "kind": "talk", "place": "vault", "cast": [0], "pose": "stand", "camera": "static", "light": "indoor", "seed": 1, "mapSeed": 2, "words": [], "act": "lift:box"}]
