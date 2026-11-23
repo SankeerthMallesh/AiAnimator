@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import {
   Pen, bodyFront, bodySide, swingKid, soldier, townsfolk, OFFICER, KID, PARENT, fxNote, fxBurst, fxSplash, fxStars, fxCreak, fxRing, fxBlob, fxShadow, fxContact, fxPlank, fxDrum,
-  Outfit, Expr, FrontOpts, SideOpts, vikingfolk, drawInsert,
+  Outfit, Expr, FrontOpts, SideOpts, vikingfolk, drawInsert, REDCOAT, BLUECOAT, GENERAL, drawHorse,
 } from "./toon";
 import {
   FPS, D0, FILES, ROW_GAP, COUNT, PARK, SHOTS, SNAP, DROP0, DROP1, DROP_H, V3, front, marchPhase, stomp, deckY, dropW, dropU, shapeZ,
@@ -497,8 +497,10 @@ export { FPS };
 /** someone in a template shot: x, z on the ground, the face to wear, an arm wave (-1..1) or none, a hop */
 export type TPerson = { look: number; x: number; z: number; expr: Expr; wave?: number; hop?: number; walk?: number; kid?: boolean; facing?: -1 | 0 | 1;
   /** 2.0: what they are doing (sit, sleep, dig, eat, drink, type, phone, carry), its swing 0..1, and the height of what they are on */
-  act?: string; k?: number; y?: number };
-export type TFx = { kind: "burst" | "stars" | "ring" | "note" | "insert"; x: number; y: number; z: number; u: number; size?: number;
+  act?: string; k?: number; y?: number;
+  /** 2.2: an army's uniform (red, blue, or the general's), and riding a horse */
+  uni?: "red" | "blue" | "general"; horse?: boolean };
+export type TFx = { kind: "burst" | "stars" | "ring" | "note" | "insert" | "smoke"; x: number; y: number; z: number; u: number; size?: number;
   /** 2.1 insert: the action, its thing, the line's words for a headline, and whose sleeves the hands wear */
   act?: string; item?: string; label?: string; look?: number };
 /** a Stage from template people (front view, standing or strolling) and pop effects, lit by the template's light */
@@ -517,16 +519,17 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
   people.forEach((m, i) => {
     const base = FOLK[((m.look % 6) + 6) % 6];
     const own = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null; // Viking stories keep their themed clothes
-    const o = m.kid ? KID : own ? { ...base, ...own } : base;
-    const who: Who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${((m.look % 6) + 6) % 6}` };
+    const uni = m.uni ? { red: REDCOAT, blue: BLUECOAT, general: GENERAL }[m.uni] : null;
+    const o = uni ? (own?.skin ? { ...uni, skin: own.skin } : uni) : m.kid ? KID : own ? { ...base, ...own } : base;
+    const who: Who = { i: 500 + i * 13 + m.look, o, okey: uni ? `U${m.uni}${own?.skin || ""}` : m.kid ? "kid" : own ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${((m.look % 6) + 6) % 6}` };
     // 2.1: the beat of an action in 40 steps (12 made eating and digging look jerky); "hold:key" = the act and its thing
-    const walking = m.walk != null, [act, item = ""] = (m.act || "").split(":"), k = q(m.k ?? 0.5, 40);
-    const HANDS = ["press", "point", "write", "read", "cheer", "think", "shrug", "panic", "sweep", "look", "salute", "clap", "count"];
+    const riding = !!m.horse, walking = m.walk != null && !riding, [act, item = ""] = (m.act || "").split(":"), k = q(m.k ?? 0.5, 40);
+    const HANDS = ["aim", "press", "point", "write", "read", "cheer", "think", "shrug", "panic", "sweep", "look", "salute", "clap", "count"];
     const prop: FrontOpts["prop"] = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone"
       : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : act === "hold" || act === "lift" ? [act, k, item || "box"] as FrontOpts["prop"]
       : HANDS.includes(act) && !walking ? [act, k] as FrontOpts["prop"] : null;
     const asleep = act === "sleep", dozing = act === "doze" || act === "dozeup";
-    const fo: FrontOpts = { mode: act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? (act === "run" ? "march" : "stroll") : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
+    const fo: FrontOpts = { mode: riding || act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? (act === "run" ? "march" : "stroll") : "stand", phase: walking ? q(m.walk! % 1, 120) : 0,
       expr: asleep || dozing ? "relief" : m.expr, blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7), ...(dozing ? { headTilt: 14 } : {}),
       wave: act === "wave" ? q(Math.sin((m.k ?? 0.5) * Math.PI * 2), 30) : m.wave == null || prop ? undefined : q(m.wave, 30), facing: m.facing ?? 0, ...(prop ? { prop } : {}) };
     const y = D0 + (m.y || 0) + (m.hop || 0);
@@ -537,8 +540,21 @@ export const stageTemplate = (people: TPerson[], effects: TFx[], cam: CamInfo, t
     if (asleep || dozing) out.fx.push({ key: `zz${q((t * 0.8) % 1, 8)}`, cw: 300, ch: 300, draw: (p: Pen) => fxZz(p, (t * 0.8) % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
     // seated up on something, the shadow stays on the floor under the seat
     if (!asleep) blob(out, m.x, D0 + (act === "sit" || act === "doze" ? 0 : m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+    // 2.2: a rider: the horse (side view, galloping when moving) just behind the seated drawing, its hooves on the ground
+    if (m.horse) {
+      const flip = (m.facing ?? 1) < 0, ph = q(((m.walk ?? 0) % 1 + 1) % 1, 24), gallop = m.walk != null;
+      out.fx.push({ key: `horse|${ph}|${gallop}|${flip}`, cw: 1000, ch: 640, draw: (p: Pen) => { if (flip) { p.g.translate(1000, 0); p.g.scale(-1, 1); } drawHorse(p, ph, "#7a4a28", gallop); },
+        x: m.x + (flip ? 0.03 : -0.03), y: D0 + 0.6125, z: m.z + 0.08, w: 2.2, h: 1.4 });
+      blob(out, m.x, D0, m.z, 1.8, 1);
+    }
   });
   for (const e of effects) {
+    if (e.kind === "smoke") {
+      // 2.2: soft gun smoke, no outline, fading as it drifts
+      const a = q(clamp01(1 - e.u), 12), sz = (e.size ?? 1.2) * (0.7 + 0.6 * e.u);
+      out.fx.push({ key: `smoke${a}`, cw: 256, ch: 256, soft: true, draw: (p: Pen) => { const g = p.g, gr = g.createRadialGradient(128, 128, 8, 128, 128, 126); gr.addColorStop(0, `rgba(246,243,236,${0.85 * a})`); gr.addColorStop(0.6, `rgba(238,234,226,${0.5 * a})`); gr.addColorStop(1, "rgba(238,234,226,0)"); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); }, x: e.x, y: e.y, z: e.z, w: sz, h: sz * 0.8 });
+      continue;
+    }
     if (e.kind === "insert") {
       const base = FOLK[(((e.look ?? 0) % 6) + 6) % 6], own = (e.look ?? -1) >= 0 && FOLK === TOWNFOLK ? LOOKS[e.look!] : null;
       const sleeve = (own?.jacket || base.jacket) as string, kk = q(clamp01(e.u), 40), sz = e.size ?? 1;

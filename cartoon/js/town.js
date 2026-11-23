@@ -9,6 +9,8 @@ import { Stage } from './stage.js';
 import { glare } from '../../shared/glare.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt } from '../../shared/hooks.js';
 import { mapFor, actFor, busyFor, outfitLook, mapSeed } from './maps.js';
+import { planExplains, explainAt, drawExplain } from '../../shared/explain.js';
+import { hookFx } from '../../shared/hooks.js';
 import { nextTask } from '../../shared/yieldtask.js';
 
 // The script's set -> a place of the town, and the evening sets -> golden light.
@@ -19,7 +21,7 @@ const PLACE = {
 };
 const GOLDEN = new Set(['night', 'space', 'sky']);
 // 2.0: maps under the open sky keep daylight; rooms get the indoor light
-const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm']);
+const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm', 'battlefield']);
 const FEEL_FACE = { happy: 'grin', smug: 'smile', shocked: 'shock', scared: 'shock', nervous: 'nervous', sad: 'pained', angry: 'stern', skeptical: 'neutral', sleepy: 'whistle' };
 const READ_FACE = { shocked: 'shock', dramatic: 'shock', excited: 'grin', amused: 'grin', happy: 'grin', tense: 'nervous', urgent: 'nervous', sad: 'pained', annoyed: 'stern', firm: 'stern', proud: 'smile', mysterious: 'smile', curious: 'smile', deadpan: 'neutral' };
 const ACT_FACE = { dig: 'stern', carry: 'grin', eat: 'smile_closed', drink: 'smile', type: 'neutral', phone: 'nervous',
@@ -172,6 +174,9 @@ export class TownRenderer {
     // 1.4: the 1.3 glow over the town too (bloom, sparkles, dust); the engine grades its own colour.
     // a gentle glow inside the maps (a strong one washed the rooms out); the full one over the town
     if (this.glow) { const sh = this.shots.find(s => t >= s.start && t < s.end); glare(this.g, this.W, this.H, t, { grade: false, seed: 7, strength: sh?.mapSeed && !['bridge', 'bank', 'park', 'town'].includes(sh.place) ? 0.35 : 1 }); }
+    // 2.2: the first two seconds' hook (punch-in, flash, circle and arrow) and diagram cutaways, under the captions
+    hookFx(this.g, this.W, this.H, t);
+    { this.explains ||= planExplains(this.timeline.scenes); const ex = explainAt(this.explains, t); if (ex) drawExplain(this.g, this.W, this.H, ex, t); }
     if (this.captions) {
       const scenes = this.timeline.scenes;
       const scene = scenes.find(s => t >= s.start && t < s.start + s.dur) || scenes[scenes.length - 1];

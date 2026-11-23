@@ -28,6 +28,12 @@ export function itemMesh(item) {
 export function handThing(act, item = '') {
   const g = new THREE.Group();
   if (TWO_HANDS.includes(act)) g.add(itemMesh(act === 'read' ? 'book' : act === 'write' ? 'paper' : act === 'count' ? 'money' : item || 'box'));
+  else if (act === 'aim') {
+    // 2.2: a musket held level, pointing the way they face
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.62), std({ color: 0x6b3f22 })); stock.position.z = 0.05; g.add(stock);
+    const butt = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.11, 0.16), std({ color: 0x6b3f22 })); butt.position.set(0, -0.03, -0.3); g.add(butt);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.75, 8), std({ color: 0x3a3f4b, metalness: 0.8, roughness: 0.3 })); barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.028, 0.6); g.add(barrel);
+  }
   else if (act === 'press') {
     // a waist-high pedestal with a big red button on top, beside the right hand (sized once the hand is measured)
     const ped = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1, 0.24), std({ color: 0x5a6270, roughness: 0.6 })); ped.name = 'ped'; g.add(ped);

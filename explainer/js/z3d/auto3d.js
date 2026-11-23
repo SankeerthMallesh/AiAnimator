@@ -286,7 +286,7 @@ function poseNow(p, name, t, { talk = 0, onset = 0.25, from = 'stand', seed = 0,
 // Builds one engine shot from a spec. people: { id: Person }.
 // 2.0: what each action needs from a map, small things for the hands, and accessories on the head.
 const ACT_SPOT = { sleep: ['bed'], sit: ['sit'], type: ['type', 'sit'], eat: ['eat', 'sit'], drink: ['sit'], dig: ['dig'], phone: ['sit'] };
-const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm']);
+const OUTDOOR_MAPS = new Set(['trench', 'camp', 'beach', 'desert', 'farm', 'battlefield']);
 function actPose(act, t, seated = false) {
   if (act === 'eat' || act === 'drink') { const q = mix(ACTION_POSES.eatDown, ACTION_POSES.eatUp, (Math.sin(t * 2.6) + 1) / 2); return seated ? { ...q, legL: ACTION_POSES.sit.legL, legR: ACTION_POSES.sit.legR, hipDrop: 44 } : q; }
   if (act === 'dig') return mix(ACTION_POSES.digUp, ACTION_POSES.digDown, (Math.sin(t * 4.2) + 1) / 2);
@@ -307,6 +307,7 @@ function actPose(act, t, seated = false) {
     case 'clap': return mix(AP.clapOpen, AP.clapShut, b);
     case 'wave': return mix(AP.waveA, AP.waveB, (Math.sin(t * 7) + 1) / 2);
     case 'sweep': return mix(AP.sweepA, AP.sweepB, b);
+    case 'aim': return AP.aim;
     case 'cheer': case 'think': case 'shrug': case 'point': return POSES[act];
   }
   return POSES[act] || null;
@@ -403,7 +404,7 @@ export function buildShot(spec, people, { makeStage, W, H }) {
         ap = 0.005; eff = target.clone(); break;
       }
       case 'talk': {
-        at(A, 0, 0, 0.18);
+        at(A, 0, 0, act === 'aim' ? 1.15 : 0.18); // 2.2: aiming, they stand side-on so the musket reads
         // 2.1: walking or running across the place, turned the way they go
         if (moving && A) { const fast = act === 'run'; A.object.position.x = lerp(fast ? -1.8 : -1.1, fast ? 1.8 : 1.1, k); A.object.rotation.y = Math.PI / 2 - 0.5; A.pose(walking(t, fast ? 1.8 : 1), t, { seed: spec.seed }); }
         else if (actQ(t)) A.pose(actQ(t), t, { seed: spec.seed });

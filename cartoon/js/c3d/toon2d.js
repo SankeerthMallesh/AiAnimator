@@ -592,7 +592,7 @@ var footStroke = (p, a, b, w, col) => {
   if (col !== INK) p.stroke([a, b], w + 3, INK);
   p.stroke([a, b], w, col);
 };
-var EXTRA_HATS = ["beanie", "hardhat", "chef", "crown", "helmet"];
+var EXTRA_HATS = ["beanie", "hardhat", "chef", "crown", "helmet", "tricorn", "bicorne"];
 var suitDecor = (p, o, x, chin, bot, ta, HH, u) => {
   const k = o.suit;
   if (!k) return;
@@ -648,6 +648,14 @@ var hatExtra = (p, o, H, cx, hc, u) => {
     p.ell(cx, hc - 0.35 * H.b, A * 0.98, H.b * 0.7, col, 2.2 * u, 180, 360);
     p.poly([[cx - A * 1.15, hc - 0.36 * H.b], [cx + A * 1.15, hc - 0.36 * H.b], [cx + A * 1.1, hc - 0.26 * H.b], [cx - A * 1.1, hc - 0.26 * H.b]], shade(col, 0.85), 2 * u);
     if (k === "hardhat") p.stroke([[cx, top - 0.02 * H.b], [cx, hc - 0.4 * H.b]], 4 * u, shade(col, 0.8));
+  } else if (k === "tricorn" || k === "bicorne") {
+    const col = o.cap || "#1e1f24", y = hc - 0.42 * H.b, w = k === "bicorne" ? 1.45 : 1.18;
+    p.ell(cx, y + 0.02 * H.b, A * 0.92, H.b * 0.5, col, 2.2 * u, 180, 360);
+    p.poly([[cx - A * w, y + 0.12 * H.b], [cx, y - (k === "bicorne" ? 0.75 : 0.42) * H.b], [cx + A * w, y + 0.12 * H.b], [cx + A * 0.6, y + 0.02 * H.b], [cx - A * 0.6, y + 0.02 * H.b]], col, 2.2 * u);
+    p.stroke([[cx - A * w * 0.95, y + 0.1 * H.b], [cx + A * w * 0.95, y + 0.1 * H.b]], 3 * u, "#e8dcc0");
+    if (k === "bicorne") {
+      p.ell(cx + A * 0.35, y - 0.2 * H.b, 0.16 * A, 0.16 * A, "#e8b93a", 1.6 * u);
+    }
   } else if (k === "chef") {
     p.poly([[cx - A * 0.7, hc - 0.55 * H.b], [cx + A * 0.7, hc - 0.55 * H.b], [cx + A * 0.72, hc - 0.32 * H.b], [cx - A * 0.72, hc - 0.32 * H.b]], "#f4f1ea", 2 * u);
     for (const [dx, r] of [[-0.42, 0.42], [0.42, 0.42], [0, 0.5]]) p.ell(cx + dx * A, top - 0.2 * H.b, r * A, r * A * 0.9, "#ffffff", 2 * u);
@@ -768,7 +776,7 @@ var bodyFront = (p, o, opts) => {
   };
   const sw = mode === "march" || mode === "stroll" ? Math.sin(two * phase) : 0;
   const R0 = [300 + 47 * u, torsoBot + 0.12 * HH], R1 = [300 + 64 * u, crown - 0.32 * HH];
-  const rifle = !!o.rifle && (mode === "march" || mode === "stand" || mode === "stroll");
+  const rifle = !!o.rifle && (mode === "march" || mode === "stand" || mode === "stroll") && !(Array.isArray(prop) && prop[0] === "aim");
   const arms = [];
   if (mode === "sit") for (const side of [-1, 1]) arms.push({ pts: [sh(side), [tcx + side * (1.1 * T.a + 6 * u), sh(side)[1] + 0.4 * HH], [tcx + side * (1.2 * T.a + 10 * u), torsoBot + 0.04 * HH]], front: false });
   else if (mode === "fall") for (const side of [-1, 1]) arms.push({ pts: [sh(side), [tcx + side * (1.15 * T.a + 12 * u), sh(side)[1] - 0.25 * HH], [tcx + side * (1.3 * T.a + 24 * u), sh(side)[1] - 0.68 * HH]], front: false });
@@ -868,6 +876,13 @@ var bodyFront = (p, o, opts) => {
           break;
         case "wave":
           break;
+        case "aim": {
+          const f = facing || 1, kick = k > 0.85 ? -6 * u : 0;
+          const near = [tcx + f * (0.35 * T.a) + f * kick, chin + 0.3 * HH], far = [tcx + f * (1.15 * T.a + 8 * u) + f * kick, chin + 0.26 * HH];
+          arms.length = 0;
+          arms.push({ pts: [f > 0 ? S0 : S1, [tcx, chin + 0.42 * HH], near], front: true }, { pts: [f > 0 ? S1 : S0, [tcx + f * 1.1 * T.a, chin + 0.38 * HH], far], front: true });
+          break;
+        }
         case "sweep": {
           const sx = (k - 0.5) * 14 * u;
           two2([tcx - 0.2 * T.a + sx, chin + 0.3 * HH], [tcx + 0.45 * T.a + sx, torsoBot - 0.02 * HH], elbow(-1, 0.32), elbow(1, 0.38));
@@ -943,6 +958,16 @@ var bodyFront = (p, o, opts) => {
     if (prop[0] === "write") {
       const [hx, hy] = R;
       p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round");
+    }
+  }
+  if (Array.isArray(prop) && prop[0] === "aim" && arms.length === 2) {
+    const f = facing || 1, A0 = arms[0].pts[2], A1 = arms[1].pts[2], dx = A1[0] - A0[0], dy = A1[1] - A0[1], n = Math.hypot(dx, dy) || 1;
+    const butt = [A0[0] - dx / n * 26 * u, A0[1] - dy / n * 26 * u + 6 * u], tip = [A1[0] + dx / n * 46 * u, A1[1] + dy / n * 46 * u];
+    p.band([butt, [A1[0] + dx / n * 10 * u, A1[1] + dy / n * 10 * u]], "#7a4b2a", 7 * u, 1.6 * u, "round");
+    p.band([[A1[0], A1[1] - 2 * u], tip], "#8d949c", 3.2 * u, 1.2 * u, "round");
+    if (prop[1] > 0.85) {
+      const [mx, my] = tip;
+      p.poly([[mx, my - 12 * u], [mx + f * 16 * u, my - 3 * u], [mx + f * 26 * u, my], [mx + f * 16 * u, my + 3 * u], [mx, my + 12 * u], [mx + f * 8 * u, my]], "#ffd24a", 1.6 * u);
     }
   }
   if (Array.isArray(prop) && prop[0] === "press") {

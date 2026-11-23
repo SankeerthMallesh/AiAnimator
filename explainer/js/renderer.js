@@ -10,6 +10,8 @@ import { drawProp } from './props.js';
 import { STYLES } from './presets.js';
 import { drawWorld } from '../../cartoon/js/worlds.js';
 import { heroLook, drawHero, feelFor } from './hero.js';
+import { planExplains, explainAt, drawExplain } from '../../shared/explain.js';
+import { hookFx } from '../../shared/hooks.js';
 import { teaserIndex, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -313,6 +315,9 @@ export class Renderer {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
 
+    // 2.2: the first two seconds' hook and diagram cutaways, under the label and captions
+    hookFx(ctx, W, H, t);
+    { this.explains ||= planExplains(scenes); const ex = explainAt(this.explains, t); if (ex) drawExplain(ctx, W, H, ex, t); }
     this._label(cur, t - cur.start);
     if (this.teaser >= 0) drawCutFlash(ctx, W, H, t);
     if (this.headline) drawHeadline(ctx, W, H, t, this.headline, { top: this.blocky ? 0.09 : 0.14, font: CAPTION_FONT });

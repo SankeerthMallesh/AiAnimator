@@ -345,7 +345,11 @@ const ELEVEN_VOICES = {
   callum: 'N2lVS1w4EtoT3dr4eOWO', charlie: 'IKne3meq5aSn9XLyUdCD', daniel: 'onwK4e9ZLuTAKqWW03F9', bill: 'pqHfZKP75CvOlQylNhV4',
   roger: 'CwhRBWXzGAHq8TQ4Fs17', jessica: 'cgSgspJ2msm6clMCkdW9', laura: 'FGY2WhTYpPnrIDTdsKH5', lily: 'pFZP5JQG7iQjIQuC4Bku',
   sarah: 'EXAVITQu4vr4xnSDxMaL', alice: 'Xb7hH8MSUJpSbSDYk0k2',
+  // 2.2: library voices (natural storytellers); if the key cannot use one, the read falls back to a built-in voice
+  edgar: '1qz7q3ZW54FIyiWDvo33', chris: 'dVgrl3DfAp8V0tM7LCsE', pj: '74JBhfOHNPZlaH7OrVs9', amir: 'YPRmL2oHPibcUwJtQnPM', desiree: 'HvylbcEdW4ILK4GRwetV',
 };
+const LIBRARY = new Set(['edgar', 'chris', 'pj', 'amir', 'desiree']);
+const LIBRARY_FALLBACK = { edgar: 'george', chris: 'brian', pj: 'liam', amir: 'daniel', desiree: 'sarah' };
 // Little human sounds v3 performs before a line, for the feelings that have one.
 const NONVERBAL = { shocked: 'gasps', amused: 'chuckles', sad: 'sighs', relieved: 'exhales', happy: 'laughs' };
 // Very expressive (the default) also reads feeling into lines the writer left neutral.
@@ -361,16 +365,19 @@ function elevenText(env, text, delivery, { expression = 'expressive', sound = fa
 // v3 takes three stability settings: 0 Creative (most emotional), 0.5 Natural, 1 Robust.
 function elevenSettings(env, expression = 'expressive') {
   if (elevenModel(env) !== 'eleven_v3') return { stability: expression === 'expressive' ? 0.3 : 0.38, similarity_boost: 0.8, style: expression === 'expressive' ? 0.65 : 0.4 };
-  return { stability: expression === 'expressive' ? 0 : expression === 'steady' ? 1 : 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: 1.1 };
+  // 2.2: natural pace (1.1 sounded rushed and machine-like); Very expressive keeps a little extra pace
+  return { stability: expression === 'expressive' ? 0 : expression === 'steady' ? 1 : 0.5, similarity_boost: 0.8, use_speaker_boost: true, speed: expression === 'expressive' ? 1.06 : 1.0 };
 }
 const elevenVoiceId = (env, speaker, pick = '') => ELEVEN_VOICES[pick] || (AURA_FEMALE.has(speaker) ? (env.ELEVEN_VOICE_F || 'EXAVITQu4vr4xnSDxMaL') : (env.ELEVEN_VOICE_M || 'JBFqnCBsd6RMkjVDRZzb'));
-const pickExpression = (x) => (['expressive', 'natural', 'steady'].includes(x) ? x : 'expressive');
-async function elevenVoice(env, text, speaker, delivery = '', pick = '', expression = 'expressive') {
-  const voice = elevenVoiceId(env, speaker, pick);
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
+const pickExpression = (x) => (['expressive', 'natural', 'steady'].includes(x) ? x : 'natural');
+async function elevenVoice(env, text, speaker, delivery = '', pick = '', expression = 'natural') {
+  const ask = (voice) => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
     method: 'POST', headers: { 'xi-api-key': env.ELEVEN_KEY, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
     body: JSON.stringify({ text: elevenText(env, text, delivery, { expression, sound: expression === 'expressive' }), model_id: elevenModel(env), voice_settings: elevenSettings(env, expression) }),
   });
+  let res = await ask(elevenVoiceId(env, speaker, pick));
+  // 2.2: a library voice this key cannot use: its built-in stand-in
+  if (!res.ok && res.status !== 429 && LIBRARY.has(pick)) res = await ask(ELEVEN_VOICES[LIBRARY_FALLBACK[pick]]);
   if (!res.ok || !/audio/.test(res.headers.get('Content-Type') || '')) {
     const j = await res.json().catch(() => ({}));
     throw new Error(`ElevenLabs said ${res.status}: ${String(j.detail?.status || j.detail?.message || j.detail || '').slice(0, 120)}`);
@@ -420,8 +427,14 @@ async function geminiVoice(env, text, speaker) {
 // The whole script with ElevenLabs: each line read with its delivery tag (two lines at a time), its
 // character timings turned into word timings, the lines joined with short gaps into one WAV. Same
 // answer as the Gemini read below (cut times, words per line, pace), so the page treats both alike.
-async function elevenAll(env, lines, deliveries, speaker, pick = '', expression = 'expressive') {
-  const voice = elevenVoiceId(env, speaker, pick), SR = 24000, GAP = Math.round(0.36 * SR);
+async function elevenAll(env, lines, deliveries, speaker, pick = '', expression = 'natural') {
+  let voice = elevenVoiceId(env, speaker, pick);
+  const SR = 24000, GAP = Math.round(0.36 * SR);
+  // 2.2: a library voice the key may not be allowed to use: one test read, else its built-in stand-in for the whole video
+  if (LIBRARY.has(pick)) {
+    const t = await fetch(`https://api.elevenlabs.io/v1/voices/${voice}`, { headers: { 'xi-api-key': env.ELEVEN_KEY }, signal: AbortSignal.timeout(8000) }).catch(() => null);
+    if (!t || !t.ok) voice = ELEVEN_VOICES[LIBRARY_FALLBACK[pick]];
+  }
   // At most three little sounds (a gasp, a chuckle, a sigh) per video, never on two lines in a row.
   const sound = new Array(lines.length).fill(false);
   if (expression === 'expressive') { let n = 0; deliveries.forEach((d, i) => { if (n < 3 && NONVERBAL[d] && !sound[i - 1]) { sound[i] = true; n++; } }); }
@@ -433,6 +446,7 @@ async function elevenAll(env, lines, deliveries, speaker, pick = '', expression 
     });
     // 1.6: three lines at a time; when ElevenLabs says too many at once, wait a moment and try again.
     if (res.status === 429 && attempt < 3) { await new Promise(r => setTimeout(r, 900 * (attempt + 1))); return one(i, attempt + 1); }
+    if (!res.ok && LIBRARY.has(pick) && voice !== ELEVEN_VOICES[LIBRARY_FALLBACK[pick]] && attempt < 3) { voice = ELEVEN_VOICES[LIBRARY_FALLBACK[pick]]; return one(i, attempt + 1); }
     const j = await res.json().catch(() => ({}));
     if (!res.ok || !j.audio_base64) throw new Error(`ElevenLabs said ${res.status}: ${String(j.detail?.status || j.detail?.message || '').slice(0, 100)}`);
     const pcm = Uint8Array.from(atob(j.audio_base64), (c) => c.charCodeAt(0));

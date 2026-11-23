@@ -55,6 +55,46 @@ const POSE = { stand: 'stand', talk: 'talk', point: 'point', surprised: 'surpris
 const poseOf = (name) => POSE[name] || 'stand';
 // 2.1: the blocky world has no chairs, desks or beds: those actions become ones the hands can do standing
 const BLOCKY_ACT = { sit: 'think', type: 'press', sleep: 'think', doze: 'think' };
+// 2.2: battles of the musket age: two blocky armies, red and blue coats with tricorn-black caps
+const REDCOAT = { skin: '#f1c9a0', shirt: '#c8102e', accent: '#f4f1ea', pattern: 'jacket', pants: '#f4f1ea', shoes: '#222', hair: '#111', hairStyle: 'cap', hat: '#1e1f24' };
+const BLUECOAT = { skin: '#e8b48c', shirt: '#2f4fa8', accent: '#f4f1ea', pattern: 'jacket', pants: '#e8dcc0', shoes: '#222', hair: '#111', hairStyle: 'cap', hat: '#1e1f24' };
+const box = (w, h, d, col) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), plainMat(col)); m.castShadow = true; return m; };
+/** a blocky battle: ranks of soldiers aiming muskets at each other, flashes and smoke, a general on a blocky horse */
+function blockyBattle(scene, tall) {
+  const men = [], puffs = [];
+  const add = (look, x, z, ry) => {
+    const a = new Avatar(look); a.object.position.set(x, 0, z); a.object.rotation.y = ry; scene.add(a.object);
+    const gun = box(0.06, 0.06, 1.0, '#6b4a2e'); gun.position.set(-0.08, 1.18, 0.55); a.object.add(gun);
+    const flash = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffd24a' })); flash.position.set(-0.08, 1.18, 1.1); flash.visible = false; a.object.add(flash);
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshStandardMaterial({ color: '#f4f1ea', transparent: true, opacity: 0.7, roughness: 1 })); puff.visible = false; scene.add(puff);
+    men.push({ a, flash, puff, off: men.length * 0.29 });
+  };
+  const sx = tall ? 0.75 : 1;
+  for (let i = 0; i < 6; i++) add(BLUECOAT, (-1.7 + (i % 3) * 0.55) * sx, -0.6 - Math.floor(i / 3) * 1.0 - (i % 3) * 0.3, 1.0);
+  for (let i = 0; i < 6; i++) add(REDCOAT, (0.6 + (i % 3) * 0.55) * sx, -3.6 - Math.floor(i / 3) * 1.0 - (i % 3) * 0.3, -1.0);
+  // the general on a blocky horse behind his men
+  const horse = new THREE.Group(); horse.position.set(-1.3 * sx, 0, -3.4); horse.rotation.y = 0.9; scene.add(horse);
+  const coat = '#7a4a28';
+  const body = box(0.5, 0.5, 1.3, coat); body.position.y = 1.0; horse.add(body);
+  for (const [x, z] of [[-0.17, 0.5], [0.17, 0.5], [-0.17, -0.5], [0.17, -0.5]]) { const l = box(0.14, 0.8, 0.14, coat); l.position.set(x, 0.4, z); horse.add(l); }
+  const neck = box(0.28, 0.6, 0.28, coat); neck.position.set(0, 1.4, 0.65); neck.rotation.x = 0.5; horse.add(neck);
+  const head = box(0.26, 0.26, 0.5, coat); head.position.set(0, 1.62, 0.92); horse.add(head);
+  const mane = box(0.1, 0.5, 0.1, '#2b2622'); mane.position.set(0, 1.45, 0.55); mane.rotation.x = 0.5; horse.add(mane);
+  const tail = box(0.1, 0.55, 0.1, '#2b2622'); tail.position.set(0, 0.95, -0.72); tail.rotation.x = -0.4; horse.add(tail);
+  const gen = new Avatar({ ...BLUECOAT, shirt: '#24407f', accent: '#e8b93a' }); gen.object.position.set(0, 0.62, 0); horse.add(gen.object);
+  return { update(t) {
+    for (const m of men) {
+      const k = actBeat('aim', t + m.off);
+      m.a.pose('aim', t, { k });
+      m.flash.visible = k > 0.85;
+      const since = (k - 0.85 + 1) % 1;
+      m.puff.visible = since < 0.5;
+      if (m.puff.visible) { m.a.object.updateMatrixWorld(true); m.puff.position.copy(m.a.object.localToWorld(new THREE.Vector3(-0.08, 1.25 + since * 0.5, 1.3 + since * 0.8))); m.puff.scale.setScalar(0.7 + since * 1.6); m.puff.material.opacity = 0.7 * (1 - since * 2); }
+    }
+    gen.pose('point', t); gen.legL.rotation.x = gen.legR.rotation.x = -1.5;
+    horse.position.y = Math.abs(Math.sin(t * 3)) * 0.03;
+  } };
+}
 
 // ---------- props for a scene: snow sets get the fort film's props, others a flag or nothing ----------
 function setDressing(scene, set, r) {
@@ -84,10 +124,11 @@ function setDressing(scene, set, r) {
 // Builds one engine shot from a spec. ctx: the engine's { makeStage, W, H }.
 export function buildShot(spec, { makeStage, W, H }) {
   const scene = makeStage(stageFor(spec.set));
-  scene.add(makeWorld(WORLD_FOR[spec.set] || 'town', 11 + (spec.seed % 7)));
+  const onField = spec.map === 'battlefield'; // 2.2: a battle is fought outdoors, whatever the set says
+  scene.add(makeWorld(onField ? 'park' : WORLD_FOR[spec.set] || 'town', 11 + (spec.seed % 7)));
   if (spec.set === 'night') { scene.environmentIntensity = 0.15; const f = new THREE.PointLight(0xffd59a, 6, 10, 2); f.position.set(1.4, 2.8, 2.2); scene.add(f); }
   const r = rnd(spec.seed);
-  const dress = setDressing(scene, spec.set, r);
+  const dress = setDressing(scene, onField ? 'park' : spec.set, r);
   const wide = W > H, tall = H > W * 1.2, fov0 = wide ? 32 : 36;
   const c = cam(fov0); c.near = 0.05; c.far = 500;
   const P = spec.cast.map(i => new Avatar(LOOKS[((i % LOOKS.length) + LOOKS.length) % LOOKS.length]));
@@ -101,7 +142,8 @@ export function buildShot(spec, { makeStage, W, H }) {
   // 2.1: what the lead does with their hands ("hold:key" = the act and its thing), and the thing itself
   let [bact = '', bitem = ''] = String(spec.act || '').split(':'); bact = BLOCKY_ACT[bact] ?? bact;
   const moving = bact === 'walk' || bact === 'run';
-  const inHand = !holds && bact && !moving ? handThing(bact, bitem) : null; if (inHand) { if (bact !== 'press') inHand.scale.setScalar(1.6); scene.add(inHand); }
+  const battle = spec.map === 'battlefield' && spec.kind !== 'object' ? blockyBattle(scene, tall) : null;
+  const inHand = !holds && bact && !moving && bact !== 'aim' ? handThing(bact, bitem) : null; if (inHand) { if (bact !== 'press') inHand.scale.setScalar(1.6); scene.add(inHand); }
   const icon = !thing && spec.icon && (spec.kind === 'point' || r() < 0.5) ? emojiSprite(spec.icon, 0.6) : null;
   if (icon) scene.add(icon);
   if (spec.kind === 'object') { const st = new THREE.Mesh(roundBox(0.7, 0.9, 0.7, 0.05), plainMat('#8a5a33')); st.position.y = 0.45; st.castShadow = st.receiveShadow = true; scene.add(st); }
@@ -129,6 +171,7 @@ export function buildShot(spec, { makeStage, W, H }) {
     let target = V(0, 1.2, 0), eff = null;
     const [A, B, C] = P;
     dress.wave?.(t);
+    battle?.update(t);
     let spot = null, tScale = 1;
     const hand = holds && A ? handOf(A) : null;
     switch (spec.kind) {
@@ -153,7 +196,7 @@ export function buildShot(spec, { makeStage, W, H }) {
         // 2.1: an action is framed wide enough to see the hands, what is in them and the body doing it
         const acting = bact && !holds;
         target = acting ? chest(A).add(V(0, 0.3, 0)) : head(A).add(V(0, -0.05, 0));
-        frameCam(c, target, { dist: (acting ? (tall ? 4.8 : 3.9) : 3.2) * near, height: acting ? 0.1 : 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
+        frameCam(c, target, { dist: (acting ? (tall ? 4.8 : 3.9) : 3.2) * (battle ? 1.45 : 1) * near, height: acting ? 0.1 : 0.05, yaw: 0.18 + yawJ }, spec.camera, k, t, spec.seed, fov0);
         eff = chest(A); break;
       }
       case 'two': {

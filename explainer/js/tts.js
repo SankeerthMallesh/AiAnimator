@@ -258,7 +258,7 @@ const AURA_FOR = { af_heart: 'thalia', af_bella: 'aurora', af_nicole: 'luna', bf
 function auraSpeaker(v) { return AURA_FOR[v] || (/^[ab]f_/.test(v || '') ? 'thalia' : 'arcas'); }
 
 // 1.6: the real voice (by name) and how expressive it is, for the server's ElevenLabs reads.
-let REAL = { eleven: '', expression: 'expressive' };
+let REAL = { eleven: '', expression: 'natural' };
 export function setRealVoice(o = {}) { REAL = { ...REAL, ...o }; }
 
 async function auraLine(text, speaker, delivery = '') {

@@ -29,17 +29,18 @@ export const tests = [
     const src = readFileSync(new URL('../../../functions/api/[[path]].js', import.meta.url), 'utf8');
     const block = /const ELEVEN_VOICES = \{([\s\S]*?)\};/.exec(src)[1];
     const server = Object.fromEntries([...block.matchAll(/(\w+): '(\w+)'/g)].map(m => [m[1], m[2]]));
+    // 2.2 adds five natural library voices (each with a built-in stand-in on the server)
     assert.deepEqual(server, Object.fromEntries(Object.entries(REAL_VOICES).map(([k, [, id]]) => [k, id])));
     assert.ok(Object.keys(REAL_VOICES).length >= 12);
   } },
   { name: 'Auto picks a voice that suits the character, else the narrator', fn: () => {
-    assert.equal(realVoiceFor({ character: 'hype' }), 'liam');
+    assert.equal(realVoiceFor({ character: 'hype' }), 'pj'); // 2.2: the natural voices for the characters
     assert.equal(realVoiceFor({ character: 'trailer' }), 'brian');
     assert.equal(realVoiceFor({ voice: 'bm_george' }), 'george');
-    assert.equal(realVoiceFor({ voice: 'af_sky' }), 'sarah');
+    assert.equal(realVoiceFor({ voice: 'af_sky' }), 'desiree');
     assert.equal(realVoiceFor({ realVoice: 'harry', character: 'hype' }), 'harry');
-    assert.equal(realVoiceFor({ realVoice: 'nobody' }), 'brian');
-    assert.equal(expressionOf({}), 'expressive'); assert.equal(expressionOf({ expression: 'natural' }), 'natural');
+    assert.equal(realVoiceFor({ realVoice: 'nobody' }), 'edgar');
+    assert.equal(expressionOf({}), 'natural'); // 2.2: Natural by default assert.equal(expressionOf({ expression: 'natural' }), 'natural');
     assert.equal(Object.keys(EXPRESSIONS).length, 3);
   } },
   { name: 'a named voice is used; an unknown name falls back to the site voice', fn: async () => {
@@ -51,13 +52,13 @@ export const tests = [
       assert.match(sent[1].url, /JBFqnCBsd6RMkjVDRZzb/);
     } finally { globalThis.fetch = realFetch; }
   } },
-  { name: 'very expressive (the default): creative stability, feeling read into neutral lines, and a gasp for a shock', fn: async () => {
+  { name: 'very expressive (2.2: chosen, Natural is the default): creative stability, feeling read into neutral lines, and a gasp for a shock', fn: async () => {
     try {
       const sent = fakeEleven();
-      await call('speak', { text: 'It never came back!', eleven: 'liam' });
+      await call('speak', { text: 'It never came back!', eleven: 'liam', expression: 'expressive' });
       assert.equal(sent[0].body.voice_settings.stability, 0);
       assert.match(sent[0].body.text, /^\[excited\] It never/);
-      await call('speak', { text: 'Then the lights went out.', delivery: 'shocked' });
+      await call('speak', { text: 'Then the lights went out.', delivery: 'shocked', expression: 'expressive' });
       assert.match(sent[1].body.text, /^\[shocked\] \[gasps\] Then/);
       await call('speak', { text: 'It never came back!', expression: 'natural' });
       assert.equal(sent[2].body.voice_settings.stability, 0.5);
@@ -70,7 +71,7 @@ export const tests = [
     try {
       const sent = fakeEleven();
       const lines = ['One.', 'Two.', 'Three.', 'Four.', 'Five.', 'Six.'];
-      const r = await call('speakall', { lines, deliveries: ['shocked', 'shocked', 'amused', 'sad', 'happy', 'relieved'], eleven: 'jessica' });
+      const r = await call('speakall', { lines, deliveries: ['shocked', 'shocked', 'amused', 'sad', 'happy', 'relieved'], eleven: 'jessica', expression: 'expressive' });
       assert.equal(r.headers.get('X-Loomy-Voice'), 'elevenlabs');
       const texts = sent.map(s => s.body.text).sort((a, b) => lines.findIndex(l => a.endsWith(l)) - lines.findIndex(l => b.endsWith(l)));
       const withSound = texts.map(t => /\[(gasps|chuckles|sighs|exhales|laughs)\]/.test(t));

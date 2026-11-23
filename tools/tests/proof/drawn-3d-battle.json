@@ -1,0 +1,61 @@
+{
+ "title": "The Battle of Bunker Hill",
+ "hookText": "He dug with a spoon",
+ "characters": [
+  {
+   "name": "Rick",
+   "look": "man, casual clothes"
+  },
+  {
+   "name": "Hank",
+   "look": "man, white shirt"
+  }
+ ],
+ "scenes": [
+  {
+   "narration": "At Bunker Hill the colonists opened fire on the redcoats.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "battlefield",
+   "action": "aim",
+   "acc": []
+  },
+  {
+   "narration": "Their general pointed at the hill.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "battlefield",
+   "action": "point",
+   "acc": []
+  },
+  {
+   "narration": "Some lakes can explode because carbon dioxide builds up under the water.",
+   "set": "room",
+   "frame": "talk",
+   "who": [
+    "Rick"
+   ],
+   "act": "stand",
+   "camera": "push-in",
+   "effect": "",
+   "icon": "",
+   "map": "",
+   "action": "",
+   "acc": []
+  }
+ ]
+}

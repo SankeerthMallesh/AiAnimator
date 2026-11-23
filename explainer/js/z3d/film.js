@@ -70,12 +70,13 @@ export function fadeAt(fades, t) {
 }
 
 // One output frame at time t into the 2D context g (W x H).
-export function composeFrame(engine, g, W, H, t, { captions = [], fades = [], log = null, captionStyle = 'classic' } = {}) {
+export function composeFrame(engine, g, W, H, t, { captions = [], fades = [], log = null, captionStyle = 'classic', under = null } = {}) {
   const shot = engine.renderAt(t);
   g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
   g.drawImage(engine.canvas, 0, 0, W, H);
   const f = fadeAt(fades, t);
   if (f > 0) { g.fillStyle = `rgba(0,0,0,${f})`; g.fillRect(0, 0, W, H); }
+  under?.(g, t); // 2.2: what goes over the picture but under the captions (explainer cutaways)
   const text = captionAt(captions, t);
   const draw = captionStyle === 'blocky' ? drawCaptionBlocky : drawCaption;
   if (log) log.caption(t, g, H, () => draw(g, W, H, text));

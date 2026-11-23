@@ -296,6 +296,25 @@ Tests: v20-maps, v20-budget (unit).
 - **S1** smoothness: shared/budget.js keeps 30 fps and steps 1080p → 900p → 720p only.
 - makevideo.cjs takes SPEED= and QUALITY=. Tests: v21-actions (unit).
 
+## Loomy 2.2 (2026-11-23, topic visuals, battles, human voices, turns, hooks)
+
+- **EX1** `shared/explain.js`: explainKind (battle, lake, reaction, pressure, space, chart) from the line, planExplains (a
+  cutaway in the middle of a scene, never on the hook), drawExplain (1000x1000 animated diagram, full-bleed blurred
+  copy behind it in tall frames). Drawn under the captions by town.js, explainer/js/renderer.js and drawn.js (via
+  composeFrame's new `under`). Stills: tools/tests/explain/explain.html.
+- **BAT1** battles: sets.ts `battlefield` (redoubt, fences, cannons, flags, tents), maps.js sends old battles there and
+  the world wars to `trench`, `aim` action (toon.ts musket + flash, people.js pose + actprops musket, blocky pose);
+  toon.ts REDCOAT/BLUECOAT/GENERAL (tricorn, bicorne) and drawHorse; tmpl.ts stages two armies (12 men, smoke fx)
+  and the general on horseback in every battlefield shot; autoblocky.js `blockyBattle`. Stills: proof/battle-a.json,
+  proof/drawn-3d-battle.json. The 3D tab has the battlefield and an aiming lead, not whole armies.
+- **VO1** voices: library voices edgar/chris/pj/amir/desiree (REAL_VOICES + server ELEVEN_VOICES) with built-in
+  stand-ins (LIBRARY_FALLBACK) if the key cannot use them; Natural is the default (one-time move from Very expressive,
+  `v22` flag), pace 1.0.
+- **TU1** `shared/turns.js` addTurns: a turning-point phrase mid-story when a 4+ line script has none; both writers
+  are asked for them.
+- **HK1** `hookFx` in shared/hooks.js: flash, punch-in with shake, red circle and arrow in the first 2.1 s.
+Tests: v22-visuals (unit).
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min

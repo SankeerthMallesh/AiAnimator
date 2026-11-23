@@ -206,6 +206,7 @@ export class Avatar {
       case 'eat': case 'drink': set(this.armR, -1.2 - k * 1.2, 0, 0.45); set(this.armL, 0, 0, 0.06); f = 'smile'; break;
       case 'phone': set(this.armR, -2.5, 0, 0.75); f = 'worried'; break;
       case 'type': set(this.legL, -1.5); set(this.legR, -1.5); this.hips.position.y = 1.15 * U; set(this.armL, -1.3 + s(t * 11) * 0.06, 0, -0.15); set(this.armR, -1.3 + s(t * 13 + 1) * 0.06, 0, 0.15); set(this.neck, 0.2); break;
+      case 'aim': set(this.armL, -1.5, 0, -0.32); set(this.armR, -1.42 - (k > 0.85 ? 0.12 : 0), 0, 0.12); set(this.neck, 0.05, 0.15); f = 'angry'; break;
       case 'carry': set(this.armR, -0.1, 0, -0.15); set(this.armL, 0, 0, 0.06); f = 'grin'; break;
       case 'sleep': set(this.legL, -1.5); set(this.legR, -1.5); this.hips.position.y = 1.15 * U; set(this.armL, -0.4); set(this.armR, -0.4); set(this.neck, 0.45, 0, 0.2); f = 'blink'; break;
       default: set(this.armL, 0, 0, 0.06); set(this.armR, 0, 0, -0.06); f = 'smile';

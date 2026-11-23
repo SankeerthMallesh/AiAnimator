@@ -3,13 +3,13 @@
 // writer's "do", else the line's verbs), and how the cast's outfit and accessories are drawn.
 
 export const MAPS = ['cell', 'cellblock', 'banklobby', 'vault', 'spacecabin', 'spacetoilet', 'control', 'cockpit', 'classroom', 'office',
-  'kitchen', 'diner', 'livingroom', 'bedroom', 'hospital', 'lab', 'courtroom', 'museum', 'castle', 'shop', 'tunnel', 'trench', 'camp',
+  'kitchen', 'diner', 'livingroom', 'bedroom', 'hospital', 'lab', 'courtroom', 'museum', 'castle', 'shop', 'tunnel', 'trench', 'battlefield', 'camp',
   'beach', 'desert', 'farm'];
 /** the riverside town's own places (street = the bank by the bridge) */
 export const TOWN = ['street', 'park', 'bridge'];
 export const ACTS = ['sit', 'sleep', 'dig', 'eat', 'drink', 'type', 'phone', 'carry', 'walk', 'run', 'point', 'cheer', 'think', 'stand',
   // 2.1: hands that do things
-  'hold', 'press', 'write', 'read', 'lift', 'sweep', 'look', 'panic', 'shrug', 'clap', 'salute', 'wave', 'count'];
+  'hold', 'press', 'write', 'read', 'lift', 'sweep', 'look', 'panic', 'shrug', 'clap', 'salute', 'wave', 'count', 'aim'];
 /** things a hand can hold (hold:key, lift:box); the line's words pick one */
 export const ITEMS = ['box', 'key', 'map', 'paper', 'book', 'money', 'gold', 'flask', 'cup', 'tool', 'gem', 'flashlight', 'sign', 'remote', 'food', 'bomb'];
 export const OUTFITS = ['prison', 'guard', 'astro', 'coat', 'suit', 'chef', 'soldier', 'worker', 'royal', 'casual'];
@@ -27,7 +27,9 @@ const RULES = [
   [/\b(prison\w*|jail\w*|inmates?|cells?|behind bars|locked up|sentenced|convict\w*)\b/, 'cell'],
   [/\b(tunnel\w*|mines?|miners?|mining|underground|cave|dug|digging)\b/, 'tunnel'],
   [/\b(space station|\biss\b|astronauts?|orbit\w*|zero gravity|weightless|floating)\b/, 'spacecabin'],
-  [/\b(trench\w*|battlefield|war|battles?|soldiers?|army|troops|bomb\w*|front line)\b/, 'trench'],
+  // 2.2: the world wars are trenches; every older battle (and a battle with no era) is an open battlefield with armies
+  [/\b(trench\w*|world war|ww1|ww2|wwi|wwii|bomb\w*|tanks?|front line|machine guns?)\b/, 'trench'],
+  [/\b(battlefield|war|battles?|soldiers?|army|armies|troops|redcoats?|muskets?|cavalry|regiments?|generals?|bunker hill|gettysburg|waterloo|napoleon\w*|revolution\w*|civil war|siege|fought|charged)\b/, 'battlefield'],
   [/\b(court\w*|judge|trial|lawyers?|jury|guilty|verdict)\b/, 'courtroom'],
   [/\b(hospital|doctors?|nurses?|surgery|patients?|sick|illness|virus|vaccines?)\b/, 'hospital'],
   [/\b(lab|laboratory|scientists?|experiment\w*|chemicals?|invent\w*)\b/, 'lab'],
@@ -69,7 +71,7 @@ export function guessMap(text, topic = '') {
 // The older painted sets, mapped onto the maps.
 export const SET_MAP = {
   cabin: 'spacecabin', control: 'control', bunks: 'spacecabin', cockpit: 'cockpit', office: 'office', lab: 'lab', room: 'livingroom',
-  shop: 'shop', battlefield: 'trench', castle: 'castle', hospital: 'hospital', museum: 'museum', kitchen: 'kitchen', desert: 'desert',
+  shop: 'shop', battlefield: 'battlefield', castle: 'castle', hospital: 'hospital', museum: 'museum', kitchen: 'kitchen', desert: 'desert',
   forest: 'camp', jungle: 'camp', school: 'classroom', sea: 'beach', underwater: 'beach', snow: 'camp', mountains: 'camp', volcano: 'desert',
 };
 
@@ -90,6 +92,8 @@ const ACT_RULES = [
   [/\b(drank|drink\w*|coffee|tea|soda|juice|sip\w*)\b/, 'drink'],
   [/\b(typ(e|ed|ing)|computers?|hack\w*|keyboard|cod(e|ing)|laptop)\b/, 'type'],
   [/\b(phone\w*|called|calling|texted|dial\w*|radio(ed)?)\b/, 'phone'],
+  // 2.2: guns, muskets and volleys: aiming and firing
+  [/\b(fired|fires|firing|opened fire|volleys?|shot at|shoot\w*|aim\w*|muskets?|rifles?|guns?|cannons?)\b/, 'aim'],
   [/\b(press(ed|es|ing)?|push(ed|es|ing)? (the|a|that|one) (button|switch|lever)|buttons?|switch(ed)?|levers?|launch(ed)?|detonat\w*|activat\w*|turned on|turned off)\b/, 'press'],
   [/\b(count(ed|ing)?|paid|pay(ing)?|bills?|dollars?|bribe\w*)\b/, 'count'],
   [/\b(stole|steal\w*|cash|money|loot|carr(y|ied|ies|ying)|bags?)\b/, 'carry'],
@@ -128,7 +132,7 @@ const BUSY = {
   livingroom: ['sit', 'hold:remote', 'drink', 'read'], bedroom: ['read', 'sit', 'hold:book', 'think'], hospital: ['write', 'hold:flask', 'press', 'look'],
   lab: ['hold:flask', 'press', 'write', 'look'], courtroom: ['point', 'hold:paper', 'sit', 'write'], museum: ['look', 'hold:gem', 'point', 'write'],
   castle: ['sit', 'hold:gold', 'point', 'salute'], shop: ['count', 'hold:box', 'lift:box', 'sweep'], tunnel: ['dig', 'hold:flashlight', 'look', 'lift:box'],
-  trench: ['look', 'salute', 'dig', 'hold:map'], camp: ['sit', 'hold:map', 'eat', 'look'], beach: ['sit', 'look', 'drink', 'wave'],
+  trench: ['look', 'salute', 'dig', 'hold:map'], battlefield: ['aim', 'point', 'salute', 'aim'], camp: ['sit', 'hold:map', 'eat', 'look'], beach: ['sit', 'look', 'drink', 'wave'],
   desert: ['look', 'hold:map', 'sit', 'drink'], farm: ['sweep', 'lift:box', 'hold:tool', 'sit'],
   street: ['walk', 'phone', 'hold:box', 'wave'], park: ['walk', 'sit', 'read', 'wave'], bridge: ['walk', 'look', 'point', 'phone'],
 };

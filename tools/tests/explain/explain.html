@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#222">
+<canvas id="c" width="540" height="960"></canvas>
+<script type="module">
+import { drawExplain } from '../../../shared/explain.js';
+import { hookFx } from '../../../shared/hooks.js';
+const c = document.getElementById('c'), g = c.getContext('2d');
+// a stand-in frame: a scene with a stickman in the middle
+function frame() { g.fillStyle = '#7fb3d9'; g.fillRect(0, 0, 540, 960); g.fillStyle = '#5a9e4b'; g.fillRect(0, 640, 540, 320); g.fillStyle = '#f08a2c'; g.beginPath(); g.ellipse(270, 520, 70, 110, 0, 0, 7); g.fill(); g.fillStyle = '#ffe2c2'; g.beginPath(); g.arc(270, 360, 70, 0, 7); g.fill(); }
+window.still = (kind, t, label) => { frame(); if (kind === 'hook') hookFx(g, 540, 960, t); else drawExplain(g, 540, 960, { start: 0, end: 5, kind, label }, t); return c.toDataURL('image/jpeg', 0.85); };
+window.ready = true;
+</script>

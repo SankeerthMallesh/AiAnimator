@@ -121,3 +121,41 @@ export function chapterAt(scenes, t) {
   for (const s of scenes || []) if (s.chapter && t >= s.start && t < s.start + CHAPTER_CARD) return { ...s.chapter, local: t - s.start };
   return null;
 }
+
+// ---------- 2.2: the visual hook of the first two seconds ----------
+// A white flash on frame one, a punch-in (the picture lands 18 % too big and settles with a small shake), then a red
+// marker circle draws itself around the subject with an arrow swinging in to point at it, the way Shorts grab the
+// eye before the first sentence ends. Drawn over the picture, under captions and the headline.
+export const HOOK_END = 2.1;
+export function hookFx(g, W, H, t) {
+  if (!(t >= 0 && t < HOOK_END)) return;
+  const ease = (x) => 1 - Math.pow(1 - Math.max(0, Math.min(1, x)), 3);
+  // punch-in and shake: the frame redrawn over itself, scaled about the centre
+  if (t < 0.5 && g.canvas) {
+    const k = ease(t / 0.5), s = 1.18 - 0.18 * k, sh = t > 0.08 && t < 0.42 ? Math.sin(t * 90) * W * 0.008 * (1 - k) : 0;
+    try { g.save(); g.drawImage(g.canvas, 0, 0, W, H, (W - W * s) / 2 + sh, (H - H * s) / 2 + sh * 0.6, W * s, H * s); g.restore(); } catch { g.restore(); }
+  }
+  if (t < 0.22) { g.save(); g.globalAlpha = 0.85 * (1 - t / 0.22); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.restore(); }
+  // the marker circle around the subject, then the arrow
+  const cx = W / 2, cy = H * 0.5, rx = Math.min(W, H) * 0.3, ry = rx * 1.15, draw = ease((t - 0.35) / 0.55), out = t > 1.75 ? 1 - (t - 1.75) / 0.35 : 1;
+  if (draw <= 0 || out <= 0) return;
+  g.save(); g.globalAlpha = out; g.lineCap = 'round'; g.lineJoin = 'round';
+  const lw = Math.max(6, W * 0.012), a0 = -Math.PI * 0.6, a1 = a0 + Math.PI * 2.08 * draw;
+  for (const [col, w] of [['rgba(0,0,0,0.45)', lw * 1.9], ['#ff2d2d', lw]]) {
+    g.strokeStyle = col; g.lineWidth = w; g.beginPath();
+    for (let a = a0; a <= a1; a += 0.05) { const wob = 1 + 0.035 * Math.sin(a * 3 + 1); const x = cx + Math.cos(a) * rx * wob, y = cy + Math.sin(a) * ry * wob; if (a === a0) g.moveTo(x, y); else g.lineTo(x, y); }
+    g.stroke();
+  }
+  const ak = ease((t - 0.7) / 0.35);
+  if (ak > 0) {
+    // from the upper right, pointing down and in at the circle
+    const tipX = cx + rx * 0.78, tipY = cy - ry * 0.72, len = Math.min(W, H) * 0.22 * ak, ang = Math.PI * 0.75 + Math.sin(t * 9) * 0.04;
+    const bx = tipX - Math.cos(ang) * len, by = tipY - Math.sin(ang) * len, hx = Math.cos(ang), hy = Math.sin(ang), hs = lw * 3.2;
+    for (const [col, w] of [['rgba(0,0,0,0.45)', lw * 1.9], ['#ff2d2d', lw * 1.1]]) {
+      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = w;
+      g.beginPath(); g.moveTo(bx, by); g.lineTo(tipX - hx * hs * 0.5, tipY - hy * hs * 0.5); g.stroke();
+      g.beginPath(); g.moveTo(tipX, tipY); g.lineTo(tipX - hx * hs - hy * hs * 0.7, tipY - hy * hs + hx * hs * 0.7); g.lineTo(tipX - hx * hs + hy * hs * 0.7, tipY - hy * hs - hx * hs * 0.7); g.closePath(); g.fill();
+    }
+  }
+  g.restore();
+}

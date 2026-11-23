@@ -1492,6 +1492,40 @@ var MAPS = {
     return { spots: { dig: [1, 0, 0.8] }, night: true };
   },
   // a trench on a battlefield: sandbag walls, duckboards, barbed wire, mud, a smoky sky
+  // 2.2: an open battlefield of the musket age: a grass field with an earthwork redoubt, rail fences, cannons on
+  // wheels, flags on poles, tents behind and drifting smoke; the armies are staged on it by the shot (tmpl.ts)
+  battlefield(g, r) {
+    P(g, 60, 60, T2("bgrass", 512, 512, dirt("#7a9a4a", "#5f7f38"), 10, 10), 0, 0, 0, 0, -Math.PI / 2);
+    for (let k = 0; k < 9; k++) {
+      const d = S(g, 1.4 + r() * 0.5, C("#7a6440"), -8 + k * 2, -0.6, 9 + r() * 0.6, 0.5);
+      d.receiveShadow = true;
+    }
+    P_.fence(g, -9, -3, 3.4);
+    P_.fence(g, 3, 9, 4.2);
+    const cannon = (x, z, ry) => {
+      const f = new THREE4.Group();
+      f.position.set(x, 0, z);
+      f.rotation.y = ry;
+      g.add(f);
+      const barrel = Cy(f, 0.13, 0.17, 1.5, C("#2b2f38"), 0, 0.55, 0, 14);
+      barrel.rotation.z = Math.PI / 2 - 0.12;
+      for (const s2 of [-1, 1]) {
+        const w = Cy(f, 0.36, 0.36, 0.08, C("#6b4a2e"), 0.1, 0.36, s2 * 0.32, 14);
+        w.rotation.x = Math.PI / 2;
+      }
+      B(f, 1.2, 0.14, 0.4, C("#6b4a2e"), -0.4, 0.3, 0);
+    };
+    cannon(-4.2, 2.6, 0.2);
+    cannon(4.6, 6.5, Math.PI - 0.2);
+    for (const [x, z, col] of [[-6.5, 5.5, "#2f4fa8"], [6.8, 9.5, "#c8102e"]]) {
+      Cy(g, 0.04, 0.04, 3.6, C("#8a5a3c"), x, 0, z, 6);
+      B(g, 1.1, 0.7, 0.03, C(col), x + 0.58, 2.8, z);
+    }
+    P_.tent(g, -9, 11, "#f4f1ea");
+    P_.tent(g, -6.5, 12.5, "#e8e2d0");
+    P_.tent(g, 9, 13, "#f4f1ea");
+    return { spots: {}, outdoor: true };
+  },
   trench(g, r) {
     const ground = T2("mud", 512, 512, dirt("#6b5b45", "#4e4232"), 8, 8);
     P(g, 40, 40, ground, 0, 0, 0, 0, -Math.PI / 2);

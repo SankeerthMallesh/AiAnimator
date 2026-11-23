@@ -4,6 +4,8 @@
 import { createEngine } from './z3d/engine.js';
 import { composeFrame } from './z3d/film.js';
 import * as A3 from './z3d/auto3d.js';
+import { planExplains, explainAt, drawExplain } from '../../shared/explain.js';
+import { hookFx } from '../../shared/hooks.js';
 import { teaserIndex, withTeaser, headlineText, drawHeadline, drawCutFlash, drawChapterCard, chapterAt, TEASE } from '../../shared/hooks.js';
 
 export class DrawnRenderer {
@@ -17,6 +19,7 @@ export class DrawnRenderer {
     this.teaser = hooks ? teaserIndex(timeline.scenes, script.teaser) : -1;
     this.headline = hooks ? headlineText(script) : '';
     this.scenes = timeline.scenes;
+    this.explains = planExplains(timeline.scenes); // 2.2: diagram cutaways for the lines that explain something
     this.ready = this.init(timeline, script, perf);
   }
 
@@ -46,7 +49,8 @@ export class DrawnRenderer {
 
   drawFrame(t) {
     if (!this.engine) return;
-    composeFrame(this.engine, this.g, this.W, this.H, t, { captions: this.showCaptions ? this.captions : [], captionStyle: this.captionStyle });
+    const under = (g, tt) => { hookFx(g, this.W, this.H, tt); const ex = explainAt(this.explains, tt); if (ex) drawExplain(g, this.W, this.H, ex, tt); };
+    composeFrame(this.engine, this.g, this.W, this.H, t, { captions: this.showCaptions ? this.captions : [], captionStyle: this.captionStyle, under });
     if (this.teaser >= 0) drawCutFlash(this.g, this.W, this.H, t);
     // Blocky captions sit at 23 % of the height, so its headline sits higher.
     drawHeadline(this.g, this.W, this.H, t, this.headline, { top: this.kind === 'blocky' ? 0.09 : 0.14 });

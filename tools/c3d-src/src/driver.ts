@@ -81,7 +81,9 @@ class View {
     for (const c of this.world.root.children) if (c.name.startsWith("set_")) c.visible = !!set && c === set.root;
     // the lead's action happens at its spot in the map (the bed, the chair, the hole): the shot is anchored there
     // asleep with no bed in the map: dozing in the map's chair, or nodding off on their feet where it has no seat
-    const act = s.act === "sleep" && !(set && set.spots.bed) ? (set && set.spots.sit ? "doze" : "dozeup") : s.act;
+    let act = s.act === "sleep" && !(set && set.spots.bed) ? (set && set.spots.sit ? "doze" : "dozeup") : s.act;
+    // 2.2: sitting or typing where the place has no seat (an open battlefield): they stand and watch instead
+    if (set && !set.spots.sit && (act === "sit" || act === "type")) act = set.id === "battlefield" ? "aim" : "look";
     const SPOT: Record<string, string[]> = { sleep: ["bed"], doze: ["sit"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
     let at: { m: V3; d: [number, number] } | null = null, actY = 0;
     if (set) {

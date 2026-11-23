@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS = {
   atmosphere: false,
   elevenKey: '', elevenVoice: '', elevenModel: 'eleven_v3',
   realVoice: 'auto',              // 1.6: the real (ElevenLabs) voice by name, or auto
-  expression: 'expressive',       // 1.6: expressive | natural | steady
+  expression: 'natural',          // 1.6: expressive | natural | steady (2.2: Natural by default, it sounds like a person)
   runwayKey: '', falKey: '', falModel: 'fal-ai/kling-video/v2.1/standard/image-to-video', videoProvider: 'auto',
   fps: 30,                        // Balanced speed (big upgrade): 30 fps renders twice as fast as 60
   speed: 'balanced',              // fast | balanced | best
@@ -97,6 +97,8 @@ export function loadSettings() {
     for (const k of ['quality', 'fps', 'depth3d', 'atmosphere', 'captionStyle', 'showTitle', 'voice', 'voiceSpeed', 'stickers']) merged[k] = DEFAULT_SETTINGS[k];
     merged.settingsVersion = DEFAULT_SETTINGS.settingsVersion;
   }
+  // 2.2: one time, the old Very expressive default moves to Natural (it sounds like a person, not acted)
+  if (!saved.v22) { if (merged.expression === 'expressive') merged.expression = 'natural'; merged.v22 = 1; }
   // 1.6: captions are always on, in every tab.
   if (!merged.captionStyle || merged.captionStyle === 'off') merged.captionStyle = DEFAULT_SETTINGS.captionStyle;
   if (merged.quality === 'hd') merged.quality = '1080';

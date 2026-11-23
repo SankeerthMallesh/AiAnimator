@@ -7069,6 +7069,28 @@ var OFFICER = { ...RIFLEMAN, hat: "shako_tall", buttons: "#e8c45a", sash: "#c035
 var KID = { jacket: "#f08a2c", pants: "#3b5b9a", boots: "#f4f1ea", hat: "cap", cap: "#e2453c", build: "kid" };
 var PARENT = { jacket: "#7b5ac9", pants: "#3b3f52", boots: "#5a3b2a", hat: "hair", hair: "#5a3b2a" };
 var SKINS = [SKIN, "#f5c9a0", "#ecd0b6", "#c99067"];
+var REDCOAT = { jacket: "#c8102e", pants: "#f4f1ea", boots: INK, hat: "tricorn", belt: "#f4f1ea", buttons: "#e8c45a", rifle: true };
+var BLUECOAT = { jacket: "#2f4fa8", pants: "#e8dcc0", boots: INK, hat: "tricorn", belt: "#f4f1ea", buttons: "#e8c45a", rifle: true };
+var GENERAL = { jacket: "#2f4fa8", pants: "#e8dcc0", boots: INK, hat: "bicorne", buttons: "#e8c45a", sash: "#e8b93a", sword: true, build: "stout", moustache: "#5a3b22" };
+var drawHorse = (p, phase, coat = "#7a4a28", gallop = true) => {
+  const leg = (hx, hy, a, col) => {
+    const kx = hx + Math.sin(a) * 60, ky = hy + 120, fx = kx + Math.sin(a * 1.6) * 40, fy = 600;
+    p.stroke([[hx, hy], [kx, ky], [fx, fy]], 34, col);
+    p.ell(fx + 8, fy + 4, 26, 16, "#2b2622", 5);
+  };
+  const two = Math.PI * 2, ph = gallop ? phase * two : 0, dark = shade(coat, 0.78);
+  leg(330, 400, gallop ? Math.sin(ph + 1.5) * 0.7 : 0.05, dark);
+  leg(690, 400, gallop ? Math.sin(ph + 0.5) * 0.7 : 0.05, dark);
+  p.ell(500, 330, 270, 130, coat, 8);
+  leg(290, 410, gallop ? Math.sin(ph) * 0.8 : -0.05, coat);
+  leg(720, 410, gallop ? Math.sin(ph + 3.1) * 0.8 : -0.05, coat);
+  p.poly([[690, 300], [760, 150], [820, 110], [900, 150], [940, 220], [910, 250], [840, 230], [800, 320], [720, 380]], coat, 8);
+  p.dot(855, 160, 9, INK);
+  p.stroke([[760, 130], [700, 220], [690, 300]], 30, "#2b2622");
+  p.stroke([[235, 300], [160, 360 + Math.sin(ph) * 20], [140, 470]], 34, "#2b2622");
+  p.poly([[420, 205], [600, 205], [640, 300], [380, 300]], "#c8102e", 6);
+  p.ell(510, 205, 110, 34, "#6b3a20", 6);
+};
 var soldier = (v = 0, extra = {}) => {
   const o = { ...RIFLEMAN, skin: SKINS[v % 4] };
   if (v % 4 === 1) o.moustache = "#4a3426";
@@ -7798,7 +7820,7 @@ var footStroke = (p, a, b, w, col) => {
   if (col !== INK) p.stroke([a, b], w + 3, INK);
   p.stroke([a, b], w, col);
 };
-var EXTRA_HATS = ["beanie", "hardhat", "chef", "crown", "helmet"];
+var EXTRA_HATS = ["beanie", "hardhat", "chef", "crown", "helmet", "tricorn", "bicorne"];
 var suitDecor = (p, o, x, chin, bot, ta, HH, u) => {
   const k = o.suit;
   if (!k) return;
@@ -7854,6 +7876,14 @@ var hatExtra = (p, o, H, cx, hc, u) => {
     p.ell(cx, hc - 0.35 * H.b, A * 0.98, H.b * 0.7, col, 2.2 * u, 180, 360);
     p.poly([[cx - A * 1.15, hc - 0.36 * H.b], [cx + A * 1.15, hc - 0.36 * H.b], [cx + A * 1.1, hc - 0.26 * H.b], [cx - A * 1.1, hc - 0.26 * H.b]], shade(col, 0.85), 2 * u);
     if (k === "hardhat") p.stroke([[cx, top - 0.02 * H.b], [cx, hc - 0.4 * H.b]], 4 * u, shade(col, 0.8));
+  } else if (k === "tricorn" || k === "bicorne") {
+    const col = o.cap || "#1e1f24", y = hc - 0.42 * H.b, w = k === "bicorne" ? 1.45 : 1.18;
+    p.ell(cx, y + 0.02 * H.b, A * 0.92, H.b * 0.5, col, 2.2 * u, 180, 360);
+    p.poly([[cx - A * w, y + 0.12 * H.b], [cx, y - (k === "bicorne" ? 0.75 : 0.42) * H.b], [cx + A * w, y + 0.12 * H.b], [cx + A * 0.6, y + 0.02 * H.b], [cx - A * 0.6, y + 0.02 * H.b]], col, 2.2 * u);
+    p.stroke([[cx - A * w * 0.95, y + 0.1 * H.b], [cx + A * w * 0.95, y + 0.1 * H.b]], 3 * u, "#e8dcc0");
+    if (k === "bicorne") {
+      p.ell(cx + A * 0.35, y - 0.2 * H.b, 0.16 * A, 0.16 * A, "#e8b93a", 1.6 * u);
+    }
   } else if (k === "chef") {
     p.poly([[cx - A * 0.7, hc - 0.55 * H.b], [cx + A * 0.7, hc - 0.55 * H.b], [cx + A * 0.72, hc - 0.32 * H.b], [cx - A * 0.72, hc - 0.32 * H.b]], "#f4f1ea", 2 * u);
     for (const [dx, r] of [[-0.42, 0.42], [0.42, 0.42], [0, 0.5]]) p.ell(cx + dx * A, top - 0.2 * H.b, r * A, r * A * 0.9, "#ffffff", 2 * u);
@@ -7974,7 +8004,7 @@ var bodyFront = (p, o, opts) => {
   };
   const sw = mode === "march" || mode === "stroll" ? Math.sin(two * phase) : 0;
   const R0 = [300 + 47 * u, torsoBot + 0.12 * HH], R1 = [300 + 64 * u, crown - 0.32 * HH];
-  const rifle = !!o.rifle && (mode === "march" || mode === "stand" || mode === "stroll");
+  const rifle = !!o.rifle && (mode === "march" || mode === "stand" || mode === "stroll") && !(Array.isArray(prop2) && prop2[0] === "aim");
   const arms = [];
   if (mode === "sit") for (const side of [-1, 1]) arms.push({ pts: [sh(side), [tcx + side * (1.1 * T4.a + 6 * u), sh(side)[1] + 0.4 * HH], [tcx + side * (1.2 * T4.a + 10 * u), torsoBot + 0.04 * HH]], front: false });
   else if (mode === "fall") for (const side of [-1, 1]) arms.push({ pts: [sh(side), [tcx + side * (1.15 * T4.a + 12 * u), sh(side)[1] - 0.25 * HH], [tcx + side * (1.3 * T4.a + 24 * u), sh(side)[1] - 0.68 * HH]], front: false });
@@ -8074,6 +8104,13 @@ var bodyFront = (p, o, opts) => {
           break;
         case "wave":
           break;
+        case "aim": {
+          const f = facing || 1, kick = k > 0.85 ? -6 * u : 0;
+          const near = [tcx + f * (0.35 * T4.a) + f * kick, chin + 0.3 * HH], far = [tcx + f * (1.15 * T4.a + 8 * u) + f * kick, chin + 0.26 * HH];
+          arms.length = 0;
+          arms.push({ pts: [f > 0 ? S0 : S1, [tcx, chin + 0.42 * HH], near], front: true }, { pts: [f > 0 ? S1 : S0, [tcx + f * 1.1 * T4.a, chin + 0.38 * HH], far], front: true });
+          break;
+        }
         case "sweep": {
           const sx = (k - 0.5) * 14 * u;
           two2([tcx - 0.2 * T4.a + sx, chin + 0.3 * HH], [tcx + 0.45 * T4.a + sx, torsoBot - 0.02 * HH], elbow(-1, 0.32), elbow(1, 0.38));
@@ -8149,6 +8186,16 @@ var bodyFront = (p, o, opts) => {
     if (prop2[0] === "write") {
       const [hx, hy] = R;
       p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round");
+    }
+  }
+  if (Array.isArray(prop2) && prop2[0] === "aim" && arms.length === 2) {
+    const f = facing || 1, A0 = arms[0].pts[2], A1 = arms[1].pts[2], dx = A1[0] - A0[0], dy = A1[1] - A0[1], n = Math.hypot(dx, dy) || 1;
+    const butt = [A0[0] - dx / n * 26 * u, A0[1] - dy / n * 26 * u + 6 * u], tip = [A1[0] + dx / n * 46 * u, A1[1] + dy / n * 46 * u];
+    p.band([butt, [A1[0] + dx / n * 10 * u, A1[1] + dy / n * 10 * u]], "#7a4b2a", 7 * u, 1.6 * u, "round");
+    p.band([[A1[0], A1[1] - 2 * u], tip], "#8d949c", 3.2 * u, 1.2 * u, "round");
+    if (prop2[1] > 0.85) {
+      const [mx, my] = tip;
+      p.poly([[mx, my - 12 * u], [mx + f * 16 * u, my - 3 * u], [mx + f * 26 * u, my], [mx + f * 16 * u, my + 3 * u], [mx, my + 12 * u], [mx + f * 8 * u, my]], "#ffd24a", 1.6 * u);
     }
   }
   if (Array.isArray(prop2) && prop2[0] === "press") {
@@ -9694,14 +9741,15 @@ var stageTemplate = (people, effects, cam, t, light) => {
   people.forEach((m, i) => {
     const base2 = FOLK[(m.look % 6 + 6) % 6];
     const own2 = !m.kid && m.look >= 0 && FOLK === TOWNFOLK ? LOOKS[m.look] : null;
-    const o = m.kid ? KID : own2 ? { ...base2, ...own2 } : base2;
-    const who = { i: 500 + i * 13 + m.look, o, okey: m.kid ? "kid" : own2 ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
-    const walking = m.walk != null, [act, item = ""] = (m.act || "").split(":"), k = q(m.k ?? 0.5, 40);
-    const HANDS = ["press", "point", "write", "read", "cheer", "think", "shrug", "panic", "sweep", "look", "salute", "clap", "count"];
+    const uni = m.uni ? { red: REDCOAT, blue: BLUECOAT, general: GENERAL }[m.uni] : null;
+    const o = uni ? own2?.skin ? { ...uni, skin: own2.skin } : uni : m.kid ? KID : own2 ? { ...base2, ...own2 } : base2;
+    const who = { i: 500 + i * 13 + m.look, o, okey: uni ? `U${m.uni}${own2?.skin || ""}` : m.kid ? "kid" : own2 ? `L${m.look}` : `${FOLK === VIKINGFOLK ? "v" : "f"}${(m.look % 6 + 6) % 6}` };
+    const riding = !!m.horse, walking = m.walk != null && !riding, [act, item = ""] = (m.act || "").split(":"), k = q(m.k ?? 0.5, 40);
+    const HANDS = ["aim", "press", "point", "write", "read", "cheer", "think", "shrug", "panic", "sweep", "look", "salute", "clap", "count"];
     const prop2 = act === "type" ? "type" : act === "eat" ? ["eat", k] : act === "drink" ? ["drink", k] : act === "phone" ? "phone" : act === "dig" ? ["shovel", k] : act === "carry" ? "bag" : act === "hold" || act === "lift" ? [act, k, item || "box"] : HANDS.includes(act) && !walking ? [act, k] : null;
     const asleep = act === "sleep", dozing = act === "doze" || act === "dozeup";
     const fo = {
-      mode: act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? act === "run" ? "march" : "stroll" : "stand",
+      mode: riding || act === "sit" || act === "type" || act === "doze" ? "sit" : walking ? act === "run" ? "march" : "stroll" : "stand",
       phase: walking ? q(m.walk % 1, 120) : 0,
       expr: asleep || dozing ? "relief" : m.expr,
       blink: asleep || dozing ? 1 : lidAt(t, 500 + i * 7),
@@ -9716,8 +9764,41 @@ var stageTemplate = (people, effects, cam, t, light) => {
     out.places.push(pl);
     if (asleep || dozing) out.fx.push({ key: `zz${q(t * 0.8 % 1, 8)}`, cw: 300, ch: 300, draw: (p) => fxZz(p, t * 0.8 % 1), x: m.x + 0.4, y: y + 0.9, z: m.z, w: 1.1, h: 1.1 });
     if (!asleep) blob(out, m.x, D0 + (act === "sit" || act === "doze" ? 0 : m.y || 0), m.z, m.kid ? 0.72 : 1, m.hop ? 0.6 : 1);
+    if (m.horse) {
+      const flip = (m.facing ?? 1) < 0, ph = q(((m.walk ?? 0) % 1 + 1) % 1, 24), gallop = m.walk != null;
+      out.fx.push({
+        key: `horse|${ph}|${gallop}|${flip}`,
+        cw: 1e3,
+        ch: 640,
+        draw: (p) => {
+          if (flip) {
+            p.g.translate(1e3, 0);
+            p.g.scale(-1, 1);
+          }
+          drawHorse(p, ph, "#7a4a28", gallop);
+        },
+        x: m.x + (flip ? 0.03 : -0.03),
+        y: D0 + 0.6125,
+        z: m.z + 0.08,
+        w: 2.2,
+        h: 1.4
+      });
+      blob(out, m.x, D0, m.z, 1.8, 1);
+    }
   });
   for (const e of effects) {
+    if (e.kind === "smoke") {
+      const a = q(clamp01(1 - e.u), 12), sz = (e.size ?? 1.2) * (0.7 + 0.6 * e.u);
+      out.fx.push({ key: `smoke${a}`, cw: 256, ch: 256, soft: true, draw: (p) => {
+        const g = p.g, gr = g.createRadialGradient(128, 128, 8, 128, 128, 126);
+        gr.addColorStop(0, `rgba(246,243,236,${0.85 * a})`);
+        gr.addColorStop(0.6, `rgba(238,234,226,${0.5 * a})`);
+        gr.addColorStop(1, "rgba(238,234,226,0)");
+        g.fillStyle = gr;
+        g.fillRect(0, 0, 256, 256);
+      }, x: e.x, y: e.y, z: e.z, w: sz, h: sz * 0.8 });
+      continue;
+    }
     if (e.kind === "insert") {
       const base2 = FOLK[((e.look ?? 0) % 6 + 6) % 6], own2 = (e.look ?? -1) >= 0 && FOLK === TOWNFOLK ? LOOKS[e.look] : null;
       const sleeve = own2?.jacket || base2.jacket, kk = q(clamp01(e.u), 40), sz = e.size ?? 1;
@@ -10765,6 +10846,8 @@ function beatOf(act, t, off = 0) {
   switch (a) {
     case "dig":
       return (Math.sin(T4 * 4.2) + 1) / 2;
+    case "aim":
+      return T4 * 0.55 % 1;
     case "press": {
       const u = T4 % 1.3 / 1.3;
       return u < 0.22 ? ease(u / 0.22) : u < 0.4 ? 1 : u < 0.7 ? 1 - ease((u - 0.4) / 0.3) : 0;
@@ -10989,6 +11072,22 @@ function frameAt(s, t) {
   }
   if (s.at && s.kind !== "insert") cInf = Math.min(cInf, 2);
   if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr;
+  if (s.place === "battlefield" && s.kind !== "insert") {
+    const ranks = [];
+    for (let i = 0; i < 6; i++) ranks.push([-1.55 + i % 3 * 0.42, -0.9 - Math.floor(i / 3) * 0.9 - i % 3 * 0.35, 1, "blue"]);
+    for (let i = 0; i < 6; i++) ranks.push([0.45 + i % 3 * 0.45, -3.6 - Math.floor(i / 3) * 0.9 - i % 3 * 0.3, -1, "red"]);
+    ranks.forEach(([r, d, f, u], i) => {
+      const [x, z] = at(r, d), k2 = beatOf("aim", t, i * 0.29);
+      people.push({ look: who(0), x, z, expr: i % 3 ? "stern" : "shock", uni: u, facing: f, act: "aim", k: k2 });
+      const since = (k2 - 0.85 + 1) % 1;
+      if (since < 0.5) {
+        const [sx, sz] = at(r + f * (0.75 + since * 0.6), d);
+        effects.push({ kind: "smoke", x: sx, y: my + 1.35 + since * 0.4, z: sz, u: since * 2, size: 0.9 });
+      }
+    });
+    const [gx, gz] = at(-1, -3);
+    people.push({ look: who(0), x: gx + Math.sin(t * 0.6) * 0.15, z: gz, expr: "stern", uni: "general", facing: 1, act: "point", k: 0.5, horse: true, y: 0.42, walk: t * 1.1 });
+  }
   if (s.act2 && s.kind === "two" && people[1]) Object.assign(people[1], { act: s.act2, k: beatOf(s.act2, t, 0.7) });
   if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {
     const back = -1.9, a = s.extras[0], b = s.extras[1];
@@ -12117,6 +12216,40 @@ var MAPS = {
     return { spots: { dig: [1, 0, 0.8] }, night: true };
   },
   // a trench on a battlefield: sandbag walls, duckboards, barbed wire, mud, a smoky sky
+  // 2.2: an open battlefield of the musket age: a grass field with an earthwork redoubt, rail fences, cannons on
+  // wheels, flags on poles, tents behind and drifting smoke; the armies are staged on it by the shot (tmpl.ts)
+  battlefield(g, r) {
+    P2(g, 60, 60, T3("bgrass", 512, 512, dirt("#7a9a4a", "#5f7f38"), 10, 10), 0, 0, 0, 0, -Math.PI / 2);
+    for (let k = 0; k < 9; k++) {
+      const d = S(g, 1.4 + r() * 0.5, C2("#7a6440"), -8 + k * 2, -0.6, 9 + r() * 0.6, 0.5);
+      d.receiveShadow = true;
+    }
+    P_.fence(g, -9, -3, 3.4);
+    P_.fence(g, 3, 9, 4.2);
+    const cannon = (x, z, ry) => {
+      const f = new THREE8.Group();
+      f.position.set(x, 0, z);
+      f.rotation.y = ry;
+      g.add(f);
+      const barrel = Cy(f, 0.13, 0.17, 1.5, C2("#2b2f38"), 0, 0.55, 0, 14);
+      barrel.rotation.z = Math.PI / 2 - 0.12;
+      for (const s2 of [-1, 1]) {
+        const w = Cy(f, 0.36, 0.36, 0.08, C2("#6b4a2e"), 0.1, 0.36, s2 * 0.32, 14);
+        w.rotation.x = Math.PI / 2;
+      }
+      B(f, 1.2, 0.14, 0.4, C2("#6b4a2e"), -0.4, 0.3, 0);
+    };
+    cannon(-4.2, 2.6, 0.2);
+    cannon(4.6, 6.5, Math.PI - 0.2);
+    for (const [x, z, col] of [[-6.5, 5.5, "#2f4fa8"], [6.8, 9.5, "#c8102e"]]) {
+      Cy(g, 0.04, 0.04, 3.6, C2("#8a5a3c"), x, 0, z, 6);
+      B(g, 1.1, 0.7, 0.03, C2(col), x + 0.58, 2.8, z);
+    }
+    P_.tent(g, -9, 11, "#f4f1ea");
+    P_.tent(g, -6.5, 12.5, "#e8e2d0");
+    P_.tent(g, 9, 13, "#f4f1ea");
+    return { spots: {}, outdoor: true };
+  },
   trench(g, r) {
     const ground = T3("mud", 512, 512, dirt("#6b5b45", "#4e4232"), 8, 8);
     P2(g, 40, 40, ground, 0, 0, 0, 0, -Math.PI / 2);
@@ -12386,7 +12519,8 @@ var View = class {
     const cam = this.camera, local = t - s.start;
     const set = SET_NAMES.includes(s.place) ? setFor(s.place, s.mapSeed ?? 1, this.world.root) : null;
     for (const c of this.world.root.children) if (c.name.startsWith("set_")) c.visible = !!set && c === set.root;
-    const act = s.act === "sleep" && !(set && set.spots.bed) ? set && set.spots.sit ? "doze" : "dozeup" : s.act;
+    let act = s.act === "sleep" && !(set && set.spots.bed) ? set && set.spots.sit ? "doze" : "dozeup" : s.act;
+    if (set && !set.spots.sit && (act === "sit" || act === "type")) act = set.id === "battlefield" ? "aim" : "look";
     const SPOT = { sleep: ["bed"], doze: ["sit"], sit: ["sit"], type: ["type", "sit"], eat: ["eat", "sit"], drink: ["sit"], dig: ["dig"], phone: ["sit"] };
     let at = null, actY = 0;
     if (set) {

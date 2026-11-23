@@ -49,6 +49,7 @@ export function beatOf(act: string, t: number, off = 0): number {
   const a = act.split(":")[0], T = t + off;
   switch (a) {
     case "dig": return (Math.sin(T * 4.2) + 1) / 2;
+    case "aim": return (T * 0.55) % 1;
     case "press": { const u = (T % 1.3) / 1.3; return u < 0.22 ? ease(u / 0.22) : u < 0.4 ? 1 : u < 0.7 ? 1 - ease((u - 0.4) / 0.3) : 0; }
     case "write": return (T * 0.7) % 1;
     case "count": return (T * 1.8) % 1;
@@ -182,6 +183,23 @@ export function frameAt(s: TSpec, t: number): TFrame {
   if (s.at && s.kind !== "insert") cInf = Math.min(cInf, 2);
   if (s.expr && people.length && s.act !== "sleep") people[0].expr = s.expr as Expr;
   // 2.0: background people: one walks across the back of the room, another stands at the side
+  // 2.2: a battle of the musket age: two armies on the field facing each other, volleys going off along the lines,
+  // their general on horseback behind his men; the lead stays in front of them
+  if (s.place === "battlefield" && s.kind !== "insert") {
+    // in a tall frame the lines run diagonally: our army near and to the left, the enemy farther back on the right
+    const ranks: [number, number, 1 | -1, "blue" | "red"][] = [];
+    for (let i = 0; i < 6; i++) ranks.push([-1.55 + (i % 3) * 0.42, -0.9 - Math.floor(i / 3) * 0.9 - (i % 3) * 0.35, 1, "blue"]);
+    for (let i = 0; i < 6; i++) ranks.push([0.45 + (i % 3) * 0.45, -3.6 - Math.floor(i / 3) * 0.9 - (i % 3) * 0.3, -1, "red"]);
+    ranks.forEach(([r, d, f, u], i) => {
+      const [x, z] = at(r, d), k = beatOf("aim", t, i * 0.29);
+      people.push({ look: who(0), x, z, expr: i % 3 ? "stern" : "shock", uni: u, facing: f, act: "aim", k });
+      // the smoke of the last shot drifts off the muzzle
+      const since = (k - 0.85 + 1) % 1;
+      if (since < 0.5) { const [sx, sz] = at(r + f * (0.75 + since * 0.6), d); effects.push({ kind: "smoke", x: sx, y: my + 1.35 + since * 0.4, z: sz, u: since * 2, size: 0.9 }); }
+    });
+    const [gx, gz] = at(-1.0, -3.0);
+    people.push({ look: who(0), x: gx + Math.sin(t * 0.6) * 0.15, z: gz, expr: "stern", uni: "general", facing: 1, act: "point", k: 0.5, horse: true, y: 0.42, walk: t * 1.1 });
+  }
   // 2.1: the second person in a two-shot is busy too (reacting with their hands or doing their own thing)
   if (s.act2 && s.kind === "two" && people[1]) Object.assign(people[1], { act: s.act2, k: beatOf(s.act2, t, 0.7) });
   if (s.at && s.extras?.length && ["talk", "two", "wide", "point"].includes(s.kind)) {

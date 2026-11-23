@@ -3,6 +3,7 @@
 // Never fail a video because one field is missing.
 
 import { MAPS, TOWN, ACTS, OUTFITS, ACCESSORIES, storyOutfits } from './maps.js';
+import { addTurns } from '../../shared/turns.js';
 import { splitSentences } from '../../shared/speech.js';
 import { DELIVERIES } from '../../shared/voicefx.js';
 import { lowerTags, compactTitle } from '../../shared/upload.js';
@@ -673,6 +674,8 @@ export class Script {
       });
     });
     if (!scenes.length) throw new Error('The script came back without scenes.');
+    // 2.2: turning points ("You see,", "But here's the thing:") where the writer left none
+    addTurns(scenes.map(x => x.narration), scenes.length).forEach((n, i) => { scenes[i].narration = n; });
     const seen = new Set();
     for (const s of scenes) {
       while (seen.has(s.id)) s.id += 'x';
@@ -1045,6 +1048,7 @@ sets: ${SetKit.IDS.join(' ')}. cams: ${Script.CAMS.join(' ')}. cuts: ${Script.CU
 maps (2.5D places drawn in 3D): ${MAPS.join(' ')}, or ${TOWN.join(' ')} for the town. Every scene gets "map": the place the line is happening in, so the picture shows what the narrator talks about (a man in jail: cell, and cellblock when the guards come; a bank heist: banklobby, then vault; astronauts: spacecabin, spacetoilet, control, cockpit; a trial: courtroom). Change the map when the story moves; 3 to 6 different maps per video.
 do: what the main character in "who" is DOING with their hands or body in that scene, one of ${ACTS.join(' ')} (dug a tunnel: dig; fell asleep: sleep; stole the cash: carry; ate lunch: eat; called the police: phone; hacked the computer: type; found the key: hold; hit the button: press; signed the letter: write; checked the map: read; carried a heavy crate: lift; spotted the guard: look; freaked out: panic; got away: run; snuck in: walk). Never "stand": every scene shows someone doing something.
 outfits: ${OUTFITS.join(' ')}. accessories: ${ACCESSORIES.join(' ')}. Give every character an "outfit" that fits their role (inmates: prison, guards: guard, astronauts: astro, scientists and doctors: coat, bosses and lawyers: suit) and 1 or 2 "acc" that make them memorable (a mission controller's headset, a boss's cigar and gold chain, a guard's shades, a digger's headlamp).
+TURNING POINTS: talk like a person telling a friend. Use one or two turning-point phrases in the middle of the story ("You see,", "But here's the thing:", "Here's the crazy part:", "Turns out,", "And that's when"), never in the first line.
 THE NARRATOR IS ONLY A VOICE: nobody on screen tells the story or talks to the camera. The cast ACTS OUT what the narrator says (digging, eating, sleeping, typing, sneaking, reacting), like characters in a cartoon while a narrator speaks over it.
 poses: ${Cast.POSES.join(' ')}. feels: ${Cast.FEELS.join(' ')}. Give every character a different outfit and headwear that fit their job (crews in jumpsuits with a headset or an officer's cap, scientists in lab coats), and change faces with the story (smug when they think they are right, shocked, sleepy, nervous with a sweat drop, skeptical).
 props: ${PropKit.KINDS.join(' ')}. actions: walk enter exit sit drive point shrug jump facepalm laugh cry cheer think wave hold give show drop grow spin break (show/drop/grow/spin/break act on the thing in that character's \"hold\": show raises it to the camera, drop lets it fall, grow makes it swell, spin turns it, break smashes it; use them when the line does that to the thing).

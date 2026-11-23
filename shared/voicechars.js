@@ -37,6 +37,12 @@ export function characterDelivery(delivery, ch) {
 // (the server only accepts these names; functions/api keeps the same list). "auto" picks the one that
 // suits the narrator character, else the narrator voice.
 export const REAL_VOICES = {
+  // 2.2: human-sounding storytellers from the voice library (natural, conversational, not "announcer-y")
+  edgar: ['Edgar: natural, conversational storyteller', '1qz7q3ZW54FIyiWDvo33'],
+  chris: ['Chris: deep, friendly, like a friend telling you', 'dVgrl3DfAp8V0tM7LCsE'],
+  pj: ['PJ: casual young Shorts storyteller', '74JBhfOHNPZlaH7OrVs9'],
+  amir: ['Amir: calm, natural documentary voice', 'YPRmL2oHPibcUwJtQnPM'],
+  desiree: ['Desiree: warm, natural storyteller', 'HvylbcEdW4ILK4GRwetV'],
   george: ['George: warm British storyteller', 'JBFqnCBsd6RMkjVDRZzb'],
   brian: ['Brian: deep, rich narrator', 'nPczCjzI2devNBz1zQrb'],
   liam: ['Liam: energetic Shorts creator', 'TX3LPaxmHKxFdv7VOQHJ'],
@@ -57,13 +63,14 @@ export const EXPRESSIONS = {
   natural: 'Natural: true to life, calmer',
   steady: 'Steady: even, like a documentary',
 };
-const BY_CHARACTER = { storyteller: 'george', hype: 'liam', secret: 'lily', newsreel: 'daniel', deadpan: 'roger', professor: 'bill', trailer: 'brian', bestie: 'jessica' };
-const BY_NARRATOR = { am_michael: 'brian', bm_george: 'george', bm_fable: 'daniel', am_puck: 'liam', am_fenrir: 'callum', af_heart: 'sarah', af_bella: 'laura', af_nicole: 'lily', bf_emma: 'alice' };
+const BY_CHARACTER = { storyteller: 'edgar', hype: 'pj', secret: 'lily', newsreel: 'daniel', deadpan: 'chris', professor: 'amir', trailer: 'brian', bestie: 'desiree' };
+const BY_NARRATOR = { am_michael: 'edgar', bm_george: 'george', bm_fable: 'daniel', am_puck: 'liam', am_fenrir: 'callum', af_heart: 'desiree', af_bella: 'laura', af_nicole: 'lily', bf_emma: 'alice' };
 export function realVoiceFor(settings = {}) {
   if (REAL_VOICES[settings.realVoice]) return settings.realVoice;
-  return BY_CHARACTER[settings.character] || BY_NARRATOR[settings.voice] || (/^[ab]f_/.test(settings.voice || '') ? 'sarah' : 'brian');
+  return BY_CHARACTER[settings.character] || BY_NARRATOR[settings.voice] || (/^[ab]f_/.test(settings.voice || '') ? 'desiree' : 'edgar');
 }
-export const expressionOf = (settings = {}) => (EXPRESSIONS[settings.expression] ? settings.expression : 'expressive');
+// 2.2: Natural by default (it sounds like a person talking; Very expressive can sound acted)
+export const expressionOf = (settings = {}) => (EXPRESSIONS[settings.expression] ? settings.expression : 'natural');
 
 // ---------- the sound ----------
 // RBJ biquads, run in place on a Float32Array.

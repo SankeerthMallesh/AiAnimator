@@ -1,4 +1,5 @@
 import { MAPS, ACTS, ACCESSORIES } from '../../cartoon/js/maps.js';
+import { addTurns } from '../../shared/turns.js';
 import { splitSentences } from '../../shared/speech.js';
 import { writerOrder } from './router.js';
 // Script writing + fact checking with free LLM providers.
@@ -268,7 +269,7 @@ First, follow the creator's request EXACTLY: topic, angle, tone, point of view, 
 
 Then make it great:
 1. ACCURACY for anything factual — every fact is correct and mainstream-verifiable (textbooks, encyclopedias, scientific consensus). Dates, names, numbers and places are exact. If a popular belief is a myth or misconception, say so and tell the real story. Never invent quotes, statistics or events. When something is uncertain, say "historians think", "about", "probably". Fiction can be imaginative but stays internally consistent.
-2. RETENTION — the first line is a scroll-stopping hook under 12 words (a surprising claim, a question, or an "imagine" moment). Open curiosity loops and pay them off. Short punchy sentences. No filler like "In this video" or "Let's dive in", no "like and subscribe". End on the consequence or a twist, in a short, plain line: never a moral or a lesson ("Remember...", "The lesson is..."). Never use these words or phrases: beckons, embrace, dance of, testament to, "Remember,", "In the end,", journey. Write for the ear, like an upbeat narrator talking to a friend: contractions, varied sentence lengths, a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits, so the voice never sounds flat.
+2. RETENTION — the first line is a scroll-stopping hook under 12 words (a surprising claim, a question, or an "imagine" moment). Open curiosity loops and pay them off. Short punchy sentences. No filler like "In this video" or "Let's dive in", no "like and subscribe". Use one or two turning-point phrases in the middle ("You see,", "But here's the thing:", "Here's the crazy part:", "Turns out,"), never in the first line. End on the consequence or a twist, in a short, plain line: never a moral or a lesson ("Remember...", "The lesson is..."). Never use these words or phrases: beckons, embrace, dance of, testament to, "Remember,", "In the end,", journey. Write for the ear, like an upbeat narrator talking to a friend: contractions, varied sentence lengths, a surprise turn now and then ("But here's the crazy part.", "Wait, it gets weirder."), and an exclamation or a question where it fits, so the voice never sounds flat.
 3. CINEMATOGRAPHY — every scene is ONE clear shot that literally shows what the narration says at that moment, directed like a high-end 3D animated film.
 
 Rules for the visual prompts:
@@ -466,6 +467,8 @@ export function normalizeScript(raw, options) {
     }))
     .filter(s => s.narration);
   if (!scenes.length) throw new Error('The script came back empty.');
+  // 2.2: turning points ("You see,", "But here's the thing:") where the writer left none
+  addTurns(scenes.map(x => x.narration), scenes.length).forEach((n, i) => { scenes[i].narration = n; });
   // If the writer parked the host in one spot for the whole video, move it around.
   if (scenes.length > 2 && scenes.every(sc => sc.side === scenes[0].side)) {
     scenes.forEach((sc, i) => { sc.side = ['center', 'left', 'right', 'center', 'right', 'left'][i % 6]; });

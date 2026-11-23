@@ -59,6 +59,28 @@ export const KID: Outfit = { jacket: "#f08a2c", pants: "#3b5b9a", boots: "#f4f1e
 export const PARENT: Outfit = { jacket: "#7b5ac9", pants: "#3b3f52", boots: "#5a3b2a", hat: "hair", hair: "#5a3b2a" };
 export const SKINS = [SKIN, "#f5c9a0", "#ecd0b6", "#c99067"];
 
+// 2.2: the musket age's armies (tricorns, cross belts) and their general
+export const REDCOAT: Outfit = { jacket: "#c8102e", pants: "#f4f1ea", boots: INK, hat: "tricorn", belt: "#f4f1ea", buttons: "#e8c45a", rifle: true };
+export const BLUECOAT: Outfit = { jacket: "#2f4fa8", pants: "#e8dcc0", boots: INK, hat: "tricorn", belt: "#f4f1ea", buttons: "#e8c45a", rifle: true };
+export const GENERAL: Outfit = { jacket: "#2f4fa8", pants: "#e8dcc0", boots: INK, hat: "bicorne", buttons: "#e8c45a", sash: "#e8b93a", sword: true, build: "stout", moustache: "#5a3b22" };
+/** 2.2: a horse in side view, facing right, in a 1000 x 640 canvas; phase 0..1 is the gallop (0 = standing) */
+export const drawHorse = (p: Pen, phase: number, coat = "#7a4a28", gallop = true) => {
+  const leg = (hx: number, hy: number, a: number, col: string) => {
+    const kx = hx + Math.sin(a) * 60, ky = hy + 120, fx = kx + Math.sin(a * 1.6) * 40, fy = 600;
+    p.stroke([[hx, hy], [kx, ky], [fx, fy]], 34, col); p.ell(fx + 8, fy + 4, 26, 16, "#2b2622", 5);
+  };
+  const two = Math.PI * 2, ph = gallop ? phase * two : 0, dark = shade(coat, 0.78);
+  leg(330, 400, gallop ? Math.sin(ph + 1.5) * 0.7 : 0.05, dark); leg(690, 400, gallop ? Math.sin(ph + 0.5) * 0.7 : 0.05, dark);
+  p.ell(500, 330, 270, 130, coat, 8);
+  leg(290, 410, gallop ? Math.sin(ph) * 0.8 : -0.05, coat); leg(720, 410, gallop ? Math.sin(ph + 3.1) * 0.8 : -0.05, coat);
+  // neck and head, the mane, the tail, a saddle and a red blanket
+  p.poly([[690, 300], [760, 150], [820, 110], [900, 150], [940, 220], [910, 250], [840, 230], [800, 320], [720, 380]], coat, 8);
+  p.dot(855, 160, 9, INK);
+  p.stroke([[760, 130], [700, 220], [690, 300]], 30, "#2b2622");
+  p.stroke([[235, 300], [160, 360 + Math.sin(ph) * 20], [140, 470]], 34, "#2b2622");
+  p.poly([[420, 205], [600, 205], [640, 300], [380, 300]], "#c8102e", 6);
+  p.ell(510, 205, 110, 34, "#6b3a20", 6);
+};
 export const soldier = (v = 0, extra: Partial<Outfit> = {}): Outfit => {
   const o: Outfit = { ...RIFLEMAN, skin: SKINS[v % 4] };
   if (v % 4 === 1) o.moustache = "#4a3426";
@@ -451,7 +473,7 @@ export type Prop = null | "icecream" | "shako" | ["hammer", number] | ["reach", 
   // 2.1: hands that do things (the number is the action's beat 0..1; hold and lift carry their thing)
   | ["hold", number, string] | ["lift", number, string] | ["press", number] | ["point", number] | ["write", number] | ["read", number]
   | ["cheer", number] | ["think", number] | ["shrug", number] | ["panic", number] | ["sweep", number] | ["look", number]
-  | ["salute", number] | ["clap", number] | ["count", number];
+  | ["salute", number] | ["clap", number] | ["count", number] | ["aim", number];
 
 /** 2.1: a thing held in the hands, drawn about its middle (x, y); s = size unit */
 export const drawItem = (p: Pen, item: string, x: number, y: number, s: number) => {
@@ -650,7 +672,7 @@ const footStroke = (p: Pen, a: P2, b: P2, w: number, col: string) => {
 };
 
 // ---------------- 2.0: clothes, hats and accessories ----------------
-const EXTRA_HATS = ["beanie", "hardhat", "chef", "crown", "helmet"];
+const EXTRA_HATS = ["beanie", "hardhat", "chef", "crown", "helmet", "tricorn", "bicorne"];
 /** markings on a torso (drawn inside its clip): collars, pockets, lapels, a tie, patches */
 const suitDecor = (p: Pen, o: Outfit, x: number, chin: number, bot: number, ta: number, HH: number, u: number) => {
   const k = o.suit;
@@ -705,6 +727,13 @@ const hatExtra = (p: Pen, o: Outfit, H: Blob, cx: number, hc: number, u: number)
     p.ell(cx, hc - 0.35 * H.b, A * 0.98, H.b * 0.7, col, 2.2 * u, 180, 360);
     p.poly([[cx - A * 1.15, hc - 0.36 * H.b], [cx + A * 1.15, hc - 0.36 * H.b], [cx + A * 1.1, hc - 0.26 * H.b], [cx - A * 1.1, hc - 0.26 * H.b]], shade(col, 0.85), 2 * u);
     if (k === "hardhat") p.stroke([[cx, top - 0.02 * H.b], [cx, hc - 0.4 * H.b]], 4 * u, shade(col, 0.8));
+  } else if (k === "tricorn" || k === "bicorne") {
+    // 2.2: the musket age: a black tricorn (soldiers) or a wide bicorne with a cockade (a general)
+    const col = o.cap || "#1e1f24", y = hc - 0.42 * H.b, w = k === "bicorne" ? 1.45 : 1.18;
+    p.ell(cx, y + 0.02 * H.b, A * 0.92, H.b * 0.5, col, 2.2 * u, 180, 360);
+    p.poly([[cx - A * w, y + 0.12 * H.b], [cx, y - (k === "bicorne" ? 0.75 : 0.42) * H.b], [cx + A * w, y + 0.12 * H.b], [cx + A * 0.6, y + 0.02 * H.b], [cx - A * 0.6, y + 0.02 * H.b]], col, 2.2 * u);
+    p.stroke([[cx - A * w * 0.95, y + 0.1 * H.b], [cx + A * w * 0.95, y + 0.1 * H.b]], 3 * u, "#e8dcc0");
+    if (k === "bicorne") { p.ell(cx + A * 0.35, y - 0.2 * H.b, 0.16 * A, 0.16 * A, "#e8b93a", 1.6 * u); }
   } else if (k === "chef") {
     p.poly([[cx - A * 0.7, hc - 0.55 * H.b], [cx + A * 0.7, hc - 0.55 * H.b], [cx + A * 0.72, hc - 0.32 * H.b], [cx - A * 0.72, hc - 0.32 * H.b]], "#f4f1ea", 2 * u);
     for (const [dx, r] of [[-0.42, 0.42], [0.42, 0.42], [0, 0.5]] as [number, number][]) p.ell(cx + dx * A, top - 0.2 * H.b, r * A, r * A * 0.9, "#ffffff", 2 * u);
@@ -805,7 +834,7 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   const sw = mode === "march" || mode === "stroll" ? Math.sin(two * phase) : 0;
   // rifle at the order: butt by the right hip, held by the hanging right hand, muzzle past the crown
   const R0: P2 = [300 + 47 * u, torsoBot + 0.12 * HH], R1: P2 = [300 + 64 * u, crown - 0.32 * HH];
-  const rifle = !!o.rifle && (mode === "march" || mode === "stand" || mode === "stroll");
+  const rifle = !!o.rifle && (mode === "march" || mode === "stand" || mode === "stroll") && !(Array.isArray(prop) && prop[0] === "aim");
   type Arm = { pts: [P2, P2, P2]; front: boolean };
   const arms: Arm[] = [];
   if (mode === "sit") for (const side of [-1, 1]) arms.push({ pts: [sh(side), [tcx + side * (1.1 * T.a + 6 * u), sh(side)[1] + 0.4 * HH], [tcx + side * (1.2 * T.a + 10 * u), torsoBot + 0.04 * HH]], front: false });
@@ -879,6 +908,14 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
         case "look": two([300 - 0.32 * H.a, hc + 0.22 * H.b], [300 + 0.32 * H.a, hc + 0.22 * H.b], elbow(-1, 0.35, -6), elbow(1, 0.35, -6)); break;
         case "salute": arms[last] = { pts: [S1, [tcx + 1.35 * T.a + 8 * u, S1[1] - 0.05 * HH], [300 + H.a * 0.55, hc - 0.35 * H.b]], front: true }; break;
         case "wave": break;
+        case "aim": {
+          // 2.2: a musket levelled at shoulder height toward where they face; the recoil kicks on the shot
+          const f = facing || 1, kick = k > 0.85 ? -6 * u : 0;
+          const near: P2 = [tcx + f * (0.35 * T.a) + f * kick, chin + 0.3 * HH], far: P2 = [tcx + f * (1.15 * T.a + 8 * u) + f * kick, chin + 0.26 * HH];
+          arms.length = 0;
+          arms.push({ pts: [f > 0 ? S0 : S1, [tcx, chin + 0.42 * HH], near], front: true }, { pts: [f > 0 ? S1 : S0, [tcx + f * 1.1 * T.a, chin + 0.38 * HH], far], front: true });
+          break;
+        }
         case "sweep": {
           const sx = (k - 0.5) * 14 * u;
           two([tcx - 0.2 * T.a + sx, chin + 0.3 * HH], [tcx + 0.45 * T.a + sx, torsoBot - 0.02 * HH], elbow(-1, 0.32), elbow(1, 0.38)); break;
@@ -950,6 +987,17 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     // 2.1 (references): props big enough to read on a phone; a newspaper covers half the body
     drawItem(p, it, mx, my + (lifted ? -10 * u : prop[0] === "write" ? 8 * u : prop[0] === "read" ? -14 * u : -6 * u), u * (lifted ? 2.1 : prop[0] === "read" ? 2.3 : 1.9));
     if (prop[0] === "write") { const [hx, hy] = R; p.band([[hx - 2 * u, hy - 2 * u], [hx - 12 * u, hy + 12 * u]], "#f2c230", 3 * u, 1 * u, "round"); }
+  }
+  if (Array.isArray(prop) && prop[0] === "aim" && arms.length === 2) {
+    const f = facing || 1, A0 = arms[0].pts[2], A1 = arms[1].pts[2], dx = A1[0] - A0[0], dy = A1[1] - A0[1], n = Math.hypot(dx, dy) || 1;
+    const butt: P2 = [A0[0] - (dx / n) * 26 * u, A0[1] - (dy / n) * 26 * u + 6 * u], tip: P2 = [A1[0] + (dx / n) * 46 * u, A1[1] + (dy / n) * 46 * u];
+    p.band([butt, [A1[0] + (dx / n) * 10 * u, A1[1] + (dy / n) * 10 * u]], "#7a4b2a", 7 * u, 1.6 * u, "round");
+    p.band([[A1[0], A1[1] - 2 * u], tip], "#8d949c", 3.2 * u, 1.2 * u, "round");
+    if ((prop[1] as number) > 0.85) {
+      // the shot: a flash at the muzzle and a puff of smoke
+      const [mx, my] = tip;
+      p.poly([[mx, my - 12 * u], [mx + f * 16 * u, my - 3 * u], [mx + f * 26 * u, my], [mx + f * 16 * u, my + 3 * u], [mx, my + 12 * u], [mx + f * 8 * u, my]], "#ffd24a", 1.6 * u);
+    }
   }
   if (Array.isArray(prop) && prop[0] === "press") {
     const [hx, hy] = arms[arms.length - 1].pts[2];
