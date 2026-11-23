@@ -91,7 +91,9 @@ class View {
       // it instead of disappearing behind it
       // 2.1: a shot that does not use the map's seat stands to one side of it, so an empty chair is never centre frame
       const seat = set.spots.sit, aside = !sp && seat && Math.abs(seat[0]) < 1.2 && Math.abs(seat[2]) < 1.6 ? (seat[0] >= 0 ? seat[0] - 1.5 : seat[0] + 1.5) : 0;
-      at = { m: sp ? [set.origin[0] + sp[0], set.origin[1], set.origin[2] + sp[2] - (name === "sit" ? set.front : act === "type" ? 0.05 : 0)] : [set.origin[0] + aside, set.origin[1], set.origin[2]], d: [0, -1] };
+      // 2.1: in a two-shot or a point shot the lead stands off centre: the anchor moves so the lead is the one at the spot
+      const leadR = s.kind === "two" ? -0.62 : s.kind === "point" ? 0.22 : 0;
+      at = { m: sp ? [set.origin[0] + sp[0] + leadR, set.origin[1], set.origin[2] + sp[2] - (name === "sit" ? set.front : act === "type" ? 0.05 : 0)] : [set.origin[0] + aside, set.origin[1], set.origin[2]], d: [0, -1] };
       // a high seat (a stool, a throne, a hay bale) lifts the seated drawing to it; its feet hang in front
       actY = sp && act === "sleep" ? sp[1] + 0.3 : sp && name === "sit" && (act === "sit" || act === "doze") ? Math.max(-0.15, sp[1] - 0.45) : 0;
     }
