@@ -10,7 +10,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 v = time.strftime('%Y%m%d%H%M')
 
 # Each tool lives in its own folder and shares the root vendor/ libraries.
-for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('board', None), ('clip', '../vendor'), ('editor', '../vendor')]:
+for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('board', None), ('clip', '../vendor'), ('editor', '../vendor'), ('studio', None)]:
     d = os.path.join(root, app)
     if not os.path.exists(os.path.join(d, 'index.html')):
         continue
@@ -29,6 +29,10 @@ for app, vendor in [('cartoon', '../vendor'), ('explainer', '../vendor'), ('boar
         entries.append(f'  "three": "../vendor/three/three.module.min.js?v={v}"')
         entries.append(f'  "three/addons/": "../vendor/three/addons/"')
         entries.append(f'  "three/examples/jsm/": "../vendor/three/addons/"')
+    if app == 'studio':
+        # Studio shares the Cartoons maps/actions and draws stickman references with the town's own drawing code.
+        for m in ['maps.js', 'c3d/toon2d.js']:
+            entries.append(f'  "../cartoon/js/{m}": "../cartoon/js/{m}?v={v}"')
     if app == 'cartoon':
         # The 3D cartoon town (js/c3d, built from tools/c3d-src) needs three.js; town.js plans its shots
         # with the 3D tab's shot planner.

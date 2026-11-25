@@ -1044,6 +1044,26 @@ window.addEventListener('message', (e) => {
 });
 
 // Loomy's top bar asks this before reloading a section after a sync.
+
+// Loomy Studio hands over an approved script (and, for Cartoons, the cast's locked designs): it loads in
+// "Use my script" mode; nothing starts until Make is pressed.
+let studioCast = null;
+function takeStudioHandoff() {
+  let h = null;
+  try { h = JSON.parse(sessionStorage.getItem('loomy.studio.handoff') || 'null'); } catch { h = null; }
+  if (!h || h.tool !== (new URLSearchParams(location.search).get('style') === 'blocky' ? 'blocky' : '3d') || Date.now() - (h.at || 0) > 10 * 60 * 1000) return;
+  try { sessionStorage.removeItem('loomy.studio.handoff'); } catch { /* private mode */ }
+  if ($('#viewHome')?.classList.contains('hidden') && !confirmLeave()) return;
+  showHome();
+  document.querySelector('.mode-seg button[data-mode="own"]')?.click();
+  $('#ownScript').value = String(h.text || '').slice(0, 20000);
+  $('#topic').value = String(h.title || '').slice(0, 200);
+  studioCast = Array.isArray(h.cast) && h.cast.length ? h.cast.slice(0, 4) : null;
+  toast(`Script from Studio loaded (${String(h.text || '').split(/\s+/).length} words${studioCast ? `, ${studioCast.length} characters` : ''}). Check it, then press the make button.`, false, 9000);
+}
+window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.loomy === 'studio') takeStudioHandoff(); });
+takeStudioHandoff();
+
 window.loomyBusy = () => running;
 // For tests: the open project's script (chapters, scenes).
 window.loomyScript = () => project?.script || null;

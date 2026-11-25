@@ -315,6 +315,24 @@ Tests: v20-maps, v20-budget (unit).
 - **HK1** `hookFx` in shared/hooks.js: flash, punch-in with shake, red circle and arrow in the first 2.1 s.
 Tests: v22-visuals (unit).
 
+## Loomy 2.3 / 2.4 (2026-11-23/25: phones, then Studio with three engines)
+
+- **P1** phones: index.html closes idle sections on a phone (busy ones stay: `window.loomyWorking` from
+  shared/busy.js, which also holds a screen wake lock), 16 px inputs (theme.css), 720p + light engine perf on phones.
+  tools/tests/phonecheck.cjs (emulated iPhone 13).
+- **ST1** `studio/` (new section "Studio", first tab): plain ES modules, no build step, data in localStorage
+  (`loomy.studio.v1`) + IndexedDB (voiceover audio), JSON backup/restore. Engines in studio/js/engines.js:
+  `stick` (renders in Cartoons), `blocky` (Blocky), `cinema` (3D); separate writer prompts, places, shots, moves,
+  lights, styles, editing advice. story.js (writer via /api/write, 3 hooks + transparent 5x5 rubric, addTurns),
+  scenes.js (narration cut in code; AI fills visuals per segment; local planner fallback; fixRepeats; prompts from
+  locked character sheets), actions.js (script-to-action: 31 verb families -> anticipation/action/reaction steps with
+  all fields), qc.js (scene-action coverage incl. what each renderer animates fully/approx/not), retention.js,
+  subs.js (SRT/VTT/ASS, karaoke from real word timings), voice.js (/api/speakall; ElevenLabs text), analytics.js
+  (manual + YouTube Studio CSV, learn() with sample sizes), zip.js. Hand-over: sessionStorage
+  `loomy.studio.handoff` + postMessage `studio-render` -> the tab loads "Use my script" (+ `studioCast` for Cartoons).
+  The brand names asked for (a block game, a 3D explainer channel) are not used, per the rules below.
+  Tests: tools/tests/studiocheck.cjs (one production per engine), unit v23-phone, v24-studio.
+
 ## Remaining work
 
 - Not checked from the sandbox: the live site itself (its host is blocked here) and a real 10-15 min

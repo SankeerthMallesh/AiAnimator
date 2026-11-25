@@ -1,12 +1,13 @@
 // The Loomy pill-tab header for a section page opened on its own (inside Loomy the main page shows
 // it already). Text labels on every tab; the current one is white; each tab opens Loomy on it.
-const TABS = [['cartoon', 'Cartoons', '/'], ['3d', '3D', '/#3d'], ['blocky', 'Blocky', '/#blocky'], ['clips', 'Clips', '/#clips'], ['edit', 'Edit', '/#edit'], ['board', 'Board', '/#board']];
+const TABS = [['studio', 'Studio', '/#studio'], ['cartoon', 'Cartoons', '/'], ['3d', '3D', '/#3d'], ['blocky', 'Blocky', '/#blocky'], ['clips', 'Clips', '/#clips'], ['edit', 'Edit', '/#edit'], ['board', 'Board', '/#board']];
 function current() {
   const p = location.pathname, style = new URLSearchParams(location.search).get('style');
   if (p.includes('/explainer')) return style === 'blocky' ? 'blocky' : '3d';
   if (p.includes('/clip')) return 'clips';
   if (p.includes('/editor')) return 'edit';
   if (p.includes('/board')) return 'board';
+  if (p.includes('/studio')) return 'studio';
   return 'cartoon';
 }
 function mount() {

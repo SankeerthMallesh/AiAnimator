@@ -964,6 +964,8 @@ export class Script {
       description: '',
       hashtags: ['#shorts'],
       scenes: lines.map(n => ({ line: n, bg: topic })),
+      // Loomy Studio: the cast's locked designs (name, colour, hat, hair, outfit, accessories)
+      ...(Array.isArray(options.studioCast) && options.studioCast.length ? { cast: options.studioCast } : {}),
     }, { ...options, topic });
   }
 

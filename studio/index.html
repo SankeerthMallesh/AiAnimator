@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>if (window.top !== window) document.documentElement.classList.add("embedded");</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loomy · Studio</title>
+<meta name="description" content="Loomy Studio: plan, write, cast, storyboard, voice, subtitle, check and render Shorts with three production engines.">
+<meta name="theme-color" content="#0a0a10">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23FF2D47'/%3E%3Ccircle cx='16' cy='11' r='4.5' fill='%23fff'/%3E%3Cpath d='M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/studio.css?v=202611250241">
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Studio">
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#FF2D47"/><circle cx="16" cy="11" r="4.5" fill="#fff"/><path d="M16 15.5v7M11 18.5h10M16 22.5l-3.5 5M16 22.5l3.5 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><div>Loomy<small>Studio</small></div></div>
+    <button class="nav" data-go="dash"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</button>
+    <button class="nav" data-go="script"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>Script<span class="n">1</span></button>
+    <button class="nav" data-go="cast"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M12 11v6M8 14h8M12 17l-3 4M12 17l3 4"/></svg>Characters<span class="n">2</span></button>
+    <button class="nav" data-go="scenes"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M8 5l-2 4M13 5l-2 4M18 5l-2 4"/></svg>Scenes &amp; actions<span class="n">3</span></button>
+    <button class="nav" data-go="voice"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Voice &amp; subtitles<span class="n">4</span></button>
+    <button class="nav" data-go="qc"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4-3.5 7-8 8-4.5-1-8-4-8-8V7z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Quality check<span class="n">5</span></button>
+    <button class="nav" data-go="render"><svg viewBox="0 0 24 24"><path d="M7 4l12 8-12 8z"/></svg>Preview &amp; render<span class="n">6</span></button>
+    <div class="sep"></div>
+    <button class="nav" data-go="retention"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Retention check</button>
+    <button class="nav" data-go="analytics"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Analytics</button>
+    <div class="proj" id="sideProj"></div>
+  </nav>
+  <main id="main" aria-live="polite"></main>
+</div>
+<input type="file" id="fileIn" hidden>
+<div id="toast" role="status" hidden></div>
+<script type="importmap">
+{"imports": {
+  "./js/actions.js": "./js/actions.js?v=202611250241",
+  "./js/ai.js": "./js/ai.js?v=202611250241",
+  "./js/analytics.js": "./js/analytics.js?v=202611250241",
+  "./js/app.js": "./js/app.js?v=202611250241",
+  "./js/engines.js": "./js/engines.js?v=202611250241",
+  "./js/qc.js": "./js/qc.js?v=202611250241",
+  "./js/retention.js": "./js/retention.js?v=202611250241",
+  "./js/scenes.js": "./js/scenes.js?v=202611250241",
+  "./js/store.js": "./js/store.js?v=202611250241",
+  "./js/story.js": "./js/story.js?v=202611250241",
+  "./js/subs.js": "./js/subs.js?v=202611250241",
+  "./js/util.js": "./js/util.js?v=202611250241",
+  "./js/voice.js": "./js/voice.js?v=202611250241",
+  "./js/zip.js": "./js/zip.js?v=202611250241",
+  "../cartoon/js/maps.js": "../cartoon/js/maps.js?v=202611250241",
+  "../cartoon/js/c3d/toon2d.js": "../cartoon/js/c3d/toon2d.js?v=202611250241",
+  "../shared/budget.js": "../shared/budget.js?v=202611250241",
+  "../shared/busy.js": "../shared/busy.js?v=202611250241",
+  "../shared/cuts.js": "../shared/cuts.js?v=202611250241",
+  "../shared/cutter.js": "../shared/cutter.js?v=202611250241",
+  "../shared/encode.js": "../shared/encode.js?v=202611250241",
+  "../shared/explain.js": "../shared/explain.js?v=202611250241",
+  "../shared/feedback.js": "../shared/feedback.js?v=202611250241",
+  "../shared/feedbackui.js": "../shared/feedbackui.js?v=202611250241",
+  "../shared/filmsound.js": "../shared/filmsound.js?v=202611250241",
+  "../shared/glare.js": "../shared/glare.js?v=202611250241",
+  "../shared/handoff.js": "../shared/handoff.js?v=202611250241",
+  "../shared/hooks.js": "../shared/hooks.js?v=202611250241",
+  "../shared/ideabox.js": "../shared/ideabox.js?v=202611250241",
+  "../shared/ideas.js": "../shared/ideas.js?v=202611250241",
+  "../shared/level.js": "../shared/level.js?v=202611250241",
+  "../shared/mp4read.js": "../shared/mp4read.js?v=202611250241",
+  "../shared/renderlog.js": "../shared/renderlog.js?v=202611250241",
+  "../shared/speech.js": "../shared/speech.js?v=202611250241",
+  "../shared/thumbnail.js": "../shared/thumbnail.js?v=202611250241",
+  "../shared/topbar.js": "../shared/topbar.js?v=202611250241",
+  "../shared/townideas.js": "../shared/townideas.js?v=202611250241",
+  "../shared/turns.js": "../shared/turns.js?v=202611250241",
+  "../shared/upload.js": "../shared/upload.js?v=202611250241",
+  "../shared/voicechars.js": "../shared/voicechars.js?v=202611250241",
+  "../shared/voicefx.js": "../shared/voicefx.js?v=202611250241",
+  "../shared/yieldtask.js": "../shared/yieldtask.js?v=202611250241"
+}}
+</script>
+<script type="module" src="../shared/topbar.js?v=202611250241"></script>
+<script type="module" src="./js/app.js?v=202611250241"></script>
+</body>
+</html>
